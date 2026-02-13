@@ -1,5 +1,101 @@
-<div class="supervisor-dashboard">
-  <h1>Supervisor Dashboard</h1>
-  <p>Bienvenido, supervisor.</p>
-  <a routerLink="/login">Cerrar sesión</a>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand">
+      <img class="logo" src="/logoDulces.png" alt="Dulces y Ducles logo" />
+      <div class="brand-info">
+        <div class="company">Dulces y Ducles</div>
+        <div class="name">{{supervisor.name}}</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a class="nav-item active">Dashboard</a>
+      <a class="nav-item">Mis Vendedores</a>
+    </nav>
+
+    <a class="logout" routerLink="/login">Cerrar sesión</a>
+  </aside>
+
+  <main class="content">
+    <header class="header">
+      <h1>Dashboard Supervisor</h1>
+      <p class="subtitle">Monitoreo y análisis de tu equipo de vendedores</p>
+    </header>
+
+    <section class="cards">
+      <div class="card small">
+        <div class="card-title">Vendedores Activos</div>
+        <div class="card-value">{{stats.activeSellers}}</div>
+        <div class="card-meta">En tu equipo</div>
+      </div>
+
+      <div class="card small">
+        <div class="card-title">Ventas Netas del Equipo</div>
+        <div class="card-value money">${{stats.teamNetSales | number}}</div>
+        <div class="card-meta">Febrero 2026</div>
+      </div>
+
+      <div class="card small">
+        <div class="card-title">Devoluciones del Equipo</div>
+        <div class="card-value money red">${{stats.returns | number}}</div>
+        <div class="card-meta">Total del mes</div>
+      </div>
+    </section>
+
+    <section class="profiles">
+      <div class="profile-card winner">
+        <div class="card-header">Mejor Vendedor del Mes</div>
+        <h2>{{topSeller.name}}</h2>
+        <div class="email">{{topSeller.email}}</div>
+
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-label">Venta Neta</div>
+            <div class="metric-value money">${{topSeller.net | number}}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">% Devoluciones</div>
+            <div class="metric-value">{{topSeller.returnsPercent}}%</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">% Cumplimiento</div>
+            <div class="metric-value">{{topSeller.compliance}}%</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Clientes</div>
+            <div class="metric-value">{{topSeller.clients}}</div>
+          </div>
+        </div>
+
+        <button class="btn primary" (click)="viewDetail(topSeller)">Ver Detalle</button>
+      </div>
+
+      <div class="profile-card worst">
+        <div class="card-header">Vendedor con Menor Desempeño</div>
+        <h2>{{worstSeller.name}}</h2>
+        <div class="email">{{worstSeller.email}}</div>
+
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-label">Venta Neta</div>
+            <div class="metric-value money red">${{worstSeller.net | number}}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">% Devoluciones</div>
+            <div class="metric-value red">{{worstSeller.returnsPercent}}%</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">% Cumplimiento</div>
+            <div class="metric-value">{{worstSeller.compliance}}%</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Clientes</div>
+            <div class="metric-value">{{worstSeller.clients}}</div>
+          </div>
+        </div>
+
+        <button class="btn" (click)="viewDetail(worstSeller)">Ver Detalle</button>
+      </div>
+    </section>
+  </main>
 </div>
