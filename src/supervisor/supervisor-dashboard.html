@@ -9,14 +9,16 @@
     </div>
 
     <nav class="nav">
-      <a class="nav-item active">Dashboard</a>
+      <a class="nav-item" [class.active]="currentView === 'dashboard'" (click)="switchView('dashboard')">Dashboard</a>
       <a class="nav-item">Mis Vendedores</a>
+      <a class="nav-item" [class.active]="currentView === 'upload'" (click)="switchView('upload')">Cargar archivos</a>
     </nav>
 
     <a class="logout" routerLink="/login">Cerrar sesión</a>
   </aside>
 
   <main class="content">
+    <div *ngIf="currentView === 'dashboard'" class="dashboard-view">
     <header class="header">
       <h1>Dashboard Supervisor</h1>
       <p class="subtitle">Monitoreo y análisis de tu equipo de vendedores</p>
@@ -97,5 +99,52 @@
         <button class="btn" (click)="viewDetail(worstSeller)">Ver Detalle</button>
       </div>
     </section>
+    </div>
+
+    <div *ngIf="currentView === 'upload'" class="upload-view">
+      <header class="header">
+        <h1>Carga de Archivos</h1>
+        <p class="subtitle">Sube y procesa archivos de texto (TXT) o planos (CSV)</p>
+      </header>
+
+      <div class="card" style="margin-top: 2rem; padding: 2rem;">
+        <h3 style="margin-top: 0;">Subir archivo de datos</h3>
+        <p style="color: #666; margin-bottom: 1.5rem;">Selecciona el archivo TXT o CSV para cargar al sistema.</p>
+        
+        <div style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
+          <input type="file" #fileInput (change)="onFileSelected($event)" accept=".csv, .txt" style="display: none">
+          
+          <button type="button" class="btn" (click)="fileInput.click()" style="background: #edf2f7; color: #2d3748; border: 1px solid #cbd5e0;">
+            📂 Seleccionar Archivo
+          </button>
+          
+          <div style="flex: 1;">
+            <span *ngIf="selectedFile" style="display: block; font-weight: 500; color: #2b6cb0;">{{selectedFile.name}}</span>
+            <span *ngIf="!selectedFile" style="display: block; color: #a0aec0; font-style: italic;">Ningún archivo seleccionado</span>
+          </div>
+        </div>
+        
+        <button class="btn primary" (click)="processFile()" [disabled]="!selectedFile">Procesar Archivo</button>
+      </div>
+
+      <div *ngIf="csvData.length > 0" class="card" style="margin-top: 2rem; padding: 2rem;">
+        <h3>Vista Previa ({{csvData.length}} registros)</h3>
+        <div style="overflow-x: auto; margin-top: 1rem;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                <thead>
+                    <tr style="background: #f8f9fa; text-align: left;">
+                        <th *ngFor="let header of csvHeaders" style="padding: 12px; border-bottom: 2px solid #eee;">{{header}}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let row of csvData.slice(0, 5)" style="border-bottom: 1px solid #eee;">
+                        <td *ngFor="let header of csvHeaders" style="padding: 12px;">{{row[header]}}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p *ngIf="csvData.length > 5" style="margin-top: 1rem; color: #888;">Mostrando 5 de {{csvData.length}} filas...</p>
+        </div>
+      </div>
+    </div>
   </main>
 </div>
