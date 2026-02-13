@@ -1,0 +1,57 @@
+.layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+  font-family: Inter, Arial, sans-serif;
+  background: #f5f7f9;
+}
+.sidebar {
+  background: #003e7a;
+  color: #fff;
+  padding: 24px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.brand { display:flex; flex-direction:column; gap:12px; align-items:center; text-align:center; margin-bottom:24px }
+.logo { width:180px; height:64px; object-fit:contain; border-radius:6px }
+.brand-info .company { font-weight:700; font-size:18px }
+.brand-info .name { font-size:14px; margin-top:4px }
+.nav { margin-top:24px; display:flex; flex-direction:column; gap:12px }
+.nav-item { color:#cfe6ff; padding:12px 16px; border-radius:8px; display:block; font-weight:500; text-align:center; cursor:pointer }
+.nav-item.active { background:#0b4f86; color:#fff }
+.logout { color:#073b71; background:#fff; padding:10px 14px; border-radius:10px; text-align:center; display:block; margin-top:24px }
+
+.content { padding:28px 36px }
+.header h1 { margin:0; font-size:32px }
+.subtitle { margin:6px 0 18px; color:#6b7280 }
+
+.cards { display:flex; gap:18px; margin-bottom:22px }
+.card { background:#fff; padding:18px; border-radius:12px; box-shadow:0 1px 0 rgba(0,0,0,0.04); flex:1 }
+.card.small { max-width:320px }
+.card-title { color:#374151; font-weight:600 }
+.card-value { font-size:22px; font-weight:700; margin-top:8px }
+.card-meta { color:#9ca3af; margin-top:6px }
+.money { color:#10b981 }
+.money.red { color:#ef4444 }
+
+.profiles { display:grid; grid-template-columns:1fr 1fr; gap:18px }
+.profile-card { background:#fff; padding:20px; border-radius:12px; box-shadow:0 1px 0 rgba(0,0,0,0.04) }
+.profile-card.winner { border:1px solid #e6f6ec; background:#f4fff6 }
+.profile-card.worst { border:1px solid #fff1eb; background:#fff8f4 }
+.card-header { font-weight:700; color:#065f46; margin-bottom:8px }
+.profile-card h2 { margin:6px 0 4px }
+.email { color:#6b7280; margin-bottom:10px }
+.metrics { display:flex; gap:12px; flex-wrap:wrap }
+.metric { min-width:140px }
+.metric-label { color:#6b7280; font-size:12px }
+.metric-value { font-weight:700; margin-top:6px }
+.btn { margin-top:14px; padding:10px 14px; border-radius:8px; background:#fff; border:1px solid #e5e7eb; cursor:pointer }
+.btn.primary { background:#0b4f86; color:#fff; border:none }
+
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr}
+  .sidebar{flex-direction:row; gap:12px}
+  .profiles{grid-template-columns:1fr}
+  .cards{flex-direction:column}
+}
