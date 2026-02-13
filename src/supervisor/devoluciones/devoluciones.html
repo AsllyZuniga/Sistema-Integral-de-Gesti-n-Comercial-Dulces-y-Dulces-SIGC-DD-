@@ -1,0 +1,30 @@
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand">
+      <img class="logo" src="/logoDulces.png" alt="Dulces y Ducles logo" />
+      <div class="brand-info">
+        <div class="company">Dulces y Ducles</div>
+        <div class="name">{{supervisor.name}}</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a class="nav-item" routerLink="/supervisor">Dashboard</a>
+      <a class="nav-item" routerLink="/supervisor/ventas">Ventas</a>
+      <a class="nav-item active">Devoluciones</a>
+      <a class="nav-item" routerLink="/supervisor/impactos">Impactos</a>
+      <a class="nav-item" routerLink="/supervisor/historicos">Históricos</a>
+      <a class="nav-item" routerLink="/supervisor/agotados">Agotados</a>
+    </nav>
+
+    <a class="logout" routerLink="/login">Cerrar sesión</a>
+  </aside>
+
+  <main class="content">
+    <header class="header">
+      <h1>Devoluciones</h1>
+      <p class="subtitle">Análisis de devoluciones de tu equipo</p>
+    </header>
+    <p>Contenido de Devoluciones</p>
+  </main>
+</div>
