@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, ActivatedRoute } from '@angular/router';
 
 @Component({
   selector: 'app-supervisor-dashboard',
@@ -34,8 +34,17 @@ export class SupervisorDashboardComponent implements OnInit {
   csvData: any[] = [];
   csvHeaders: string[] = [];
 
-  constructor() {}
-  ngOnInit() {}
+  constructor(private route: ActivatedRoute) {}
+
+  ngOnInit() {
+    this.route.queryParams.subscribe((params) => {
+      if (params['view'] === 'upload') {
+        this.currentView = 'upload';
+      } else {
+        this.currentView = 'dashboard';
+      }
+    });
+  }
 
   switchView(view: 'dashboard' | 'upload') {
     this.currentView = view;

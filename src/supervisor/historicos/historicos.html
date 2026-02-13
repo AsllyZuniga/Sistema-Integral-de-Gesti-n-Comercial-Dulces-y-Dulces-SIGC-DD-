@@ -9,12 +9,13 @@
     </div>
 
     <nav class="nav">
-      <a class="nav-item" routerLink="/supervisor">Dashboard</a>
+      <a class="nav-item" routerLink="/supervisor" [queryParams]="{view: 'dashboard'}">Dashboard</a>
       <a class="nav-item" routerLink="/supervisor/ventas">Ventas</a>
       <a class="nav-item" routerLink="/supervisor/devoluciones">Devoluciones</a>
       <a class="nav-item" routerLink="/supervisor/impactos">Impactos</a>
       <a class="nav-item active">Históricos</a>
       <a class="nav-item" routerLink="/supervisor/agotados">Agotados</a>
+      <a class="nav-item" routerLink="/supervisor" [queryParams]="{view: 'upload'}">Cargar archivos</a>
     </nav>
 
     <a class="logout" routerLink="/login">Cerrar sesión</a>
