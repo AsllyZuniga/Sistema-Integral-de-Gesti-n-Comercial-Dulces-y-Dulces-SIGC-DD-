@@ -14,7 +14,7 @@
   justify-content: space-between;
 }
 .brand { display:flex; flex-direction:column; gap:12px; align-items:center; text-align:center; margin-bottom:24px }
-.logo { width:64px; height:64px; object-fit:contain; border-radius:6px }
+.logo { width:180px; height:64px; object-fit:contain; border-radius:6px }
 .brand-info .company { font-weight:700; font-size:18px }
 .brand-info .name { font-size:14px; margin-top:4px }
 .nav { margin-top:24px; display:flex; flex-direction:column; gap:12px }
