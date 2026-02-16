@@ -214,6 +214,8 @@ export class SupervisorDashboardComponent implements OnInit, AfterContentInit {
   selectedFile: File | null = null;
   csvData: any[] = [];
   csvHeaders: string[] = [];
+  csvTotalRow: any | null = null;
+  csvTotalRow: any | null = null;
 
   constructor(private route: ActivatedRoute) {}
 
@@ -240,11 +242,41 @@ export class SupervisorDashboardComponent implements OnInit, AfterContentInit {
 
   processFile() {
     if (!this.selectedFile) return;
+    this.csvTotalRow = null; // Reset total row
 
     const reader = new FileReader();
     reader.onload = (e: any) => {
       const text = e.target.result;
       this.csvData = this.parseData(text);
+
+      // Check for and extract total row
+      if (this.csvData.length > 0) {
+        const lastRow = this.csvData[this.csvData.length - 1];
+        const firstColumnKey = this.csvHeaders[0];
+        if (
+          lastRow &&
+          lastRow[firstColumnKey] &&
+          lastRow[firstColumnKey].toLowerCase().includes('total')
+        ) {
+          this.csvTotalRow = this.csvData.pop();
+          console.log('Gran total extraído:', this.csvTotalRow);
+          console.log('Headers:', this.csvHeaders);
+        }
+      }
+
+      console.log('Datos procesados:', this.csvData.length, 'filas');
+      console.log('Primera fila:', this.csvData[0]);
+      alert('Archivo procesado con éxito. ' + this.csvData.length + ' filas encontradas.');
+    };
+    // Use ISO-8859-1 to correctly handle accents and 'ñ'
+    reader.readAsText(this.selectedFile, 'ISO-8859-1');
+  }
+
+  parseData(text: string): any[] {
+    this.csvTotalRow = null;
+    const lines = text.split('\n');
+      }
+
       console.log('Datos procesados:', this.csvData);
       alert('Archivo procesado con éxito. ' + this.csvData.length + ' filas encontradas.');
     };
@@ -253,6 +285,7 @@ export class SupervisorDashboardComponent implements OnInit, AfterContentInit {
   }
 
   parseData(text: string): any[] {
+    this.csvTotalRow = null;
     const lines = text.split('\n');
     if (lines.length === 0) return [];
 

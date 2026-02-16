@@ -189,18 +189,23 @@
           </table>
         </div>
       </div>
-    </section>
 
-    <section style="margin-top:18px;">
-      <div class="card">
-        <div class="card-title">Ventas Históricas por Categoría</div>
-        <div style="margin-top:8px; overflow:auto;">
-          <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
-            <thead><tr style="background:#f8f9fa;"><th>Mes</th><th *ngFor="let c of filteredHistoricalByCategory.data">{{c.cat}}</th></tr></thead>
-            <tbody>
-              <tr *ngFor="let i of filteredHistoricalByCategory.months; let idx = index" style="border-bottom:1px solid #eee;"><td style="padding:8px">{{i}}</td><td *ngFor="let c of filteredHistoricalByCategory.data">{{c.values[idx]}}</td></tr>
-            </tbody>
-          </table>
+      <div *ngIf="csvData.length > 0" class="card" style="margin-top: 2rem; padding: 2rem;">
+        <h3>Vista Previa ({{csvData.length}} registros)</h3>
+        <div style="overflow-x: auto; margin-top: 1rem;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                <thead>
+                    <tr style="background: #f8f9fa; text-align: left;">
+                        <th *ngFor="let header of csvHeaders" style="padding: 12px; border-bottom: 2px solid #eee;">{{header}}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let row of csvData.slice(0, 5)" style="border-bottom: 1px solid #eee;">
+                        <td *ngFor="let header of csvHeaders" style="padding: 12px;">{{row[header]}}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p *ngIf="csvData.length > 5" style="margin-top: 1rem; color: #888;">Mostrando 5 de {{csvData.length}} filas...</p>
         </div>
       </div>
     </section>
