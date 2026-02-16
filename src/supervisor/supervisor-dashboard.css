@@ -1,1 +1,174 @@
 @import './supervisor-shared.css';
+
+:root {
+  --primary-blue: #0b4f86;
+  --primary-blue-600: #0b5fa0;
+  --muted: #6b7280;
+  --bg: #f5f7f9;
+  --card-bg: #ffffff;
+}
+
+/* Filter bar */
+.filter-bar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  background: var(--card-bg);
+  padding: 16px;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(11, 79, 134, 0.06);
+  margin-bottom: 18px;
+}
+.filter-bar {
+  position: relative;
+}
+.filter-bar .left {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+.filter-bar .right {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.btn.export {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 14px;
+  background: #fff;
+  color: #073b71;
+  border-radius: 8px;
+  border: 1px solid #073b71;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(7, 59, 113, 0.08);
+}
+
+.btn.export svg {
+  opacity: 0.95;
+}
+
+.date-range label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.date-range .date-inputs {
+  display: flex;
+  gap: 10px;
+}
+.date-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #e6eef6;
+  min-width: 160px;
+}
+.date-field .icon {
+  width: 18px;
+  height: 18px;
+}
+.date-field input {
+  border: none;
+  outline: none;
+  font-size: 14px;
+  color: #0f172a;
+  background: transparent;
+}
+.date-range .hint {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-top: 6px;
+}
+
+.selects {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.select-field {
+  display: flex;
+  flex-direction: column;
+}
+.select-field label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.select-field select {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #e6eef6;
+  background: #fff;
+}
+
+.btn.primary.apply {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: #fff;
+  color: #073b71;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid #073b71;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(7, 59, 113, 0.08);
+}
+
+
+/* Card header and table refinements */
+.card .card-title {
+  font-size: 14px;
+  color: #0b4f86;
+  font-weight: 700;
+}
+.card {
+  background: var(--card-bg);
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(11, 79, 134, 0.04);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+table thead tr {
+  background: #f8fafc;
+}
+table th,
+table td {
+  padding: 10px 8px;
+  text-align: left;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+/* Responsive tweaks */
+@media (max-width: 1024px) {
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filter-bar .right {
+    margin-left: 0;
+    justify-content: space-between;
+  }
+  .selects {
+    flex-wrap: wrap;
+  }
+}
+
+/* ensure filter-bar scrolls away with content and doesn't clip on tall pages */
+.content {
+  position: relative;
+}
+.filter-bar {
+  width: 100%;
+  box-sizing: border-box;
+}

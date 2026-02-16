@@ -1,9 +1,14 @@
 /* Shared supervisor styles (canonical responsive CSS) */
+:root{
+  --primary-blue: #0b4f86;
+  --muted: #6b7280;
+  --card-bg: #ffffff;
+}
 .layout {
   display: grid;
   grid-template-columns: 260px 1fr;
   min-height: 100vh;
-  font-family: Inter, Arial, sans-serif;
+  font-family: 'Poppins', Inter, Arial, sans-serif;
   background: #f5f7f9;
 }
 .sidebar {
@@ -61,20 +66,19 @@
   background: #0b4f86;
   color: #fff;
 }
-.logout {
-  color: #073b71;
-  background: #fff;
-  padding: 10px 14px;
-  border-radius: 10px;
-  text-align: center;
-  display: block;
-  margin-top: 24px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-.logout:hover {
-  background: #e8e8e8;
-}
+.logout-wrapper{ margin-top: 24px }
+.logout-toggle{ display:none }
+.logout-btn{ display:block; color:#073b71; background:#fff; padding:10px 14px; border-radius:10px; text-align:center; cursor:pointer; transition:background-color .2s ease; border:none }
+.logout-btn:hover{ background:#f1f5f9 }
+.logout-panel{ display:none; margin-top:8px; background:#fff; padding:12px; border-radius:10px; box-shadow:0 6px 18px rgba(11,79,134,0.06) }
+.logout-panel a{ display:inline-block; padding:8px 12px; border-radius:8px; background:var(--primary-blue); color:#fff; text-decoration:none }
+.logout-panel .cancel{ margin-left:8px; padding:8px 12px; border-radius:8px; background:#f3f4f6; color:#0b4f86; border:none }
+.logout-toggle:checked + .logout-btn + .logout-panel{ display:block }
+
+/* Buttons */
+.btn{ margin-top: 14px; padding: 10px 14px; border-radius: 8px; background: #fff; border: 1px solid #e5e7eb; cursor: pointer; color: #0b4f86; font-weight:600 }
+.btn.primary{ background: var(--primary-blue); color: #fff; border: none }
+.btn.export{ background: var(--primary-blue); color:#fff; border:none }
 
 .content {
   padding: 28px 36px;

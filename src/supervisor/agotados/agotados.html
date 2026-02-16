@@ -18,7 +18,14 @@
       <a class="nav-item" routerLink="/supervisor" [queryParams]="{view: 'upload'}">Cargar archivos</a>
     </nav>
 
-    <a class="logout" routerLink="/login">Cerrar sesión</a>
+    <div class="logout-wrapper">
+      <input id="logout-toggle-ag" class="logout-toggle" type="checkbox" />
+      <label class="logout-btn" for="logout-toggle-ag">Cerrar sesión</label>
+      <div class="logout-panel">
+        <a routerLink="/login">Salir ahora</a>
+        <button class="cancel" onclick="document.getElementById('logout-toggle-ag').checked=false">Cancelar</button>
+      </div>
+    </div>
   </aside>
 
   <main class="content">
@@ -26,6 +33,20 @@
       <h1>Agotados</h1>
       <p class="subtitle">Listado de productos agotados</p>
     </header>
-    <p>Contenido de Agotados</p>
+    <div class="card">
+      <div class="card-title">Nivel de Servicio - Agotados por Vendedor</div>
+      <table style="width:100%; margin-top:8px; border-collapse:collapse;">
+        <thead><tr style="background:#f8f9fa;"><th>Cód</th><th>Vendedor</th><th>Valor Venta</th><th>Valor Agotados</th><th>% Nivel Servicio</th></tr></thead>
+        <tbody>
+          <tr><td>V001</td><td>Juan Pérez</td><td>$32.5M</td><td>$1.6M</td><td>95.0%</td></tr>
+          <tr><td>V002</td><td>María García</td><td>$35.2M</td><td>$1.4M</td><td>96.0%</td></tr>
+          <tr><td>V003</td><td>Carlos López</td><td>$31.2M</td><td>$1.9M</td><td>94.0%</td></tr>
+          <tr><td>V004</td><td>Ana Martínez</td><td>$29.5M</td><td>$1.8M</td><td>94.0%</td></tr>
+          <tr><td>V005</td><td>Pedro Sánchez</td><td>$27.0M</td><td>$2.2M</td><td>92.0%</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:12px;"><a class="btn" routerLink="/supervisor">Ver Dashboard Ejecutivo</a></div>
   </main>
 </div>
