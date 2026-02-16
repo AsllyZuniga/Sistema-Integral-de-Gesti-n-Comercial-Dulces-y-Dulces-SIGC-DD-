@@ -200,9 +200,16 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr *ngFor="let row of csvData.slice(0, 5)" style="border-bottom: 1px solid #eee;">
-                        <td *ngFor="let header of csvHeaders" style="padding: 12px;">{{row[header]}}</td>
-                    </tr>
+                    <ng-container *ngFor="let row of csvData.slice(0, 5)">
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td *ngFor="let header of csvHeaders" style="padding: 12px;">{{row[header]}}</td>
+                        </tr>
+                    </ng-container>
+                    <ng-container *ngIf="csvTotalRow">
+                        <tr style="background: #e2e8f0; font-weight: bold; border-top: 2px solid #cbd5e0;">
+                            <td *ngFor="let header of csvHeaders" style="padding: 12px;">{{csvTotalRow[header]}}</td>
+                        </tr>
+                    </ng-container>
                 </tbody>
             </table>
             <p *ngIf="csvData.length > 5" style="margin-top: 1rem; color: #888;">Mostrando 5 de {{csvData.length}} filas...</p>
