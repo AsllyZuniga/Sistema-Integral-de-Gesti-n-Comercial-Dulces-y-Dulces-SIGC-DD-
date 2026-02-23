@@ -27,6 +27,128 @@ export class DashboardComponent {
 
   vendedor: any;
 
+  constructor(
+    private authService: AuthService,
+    private router: Router
+  ) {
+    this.vendedor = this.authService.getVendedor();
+  }
+
+  /* ================= SIDEBAR ================= */
+
+  isSidebarCollapsed = false;
+  isMobileMenuOpen: boolean = false;
+
+  onToggleSidebar(collapsed: boolean) {
+    this.isSidebarCollapsed = collapsed;
+  }
+
+  logout() {
+    this.authService.logout();
+    this.router.navigate(['/login']);
+  }
+
+  /* ================= VENTAS ================= */
+
+  activeVentasView = 'ventas';
+
+  ventasViews = [
+    { key: 'ventas', label: 'Ventas' },
+    { key: 'proveedor', label: 'Por Proveedor' },
+    { key: 'ciudad', label: 'Por Ciudad' },
+    { key: 'vendedor', label: 'Por Vendedor' },
+    { key: 'item', label: 'Detalle por Item' },
+    { key: 'cliente', label: 'Cliente Detallado' }
+  ];
+
+  setVentasView(view: string) {
+    this.activeVentasView = view;
+  }
+
+  /* ================= IMPACTOS ================= */
+
+  activeImpactosView = 'impactos';
+
+  impactosViews = [
+    { key: 'impactos', label: 'Impactos' },
+    { key: 'proveedor', label: 'Por Proveedor' },
+    { key: 'ciudad', label: 'Por Ciudad' },
+    { key: 'item', label: 'Por Item' }
+  ];
+
+  setImpactosView(view: string) {
+    this.activeImpactosView = view;
+  }
+
+  /* ================= DEVOLUCIONES ================= */
+
+  devolucionesViews = [
+    { key: 'cliente', label: 'Por Cliente' }
+  ];
+
+  activeDevolucionView = 'cliente';
+
+  setDevolucionView(key: string) {
+    this.activeDevolucionView = key;
+  }
+
+  devolucionesClientes = [
+    {
+      cliente: 'Tienda Norte',
+      total: 50000,
+      abierto: false,
+      detalle: [
+        { producto: 'Leche Entera', cantidad: 5, motivo: 'Vencido' },
+        { producto: 'Galletas Oreo', cantidad: 3, motivo: 'Empaque Dañado' }
+      ]
+    },
+    {
+      cliente: 'MiniMarket Centro',
+      total: 32000,
+      abierto: false,
+      detalle: [
+        { producto: 'Yogurt Fresa', cantidad: 4, motivo: 'Mal estado' }
+      ]
+    }
+  ];
+
+  toggleDevolucion(cliente: any) {
+    cliente.abierto = !cliente.abierto;
+  }
+
+  /* ================= NIVEL SERVICIO ================= */
+
+  nivelServicioViews = [
+    { key: 'agotados', label: 'Agotados por Proveedor' }
+  ];
+
+  activeNivelView = 'agotados';
+
+  setNivelView(key: string) {
+    this.activeNivelView = key;
+  }
+
+  agotadosProveedor = [
+    {
+      proveedor: 'Nestle',
+      productos: ['Leche Entera', 'Café Nescafé']
+    },
+    {
+      proveedor: 'Mondelez',
+      productos: ['Oreo Vainilla', 'Chips Ahoy']
+    }
+  ];
+
+  /* ================= HISTÓRICO ================= */
+
+  historicoFiltro = '2m';
+
+  setHistoricoFiltro(valor: string) {
+    this.historicoFiltro = valor;
+  }
+
+  /* ================= TABLA ================= */
+
   tableColumns = ['Cliente', 'Proveedor', 'Total'];
 
   tableData = [
@@ -34,24 +156,4 @@ export class DashboardComponent {
     { Cliente: 'MiniMarket Centro', Proveedor: 'Mondelez', Total: 85000 }
   ];
 
-  constructor(
-    private authService: AuthService,
-    private router: Router
-  ) {
-    this.vendedor = this.authService.getVendedor();
-  }
-  isSidebarCollapsed = false;
-  isMobileSidebarOpen = false;
-
-onToggleSidebar(collapsed: boolean) {
-  this.isSidebarCollapsed = collapsed;
-}
-toggleMobileSidebar() {
-    this.isMobileSidebarOpen = !this.isMobileSidebarOpen;
-  }
-
-  logout() {
-    this.authService.logout();
-    this.router.navigate(['/login']);
-  }
 }
