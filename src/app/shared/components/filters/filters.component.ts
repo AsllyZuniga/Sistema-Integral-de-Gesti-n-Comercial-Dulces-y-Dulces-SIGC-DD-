@@ -16,11 +16,9 @@ export interface DashboardFilters {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './filters.component.html',
-  styleUrls: ['./filters.component.css']
+  styleUrls: ['./filters.component.css'],
 })
 export class FiltersComponent {
-
-  // 🔥 Datos vienen del backend (desde el padre)
   @Input() vendedores: string[] = [];
   @Input() proveedores: string[] = [];
   @Input() categorias: string[] = [];
@@ -28,7 +26,6 @@ export class FiltersComponent {
 
   @Output() apply = new EventEmitter<DashboardFilters>();
 
-  // Controla si los filtros están visibles en celular
   isFiltrosOpen: boolean = false;
 
   filtros: DashboardFilters = {
@@ -37,7 +34,7 @@ export class FiltersComponent {
     vendedor: '',
     proveedor: '',
     categoria: '',
-    ciudad: ''
+    ciudad: '',
   };
 
   toggleFiltros() {
@@ -45,7 +42,6 @@ export class FiltersComponent {
   }
 
   aplicar() {
-    // Cerramos el panel automáticamente en celular al aplicar
     this.isFiltrosOpen = false;
     this.apply.emit(this.filtros);
   }
