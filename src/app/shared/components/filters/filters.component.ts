@@ -28,6 +28,9 @@ export class FiltersComponent {
 
   @Output() apply = new EventEmitter<DashboardFilters>();
 
+  // Controla si los filtros están visibles en celular
+  isFiltrosOpen: boolean = false;
+
   filtros: DashboardFilters = {
     fechaInicio: '',
     fechaFin: '',
@@ -37,7 +40,13 @@ export class FiltersComponent {
     ciudad: ''
   };
 
+  toggleFiltros() {
+    this.isFiltrosOpen = !this.isFiltrosOpen;
+  }
+
   aplicar() {
+    // Cerramos el panel automáticamente en celular al aplicar
+    this.isFiltrosOpen = false;
     this.apply.emit(this.filtros);
   }
 }
