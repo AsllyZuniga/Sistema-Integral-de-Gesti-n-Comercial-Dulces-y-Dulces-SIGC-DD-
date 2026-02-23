@@ -1,0 +1,22 @@
+.card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  transition: .3s;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+}
+
+.title {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+h2 {
+  margin-top: 10px;
+  font-size: 24px;
+  color: #111827;
+}

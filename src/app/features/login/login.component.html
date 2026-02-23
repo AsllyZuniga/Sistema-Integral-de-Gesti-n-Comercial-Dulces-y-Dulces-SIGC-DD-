@@ -3,35 +3,24 @@
     <div class="login-header">
       <img src="/logoDulces.png" alt="Logo Dulces y Dulces" class="logo-img" />
       <h1 class="app-title">Sistema de Control de Ventas</h1>
-      <p class="app-subtitle">Ingrese sus credenciales para acceder</p>
+      <p class="app-subtitle">Ingrese su código para acceder</p>
     </div>
 
     <div class="login-card">
       <h2 class="form-title">Iniciar Sesión</h2>
 
       <div class="alert alert-error" *ngIf="is_error">
-        <span>⚠️ Usuario o contraseña no válidos</span>
+        <span>⚠️ Código no válido</span>
       </div>
 
       <div class="form-group">
-        <label for="usuario">Usuario</label>
+        <label for="codigo">Código del Vendedor</label>
         <input
-          id="usuario"
-          [(ngModel)]="user.usr"
+          id="codigo"
+          [(ngModel)]="user.codigo"
           type="text"
           class="form-input"
-          placeholder="Ingrese su usuario"
-        />
-      </div>
-
-      <div class="form-group">
-        <label for="contraseña">Contraseña</label>
-        <input
-          id="contraseña"
-          [(ngModel)]="user.pass"
-          type="password"
-          class="form-input"
-          placeholder="Ingrese su contraseña"
+          placeholder="Ingrese su código"
         />
       </div>
 

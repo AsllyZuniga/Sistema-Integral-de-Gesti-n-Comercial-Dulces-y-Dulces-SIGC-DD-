@@ -1,0 +1,61 @@
+<div class="layout">
+  <!-- SIDEBAR -->
+  <app-sidebar (toggle)="onToggleSidebar($event)"></app-sidebar>
+
+  <!-- MAIN -->
+  <div class="main" [class.expanded]="isSidebarCollapsed">
+    <header class="topbar">
+      <div>
+        <h1>Dashboard Vendedor</h1>
+        <span class="welcome"> Bienvenido, {{ vendedor?.nombre }} </span>
+      </div>
+
+      <button class="logout-btn" (click)="logout()">Cerrar sesión</button>
+    </header>
+    <!-- FILTERS -->
+    <section class="filters">
+      <app-filters></app-filters>
+    </section>
+
+    <!-- KPI SECTION -->
+    <section class="kpis">
+      <app-card title="Venta Total" value="$155.4M"></app-card>
+      <app-card title="Cumplimiento" value="77.7%"></app-card>
+      <app-card title="Impactos" value="$20.1M"></app-card>
+      <app-card title="Nivel Servicio" value="94.3%"></app-card>
+      <app-card title="Devoluciones" value="2.4%"></app-card>
+    </section>
+
+    <!-- CHARTS -->
+    <section class="charts">
+      <div class="chart-box">
+        <h3>Ventas por Proveedor</h3>
+        <app-chart
+          chartId="ventasProveedor"
+          [labels]="['Nestle', 'Mondelez', 'Alpina']"
+          [data]="[120, 90, 60]"
+          label="Ventas"
+        >
+        </app-chart>
+      </div>
+
+      <div class="chart-box">
+        <h3>Histórico Ventas</h3>
+        <app-chart
+          chartId="historicoVentas"
+          type="line"
+          [labels]="['Oct', 'Nov', 'Dic', 'Ene', 'Feb']"
+          [data]="[30, 40, 35, 50, 45]"
+          label="Histórico"
+        >
+        </app-chart>
+      </div>
+    </section>
+
+    <!-- TABLE -->
+    <section class="table-section">
+      <h3>Detalle por Cliente</h3>
+      <app-table [columns]="tableColumns" [data]="tableData"> </app-table>
+    </section>
+  </div>
+</div>
