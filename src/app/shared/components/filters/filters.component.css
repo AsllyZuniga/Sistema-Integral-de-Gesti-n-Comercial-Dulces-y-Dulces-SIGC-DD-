@@ -1,0 +1,119 @@
+/* ===== CONTAINER ===== */
+
+.filters-container {
+  background: #ffffff;
+  padding: 28px;
+  border-radius: 18px;
+  box-shadow: 0 15px 35px rgba(15, 23, 42, 0.06);
+  border: 1px solid #f1f5f9;
+}
+
+/* ===== GRID ===== */
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  align-items: end;
+}
+
+/* ===== GROUP ===== */
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.filter-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+/* ===== DATE RANGE ===== */
+
+.date-range {
+  display: flex;
+  gap: 10px;
+}
+
+.date-range input {
+  flex: 1;
+}
+
+/* ===== INPUTS / SELECT ===== */
+
+input,
+select {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 14px;
+  transition: all .2s ease;
+}
+
+input:hover,
+select:hover {
+  background: #ffffff;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: #2563eb;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+/* ===== BUTTON ===== */
+
+.filter-button {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.apply-btn {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  border: none;
+  padding: 11px 22px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .25s ease;
+  min-width: 170px;
+}
+
+.apply-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.25);
+}
+
+.apply-btn:active {
+  transform: scale(0.98);
+}
+
+/* ===== RESPONSIVE ===== */
+
+@media (max-width: 768px) {
+
+  .filters-container {
+    padding: 20px;
+  }
+
+  .filters-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-button {
+    justify-content: stretch;
+  }
+
+  .apply-btn {
+    width: 100%;
+  }
+
+}

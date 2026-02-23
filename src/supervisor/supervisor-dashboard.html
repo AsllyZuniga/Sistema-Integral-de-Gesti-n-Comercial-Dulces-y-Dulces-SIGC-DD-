@@ -9,93 +9,241 @@
     </div>
 
     <nav class="nav">
-      <a class="nav-item active">Dashboard</a>
-      <a class="nav-item">Mis Vendedores</a>
+      <a class="nav-item" [class.active]="currentView === 'dashboard'" (click)="switchView('dashboard')">Dashboard</a>
+      <a class="nav-item" routerLink="/supervisor/ventas">Ventas</a>
+      <a class="nav-item" routerLink="/supervisor/devoluciones">Devoluciones</a>
+      <a class="nav-item" routerLink="/supervisor/impactos">Impactos</a>
+      <a class="nav-item" routerLink="/supervisor/historicos">Históricos</a>
+      <a class="nav-item" routerLink="/supervisor/agotados">Agotados</a>
+      <a class="nav-item" [class.active]="currentView === 'upload'" (click)="switchView('upload')">Cargar archivos</a>
     </nav>
 
-    <a class="logout" routerLink="/login">Cerrar sesión</a>
+    <div class="logout-wrapper">
+      <input id="logout-toggle-main" class="logout-toggle" type="checkbox" />
+      <label class="logout-btn" for="logout-toggle-main">Cerrar sesión</label>
+      <div class="logout-panel">
+        <a routerLink="/login">Salir ahora</a>
+        <button class="cancel" onclick="document.getElementById('logout-toggle-main').checked=false">Cancelar</button>
+      </div>
+    </div>
   </aside>
 
   <main class="content">
-    <header class="header">
-      <h1>Dashboard Supervisor</h1>
-      <p class="subtitle">Monitoreo y análisis de tu equipo de vendedores</p>
-    </header>
+    <!-- Vista de Carga de Archivos -->
+    <div *ngIf="currentView === 'upload'">
+      <header class="header">
+        <h1>Carga de Archivos</h1>
+        <p class="subtitle">Sube y procesa archivos de texto (TXT) o planos (CSV)</p>
+      </header>
 
-    <section class="cards">
-      <div class="card small">
-        <div class="card-title">Vendedores Activos</div>
-        <div class="card-value">{{stats.activeSellers}}</div>
-        <div class="card-meta">En tu equipo</div>
+      <div class="card" style="margin-top: 2rem; padding: 2rem;">
+        <h3 style="margin-top: 0;">Subir archivo de datos</h3>
+        <p style="color: #666; margin-bottom: 1.5rem;">Selecciona el archivo TXT o CSV para cargar al sistema.</p>
+        
+        <div style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
+          <input type="file" #fileInput (change)="onFileSelected($event)" accept=".csv, .txt" style="display: none">
+          
+          <button type="button" class="btn" (click)="fileInput.click()" style="background: #edf2f7; color: #2d3748; border: 1px solid #cbd5e0;">
+            📂 Seleccionar Archivo
+          </button>
+          
+          <div style="flex: 1;">
+            <span *ngIf="selectedFile" style="display: block; font-weight: 500; color: #2b6cb0;">{{selectedFile.name}}</span>
+            <span *ngIf="!selectedFile" style="display: block; color: #a0aec0; font-style: italic;">Ningún archivo seleccionado</span>
+          </div>
+        </div>
+        
+        <button class="btn primary" (click)="processFile()" [disabled]="!selectedFile">Procesar Archivo</button>
       </div>
 
-      <div class="card small">
-        <div class="card-title">Ventas Netas del Equipo</div>
-        <div class="card-value money">${{stats.teamNetSales | number}}</div>
-        <div class="card-meta">Febrero 2026</div>
+      <div *ngIf="csvData.length > 0" class="card" style="margin-top: 2rem; padding: 2rem;">
+        <h3>Vista Previa ({{csvData.length}} registros)</h3>
+        <div style="overflow-x: auto; margin-top: 1rem;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                <thead>
+                    <tr style="background: #f8f9fa; text-align: left;">
+                        <th *ngFor="let header of csvHeaders" style="padding: 12px; border-bottom: 2px solid #eee;">{{header}}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <ng-container *ngFor="let row of csvData.slice(0, 5)">
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td *ngFor="let header of csvHeaders" style="padding: 12px;">{{row[header]}}</td>
+                        </tr>
+                    </ng-container>
+                    <ng-container *ngIf="csvTotalRow">
+                        <tr style="background: #e2e8f0; font-weight: bold; border-top: 2px solid #cbd5e0;">
+                            <td *ngFor="let header of csvHeaders" style="padding: 12px;">{{csvTotalRow[header]}}</td>
+                        </tr>
+                    </ng-container>
+                </tbody>
+            </table>
+            <p *ngIf="csvData.length > 5" style="margin-top: 1rem; color: #888;">Mostrando 5 de {{csvData.length}} filas...</p>
+        </div>
       </div>
+    </div>
 
-      <div class="card small">
-        <div class="card-title">Devoluciones del Equipo</div>
-        <div class="card-value money red">${{stats.returns | number}}</div>
-        <div class="card-meta">Total del mes</div>
-      </div>
-    </section>
+    <!-- Vista Dashboard -->
+    <div *ngIf="currentView === 'dashboard'">
+      <header class="header">
+        <h1>Dashboard Supervisor</h1>
+      </header>
 
-    <section class="profiles">
-      <div class="profile-card winner">
-        <div class="card-header">Mejor Vendedor del Mes</div>
-        <h2>{{topSeller.name}}</h2>
-        <div class="email">{{topSeller.email}}</div>
+      <section class="filter-bar">
+        <div class="left">
+          <button class="btn export">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10l5-5 5 5" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 5v12" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span> {{exportLabel}}</span>
+          </button>
 
-        <div class="metrics">
-          <div class="metric">
-            <div class="metric-label">Venta Neta</div>
-            <div class="metric-value money">${{topSeller.net | number}}</div>
-          </div>
-          <div class="metric">
-            <div class="metric-label">% Devoluciones</div>
-            <div class="metric-value">{{topSeller.returnsPercent}}%</div>
-          </div>
-          <div class="metric">
-            <div class="metric-label">% Cumplimiento</div>
-            <div class="metric-value">{{topSeller.compliance}}%</div>
-          </div>
-          <div class="metric">
-            <div class="metric-label">Clientes</div>
-            <div class="metric-value">{{topSeller.clients}}</div>
+          <div class="date-range">
+            <label>Rango de Fechas</label>
+            <div class="date-inputs">
+                  <div class="date-field">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M7 11h10M7 15h5" stroke="#6b7280" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+                    <input type="date" [(ngModel)]="filters.selectedFrom" />
+                  </div>
+                  <div class="date-field">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M7 11h10M7 15h5" stroke="#6b7280" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+                    <input type="date" [(ngModel)]="filters.selectedTo" />
+                  </div>
+            </div>
+            <div class="hint">Vista general - sin filtros</div>
           </div>
         </div>
 
-        <button class="btn primary" (click)="viewDetail(topSeller)">Ver Detalle</button>
-      </div>
+        <div class="right">
+          <div class="selects">
+            <div class="select-field"><label>Vendedores</label><select [(ngModel)]="filters.selectedSeller"><option *ngFor="let s of filters.sellers">{{s}}</option></select></div>
+            <div class="select-field"><label>Proveedor</label><select [(ngModel)]="filters.selectedProvider"><option *ngFor="let p of filters.provider">{{p}}</option></select></div>
+            <div class="select-field"><label>Categoría</label><select [(ngModel)]="filters.selectedCategory"><option *ngFor="let c of filters.category">{{c}}</option></select></div>
+            <div class="select-field"><label>Ciudad</label><select [(ngModel)]="filters.selectedCity"><option *ngFor="let city of filters.city">{{city}}</option></select></div>
+          </div>
 
-      <div class="profile-card worst">
-        <div class="card-header">Vendedor con Menor Desempeño</div>
-        <h2>{{worstSeller.name}}</h2>
-        <div class="email">{{worstSeller.email}}</div>
+          <button class="btn primary apply" (click)="applyFilters()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 6v12" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 6v12" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Aplicar Filtros</button>
+        </div>
+      </section>
 
-        <div class="metrics">
-          <div class="metric">
-            <div class="metric-label">Venta Neta</div>
-            <div class="metric-value money red">${{worstSeller.net | number}}</div>
+      <section class="cards">
+        <div class="card small">
+          <div class="card-title">Venta Total Acumulada</div>
+          <div class="card-value money">${{kpis.ventaTotalAcumulada | number}}</div>
+          <div class="card-meta">De ${{kpis.objetivo | number}} objetivo</div>
+          <div class="card-meta">{{kpis.percentVsPreviousMonth}} vs mes anterior</div>
+        </div>
+
+        <div class="card small">
+          <div class="card-title">% Cumplimiento General</div>
+          <div class="card-value">{{kpis.percentCumplimientoGeneral}}%</div>
+          <div class="card-meta">Cuota mensual</div>
+          <div class="card-meta">{{kpis.cuotaMensualTrend}} vs semana anterior</div>
+        </div>
+
+        <div class="card small">
+          <div class="card-title">Proyección de Cierre</div>
+          <div class="card-value money">${{kpis.proyeccionCierre | number}}</div>
+          <div class="card-meta">Estimado fin de mes</div>
+          <div class="card-meta">{{kpis.proyeccionPorc}}% de la cuota</div>
+        </div>
+      </section>
+
+      <section style="display:grid; grid-template-columns: 2fr 1fr; gap: 18px; margin-top: 18px;">
+        <div>
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div class="card-title">Participación por Categoría</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:12px; margin-top:12px; flex-wrap:wrap;">
+              <div *ngFor="let c of categoryParticipation" style="min-width:120px; background:#fff; padding:8px; border-radius:8px;">
+                <div style="font-weight:700">{{c.name}}</div>
+                <div style="color:#6b7280">{{c.pct}}%</div>
+              </div>
+            </div>
           </div>
-          <div class="metric">
-            <div class="metric-label">% Devoluciones</div>
-            <div class="metric-value red">{{worstSeller.returnsPercent}}%</div>
-          </div>
-          <div class="metric">
-            <div class="metric-label">% Cumplimiento</div>
-            <div class="metric-value">{{worstSeller.compliance}}%</div>
-          </div>
-          <div class="metric">
-            <div class="metric-label">Clientes</div>
-            <div class="metric-value">{{worstSeller.clients}}</div>
+
+          <div class="card" style="margin-top:12px;">
+            <div class="card-title">Cumplimiento Cuota Mensual por Vendedor</div>
+            <div style="overflow:auto; margin-top:8px;">
+              <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                <thead>
+                  <tr style="background:#f8f9fa;"><th style="padding:8px; text-align:left">Cód</th><th>Vendedor</th><th>Cuota Mes</th><th>Venta Acum</th><th>% Cump</th><th>Proyección</th><th>% Cump Proy</th></tr>
+                </thead>
+                <tbody>
+                      <tr *ngFor="let s of filteredSellersCompliance" style="border-bottom:1px solid #eee;">
+                    <td style="padding:8px">{{s.code}}</td>
+                    <td>{{s.name}}</td>
+                    <td>${{s.cuotaMes | number}}</td>
+                    <td>${{s.ventaAcum | number}}</td>
+                    <td>{{s.pctCum}}%</td>
+                    <td>${{s.proyeccion | number}}</td>
+                    <td>{{s.pctProy}}%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        <button class="btn" (click)="viewDetail(worstSeller)">Ver Detalle</button>
-      </div>
-    </section>
+        <div>
+          <div class="card" style="margin-top:12px;">
+            <div class="card-title">Ventas por Proveedor</div>
+            <div style="margin-top:8px;">
+              <div *ngFor="let p of filteredProviderSales" style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f3f4f6;">
+                <div>{{p.provider}}</div>
+                <div>${{p.venta | number}}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section style="display:grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px;">
+        <div class="card">
+          <div class="card-title">Impactos - Ranking</div>
+          <table style="width:100%; margin-top:8px; border-collapse:collapse; font-size:0.9rem;">
+            <thead><tr style="background:#f8f9fa;"><th>Rank</th><th>Vendedor</th><th>Cuota Imp</th><th>Impactos</th><th>%</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let r of filteredImpactsRanking" style="border-bottom:1px solid #eee;"><td style="padding:8px">{{r.rank}}</td><td>{{r.name}}</td><td>${{r.cuotaImp | number}}</td><td>${{r.impactos | number}}</td><td>{{r.pct}}%</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Devoluciones</div>
+          <table style="width:100%; margin-top:8px; border-collapse:collapse; font-size:0.9rem;">
+            <thead><tr style="background:#f8f9fa;"><th>Cód</th><th>Vendedor</th><th>Devoluciones</th><th>Ventas</th><th>% Devoluciones</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let d of filteredReturnsTable" style="border-bottom:1px solid #eee;"><td style="padding:8px">{{d.code}}</td><td>{{d.name}}</td><td>${{d.devoluciones | number}}</td><td>${{d.ventas | number}}</td><td>{{d.pctDevoluciones}}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section style="margin-top:18px; display:grid; grid-template-columns: 1fr 1fr; gap:18px;">
+        <div class="card">
+          <div class="card-title">Nivel de Servicio - Agotados</div>
+          <table style="width:100%; margin-top:8px; border-collapse:collapse; font-size:0.9rem;">
+            <thead><tr style="background:#f8f9fa;"><th>Cód</th><th>Vendedor</th><th>Valor Venta</th><th>Valor Agotados</th><th>% Nivel Servicio</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let s of filteredServiceLevel" style="border-bottom:1px solid #eee;"><td style="padding:8px">{{s.code}}</td><td>{{s.name}}</td><td>${{s.venta | number}}</td><td>${{s.agotados | number}}</td><td>{{s.nivelServicio}}</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Ventas Históricas por Vendedor</div>
+          <div style="overflow:auto; margin-top:8px;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+              <thead><tr style="background:#f8f9fa;"><th>Vendedor</th><th *ngFor="let m of filteredHistoricalByCategory.months">{{m}}</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let h of filteredHistoricalBySeller" style="border-bottom:1px solid #eee;"><td style="padding:8px">{{h.name}}</td><td *ngFor="let v of h.months">{{v}}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
   </main>
 </div>
