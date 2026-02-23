@@ -1,12 +1,14 @@
 <div class="filters-container">
+  <button class="btn-toggle-filtros" (click)="toggleFiltros()">
+    {{ isFiltrosOpen ? 'Ocultar Filtros ❌' : 'Mostrar Filtros ⚙️' }}
+  </button>
 
-  <div class="filters-grid">
-
-    <div class="filter-group">
+  <div class="filters-grid" [class.oculto-movil]="!isFiltrosOpen">
+    <div class="filter-group date-filter-group">
       <label>Rango de Fechas</label>
       <div class="date-range">
-        <input type="date" [(ngModel)]="filtros.fechaInicio">
-        <input type="date" [(ngModel)]="filtros.fechaFin">
+        <input type="date" [(ngModel)]="filtros.fechaInicio" />
+        <input type="date" [(ngModel)]="filtros.fechaFin" />
       </div>
     </div>
 
@@ -51,11 +53,7 @@
     </div>
 
     <div class="filter-button">
-      <button class="apply-btn" (click)="aplicar()">
-        Aplicar Filtros
-      </button>
+      <button class="apply-btn" (click)="aplicar()">Aplicar Filtros</button>
     </div>
-
   </div>
-
 </div>
