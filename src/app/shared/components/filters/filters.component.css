@@ -1,119 +1,144 @@
-/* ===== CONTAINER ===== */
-
 .filters-container {
-  background: #ffffff;
+  background: white;
   padding: 28px;
-  border-radius: 18px;
-  box-shadow: 0 15px 35px rgba(15, 23, 42, 0.06);
-  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
 }
 
-/* ===== GRID ===== */
+.btn-toggle-filtros {
+  display: none;
+  width: 100%;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #004286;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-toggle-filtros:hover {
+  background: #f1f5f9;
+}
 
 .filters-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 22px;
   align-items: end;
+  margin-top: 0;
 }
-
-/* ===== GROUP ===== */
 
 .filter-group {
   display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+
+.date-filter-group {
+  grid-column: span 2;
 }
 
 .filter-group label {
   font-size: 13px;
   font-weight: 600;
   color: #334155;
-  margin-bottom: 6px;
+  letter-spacing: 0.3px;
 }
 
-/* ===== DATE RANGE ===== */
+.full-width {
+  width: 100%;
+}
 
 .date-range {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 14px;
 }
 
 .date-range input {
   flex: 1;
+  min-width: 0;
 }
 
-/* ===== INPUTS / SELECT ===== */
+.separator {
+  font-size: 18px;
+  color: #94a3b8;
+}
 
-input,
-select {
-  padding: 10px 12px;
+.filter-group select,
+.filter-group input {
+  box-sizing: border-box;
+  padding: 11px 14px;
   border-radius: 10px;
   border: 1px solid #e2e8f0;
   background: #f8fafc;
   font-size: 14px;
-  transition: all .2s ease;
+  transition: all 0.2s ease;
 }
 
-input:hover,
-select:hover {
-  background: #ffffff;
-}
-
-input:focus,
-select:focus {
+.filter-group select:focus,
+.filter-group input:focus {
   outline: none;
-  border-color: #2563eb;
-  background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  border-color: #2b55ae;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(43, 85, 174, 0.15);
 }
 
-/* ===== BUTTON ===== */
-
+/* Botón */
 .filter-button {
   display: flex;
-  justify-content: flex-end;
+  align-items: flex-end;
 }
 
 .apply-btn {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  width: 100%;
+  background: linear-gradient(135deg, #2b55ae, #1e3a8a);
   color: white;
   border: none;
-  padding: 11px 22px;
-  border-radius: 12px;
+  padding: 12px 18px;
+  border-radius: 10px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all .25s ease;
-  min-width: 170px;
+  transition: all 0.2s ease;
 }
 
 .apply-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 6px 14px rgba(43, 85, 174, 0.3);
 }
 
-.apply-btn:active {
-  transform: scale(0.98);
-}
-
-/* ===== RESPONSIVE ===== */
-
+/* =========================================
+   MODO CELULAR (RESPONSIVE)
+========================================= */
 @media (max-width: 768px) {
-
   .filters-container {
-    padding: 20px;
+    padding: 16px;
+  }
+
+  .btn-toggle-filtros {
+    display: block;
+  }
+
+  .filters-grid.oculto-movil {
+    display: none;
   }
 
   .filters-grid {
+    margin-top: 20px;
     grid-template-columns: 1fr;
   }
 
-  .filter-button {
-    justify-content: stretch;
+  .date-filter-group {
+    grid-column: span 1;
   }
 
-  .apply-btn {
-    width: 100%;
+  .date-range {
+    flex-direction: column;
+    align-items: stretch;
   }
-
 }

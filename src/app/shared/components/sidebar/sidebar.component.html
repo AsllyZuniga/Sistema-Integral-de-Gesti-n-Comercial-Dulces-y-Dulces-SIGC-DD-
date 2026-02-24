@@ -1,6 +1,7 @@
 <aside class="sidebar" [class.collapsed]="isCollapsed">
 
   <div class="top">
+    
     <h2 *ngIf="!isCollapsed">Dashboard Vendedor</h2>
     <button (click)="toggleSidebar()">☰</button>
   </div>
@@ -28,7 +29,7 @@
     </a>
 
     <a>
-      <span class="icon">📈</span>
+      <span class="icon">📈 </span>
       <span class="text" *ngIf="!isCollapsed">Impactos</span>
     </a>
 

@@ -1,8 +1,8 @@
 .sidebar {
   width: 240px;
   height: 100%;
-  background: #0f172a;
-  color: white;
+  background: #004286;
+  color: rgb(243, 237, 237);
   padding: 20px;
   transition: all .3s ease;
   position: fixed;

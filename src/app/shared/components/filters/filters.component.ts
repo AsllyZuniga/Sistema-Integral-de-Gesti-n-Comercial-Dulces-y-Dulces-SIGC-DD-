@@ -16,11 +16,9 @@ export interface DashboardFilters {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './filters.component.html',
-  styleUrls: ['./filters.component.css']
+  styleUrls: ['./filters.component.css'],
 })
 export class FiltersComponent {
-
-  // 🔥 Datos vienen del backend (desde el padre)
   @Input() vendedores: string[] = [];
   @Input() proveedores: string[] = [];
   @Input() categorias: string[] = [];
@@ -28,16 +26,23 @@ export class FiltersComponent {
 
   @Output() apply = new EventEmitter<DashboardFilters>();
 
+  isFiltrosOpen: boolean = false;
+
   filtros: DashboardFilters = {
     fechaInicio: '',
     fechaFin: '',
     vendedor: '',
     proveedor: '',
     categoria: '',
-    ciudad: ''
+    ciudad: '',
   };
 
+  toggleFiltros() {
+    this.isFiltrosOpen = !this.isFiltrosOpen;
+  }
+
   aplicar() {
+    this.isFiltrosOpen = false;
     this.apply.emit(this.filtros);
   }
 }
