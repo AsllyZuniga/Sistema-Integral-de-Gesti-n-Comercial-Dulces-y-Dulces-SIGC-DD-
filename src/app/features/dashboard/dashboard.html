@@ -1,14 +1,22 @@
 <div class="layout" [class.mobile-open]="isMobileMenuOpen">
 
-  <div class="mobile-overlay" *ngIf="isMobileMenuOpen" (click)="isMobileMenuOpen = false"></div>
+  <div class="mobile-overlay"
+       *ngIf="isMobileMenuOpen"
+       (click)="isMobileMenuOpen = false">
+  </div>
 
   <app-sidebar (toggle)="onToggleSidebar($event)"></app-sidebar>
 
   <div class="main" [class.expanded]="isSidebarCollapsed">
 
+    <!-- TOPBAR -->
     <header class="topbar">
       <div class="title-container">
-        <button class="mobile-menu-btn" (click)="isMobileMenuOpen = !isMobileMenuOpen">☰</button>
+        <button class="mobile-menu-btn"
+                (click)="isMobileMenuOpen = !isMobileMenuOpen">
+          ☰
+        </button>
+
         <div>
           <h1>Dashboard Vendedor</h1>
           <span class="welcome">
@@ -22,141 +30,105 @@
       </button>
     </header>
 
+    <!-- FILTROS -->
     <section class="filters">
       <app-filters></app-filters>
     </section>
 
+    <!-- KPIs -->
     <section class="kpis">
-      <app-card title="Venta Total" value="$155.4M"></app-card>
-      <app-card title="Cumplimiento" value="77.7%"></app-card>
-      <app-card title="Impactos" value="$20.1M"></app-card>
-      <app-card title="Nivel Servicio" value="94.3%"></app-card>
-      <app-card title="Devoluciones" value="2.4%"></app-card>
+      <app-card
+        title="Total Venta Mes"
+        [value]="totales?.ventaAcum || 0">
+      </app-card>
+
+      <app-card
+        title="Total Cuota"
+        [value]="totales?.cuotaMes || 0">
+      </app-card>
+
+      <app-card
+        title="Cumplimiento"
+        [value]="totales?.porcCump || 0">
+      </app-card>
+
+      <app-card
+        title="Proyección"
+        [value]="totales?.proyeccionVenta || 0">
+      </app-card>
     </section>
 
+    <!-- ANALISIS -->
     <section class="charts">
+
       <div class="chart-box dynamic-panel">
+
         <h3>Análisis de Ventas</h3>
-        <div class="tabs">
-          <button *ngFor="let view of ventasViews"
-                  [class.active]="activeVentasView === view.key"
-                  (click)="setVentasView(view.key)">
-            {{ view.label }}
-          </button>
-        </div>
-        <div class="dynamic-content">
-          <p>Vista activa: {{ activeVentasView }}</p>
-        </div>
-      </div>
 
-      <div class="chart-box dynamic-panel">
-        <h3>Análisis de Impactos</h3>
+        <!-- TABS -->
         <div class="tabs">
-          <button *ngFor="let view of impactosViews"
-                  [class.active]="activeImpactosView === view.key"
-                  (click)="setImpactosView(view.key)">
-            {{ view.label }}
-          </button>
-        </div>
-        <div class="dynamic-content">
-          <p>Vista activa: {{ activeImpactosView }}</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="charts">
-      <div class="chart-box dynamic-panel">
-        <h3>Análisis de Devoluciones</h3>
-
-        <div class="tabs">
-          <button *ngFor="let view of devolucionesViews"
-                  [class.active]="activeDevolucionView === view.key"
-                  (click)="setDevolucionView(view.key)">
+          <button
+            *ngFor="let view of ventasViews"
+            [class.active]="activeVentasView === view.key"
+            (click)="setVentasView(view.key)">
             {{ view.label }}
           </button>
         </div>
 
         <div class="dynamic-content">
-          <div *ngFor="let cliente of devolucionesClientes">
-            <div class="devolucion-header"
-                 (click)="toggleDevolucion(cliente)">
-              {{ cliente.cliente }} -
-              {{ cliente.total | currency }}
+
+          <!-- VENTAS -->
+          <div *ngIf="activeVentasView === 'ventas'" class="grafica-container">
+            <app-chart [data]="cumplimientoData"></app-chart>
+          </div>
+
+          <!-- PROVEEDOR -->
+          <div *ngIf="activeVentasView === 'proveedor'" class="tabla-vendedor">
+
+            <h3>Ventas por Proveedor / Línea</h3>
+
+            <div class="tabla-scroll">
+              <app-table
+                [columns]="lineasColumns"
+                [data]="tableData">
+              </app-table>
             </div>
 
-            <div *ngIf="cliente.abierto">
-              <ul>
-                <li *ngFor="let item of cliente.detalle">
-                  {{ item.producto }} -
-                  {{ item.cantidad }} -
-                  {{ item.motivo }}
-                </li>
-              </ul>
+          </div>
+
+          <!-- VENDEDOR -->
+          <div *ngIf="activeVentasView === 'vendedor'" class="tabla-vendedor">
+
+            <h3>Resumen</h3>
+
+            <div class="tabla-scroll">
+              <app-table
+                [columns]="tableColumns"
+                [data]="tableData">
+              </app-table>
             </div>
+
           </div>
-        </div>
 
-      </div>
-    </section>
-
-    <section class="charts">
-      <div class="chart-box dynamic-panel">
-        <h3>Nivel de Servicio</h3>
-
-        <div class="tabs">
-          <button *ngFor="let view of nivelServicioViews"
-                  [class.active]="activeNivelView === view.key"
-                  (click)="setNivelView(view.key)">
-            {{ view.label }}
-          </button>
-        </div>
-
-        <div class="dynamic-content">
-          <div *ngFor="let prov of agotadosProveedor">
-            <strong>{{ prov.proveedor }}</strong>
-            <ul>
-              <li *ngFor="let prod of prov.productos">
-                {{ prod }}
-              </li>
-            </ul>
+          <!-- CIUDAD -->
+          <div *ngIf="activeVentasView === 'ciudad'" class="placeholder">
+            Próximamente: ventas por ciudad
           </div>
+
+          <!-- ITEM -->
+          <div *ngIf="activeVentasView === 'item'" class="placeholder">
+            Próximamente: detalle por item
+          </div>
+
+          <!-- CLIENTE -->
+          <div *ngIf="activeVentasView === 'cliente'" class="placeholder">
+            Próximamente: clientes del vendedor
+          </div>
+
         </div>
 
       </div>
-    </section>
 
-    <section class="charts">
-      <div class="chart-box dynamic-panel">
-        <h3>Histórico Ventas por Proveedor</h3>
-
-        <div class="tabs">
-          <button [class.active]="historicoFiltro === '2m'"
-                  (click)="setHistoricoFiltro('2m')">
-            Últimos 2 Meses
-          </button>
-
-          <button [class.active]="historicoFiltro === '12m'"
-                  (click)="setHistoricoFiltro('12m')">
-            Año Completo
-          </button>
-        </div>
-
-        <div class="dynamic-content">
-          Mostrando:
-          {{ historicoFiltro === '2m'
-              ? 'Últimos 2 meses'
-              : 'Año completo' }}
-        </div>
-
-      </div>
-    </section>
-
-    <section class="table-section">
-      <h3>Detalle por Cliente</h3>
-      <app-table
-        [columns]="tableColumns"
-        [data]="tableData">
-      </app-table>
     </section>
 
   </div>
