@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject, takeUntil } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
@@ -15,7 +15,7 @@ import { SidebarComponent } from '../../shared/components/sidebar/sidebar.compon
   selector: 'app-dashboard',
   standalone: true,
   imports: [
-    CommonModule, CardComponent, ChartComponent, 
+    CommonModule, CardComponent, ChartComponent,
     TableComponent, FiltersComponent, SidebarComponent
   ],
   templateUrl: './dashboard.html',
@@ -49,8 +49,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   constructor(
     private authService: AuthService,
     private router: Router,
-    private cumplimientoService: CumplimientoService
-  ) {}
+    private cumplimientoService: CumplimientoService,
+    private cdr: ChangeDetectorRef // <-- Inyectamos el detector de cambios
+  ) { }
 
   ngOnInit() {
     this.vendedor = this.authService.getVendedor();
@@ -59,7 +60,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return;
     }
     this.cargarVistaActual();
-    this.ngOnDestroy();
   }
 
   ngOnDestroy() {
@@ -77,28 +77,30 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const codigoVendedor = this.vendedor?.codVendedor || this.vendedor?.codigo;
     if (!codigoVendedor) return;
 
-    // 1. VENTAS (Individual del vendedor logueado)
+    // Limpiamos los arreglos al cambiar de pestaña
+    this.cumplimientoData = [];
+    this.tableData = [];
+
+    // 1. VENTAS
     if (this.activeVentasView === 'ventas') {
       this.cumplimientoService.getCumplimientoPorCodigo(codigoVendedor)
         .pipe(takeUntil(this.destroy$))
         .subscribe(res => {
           if (res) {
-            // Guardamos los KPIs globales de la respuesta
             this.totales = {
               ventaAcum: res.ventaAcum,
               cuotaMes: res.cuotaMes,
               porcCump: res.porcCump,
               proyeccionVenta: res.proyeccionVenta
             };
-            // Para la gráfica y tabla de esta pestaña, envolvemos el objeto en un array
-            const dataArr = [res];
-            this.cumplimientoData = dataArr;
-            this.tableData = dataArr;
+            this.cumplimientoData = [res];
+            this.tableData = [res];
           }
+          this.cdr.detectChanges(); // <-- Forzamos a que Angular redibuje inmediatamente
         });
     }
 
-    // 2. PROVEEDOR (Líneas del vendedor)
+    // 2. PROVEEDOR
     else if (this.activeVentasView === 'proveedor') {
       this.cumplimientoService.getLineasPorVendedor(codigoVendedor)
         .pipe(takeUntil(this.destroy$))
@@ -106,18 +108,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
           const listado = res?.detallePorLinea || [];
           this.cumplimientoData = [...listado];
           this.tableData = [...listado];
+          this.cdr.detectChanges(); // <-- SOLUCIÓN AL DOBLE CLIC
         });
     }
 
-    // 3. VENDEDOR (Resumen general de TODOS los vendedores)
+    // 3. VENDEDOR (Restaurado para mostrar el vendedor logueado correctamente)
     else if (this.activeVentasView === 'vendedor') {
-      this.cumplimientoService.getCumplimientoMes()
+      this.cumplimientoService.getCumplimientoPorCodigo(codigoVendedor)
         .pipe(takeUntil(this.destroy$))
         .subscribe(res => {
-          // Aquí 'res' ya debería ser un array de vendedores
-          const listado = Array.isArray(res) ? res : [];
-          this.cumplimientoData = [...listado];
-          this.tableData = [...listado];
+          if (res) {
+            this.cumplimientoData = [res];
+            this.tableData = [res];
+          }
+          this.cdr.detectChanges(); // <-- Forzamos actualización visual
         });
     }
   }
