@@ -15,23 +15,31 @@ import { SidebarComponent } from '../../shared/components/sidebar/sidebar.compon
   selector: 'app-dashboard',
   standalone: true,
   imports: [
-    CommonModule, CardComponent, ChartComponent,
-    TableComponent, FiltersComponent, SidebarComponent
+    CommonModule,
+    CardComponent,
+    ChartComponent,
+    TableComponent,
+    FiltersComponent,
+    SidebarComponent
   ],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css']
 })
 export class DashboardComponent implements OnInit, OnDestroy {
+
   private destroy$ = new Subject<void>();
 
   vendedor: any;
   activeVentasView = 'ventas';
+
   isSidebarCollapsed = false;
   isMobileMenuOpen = false;
 
-  // Data
-  cumplimientoData: any[] = [];
   tableData: any[] = [];
+  chartData: any[] = [];
+
+  chartType: 'line' | 'bar' | 'pie' = 'line';
+
   totales: any = null;
 
   readonly ventasViews = [
@@ -43,15 +51,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     { key: 'cliente', label: 'Cliente Detallado' }
   ];
 
-  readonly tableColumns = ['codVendedor', 'nombre', 'cuotaMes', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
-  readonly lineasColumns = ['linea', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
+  readonly tableColumns = ['codVendedor','nombre','cuotaMes','ventaAcum','porcCump','proyeccionVenta','porcCumProy'];
+  readonly lineasColumns = ['linea','ventaAcum','porcCump','proyeccionVenta','porcCumProy'];
+  readonly ciudadesColumns = ['ciudad','ventaAcum','porcCump','proyeccionVenta','porcCumProy'];
 
   constructor(
     private authService: AuthService,
     private router: Router,
     private cumplimientoService: CumplimientoService,
-    private cdr: ChangeDetectorRef // <-- Inyectamos el detector de cambios
-  ) { }
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit() {
     this.vendedor = this.authService.getVendedor();
@@ -77,15 +86,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const codigoVendedor = this.vendedor?.codVendedor || this.vendedor?.codigo;
     if (!codigoVendedor) return;
 
-    // Limpiamos los arreglos al cambiar de pestaña
-    this.cumplimientoData = [];
     this.tableData = [];
+    this.chartData = [];
 
-    // 1. VENTAS
     if (this.activeVentasView === 'ventas') {
+
+      this.chartType = 'line';
+
       this.cumplimientoService.getCumplimientoPorCodigo(codigoVendedor)
         .pipe(takeUntil(this.destroy$))
         .subscribe(res => {
+
           if (res) {
             this.totales = {
               ventaAcum: res.ventaAcum,
@@ -93,35 +104,78 @@ export class DashboardComponent implements OnInit, OnDestroy {
               porcCump: res.porcCump,
               proyeccionVenta: res.proyeccionVenta
             };
-            this.cumplimientoData = [res];
+
             this.tableData = [res];
+
+            this.chartData = [
+              { name: 'Venta', value: res.ventaAcum },
+              { name: 'Cuota', value: res.cuotaMes },
+              { name: 'Proyección', value: res.proyeccionVenta }
+            ];
           }
-          this.cdr.detectChanges(); // <-- Forzamos a que Angular redibuje inmediatamente
+
+          this.cdr.detectChanges();
         });
     }
 
-    // 2. PROVEEDOR
     else if (this.activeVentasView === 'proveedor') {
+
+      this.chartType = 'bar';
+
       this.cumplimientoService.getLineasPorVendedor(codigoVendedor)
         .pipe(takeUntil(this.destroy$))
         .subscribe(res => {
+
           const listado = res?.detallePorLinea || [];
-          this.cumplimientoData = [...listado];
-          this.tableData = [...listado];
-          this.cdr.detectChanges(); // <-- SOLUCIÓN AL DOBLE CLIC
+
+          this.tableData = listado;
+
+          this.chartData = listado.map((item: any) => ({
+            name: item.linea,
+            value: item.ventaAcum
+          }));
+
+          this.cdr.detectChanges();
         });
     }
 
-    // 3. VENDEDOR (Restaurado para mostrar el vendedor logueado correctamente)
+    else if (this.activeVentasView === 'ciudad') {
+
+      this.chartType = 'pie';
+
+      this.cumplimientoService.getCiudadesPorVendedor(codigoVendedor)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(res => {
+
+          const listado = res?.detallePorCiudad || [];
+
+          this.tableData = listado;
+
+          this.chartData = listado.map((item: any) => ({
+            name: item.ciudad,
+            value: item.ventaAcum
+          }));
+
+          this.cdr.detectChanges();
+        });
+    }
+
     else if (this.activeVentasView === 'vendedor') {
+
+      this.chartType = 'bar';
+
       this.cumplimientoService.getCumplimientoPorCodigo(codigoVendedor)
         .pipe(takeUntil(this.destroy$))
         .subscribe(res => {
+
           if (res) {
-            this.cumplimientoData = [res];
             this.tableData = [res];
+            this.chartData = [
+              { name: res.nombre, value: res.ventaAcum }
+            ];
           }
-          this.cdr.detectChanges(); // <-- Forzamos actualización visual
+
+          this.cdr.detectChanges();
         });
     }
   }

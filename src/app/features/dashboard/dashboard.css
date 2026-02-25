@@ -222,6 +222,29 @@
   display: flex;
   flex-direction: column;
 }
+.proveedor-layout {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 20px;
+  align-items: start;
+}
+
+.grafica-proveedor {
+  background: white;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+/* MÓVIL */
+@media (max-width: 900px) {
+  .proveedor-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .grafica-proveedor {
+    margin-top: 20px;
+  }
+}
 /* ===== RESPONSIVE ===== */
 
 @media (max-width: 1200px) {

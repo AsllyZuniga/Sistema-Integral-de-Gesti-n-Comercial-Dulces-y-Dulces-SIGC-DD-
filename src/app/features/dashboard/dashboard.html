@@ -1,15 +1,19 @@
 <div class="layout" [class.mobile-open]="isMobileMenuOpen">
+
   <div class="mobile-overlay" *ngIf="isMobileMenuOpen" (click)="isMobileMenuOpen = false"></div>
 
   <app-sidebar (toggle)="onToggleSidebar($event)"></app-sidebar>
 
   <div class="main" [class.expanded]="isSidebarCollapsed">
+
     <header class="topbar">
       <div class="title-container">
         <button class="mobile-menu-btn" (click)="isMobileMenuOpen = !isMobileMenuOpen">☰</button>
         <div>
           <h1>Dashboard Vendedor</h1>
-          <span class="welcome" *ngIf="vendedor">Bienvenido, {{ vendedor.nombre }}</span>
+          <span class="welcome" *ngIf="vendedor">
+            Bienvenido, {{ vendedor.nombre }}
+          </span>
         </div>
       </div>
       <button class="logout-btn" (click)="logout()">Cerrar sesión</button>
@@ -28,6 +32,7 @@
 
     <section class="charts">
       <div class="chart-box dynamic-panel">
+
         <h3>Análisis de Ventas</h3>
 
         <div class="tabs">
@@ -39,36 +44,78 @@
         </div>
 
         <div class="dynamic-content" [ngSwitch]="activeVentasView">
-          
+
+          <!-- VENTAS -->
           <div *ngSwitchCase="'ventas'" class="grafica-container">
-            <app-chart *ngIf="cumplimientoData.length > 0; else noData" [data]="cumplimientoData"></app-chart>
+            <app-chart
+              *ngIf="chartData.length > 0; else noData"
+              [data]="chartData"
+              type="line">
+            </app-chart>
           </div>
 
-          <div *ngSwitchCase="'proveedor'" class="tabla-vendedor">
-            <h3>Ventas por Proveedor / Línea</h3>
+          <!-- PROVEEDOR -->
+          <div *ngSwitchCase="'proveedor'" class="proveedor-layout">
+
             <div class="tabla-scroll">
-              <app-table *ngIf="tableData.length > 0; else noData" [columns]="lineasColumns" [data]="tableData"></app-table>
+              <app-table
+                *ngIf="tableData.length > 0; else noData"
+                [columns]="lineasColumns"
+                [data]="tableData">
+              </app-table>
             </div>
+
+            <div class="grafica-proveedor">
+              <app-chart
+                *ngIf="chartData.length > 0; else noData"
+                [data]="chartData"
+                type="bar">
+              </app-chart>
+            </div>
+
           </div>
 
+          <!-- CIUDAD -->
+          <div *ngSwitchCase="'ciudad'" class="proveedor-layout">
+
+            <div class="tabla-scroll">
+              <app-table
+                *ngIf="tableData.length > 0; else noData"
+                [columns]="ciudadesColumns"
+                [data]="tableData">
+              </app-table>
+            </div>
+
+            <div class="grafica-proveedor">
+              <app-chart
+                *ngIf="chartData.length > 0; else noData"
+                [data]="chartData"
+                type="pie">
+              </app-chart>
+            </div>
+
+          </div>
+
+          <!-- VENDEDOR -->
           <div *ngSwitchCase="'vendedor'" class="tabla-vendedor">
-            <h3>Resumen Vendedor</h3>
             <div class="tabla-scroll">
-              <app-table *ngIf="tableData.length > 0; else noData" [columns]="tableColumns" [data]="tableData"></app-table>
+              <app-table
+                *ngIf="tableData.length > 0; else noData"
+                [columns]="tableColumns"
+                [data]="tableData">
+              </app-table>
             </div>
           </div>
 
-          <div *ngSwitchDefault class="placeholder">
-            Próximamente: información de {{ activeVentasView }}
-          </div>
         </div>
       </div>
     </section>
+
   </div>
 </div>
 
 <ng-template #noData>
-  <div class="placeholder" style="padding: 2rem; text-align: center; color: #666;">
+  <div class="placeholder" style="padding: 2rem; text-align:center;">
     Cargando información...
   </div>
 </ng-template>
