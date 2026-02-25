@@ -107,6 +107,27 @@
             </div>
           </div>
 
+          <!-- DETALLE POR ITEM (NUEVO) -->
+          <div *ngSwitchCase="'item'" class="proveedor-layout">
+
+            <div class="tabla-scroll">
+              <app-table
+                *ngIf="tableData.length > 0; else noData"
+                [columns]="productosColumns"
+                [data]="tableData">
+              </app-table>
+            </div>
+
+            <div class="grafica-proveedor">
+              <app-chart
+                *ngIf="chartData.length > 0; else noData"
+                [data]="chartData"
+                type="bar">
+              </app-chart>
+            </div>
+
+          </div>
+
         </div>
       </div>
     </section>

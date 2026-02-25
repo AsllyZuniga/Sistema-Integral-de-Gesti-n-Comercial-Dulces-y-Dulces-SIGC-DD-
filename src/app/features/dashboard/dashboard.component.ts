@@ -55,6 +55,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly lineasColumns = ['linea','ventaAcum','porcCump','proyeccionVenta','porcCumProy'];
   readonly ciudadesColumns = ['ciudad','ventaAcum','porcCump','proyeccionVenta','porcCumProy'];
 
+  readonly productosColumns = [
+    'producto',
+    'ventaAcum',
+    'porcCump',
+    'proyeccionVenta',
+    'porcCumProy'
+  ];
+
   constructor(
     private authService: AuthService,
     private router: Router,
@@ -64,10 +72,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.vendedor = this.authService.getVendedor();
+
     if (!this.vendedor) {
       this.router.navigate(['/login']);
       return;
     }
+
     this.cargarVistaActual();
   }
 
@@ -78,55 +88,67 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   setVentasView(view: string) {
     if (this.activeVentasView === view) return;
+
     this.activeVentasView = view;
     this.cargarVistaActual();
   }
 
   cargarVistaActual() {
-    const codigoVendedor = this.vendedor?.codVendedor || this.vendedor?.codigo;
+
+    const codigoVendedor =
+      this.vendedor?.codVendedor || this.vendedor?.codigo;
+
     if (!codigoVendedor) return;
 
     this.tableData = [];
     this.chartData = [];
 
+    // =============================
+    // VENTAS
+    // =============================
     if (this.activeVentasView === 'ventas') {
 
       this.chartType = 'line';
 
-      this.cumplimientoService.getCumplimientoPorCodigo(codigoVendedor)
+      this.cumplimientoService
+        .getCumplimientoPorCodigo(codigoVendedor)
         .pipe(takeUntil(this.destroy$))
         .subscribe(res => {
 
-          if (res) {
-            this.totales = {
-              ventaAcum: res.ventaAcum,
-              cuotaMes: res.cuotaMes,
-              porcCump: res.porcCump,
-              proyeccionVenta: res.proyeccionVenta
-            };
+          if (!res) return;
 
-            this.tableData = [res];
+          this.totales = {
+            ventaAcum: res.ventaAcum,
+            cuotaMes: res.cuotaMes,
+            porcCump: res.porcCump,
+            proyeccionVenta: res.proyeccionVenta
+          };
 
-            this.chartData = [
-              { name: 'Venta', value: res.ventaAcum },
-              { name: 'Cuota', value: res.cuotaMes },
-              { name: 'Proyección', value: res.proyeccionVenta }
-            ];
-          }
+          this.tableData = [res];
+
+          this.chartData = [
+            { name: 'Venta', value: res.ventaAcum },
+            { name: 'Cuota', value: res.cuotaMes },
+            { name: 'Proyección', value: res.proyeccionVenta }
+          ];
 
           this.cdr.detectChanges();
         });
     }
 
+    // =============================
+    // PROVEEDOR
+    // =============================
     else if (this.activeVentasView === 'proveedor') {
 
       this.chartType = 'bar';
 
-      this.cumplimientoService.getLineasPorVendedor(codigoVendedor)
+      this.cumplimientoService
+        .getLineasPorVendedor(codigoVendedor)
         .pipe(takeUntil(this.destroy$))
         .subscribe(res => {
 
-          const listado = res?.detallePorLinea || [];
+          const listado = res?.detallePorLinea ?? [];
 
           this.tableData = listado;
 
@@ -139,15 +161,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
         });
     }
 
+    // =============================
+    // CIUDAD
+    // =============================
     else if (this.activeVentasView === 'ciudad') {
 
       this.chartType = 'pie';
 
-      this.cumplimientoService.getCiudadesPorVendedor(codigoVendedor)
+      this.cumplimientoService
+        .getCiudadesPorVendedor(codigoVendedor)
         .pipe(takeUntil(this.destroy$))
         .subscribe(res => {
 
-          const listado = res?.detallePorCiudad || [];
+          const listado = res?.detallePorCiudad ?? [];
 
           this.tableData = listado;
 
@@ -160,20 +186,52 @@ export class DashboardComponent implements OnInit, OnDestroy {
         });
     }
 
+    // =============================
+    // VENDEDOR
+    // =============================
     else if (this.activeVentasView === 'vendedor') {
 
       this.chartType = 'bar';
 
-      this.cumplimientoService.getCumplimientoPorCodigo(codigoVendedor)
+      this.cumplimientoService
+        .getCumplimientoPorCodigo(codigoVendedor)
         .pipe(takeUntil(this.destroy$))
         .subscribe(res => {
 
-          if (res) {
-            this.tableData = [res];
-            this.chartData = [
-              { name: res.nombre, value: res.ventaAcum }
-            ];
-          }
+          if (!res) return;
+
+          this.tableData = [res];
+
+          this.chartData = [
+            { name: res.nombre, value: res.ventaAcum }
+          ];
+
+          this.cdr.detectChanges();
+        });
+    }
+
+    // =============================
+    // DETALLE POR ITEM
+    // =============================
+    else if (this.activeVentasView === 'item') {
+
+      this.chartType = 'bar';
+
+      this.cumplimientoService
+        .getProductosPorVendedor(codigoVendedor)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(res => {
+
+          console.log('PRODUCTOS RESPONSE', res);
+
+          const listado = res?.detallePorProducto ?? [];
+
+          this.tableData = listado;
+
+          this.chartData = listado.map((item: any) => ({
+            name: item.producto,
+            value: item.ventaAcum
+          }));
 
           this.cdr.detectChanges();
         });
