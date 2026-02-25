@@ -8,7 +8,7 @@ import { Observable, map, catchError, of } from 'rxjs';
 export class CumplimientoService {
   private apiUrl = 'http://localhost:3000';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   getCumplimientoMes(): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/mes/cumplimiento`).pipe(
@@ -35,4 +35,18 @@ export class CumplimientoService {
       catchError(() => of({ detallePorLinea: [] }))
     );
   }
+
+  getCiudadesPorVendedor(codigoVendedor: string): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/ciudades`).pipe(
+      map(res => {
+        // Aseguramos que la propiedad detallePorCiudad siempre sea un array
+        if (res && res.detallePorCiudad) {
+          res.detallePorCiudad = Array.isArray(res.detallePorCiudad) ? res.detallePorCiudad : [];
+        }
+        return res;
+      }),
+      catchError(() => of({ detallePorCiudad: [] }))
+    );
+  }
+
 }
