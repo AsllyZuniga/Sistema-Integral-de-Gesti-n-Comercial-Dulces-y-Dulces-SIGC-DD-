@@ -1,47 +1,38 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map, catchError, of } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
 })
 export class CumplimientoService {
-
   private apiUrl = 'http://localhost:3000';
 
   constructor(private http: HttpClient) {}
 
-  // Cumplimiento general del mes (todos los vendedores)
-  getCumplimientoMes(): Observable<any> {
-    return this.http.get(`${this.apiUrl}/mes/cumplimiento`);
+  getCumplimientoMes(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/mes/cumplimiento`).pipe(
+      map(res => Array.isArray(res) ? res : []),
+      catchError(() => of([]))
+    );
   }
 
-  // Cumplimiento del vendedor logueado
   getCumplimientoPorCodigo(codigo: string): Observable<any> {
-    return this.http.get(`${this.apiUrl}/mes/cumplimiento/${codigo}`);
-  }
-
-  // Cumplimiento por línea específica
-  getCumplimientoPorLinea(codigoLinea: string): Observable<any> {
-    return this.http.get(
-      `${this.apiUrl}/mes/cumplimiento/linea/${codigoLinea}`
+    return this.http.get<any>(`${this.apiUrl}/mes/cumplimiento/${codigo}`).pipe(
+      catchError(() => of(null))
     );
   }
 
-  // Cumplimiento por vendedor y línea
-  getCumplimientoPorVendedorYLinea(
-    codigoVendedor: string,
-    codigoLinea: string
-  ): Observable<any> {
-    return this.http.get(
-      `${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/linea/${codigoLinea}`
-    );
-  }
-
-  // NUEVO ENDPOINT (EL QUE NECESITAS)
   getLineasPorVendedor(codigoVendedor: string): Observable<any> {
-    return this.http.get(
-      `${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/lineas`
+    return this.http.get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/lineas`).pipe(
+      map(res => {
+        // Aseguramos que la propiedad detallePorLinea siempre sea un array
+        if (res && res.detallePorLinea) {
+          res.detallePorLinea = Array.isArray(res.detallePorLinea) ? res.detallePorLinea : [];
+        }
+        return res;
+      }),
+      catchError(() => of({ detallePorLinea: [] }))
     );
   }
 }

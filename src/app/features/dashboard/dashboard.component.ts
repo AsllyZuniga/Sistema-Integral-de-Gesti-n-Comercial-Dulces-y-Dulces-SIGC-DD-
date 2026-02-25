@@ -1,5 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Subject, takeUntil } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { Router } from '@angular/router';
 import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
@@ -14,51 +15,26 @@ import { SidebarComponent } from '../../shared/components/sidebar/sidebar.compon
   selector: 'app-dashboard',
   standalone: true,
   imports: [
-    CommonModule,
-    CardComponent,
-    ChartComponent,
-    TableComponent,
-    FiltersComponent,
-    SidebarComponent
+    CommonModule, CardComponent, ChartComponent, 
+    TableComponent, FiltersComponent, SidebarComponent
   ],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css']
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
 
   vendedor: any;
-
-  constructor(
-    private authService: AuthService,
-    private router: Router,
-    private cumplimientoService: CumplimientoService
-  ) {
-    this.vendedor = this.authService.getVendedor();
-  }
-
-  ngOnInit() {
-    this.cargarVistaActual();
-  }
-
-  /* SIDEBAR */
-
+  activeVentasView = 'ventas';
   isSidebarCollapsed = false;
   isMobileMenuOpen = false;
 
-  onToggleSidebar(collapsed: boolean) {
-    this.isSidebarCollapsed = collapsed;
-  }
+  // Data
+  cumplimientoData: any[] = [];
+  tableData: any[] = [];
+  totales: any = null;
 
-  logout() {
-    this.authService.logout();
-    this.router.navigate(['/login']);
-  }
-
-  /* TABS */
-
-  activeVentasView = 'ventas';
-
-  ventasViews = [
+  readonly ventasViews = [
     { key: 'ventas', label: 'Ventas' },
     { key: 'proveedor', label: 'Por Proveedor' },
     { key: 'ciudad', label: 'Por Ciudad' },
@@ -67,97 +43,90 @@ export class DashboardComponent implements OnInit {
     { key: 'cliente', label: 'Cliente Detallado' }
   ];
 
+  readonly tableColumns = ['codVendedor', 'nombre', 'cuotaMes', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
+  readonly lineasColumns = ['linea', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
+
+  constructor(
+    private authService: AuthService,
+    private router: Router,
+    private cumplimientoService: CumplimientoService
+  ) {}
+
+  ngOnInit() {
+    this.vendedor = this.authService.getVendedor();
+    if (!this.vendedor) {
+      this.router.navigate(['/login']);
+      return;
+    }
+    this.cargarVistaActual();
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   setVentasView(view: string) {
+    if (this.activeVentasView === view) return;
     this.activeVentasView = view;
     this.cargarVistaActual();
   }
 
-  /* DATA */
-
-  cumplimientoData: any[] = [];
-  tableData: any[] = [];
-  totales: any;
-
-  /* COLUMNAS */
-
-  // TABLA VENDEDORES
-  tableColumns = [
-    'codVendedor',
-    'nombre',
-    'cuotaMes',
-    'ventaAcum',
-    'porcCump',
-    'proyeccionVenta',
-    'porcCumProy'
-  ];
-
-  // TABLA LINEAS
-  lineasColumns = [
-    'linea',
-    'ventaAcum',
-    'porcCump',
-    'proyeccionVenta',
-    'porcCumProy'
-  ];
-
-  /* CARGAR DATA */
-
   cargarVistaActual() {
-
-    const codigoVendedor =
-      this.vendedor?.codVendedor || this.vendedor?.codigo;
-
+    const codigoVendedor = this.vendedor?.codVendedor || this.vendedor?.codigo;
     if (!codigoVendedor) return;
 
-    // VENTAS
+    // 1. VENTAS (Individual del vendedor logueado)
     if (this.activeVentasView === 'ventas') {
-
-      this.cumplimientoService
-        .getCumplimientoPorCodigo(codigoVendedor)
-        .subscribe((res: any) => {
-
-          this.cumplimientoData = [res];
-          this.tableData = [res];
-
-          this.totales = {
-            ventaAcum: res.ventaAcum,
-            cuotaMes: res.cuotaMes,
-            porcCump: res.porcCump,
-            proyeccionVenta: res.proyeccionVenta
-          };
-
+      this.cumplimientoService.getCumplimientoPorCodigo(codigoVendedor)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(res => {
+          if (res) {
+            // Guardamos los KPIs globales de la respuesta
+            this.totales = {
+              ventaAcum: res.ventaAcum,
+              cuotaMes: res.cuotaMes,
+              porcCump: res.porcCump,
+              proyeccionVenta: res.proyeccionVenta
+            };
+            // Para la gráfica y tabla de esta pestaña, envolvemos el objeto en un array
+            const dataArr = [res];
+            this.cumplimientoData = dataArr;
+            this.tableData = dataArr;
+          }
         });
-
     }
 
-    // PROVEEDOR (LINEAS)
-  if (this.activeVentasView === 'proveedor') {
-
-  this.cumplimientoService
-    .getLineasPorVendedor(codigoVendedor)
-    .subscribe((res: any) => {
-
-      this.cumplimientoData = res.detallePorLinea;
-      this.tableData = res.detallePorLinea;
-
-    });
-
-}
-
-    // VENDEDOR GENERAL
-    if (this.activeVentasView === 'vendedor') {
-
-      this.cumplimientoService
-        .getCumplimientoMes()
-        .subscribe((res: any) => {
-
-          this.cumplimientoData = res;
-          this.tableData = res;
-
+    // 2. PROVEEDOR (Líneas del vendedor)
+    else if (this.activeVentasView === 'proveedor') {
+      this.cumplimientoService.getLineasPorVendedor(codigoVendedor)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(res => {
+          const listado = res?.detallePorLinea || [];
+          this.cumplimientoData = [...listado];
+          this.tableData = [...listado];
         });
-
     }
 
+    // 3. VENDEDOR (Resumen general de TODOS los vendedores)
+    else if (this.activeVentasView === 'vendedor') {
+      this.cumplimientoService.getCumplimientoMes()
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(res => {
+          // Aquí 'res' ya debería ser un array de vendedores
+          const listado = Array.isArray(res) ? res : [];
+          this.cumplimientoData = [...listado];
+          this.tableData = [...listado];
+        });
+    }
   }
 
+  onToggleSidebar(collapsed: boolean) {
+    this.isSidebarCollapsed = collapsed;
+  }
+
+  logout() {
+    this.authService.logout();
+    this.router.navigate(['/login'], { replaceUrl: true });
+  }
 }

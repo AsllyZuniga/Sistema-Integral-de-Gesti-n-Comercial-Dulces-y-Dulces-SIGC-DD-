@@ -1,135 +1,67 @@
 <div class="layout" [class.mobile-open]="isMobileMenuOpen">
-
-  <div class="mobile-overlay"
-       *ngIf="isMobileMenuOpen"
-       (click)="isMobileMenuOpen = false">
-  </div>
+  <div class="mobile-overlay" *ngIf="isMobileMenuOpen" (click)="isMobileMenuOpen = false"></div>
 
   <app-sidebar (toggle)="onToggleSidebar($event)"></app-sidebar>
 
   <div class="main" [class.expanded]="isSidebarCollapsed">
-
-    <!-- TOPBAR -->
     <header class="topbar">
       <div class="title-container">
-        <button class="mobile-menu-btn"
-                (click)="isMobileMenuOpen = !isMobileMenuOpen">
-          ☰
-        </button>
-
+        <button class="mobile-menu-btn" (click)="isMobileMenuOpen = !isMobileMenuOpen">☰</button>
         <div>
           <h1>Dashboard Vendedor</h1>
-          <span class="welcome">
-            Bienvenido, {{ vendedor?.nombre }}
-          </span>
+          <span class="welcome" *ngIf="vendedor">Bienvenido, {{ vendedor.nombre }}</span>
         </div>
       </div>
-
-      <button class="logout-btn" (click)="logout()">
-        Cerrar sesión
-      </button>
+      <button class="logout-btn" (click)="logout()">Cerrar sesión</button>
     </header>
 
-    <!-- FILTROS -->
     <section class="filters">
       <app-filters></app-filters>
     </section>
 
-    <!-- KPIs -->
     <section class="kpis">
-      <app-card
-        title="Total Venta Mes"
-        [value]="totales?.ventaAcum || 0">
-      </app-card>
-
-      <app-card
-        title="Total Cuota"
-        [value]="totales?.cuotaMes || 0">
-      </app-card>
-
-      <app-card
-        title="Cumplimiento"
-        [value]="totales?.porcCump || 0">
-      </app-card>
-
-      <app-card
-        title="Proyección"
-        [value]="totales?.proyeccionVenta || 0">
-      </app-card>
+      <app-card title="Total Venta Mes" [value]="totales?.ventaAcum ?? 0"></app-card>
+      <app-card title="Total Cuota" [value]="totales?.cuotaMes ?? 0"></app-card>
+      <app-card title="Cumplimiento" [value]="totales?.porcCump ?? 0"></app-card>
+      <app-card title="Proyección" [value]="totales?.proyeccionVenta ?? 0"></app-card>
     </section>
 
-    <!-- ANALISIS -->
     <section class="charts">
-
       <div class="chart-box dynamic-panel">
-
         <h3>Análisis de Ventas</h3>
 
-        <!-- TABS -->
         <div class="tabs">
-          <button
-            *ngFor="let view of ventasViews"
+          <button *ngFor="let view of ventasViews"
             [class.active]="activeVentasView === view.key"
             (click)="setVentasView(view.key)">
             {{ view.label }}
           </button>
         </div>
 
-        <div class="dynamic-content">
-
-          <!-- VENTAS -->
-          <div *ngIf="activeVentasView === 'ventas'" class="grafica-container">
-            <app-chart [data]="cumplimientoData"></app-chart>
+        <div class="dynamic-content" [ngSwitch]="activeVentasView">
+          <div *ngSwitchCase="'ventas'" class="grafica-container">
+            <app-chart *ngIf="cumplimientoData.length > 0" [data]="cumplimientoData"></app-chart>
           </div>
 
-          <!-- PROVEEDOR -->
-          <div *ngIf="activeVentasView === 'proveedor'" class="tabla-vendedor">
-
+          <div *ngSwitchCase="'proveedor'" class="tabla-vendedor">
             <h3>Ventas por Proveedor / Línea</h3>
-
             <div class="tabla-scroll">
-              <app-table
-                [columns]="lineasColumns"
-                [data]="tableData">
-              </app-table>
+              <app-table *ngIf="tableData.length > 0" [columns]="lineasColumns" [data]="tableData"></app-table>
             </div>
-
           </div>
 
-          <!-- VENDEDOR -->
-          <div *ngIf="activeVentasView === 'vendedor'" class="tabla-vendedor">
-
-            <h3>Resumen</h3>
-
+          <div *ngSwitchCase="'vendedor'" class="tabla-vendedor">
+            <h3>Resumen Vendedores</h3>
             <div class="tabla-scroll">
-              <app-table
-                [columns]="tableColumns"
-                [data]="tableData">
-              </app-table>
+              <app-table *ngIf="tableData.length > 0" [columns]="tableColumns" [data]="tableData"></app-table>
             </div>
-
           </div>
 
-          <!-- CIUDAD -->
-          <div *ngIf="activeVentasView === 'ciudad'" class="placeholder">
-            Próximamente: ventas por ciudad
+          <div *ngSwitchDefault class="placeholder">
+            Próximamente: información de {{ activeVentasView }}
           </div>
-
-          <!-- ITEM -->
-          <div *ngIf="activeVentasView === 'item'" class="placeholder">
-            Próximamente: detalle por item
-          </div>
-
-          <!-- CLIENTE -->
-          <div *ngIf="activeVentasView === 'cliente'" class="placeholder">
-            Próximamente: clientes del vendedor
-          </div>
-
         </div>
-
       </div>
-
     </section>
-
   </div>
 </div>
