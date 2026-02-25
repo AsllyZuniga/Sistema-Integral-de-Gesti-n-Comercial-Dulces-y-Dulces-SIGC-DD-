@@ -59,6 +59,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return;
     }
     this.cargarVistaActual();
+    this.ngOnDestroy();
   }
 
   ngOnDestroy() {
