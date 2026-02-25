@@ -147,6 +147,11 @@
   font-size: 13px;
   cursor: pointer;
 }
+.tabs button.active {
+  background: #004286;
+  color: white;
+  font-weight: 500;
+}
 
 /* PANEL DINÁMICO */
 .dynamic-panel {
