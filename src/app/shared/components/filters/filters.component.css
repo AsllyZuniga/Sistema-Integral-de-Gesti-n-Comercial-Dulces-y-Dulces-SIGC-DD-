@@ -1,62 +1,141 @@
+/* ===========================
+   FILTERS COMPONENT
+=========================== */
+
 .filters-container {
-  background: white;
-  padding: 28px;
+  background: #ffffff;
+  padding: 24px 28px;
   border-radius: 16px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(226, 232, 240, 0.7);
   display: flex;
   flex-direction: column;
+  margin-bottom: 28px;
 }
 
+/* Cabecera opcional con título */
+.filters-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.filters-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #004286;
+  letter-spacing: -0.2px;
+}
+
+/* ===== BOTÓN TOGGLE MÓVIL ===== */
 .btn-toggle-filtros {
   display: none;
   width: 100%;
   background: #f8fafc;
-  border: 1px solid #cbd5e1;
+  border: 1.5px solid #e2e8f0;
   color: #004286;
-  padding: 12px;
-  border-radius: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(.4, 0, .2, 1);
+  text-align: left;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .btn-toggle-filtros:hover {
-  background: #f1f5f9;
+  background: #f0f7ff;
+  border-color: #bfdbfe;
 }
 
+.btn-toggle-filtros .toggle-arrow {
+  font-size: 12px;
+  transition: transform 0.25s ease;
+}
+
+.btn-toggle-filtros.abierto .toggle-arrow {
+  transform: rotate(180deg);
+}
+
+/* ===== GRID DE FILTROS ===== */
 .filters-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 22px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 18px 20px;
   align-items: end;
-  margin-top: 0;
 }
 
+/* ===== GRUPO INDIVIDUAL ===== */
 .filter-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .date-filter-group {
   grid-column: span 2;
 }
 
+/* Label */
 .filter-group label {
-  font-size: 16px;
+  font-size: 11px;
   font-weight: 600;
   color: #334155;
-  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
 }
 
-.full-width {
+/* ===== INPUTS & SELECTS ===== */
+.filter-group select,
+.filter-group input[type="date"],
+.filter-group input[type="text"],
+.filter-group input[type="number"] {
+  box-sizing: border-box;
   width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 14px;
+  color: #334155;
+  transition: all 0.25s cubic-bezier(.4, 0, .2, 1);
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
 }
 
+/* Flecha personalizada para select */
+.filter-group select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath fill='none' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 38px;
+}
+
+.filter-group select:hover,
+.filter-group input:hover {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+}
+
+.filter-group select:focus,
+.filter-group input:focus {
+  outline: none;
+  border-color: #1d63b8;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(29, 99, 184, 0.12);
+}
+
+/* ===== RANGO DE FECHAS ===== */
 .date-range {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
 .date-range input {
@@ -65,30 +144,17 @@
 }
 
 .separator {
-  font-size: 18px;
-  color: #94a3b8;
+  font-size: 16px;
+  color: #cbd5e1;
+  flex-shrink: 0;
+  font-weight: 300;
 }
 
-.filter-group select,
-.filter-group input {
-  box-sizing: border-box;
-  padding: 11px 14px;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  font-size: 15px;
-  transition: all 0.2s ease;
+.full-width {
+  width: 100%;
 }
 
-.filter-group select:focus,
-.filter-group input:focus {
-  outline: none;
-  border-color: #2b55ae;
-  background: white;
-  box-shadow: 0 0 0 3px rgba(43, 85, 174, 0.15);
-}
-
-/* Botón */
+/* ===== BOTÓN APLICAR ===== */
 .filter-button {
   display: flex;
   align-items: flex-end;
@@ -96,32 +162,39 @@
 
 .apply-btn {
   width: 100%;
-  background: linear-gradient(135deg, #2b55ae, #1e3a8a);
+  background: linear-gradient(135deg, #1d63b8 0%, #004286 100%);
   color: white;
   border: none;
-  padding: 12px 18px;
-  border-radius: 10px;
-  font-size: 15px;
+  padding: 11px 20px;
+  border-radius: 12px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(.4, 0, .2, 1);
+  letter-spacing: 0.2px;
+  font-family: inherit;
+  white-space: nowrap;
 }
 
 .apply-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(43, 85, 174, 0.3);
+  box-shadow: 0 6px 18px rgba(29, 99, 184, 0.30);
 }
 
-/* =========================================
-   MODO CELULAR (RESPONSIVE)
-========================================= */
+.apply-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .filters-container {
     padding: 16px;
   }
 
   .btn-toggle-filtros {
-    display: block;
+    display: flex;
+    margin-bottom: 0;
   }
 
   .filters-grid.oculto-movil {
@@ -129,8 +202,9 @@
   }
 
   .filters-grid {
-    margin-top: 20px;
+    margin-top: 16px;
     grid-template-columns: 1fr;
+    gap: 14px;
   }
 
   .date-filter-group {
@@ -140,5 +214,24 @@
   .date-range {
     flex-direction: column;
     align-items: stretch;
+    gap: 10px;
+  }
+
+  .separator {
+    display: none;
+  }
+
+  .filter-button {
+    margin-top: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .filters-container {
+    padding: 14px 12px;
+  }
+
+  .apply-btn {
+    padding: 12px;
   }
 }
