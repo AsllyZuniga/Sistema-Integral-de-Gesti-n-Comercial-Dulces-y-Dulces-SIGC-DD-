@@ -9,14 +9,12 @@ import { CommonModule } from '@angular/common';
   <table>
     <thead>
       <tr>
-        <th *ngFor="let col of columns">{{col}}</th>
+        <th *ngFor="let col of columns">{{ col }}</th>
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let row of data">
-        <td *ngFor="let col of columns">
-          {{row[col]}}
-        </td>
+      <tr *ngFor="let row of data; let odd = odd" [class.odd]="odd">
+        <td *ngFor="let col of columns">{{ row[col] }}</td>
       </tr>
     </tbody>
   </table>
