@@ -1,25 +1,100 @@
-.table-container {
+/* ===========================
+   TABLE COMPONENT
+=========================== */
+
+.table-wrapper {
   width: 100%;
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 400px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
 }
 
+.table-wrapper::-webkit-scrollbar        { width: 5px; height: 5px; }
+.table-wrapper::-webkit-scrollbar-track  { background: #f1f5f9; border-radius: 99px; }
+.table-wrapper::-webkit-scrollbar-thumb  { background: #cbd5e1; border-radius: 99px; }
+.table-wrapper::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ===== TABLE ===== */
 table {
   width: 100%;
-  min-width: 900px;
+  min-width: 700px;
   border-collapse: collapse;
+  background: #ffffff;
+}
+
+/* ===== HEADER FIJO (sticky) ===== */
+thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+thead tr {
+  border-bottom: 2px solid #e2e8f0;
 }
 
 th {
+  background: #004286;         /* azul corporativo */
+  color: #ffffff;
   text-align: left;
-  padding: 12px;
-  background: #f3f4f6;
+  padding: 13px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  white-space: nowrap;
+  /* sticky por columna también */
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* Separador entre columnas del header */
+th:not(:last-child) {
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Primera columna más ancha */
+th:first-child {
+  border-radius: 12px 0 0 0;
+}
+th:last-child {
+  border-radius: 0 12px 0 0;
+}
+
+/* ===== FILAS ===== */
+tbody tr {
+  transition: background 0.2s ease;
+}
+
+/* Filas alternas */
+tbody tr.odd td {
+  background: #f8fafc;
+}
+
+tbody tr:hover td {
+  background: #f0f7ff !important;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ===== CELDAS ===== */
+td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f5f9;
   font-size: 13px;
+  color: #334155;
   white-space: nowrap;
 }
 
-td {
-  padding: 12px;
-  border-bottom: 1px solid #e5e7eb;
-  font-size: 13px;
-  white-space: nowrap;
+/* Primera columna destacada */
+td:first-child {
+  font-weight: 500;
+  color: #0f172a;
 }
