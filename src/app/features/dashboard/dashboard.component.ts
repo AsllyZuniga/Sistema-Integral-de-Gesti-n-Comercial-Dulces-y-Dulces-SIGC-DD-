@@ -55,17 +55,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
     { key: 'cliente', label: 'Cliente Detallado' }
   ];
 
-  readonly tableColumns = ['codVendedor','nombre','cuotaMes','ventaAcum','porcCump','proyeccionVenta','porcCumProy'];
-  readonly lineasColumns = ['linea','ventaAcum','porcCump','proyeccionVenta','porcCumProy'];
-  readonly ciudadesColumns = ['ciudad','ventaAcum','porcCump','proyeccionVenta','porcCumProy'];
-  readonly productosColumns = ['producto','ventaAcum','porcCump','proyeccionVenta','porcCumProy'];
+  readonly tableColumns = ['codVendedor', 'nombre', 'cuotaMes', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
+  readonly lineasColumns = ['linea', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
+  readonly ciudadesColumns = ['ciudad', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
+  readonly productosColumns = ['Fecha', 'Proveedor', 'Cod_Item', 'Descripcion', 'Venta_Unid_Cajas'];
 
   constructor(
     private authService: AuthService,
     private router: Router,
     private cumplimientoService: CumplimientoService,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.vendedor = this.authService.getVendedor();
@@ -195,12 +195,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
         .getProductosPorVendedor(codigoVendedor)
         .pipe(takeUntil(this.destroy$))
         .subscribe(res => {
-          const listado = res?.detallePorProducto ?? [];
+          const listado = res?.data ?? [];
           this.tableData = listado;
-          this.chartData = listado.map((item: any) => ({
-            name: item.producto,
-            value: item.ventaAcum
-          }));
+
+          // Chart: agrupar por Descripcion (top 10 por cajas)
+          const agg = new Map<string, number>();
+          for (const row of listado) {
+            const key = row.Descripcion ?? 'SIN DESCRIPCION';
+            const val = Number(row.Venta_Unid_Cajas ?? 0);
+            agg.set(key, (agg.get(key) ?? 0) + val);
+          }
+          this.chartData = Array.from(agg.entries())
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 10);
+
           this.cdr.detectChanges();
         });
     }
