@@ -1,23 +1,93 @@
+/* ===========================
+   CARD COMPONENT
+=========================== */
+
 .card {
   background: #ffffff;
   border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-  transition: .3s;
+  padding: 22px 24px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  transition: all 0.25s cubic-bezier(.4, 0, .2, 1);
   width: 100%;
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+}
+
+.card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #1d63b8, #5a9bdf);
+  opacity: 0;
+  transition: opacity 0.25s cubic-bezier(.4, 0, .2, 1);
 }
 
 .card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  border-color: #dbeafe;
 }
 
+.card:hover::after {
+  opacity: 1;
+}
+
+/* ===== ÍCONO DECORATIVO ===== */
+.card-icon {
+  position: absolute;
+  bottom: -8px;
+  right: 10px;
+  font-size: 76px;
+  opacity: 0.07;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 0.25s cubic-bezier(.4, 0, .2, 1),
+              transform 0.25s cubic-bezier(.4, 0, .2, 1);
+}
+
+.card:hover .card-icon {
+  opacity: 0.13;
+  transform: scale(1.08) rotate(-4deg);
+}
+
+/* ===== TÍTULO ===== */
 .title {
-  color: #6b7280;
-  font-size: 13px;
+  margin: 0 0 8px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
 }
 
+/* ===== VALOR ===== */
 h2 {
-  margin-top: 10px;
-  font-size: 24px;
-  color: #111827;
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.5px;
+  line-height: 1.15;
+  padding-right: 52px;
+  word-break: break-word;
 }
+
+/* ===== TREND (por si lo usas después) ===== */
+.trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+
+.trend.up      { color: #10b981; background: #d1fae5; }
+.trend.down    { color: #ef4444; background: #fee2e2; }
+.trend.warning { color: #d97706; background: #fef3c7; }
+.trend.neutral { color: #64748b; background: #f1f5f9; }
