@@ -9,7 +9,9 @@
     <header class="topbar">
       <div class="title-container">
         <button class="mobile-menu-btn" (click)="isMobileMenuOpen = !isMobileMenuOpen">☰</button>
-        <div>
+        <img class="topbar-logo" src="logoDulces.png" alt="Logo" />
+        <div class="topbar-divider"></div>
+        <div class="topbar-text">
           <h1>Dashboard Vendedor</h1>
           <span class="welcome" *ngIf="vendedor">
             Bienvenido, {{ vendedor.nombre }}
@@ -24,10 +26,10 @@
     </section>
 
     <section class="kpis">
-      <app-card title="Total Venta Mes" [value]="totales?.ventaAcum ?? 0"></app-card>
-      <app-card title="Total Cuota" [value]="totales?.cuotaMes ?? 0"></app-card>
-      <app-card title="Cumplimiento" [value]="totales?.porcCump ?? 0"></app-card>
-      <app-card title="Proyección" [value]="totales?.proyeccionVenta ?? 0"></app-card>
+      <app-card title="Total Venta Mes"  [value]="totales?.ventaAcum      ?? 0"></app-card>
+      <app-card title="Total Cuota"      [value]="totales?.cuotaMes        ?? 0"></app-card>
+      <app-card title="Cumplimiento"     [value]="totales?.porcCump        ?? 0"></app-card>
+      <app-card title="Proyección"       [value]="totales?.proyeccionVenta ?? 0"></app-card>
     </section>
 
     <section class="charts">
@@ -49,14 +51,15 @@
           <div *ngSwitchCase="'ventas'" class="grafica-container">
             <app-chart
               *ngIf="chartData.length > 0; else noData"
+              [chartId]="chartId"
               [data]="chartData"
-              type="line">
+              [type]="chartType"
+              label="Ventas">
             </app-chart>
           </div>
 
           <!-- PROVEEDOR -->
           <div *ngSwitchCase="'proveedor'" class="proveedor-layout">
-
             <div class="tabla-scroll">
               <app-table
                 *ngIf="tableData.length > 0; else noData"
@@ -64,20 +67,19 @@
                 [data]="tableData">
               </app-table>
             </div>
-
             <div class="grafica-proveedor">
               <app-chart
                 *ngIf="chartData.length > 0; else noData"
+                [chartId]="chartId"
                 [data]="chartData"
-                type="bar">
+                [type]="chartType"
+                label="Por Proveedor">
               </app-chart>
             </div>
-
           </div>
 
           <!-- CIUDAD -->
           <div *ngSwitchCase="'ciudad'" class="proveedor-layout">
-
             <div class="tabla-scroll">
               <app-table
                 *ngIf="tableData.length > 0; else noData"
@@ -85,15 +87,15 @@
                 [data]="tableData">
               </app-table>
             </div>
-
             <div class="grafica-proveedor">
               <app-chart
                 *ngIf="chartData.length > 0; else noData"
+                [chartId]="chartId"
                 [data]="chartData"
-                type="pie">
+                [type]="chartType"
+                label="Por Ciudad">
               </app-chart>
             </div>
-
           </div>
 
           <!-- VENDEDOR -->
@@ -107,9 +109,8 @@
             </div>
           </div>
 
-          <!-- DETALLE POR ITEM (NUEVO) -->
+          <!-- DETALLE POR ITEM -->
           <div *ngSwitchCase="'item'" class="proveedor-layout">
-
             <div class="tabla-scroll">
               <app-table
                 *ngIf="tableData.length > 0; else noData"
@@ -117,15 +118,15 @@
                 [data]="tableData">
               </app-table>
             </div>
-
             <div class="grafica-proveedor">
               <app-chart
                 *ngIf="chartData.length > 0; else noData"
+                [chartId]="chartId"
                 [data]="chartData"
-                type="bar">
+                [type]="chartType"
+                label="Por Item">
               </app-chart>
             </div>
-
           </div>
 
         </div>
