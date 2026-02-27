@@ -5,6 +5,7 @@ import { Subject, takeUntil } from 'rxjs';
 import { CumplimientoService } from '../../../../core/services/ventas/cumplimientoVentasMes.service';
 import { ChartComponent } from '../../../../shared/components/chart/chart.component';
 import { TableComponent } from '../../../../shared/components/table/table.component';
+import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
 
 @Component({
   selector: 'app-ventas',
@@ -17,6 +18,24 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   @Input() codigoVendedor!: string;
 
+  // ── Setter: cada vez que el Dashboard cambia filtros, recarga ──
+  @Input() set filtros(value: DashboardFilters) {
+    this._filtros = value;
+    if (this.codigoVendedor) {
+      this.cargarVistaActual();
+    }
+  }
+  get filtros(): DashboardFilters { return this._filtros; }
+  private _filtros: DashboardFilters = {
+    fechaInicio: '',
+    fechaFin:    '',
+    vendedor:    '',
+    proveedor:   '',
+    categoria:   '',
+    ciudad:      '',
+  };
+  // ──────────────────────────────────────────────────────────────
+
   private destroy$ = new Subject<void>();
 
   activeVentasView = 'ventas';
@@ -25,11 +44,11 @@ export class VentasComponent implements OnInit, OnDestroy {
   tableData: any[] = [];
   chartData: any[] = [];
 
-  // ── Filtro Detalle por Item ──────────────────────
+  // ── Filtro interno — Detalle por Item ─────────────────────────
   private allItemData: any[] = [];
   proveedores: string[] = [];
   proveedorSeleccionado: string = '';
-  // ────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────────────
 
   readonly ventasViews = [
     { key: 'ventas',    label: 'Ventas' },
@@ -64,7 +83,7 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.cargarVistaActual();
   }
 
-  // ── Lógica del filtro ────────────────────────────
+  // ── Filtro interno (solo vista "item") ────────────────────────
   onProveedorChange() {
     this.aplicarFiltro();
     this.recalcularChart();
@@ -96,23 +115,23 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.chartId = 'chart-item-' + Date.now();
     this.cdr.detectChanges();
   }
-  // ────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────────────
 
   cargarVistaActual() {
     if (!this.codigoVendedor) return;
 
-    this.tableData       = [];
-    this.chartData       = [];
-    this.allItemData     = [];
-    this.proveedores     = [];
+    this.tableData             = [];
+    this.chartData             = [];
+    this.allItemData           = [];
+    this.proveedores           = [];
     this.proveedorSeleccionado = '';
     this.chartId = 'chart-' + this.activeVentasView + '-' + Date.now();
 
-    // ── VENTAS ──────────────────────────────────────
+    // ── VENTAS ──────────────────────────────────────────────────
     if (this.activeVentasView === 'ventas') {
       this.chartType = 'line';
       this.cumplimientoService
-        .getCumplimientoPorCodigo(this.codigoVendedor)
+        .getCumplimientoPorCodigo(this.codigoVendedor, this._filtros)
         .pipe(takeUntil(this.destroy$))
         .subscribe(res => {
           if (!res) return;
@@ -126,11 +145,11 @@ export class VentasComponent implements OnInit, OnDestroy {
         });
     }
 
-    // ── PROVEEDOR ───────────────────────────────────
+    // ── PROVEEDOR ────────────────────────────────────────────────
     else if (this.activeVentasView === 'proveedor') {
       this.chartType = 'bar';
       this.cumplimientoService
-        .getLineasPorVendedor(this.codigoVendedor)
+        .getLineasPorVendedor(this.codigoVendedor, this._filtros)
         .pipe(takeUntil(this.destroy$))
         .subscribe(res => {
           const listado = res?.detallePorLinea ?? [];
@@ -143,11 +162,11 @@ export class VentasComponent implements OnInit, OnDestroy {
         });
     }
 
-    // ── CIUDAD ──────────────────────────────────────
+    // ── CIUDAD ───────────────────────────────────────────────────
     else if (this.activeVentasView === 'ciudad') {
       this.chartType = 'pie';
       this.cumplimientoService
-        .getCiudadesPorVendedor(this.codigoVendedor)
+        .getCiudadesPorVendedor(this.codigoVendedor, this._filtros)
         .pipe(takeUntil(this.destroy$))
         .subscribe(res => {
           const listado = res?.detallePorCiudad ?? [];
@@ -160,11 +179,11 @@ export class VentasComponent implements OnInit, OnDestroy {
         });
     }
 
-    // ── VENDEDOR ────────────────────────────────────
+    // ── VENDEDOR ─────────────────────────────────────────────────
     else if (this.activeVentasView === 'vendedor') {
       this.chartType = 'bar';
       this.cumplimientoService
-        .getCumplimientoPorCodigo(this.codigoVendedor)
+        .getCumplimientoPorCodigo(this.codigoVendedor, this._filtros)
         .pipe(takeUntil(this.destroy$))
         .subscribe(res => {
           if (!res) return;
@@ -174,24 +193,21 @@ export class VentasComponent implements OnInit, OnDestroy {
         });
     }
 
-    // ── DETALLE POR ITEM ────────────────────────────
+    // ── DETALLE POR ITEM ─────────────────────────────────────────
     else if (this.activeVentasView === 'item') {
       this.chartType = 'bar';
       this.cumplimientoService
-        .getProductosPorVendedor(this.codigoVendedor)
+        .getProductosPorVendedor(this.codigoVendedor, this._filtros)
         .pipe(takeUntil(this.destroy$))
         .subscribe(res => {
           const listado = res?.data ?? [];
 
-          // Guardar todos los datos originales
           this.allItemData = listado;
 
-          // Extraer proveedores únicos ordenados
           this.proveedores = [
             ...new Set<string>(listado.map((r: any) => r.Proveedor).filter(Boolean))
           ].sort();
 
-          // Mostrar todo al inicio
           this.tableData = [...listado];
           this.recalcularChart();
         });

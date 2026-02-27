@@ -5,19 +5,23 @@
 /* ===== CHART BOX ===== */
 .chart-box {
   background: #ffffff;
-  padding: 28px 26px;
+  padding: 24px 22px;
   border-radius: 20px;
   box-shadow: 0 4px 24px rgba(0, 66, 134, 0.08);
   border: 1px solid rgba(226, 232, 240, 0.8);
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  /* NO overflow:hidden aquí — deja que los hijos hagan scroll */
+  /*
+    CRÍTICO: overflow:visible para que los tabs puedan
+    hacer scroll horizontal sin ser cortados por este contenedor.
+    NUNCA cambiar a hidden u otro valor restrictivo.
+  */
   overflow: visible;
 }
 
 .chart-box h3 {
-  margin: 0 0 18px;
+  margin: 0 0 16px;
   font-size: 17px;
   font-weight: 700;
   color: #004286;
@@ -25,22 +29,37 @@
 }
 
 /* ===== TABS ===== */
+/*
+  Para que funcione el scroll horizontal en móvil:
+  - overflow-x: auto          → habilita el scroll
+  - flex-wrap: nowrap          → todos los botones en una línea
+  - flex: 0 0 auto (botones)  → nunca encogen
+  - padding-right              → el último tab se ve completo
+  - touch-action: pan-x        → mejora swipe táctil iOS/Android
+  - overscroll-behavior-x      → evita que el scroll propague al body
+  - Ningún padre con overflow: hidden o clip
+*/
 .tabs {
   display: flex;
   gap: 6px;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
   overflow-x: auto;
   overflow-y: visible;
   flex-wrap: nowrap;
   width: 100%;
-  padding-bottom: 4px;
+  padding-bottom: 6px;
+  padding-right: 16px;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  /* FIX: mejora el deslizamiento táctil en Android e iOS */
+  touch-action: pan-x;
+  /* FIX: evita que el swipe en los tabs mueva el body */
+  overscroll-behavior-x: contain;
 }
 .tabs::-webkit-scrollbar { display: none; }
 
 .tabs button {
-  flex: 0 0 auto;
+  flex: 0 0 auto;      /* nunca encoge — clave para el scroll */
   white-space: nowrap;
   background: #f1f5f9;
   border: 1.5px solid transparent;
@@ -78,37 +97,41 @@
   background: #f8fafc;
   border-radius: 14px;
   border: 1px solid #e2e8f0;
-  padding: 20px;
+  padding: 16px;
   min-height: 460px;
   box-sizing: border-box;
-  /* NO overflow:hidden — permitir que tabla haga scroll */
-  overflow: visible;
+  /*
+    overflow: visible es necesario para que .tabla-scroll
+    pueda hacer scroll sin ser recortado por este contenedor
+  */
+  overflow: hidden;
   width: 100%;
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
 
-/* ===== GRAFICA CONTAINER (solo ventas) ===== */
+/* ===== GRAFICA CONTAINER ===== */
 .grafica-container {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
   width: 100%;
-  min-height: 380px;
+  min-height: 320px;
+  overflow: hidden;
 }
-
 .grafica-container canvas {
   max-width: 100% !important;
   width: 100% !important;
+  height: auto !important;
 }
 
 /* ===== SPLIT LAYOUT ===== */
 .split-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
   align-items: start;
   width: 100%;
   min-width: 0;
@@ -126,6 +149,13 @@
 
 /* ===== TABLA SCROLL ===== */
 .tabla-scroll {
+  /*
+    display: block es OBLIGATORIO para que overflow-x funcione
+    dentro de un contenedor flex o grid.
+    Si el padre tiene overflow: hidden, este scroll no funcionará —
+    por eso todos los padres deben tener overflow: visible.
+  */
+  display: block;
   min-width: 0;
   width: 100%;
   overflow-x: auto;
@@ -136,6 +166,9 @@
   scrollbar-width: thin;
   scrollbar-color: #94a3b8 #f1f5f9;
   -webkit-overflow-scrolling: touch;
+  /* FIX: mejora el scroll táctil horizontal en móvil */
+  touch-action: pan-x pan-y;
+  overscroll-behavior: contain;
   box-sizing: border-box;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
@@ -144,73 +177,34 @@
 .tabla-scroll::-webkit-scrollbar-thumb  { background: #94a3b8; border-radius: 99px; }
 .tabla-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
-.tabla-scroll table {
-  width: 100%;
-  min-width: 560px;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.tabla-scroll thead th {
-  position: sticky;
-  top: 0;
-  background: #f0f7ff;
-  color: #004286;
-  font-weight: 700;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 11px 14px;
-  border-bottom: 2px solid #dbeafe;
-  white-space: nowrap;
-  z-index: 1;
-}
-
-.tabla-scroll tbody tr {
-  transition: background 0.15s ease;
-}
-
-.tabla-scroll tbody tr:nth-child(even) {
-  background: #f8fafc;
-}
-
-.tabla-scroll tbody tr:hover {
-  background: #f0f7ff;
-}
-
-.tabla-scroll tbody td {
-  padding: 10px 14px;
-  border-bottom: 1px solid #f1f5f9;
-  color: #334155;
-  white-space: nowrap;
-}
-
 /* ===== GRÁFICA LATERAL ===== */
 .grafica-lateral {
   background: #ffffff;
   border-radius: 14px;
   border: 1px solid #e2e8f0;
-  padding: 16px;
+  padding: 14px;
   min-width: 0;
   width: 100%;
   overflow: hidden;
   box-sizing: border-box;
   position: sticky;
   top: 16px;
-  min-height: 340px;
+  min-height: 280px;
   box-shadow: 0 2px 12px rgba(0, 66, 134, 0.06);
 }
-
 .grafica-lateral h4 {
   font-size: 13px;
   font-weight: 700;
   color: #004286;
-  margin: 0 0 12px;
-  letter-spacing: -0.2px;
+  margin: 0 0 10px;
 }
-
+.grafica-lateral-inner {
+  width: 100%;
+  overflow: hidden;
+}
 .grafica-lateral canvas {
   max-width: 100% !important;
+  width: 100% !important;
   height: auto !important;
   display: block;
 }
@@ -219,7 +213,7 @@
 .item-layout {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   width: 100%;
   min-width: 0;
 }
@@ -232,13 +226,12 @@
   flex-wrap: wrap;
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 12px 18px;
+  border-radius: 12px;
+  padding: 10px 14px;
   box-sizing: border-box;
   width: 100%;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
-
 .filtro-label {
   font-size: 11px;
   font-weight: 700;
@@ -247,17 +240,15 @@
   letter-spacing: 0.7px;
   white-space: nowrap;
 }
-
 .filtro-select-wrap {
   position: relative;
   flex: 1;
   min-width: 160px;
   max-width: 300px;
 }
-
 .filtro-select-wrap select {
   width: 100%;
-  padding: 9px 36px 9px 13px;
+  padding: 8px 34px 8px 12px;
   border-radius: 10px;
   border: 1.5px solid #e2e8f0;
   background: #f8fafc;
@@ -266,17 +257,15 @@
   font-family: inherit;
   cursor: pointer;
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease;
   appearance: none;
   -webkit-appearance: none;
 }
-
 .filtro-select-wrap select:focus {
   border-color: #004286;
   box-shadow: 0 0 0 3px rgba(0, 66, 134, 0.10);
   background: #ffffff;
 }
-
 .select-icon {
   position: absolute;
   right: 10px;
@@ -287,7 +276,6 @@
   pointer-events: none;
   color: #64748b;
 }
-
 .filtro-badge {
   font-size: 12px;
   font-weight: 600;
@@ -295,7 +283,7 @@
   background: #f0f7ff;
   border: 1px solid #dbeafe;
   border-radius: 20px;
-  padding: 5px 12px;
+  padding: 4px 12px;
   white-space: nowrap;
   margin-left: auto;
 }
@@ -311,7 +299,6 @@
   align-items: center;
   gap: 8px;
 }
-
 .placeholder::before {
   content: '📊';
   font-size: 32px;
@@ -326,18 +313,10 @@
 @media (max-width: 992px) {
   .split-layout {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 14px;
   }
-
-  .grafica-lateral {
-    position: static;
-    width: 100%;
-    min-height: 300px;
-  }
-
-  .grafica-container {
-    min-height: 320px;
-  }
+  .grafica-lateral { position: static; min-height: 260px; }
+  .grafica-container { min-height: 300px; }
 }
 
 /* ── Móvil 768px ── */
@@ -345,122 +324,68 @@
   .chart-box {
     padding: 16px 14px;
     border-radius: 16px;
+    /*
+      CRÍTICO: NUNCA overflow: hidden en móvil.
+      Mantener visible para que tabs y tabla puedan hacer scroll.
+    */
+    overflow: visible;
   }
 
-  .dynamic-content {
-    padding: 14px 10px;
-    min-height: 280px;
-    border-radius: 12px;
-  }
+  .chart-box h3 { font-size: 15px; margin-bottom: 14px; }
 
   .tabs {
-    gap: 5px;
-    padding-bottom: 6px;
-    padding-right: 12px;
+    gap: 6px;
+    padding-right: 24px;
+    padding-bottom: 8px;
+    margin-bottom: 14px;
+    margin-left: -2px;
+    padding-left: 2px;
+    /* FIX: asegurar touch-action también en breakpoint móvil */
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
   }
 
   .tabs button {
     font-size: 12px;
-    padding: 8px 13px;
+    padding: 8px 14px;
+  }
+
+  .dynamic-content {
+    padding: 12px 10px;
+    min-height: 240px;
+    /* FIX: mantener visible para no bloquear el scroll de tabla-scroll */
+    overflow: visible;
   }
 
   .split-layout {
     grid-template-columns: 1fr;
-    gap: 14px;
+    gap: 12px;
   }
 
-  .grafica-container {
-    min-height: 280px;
-  }
+  .grafica-container { min-height: 260px; }
+  .tabla-scroll { max-height: 260px; }
+  .grafica-lateral { position: static; min-height: 240px; }
+  .grafica-lateral-inner { max-height: 260px; }
 
-  .tabla-scroll {
-    max-height: 300px;
-    border-left: 3px solid #dbeafe;
-  }
-
-  .tabla-scroll table {
-    min-width: 480px;
-  }
-
-  .grafica-lateral {
-    position: static;
-    width: 100%;
-    min-height: 260px;
-  }
-
-  .filtro-bar {
-    padding: 10px 12px;
-    gap: 8px;
-  }
-
-  .filtro-select-wrap {
-    max-width: 100%;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .filtro-badge {
-    margin-left: 0;
-  }
-
-  .chart-box h3 {
-    font-size: 15px;
-  }
+  .filtro-bar { padding: 10px 12px; gap: 8px; }
+  .filtro-select-wrap { max-width: 100%; width: 100%; min-width: 0; flex: 1 1 auto; }
+  .filtro-badge { margin-left: 0; }
 }
 
 /* ── Móvil pequeño 480px ── */
 @media (max-width: 480px) {
-  .chart-box {
-    padding: 14px 10px;
-    border-radius: 14px;
-  }
+  .chart-box { padding: 14px 12px; border-radius: 14px; overflow: visible; }
 
-  .tabs {
-    gap: 4px;
-  }
-  .tabs button {
-    font-size: 11.5px;
-    padding: 7px 10px;
-  }
+  .tabs { gap: 5px; padding-right: 20px; touch-action: pan-x; }
+  .tabs button { font-size: 11px; padding: 7px 11px; }
 
-  .dynamic-content {
-    padding: 10px 8px;
-    min-height: 220px;
-  }
+  .dynamic-content { padding: 10px 8px; min-height: 200px; overflow: visible; }
+  .grafica-container { min-height: 220px; }
+  .tabla-scroll { max-height: 220px; }
+  .grafica-lateral { min-height: 200px; }
+  .grafica-lateral-inner { max-height: 220px; }
 
-  .grafica-container {
-    min-height: 240px;
-  }
-
-  .tabla-scroll {
-    max-height: 240px;
-  }
-
-  .tabla-scroll table {
-    font-size: 12px;
-  }
-
-  .tabla-scroll thead th,
-  .tabla-scroll tbody td {
-    padding: 8px 10px;
-  }
-
-  .grafica-lateral {
-    min-height: 220px;
-  }
-
-  .filtro-bar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .filtro-select-wrap {
-    width: 100%;
-    max-width: 100%;
-  }
-
-  .filtro-badge {
-    align-self: flex-start;
-  }
+  .filtro-bar { flex-direction: column; align-items: flex-start; padding: 10px; }
+  .filtro-select-wrap { width: 100%; max-width: 100%; }
+  .filtro-badge { align-self: flex-start; }
 }

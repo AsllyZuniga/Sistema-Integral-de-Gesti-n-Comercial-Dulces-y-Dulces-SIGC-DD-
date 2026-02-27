@@ -4,21 +4,41 @@
 
 table {
   width: 100%;
-  min-width: 600px;
+  /*
+    FIX: min-width subido de 460px a 620px para acomodar las 7 columnas
+    (CÓD. VENDEDOR, NOMBRE, CUOTA MES, VENTA ACUM., CUMPL.%, PROYECCIÓN, CUMPL. PROY.%)
+    sin que se compriman y corten el texto.
+    El scroll horizontal lo maneja el padre .tabla-scroll.
+  */
+  min-width: 620px;
   border-collapse: collapse;
   background: #ffffff;
   font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  /*
+    FIX: table-layout: fixed permite definir anchos exactos por columna
+    y evita que el contenido desborde hacia columnas adyacentes.
+  */
+  table-layout: fixed;
 }
 
-/* ── ENCABEZADO ── */
-thead tr {
-  border-bottom: 2px solid #e2e8f0;
-}
+/* ===== ANCHOS DE COLUMNA =====
+   Ajusta estos valores si agregas o quitas columnas.
+   La suma total debe ser >= al min-width de la tabla (620px).
+*/
+th:nth-child(1) { width: 110px; }   /* CÓD. VENDEDOR   */
+th:nth-child(2) { width: 180px; }   /* NOMBRE          */
+th:nth-child(3) { width: 120px; }   /* CUOTA MES       */
+th:nth-child(4) { width: 110px; }   /* VENTA ACUM.     */
+th:nth-child(5) { width: 80px;  }   /* CUMPL. %        */
+th:nth-child(6) { width: 110px; }   /* PROYECCIÓN      */
+th:nth-child(7) { width: 110px; }   /* CUMPL. PROY. %  */
+
+thead tr { border-bottom: 2px solid #e2e8f0; }
 
 th {
   background: #ffffff;
   text-align: left;
-  padding: 13px 16px;
+  padding: 12px 14px;
   font-size: 11px;
   font-weight: 700;
   color: #64748b;
@@ -28,37 +48,28 @@ th {
   top: 0;
   z-index: 1;
   white-space: nowrap;
-  /* Línea sutil bajo el header pegajoso */
+  overflow: hidden;
+  text-overflow: ellipsis;
   box-shadow: 0 1px 0 #e2e8f0;
 }
 
-/* ── FILAS ── */
 td {
-  padding: 12px 16px;
+  padding: 11px 14px;
   border-bottom: 1px solid #f1f5f9;
   font-size: 13px;
   color: #334155;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: background 0.15s ease;
 }
 
-tbody tr:hover td {
-  background: #f0f7ff;
-}
+tbody tr:hover td { background: #f0f7ff; }
+tbody tr.odd td { background: #f8fafc; }
+tbody tr.odd:hover td { background: #f0f7ff; }
+tbody tr:last-child td { border-bottom: none; }
 
-tbody tr.odd td {
-  background: #f8fafc;
-}
-
-tbody tr.odd:hover td {
-  background: #f0f7ff;
-}
-
-tbody tr:last-child td {
-  border-bottom: none;
-}
-
-/* ── COLUMNAS NUMÉRICAS (alineación derecha) ── */
+/* ===== ALINEACIÓN COLUMNAS NUMÉRICAS ===== */
 td[data-col="cuotaMes"],
 td[data-col="ventaAcum"],
 td[data-col="proyeccionVenta"],
@@ -70,50 +81,55 @@ td[data-col="Venta_Unid_Cajas"] {
   font-weight: 500;
 }
 
-th:has(+ th[data-col]),
-td[data-col="cuotaMes"] ~ td,
-td[data-col="ventaAcum"] ~ td {
+th[data-col="cuotaMes"],
+th[data-col="ventaAcum"],
+th[data-col="proyeccionVenta"],
+th[data-col="porcCump"],
+th[data-col="porcCumProy"],
+th[data-col="Venta_Unid_Cajas"] {
   text-align: right;
 }
 
-/* ── COLORES DE CUMPLIMIENTO ── */
-td.cell-success {
-  color: #16a34a;
-  font-weight: 700;
-}
+/* ===== ESTADOS DE CELDA ===== */
+td.cell-success { color: #16a34a; font-weight: 700; }
+td.cell-warning  { color: #d97706; font-weight: 600; }
+td.cell-danger   { color: #dc2626; font-weight: 600; }
 
-td.cell-warning {
-  color: #d97706;
-  font-weight: 600;
-}
-
-td.cell-danger {
-  color: #dc2626;
-  font-weight: 600;
-}
-
-/* ── BADGES de porcentaje ── */
-td.cell-success,
-td.cell-warning,
-td.cell-danger {
-  position: relative;
-}
-
-/* ── FILA VACÍA ── */
+/* ===== CELDA VACÍA ===== */
 td.empty {
   text-align: center;
   color: #94a3b8;
   padding: 32px 16px;
   font-size: 13px;
+  white-space: normal;
+  overflow: visible;
 }
 
-/* ── RESPONSIVE ── */
+/* ================================================
+   RESPONSIVE
+================================================ */
+
 @media (max-width: 768px) {
-  th { font-size: 10px; padding: 10px 12px; }
-  td { font-size: 12px; padding: 10px 12px; }
+  th { font-size: 10px; padding: 9px 10px; }
+  td { font-size: 12px; padding: 9px 10px; }
 }
 
 @media (max-width: 480px) {
-  th { font-size: 9px; padding: 8px 10px; letter-spacing: 0.4px; }
-  td { font-size: 11px; padding: 8px 10px; }
+  /*
+    FIX: era 400px — insuficiente para 7 columnas con contenido legible.
+    Con 560px el scroll horizontal de .tabla-scroll se activa correctamente
+    y cada columna mantiene su texto visible.
+  */
+  table { min-width: 560px; }
+
+  th:nth-child(1) { width: 90px;  }
+  th:nth-child(2) { width: 150px; }
+  th:nth-child(3) { width: 100px; }
+  th:nth-child(4) { width: 95px;  }
+  th:nth-child(5) { width: 65px;  }
+  th:nth-child(6) { width: 95px;  }
+  th:nth-child(7) { width: 95px;  }
+
+  th { font-size: 9px; padding: 7px 8px; letter-spacing: 0.3px; }
+  td { font-size: 11px; padding: 7px 8px; }
 }

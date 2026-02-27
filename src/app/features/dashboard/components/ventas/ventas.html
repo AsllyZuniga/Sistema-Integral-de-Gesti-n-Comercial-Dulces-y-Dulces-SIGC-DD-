@@ -2,7 +2,7 @@
 
   <h3>Análisis de Ventas</h3>
 
-  <!-- TABS con scroll horizontal -->
+  <!-- TABS — overflow-x:auto permite ver todos los tabs con scroll en móvil -->
   <div class="tabs">
     <button *ngFor="let view of ventasViews"
       [class.active]="activeVentasView === view.key"
@@ -29,9 +29,12 @@
         </app-table>
       </div>
       <div class="grafica-lateral">
-        <app-chart *ngIf="chartData.length > 0"
-          [chartId]="chartId" [data]="chartData" [type]="chartType" label="Por Proveedor">
-        </app-chart>
+        <h4>Por Proveedor</h4>
+        <div class="grafica-lateral-inner">
+          <app-chart *ngIf="chartData.length > 0"
+            [chartId]="chartId" [data]="chartData" [type]="chartType" label="Por Proveedor">
+          </app-chart>
+        </div>
       </div>
     </div>
 
@@ -43,9 +46,12 @@
         </app-table>
       </div>
       <div class="grafica-lateral">
-        <app-chart *ngIf="chartData.length > 0"
-          [chartId]="chartId" [data]="chartData" [type]="chartType" label="Por Ciudad">
-        </app-chart>
+        <h4>Por Ciudad</h4>
+        <div class="grafica-lateral-inner">
+          <app-chart *ngIf="chartData.length > 0"
+            [chartId]="chartId" [data]="chartData" [type]="chartType" label="Por Ciudad">
+          </app-chart>
+        </div>
       </div>
     </div>
 
@@ -61,11 +67,8 @@
     <!-- ══ DETALLE POR ITEM ══ -->
     <div *ngSwitchCase="'item'" class="item-layout">
 
-      <!-- Filtro de proveedor -->
       <div class="filtro-bar">
-        <label class="filtro-label" for="selectProveedor">
-          Proveedor
-        </label>
+        <label class="filtro-label" for="selectProveedor">Proveedor</label>
         <div class="filtro-select-wrap">
           <select
             id="selectProveedor"
@@ -74,19 +77,16 @@
             <option value="">Todos los proveedores</option>
             <option *ngFor="let p of proveedores" [value]="p">{{ p }}</option>
           </select>
-          <!-- Ícono flecha -->
           <svg class="select-icon" viewBox="0 0 20 20" fill="none">
             <path d="M5 8l5 5 5-5" stroke="#64748b" stroke-width="1.8"
               stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-        <!-- Badge con cantidad de resultados -->
         <span class="filtro-badge">
           {{ tableData.length }} registro{{ tableData.length !== 1 ? 's' : '' }}
         </span>
       </div>
 
-      <!-- Tabla + gráfica -->
       <div class="split-layout">
         <div class="tabla-scroll">
           <app-table *ngIf="tableData.length > 0; else noData"
@@ -94,9 +94,12 @@
           </app-table>
         </div>
         <div class="grafica-lateral">
-          <app-chart *ngIf="chartData.length > 0"
-            [chartId]="chartId" [data]="chartData" [type]="chartType" label="Top 10 Items">
-          </app-chart>
+          <h4>Top 10 Items</h4>
+          <div class="grafica-lateral-inner">
+            <app-chart *ngIf="chartData.length > 0"
+              [chartId]="chartId" [data]="chartData" [type]="chartType" label="Top 10 Items">
+            </app-chart>
+          </div>
         </div>
       </div>
 

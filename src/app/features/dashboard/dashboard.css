@@ -2,7 +2,6 @@
    DASHBOARD COMPONENT
 =========================== */
 
-/* ===== RESET BASE ===== */
 ::ng-deep body,
 ::ng-deep html {
   margin: 0;
@@ -11,13 +10,11 @@
   min-height: 100vh;
 }
 
-/* ===== LAYOUT ===== */
 .layout {
   display: flex;
   background: #f1f5f9;
   min-height: 100vh;
   font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-  overflow-x: hidden;
 }
 
 .main {
@@ -27,7 +24,6 @@
   transition: margin-left 0.25s cubic-bezier(.4, 0, .2, 1);
   box-sizing: border-box;
   min-width: 0;
-  overflow-x: hidden; /* Previene scroll lateral en desktop */
 }
 
 .main.expanded {
@@ -68,9 +64,7 @@
   flex-shrink: 0;
 }
 
-.topbar-text {
-  min-width: 0;
-}
+.topbar-text { min-width: 0; }
 
 .topbar-text h1 {
   font-size: 22px;
@@ -87,7 +81,6 @@
   color: #64748b;
   margin-top: 3px;
   font-weight: 400;
-  letter-spacing: 0.1px;
 }
 
 .mobile-menu-btn {
@@ -101,12 +94,9 @@
   border-radius: 8px;
   line-height: 1;
   flex-shrink: 0;
-  transition: all 0.25s cubic-bezier(.4, 0, .2, 1);
+  transition: all 0.25s;
 }
-
-.mobile-menu-btn:hover {
-  background: #dbeafe;
-}
+.mobile-menu-btn:hover { background: #dbeafe; }
 
 .logout-btn {
   background: linear-gradient(135deg, #1d63b8 0%, #004286 100%);
@@ -117,22 +107,13 @@
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
-  transition: all 0.25s cubic-bezier(.4, 0, .2, 1);
-  letter-spacing: 0.2px;
+  transition: all 0.25s;
   white-space: nowrap;
   flex-shrink: 0;
   box-shadow: 0 4px 12px rgba(0, 66, 134, 0.20);
 }
-
-.logout-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 66, 134, 0.30);
-}
-
-.logout-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 4px 12px rgba(0, 66, 134, 0.20);
-}
+.logout-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0, 66, 134, 0.30); }
+.logout-btn:active { transform: translateY(0); }
 
 /* ===== KPIs ===== */
 .kpis {
@@ -143,15 +124,13 @@
   margin-bottom: 26px;
 }
 
-/* ===== CHARTS / PANEL PRINCIPAL ===== */
+/* ===== CHARTS ===== */
 .charts {
   display: grid;
   grid-template-columns: 1fr;
   gap: 22px;
   width: 100%;
   min-width: 0;
-  /* Permite que los hijos con overflow-x:auto funcionen correctamente */
-  overflow: visible;
 }
 
 /* ===== OVERLAY MÓVIL ===== */
@@ -162,58 +141,49 @@
   background: rgba(15, 23, 42, 0.45);
   z-index: 1000;
   backdrop-filter: blur(2px);
-  animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
 }
 
 /* ================================================
    RESPONSIVE
 ================================================ */
 
-/* ── 1200px ── */
 @media (max-width: 1200px) {
   .main { padding: 28px 24px; }
 }
 
-/* ── 992px: sidebar colapsada ── */
 @media (max-width: 992px) {
   .main { margin-left: 72px; }
 }
 
-/* ── 768px: móvil ── */
 @media (max-width: 768px) {
+  .layout {
+    /*
+      FIX CRÍTICO: era "overflow-x: clip" — ese valor en Chrome/Safari móvil
+      actúa como hidden y bloquea el scroll interno de .tabs y .tabla-scroll.
+      Con "overflow-x: visible" los hijos pueden hacer scroll sin ser cortados.
+    */
+    overflow-x: visible;
+  }
+
   .main {
     margin-left: 0 !important;
-    padding: 16px 12px;
+    padding: 16px 14px;
     width: 100%;
     box-sizing: border-box;
-    /* Aquí SÍ necesitamos overflow-x hidden para el body */
-    overflow-x: hidden;
+    /*
+      NUNCA overflow-x: hidden aquí — destruiría el scroll de tabs y tablas.
+      Se deja sin declarar para heredar el valor visible del padre.
+    */
   }
 
   .topbar {
     flex-wrap: wrap;
-    align-items: center;
     gap: 10px;
     padding: 8px 0 14px;
   }
 
-  .title-container {
-    flex: 1;
-    min-width: 0;
-    gap: 8px;
-    overflow: hidden;
-  }
-
-  .mobile-menu-btn {
-    display: inline-flex;
-    align-items: center;
-  }
-
+  .title-container { flex: 1; min-width: 0; gap: 8px; overflow: hidden; }
+  .mobile-menu-btn { display: inline-flex; align-items: center; }
   .topbar-logo { height: 34px; }
   .topbar-divider { display: none; }
 
@@ -228,57 +198,26 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 100%;
   }
 
-  .logout-btn {
-    width: 100%;
-    text-align: center;
-  }
+  .logout-btn { width: 100%; text-align: center; }
 
-  .kpis {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-  }
+  .kpis { grid-template-columns: repeat(2, 1fr); gap: 12px; }
 
-  .charts {
-    width: 100%;
-    min-width: 0;
-    overflow: visible;
-  }
-
-  /* ── Sidebar off-canvas ── */
   ::ng-deep .sidebar {
     transform: translateX(-100%);
     width: 260px !important;
     z-index: 1001 !important;
     transition: transform 0.25s cubic-bezier(.4, 0, .2, 1) !important;
   }
-
-  .layout.mobile-open ::ng-deep .sidebar {
-    transform: translateX(0);
-  }
-
-  .layout.mobile-open .mobile-overlay {
-    display: block;
-  }
-
-  ::ng-deep .sidebar .top button {
-    display: none;
-  }
+  .layout.mobile-open ::ng-deep .sidebar { transform: translateX(0); }
+  .layout.mobile-open .mobile-overlay { display: block; }
+  ::ng-deep .sidebar .top button { display: none; }
 }
 
-/* ── 480px: móvil pequeño ── */
 @media (max-width: 480px) {
-  .main {
-    padding: 12px 8px;
-  }
-
+  .main { padding: 12px 10px; }
   .topbar-logo { height: 28px; }
   .topbar-text h1 { font-size: 14px; }
-
-  .kpis {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
+  .kpis { grid-template-columns: 1fr; gap: 10px; }
 }

@@ -21,19 +21,31 @@
       <button class="logout-btn" (click)="logout()">Cerrar sesión</button>
     </header>
 
+    <!-- ── Filtros: pasa listas y escucha el evento apply ────────── -->
     <section class="filters">
-      <app-filters></app-filters>
+      <app-filters
+        [vendedores]="vendedoresList"
+        [proveedores]="proveedoresList"
+        [categorias]="categoriasList"
+        [ciudades]="ciudadesList"
+        (apply)="onAplicarFiltros($event)">
+      </app-filters>
     </section>
 
+    <!-- ── Tarjetas KPI ───────────────────────────────────────────── -->
     <section class="kpis">
-      <app-card title="Total Venta Mes"  [value]="totales?.ventaAcum      ?? 0"></app-card>
-      <app-card title="Total Cuota"      [value]="totales?.cuotaMes        ?? 0"></app-card>
-      <app-card title="Cumplimiento"     [value]="totales?.porcCump        ?? 0"></app-card>
-      <app-card title="Proyección"       [value]="totales?.proyeccionVenta ?? 0"></app-card>
+      <app-card title="Total Venta Mes" [value]="totales?.ventaAcum      ?? 0"></app-card>
+      <app-card title="Total Cuota"     [value]="totales?.cuotaMes        ?? 0"></app-card>
+      <app-card title="Cumplimiento"    [value]="totales?.porcCump        ?? 0"></app-card>
+      <app-card title="Proyección"      [value]="totales?.proyeccionVenta ?? 0"></app-card>
     </section>
 
+    <!-- ── Análisis de Ventas: recibe filtros activos ────────────── -->
     <section class="charts">
-      <app-ventas [codigoVendedor]="codigoVendedor"></app-ventas>
+      <app-ventas
+        [codigoVendedor]="codigoVendedor"
+        [filtros]="filtrosActivos">
+      </app-ventas>
     </section>
 
   </div>
