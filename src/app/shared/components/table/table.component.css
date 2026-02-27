@@ -2,99 +2,118 @@
    TABLE COMPONENT
 =========================== */
 
-.table-wrapper {
-  width: 100%;
-  overflow-x: auto;
-  overflow-y: auto;
-  max-height: 400px;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 #f1f5f9;
-}
-
-.table-wrapper::-webkit-scrollbar        { width: 5px; height: 5px; }
-.table-wrapper::-webkit-scrollbar-track  { background: #f1f5f9; border-radius: 99px; }
-.table-wrapper::-webkit-scrollbar-thumb  { background: #cbd5e1; border-radius: 99px; }
-.table-wrapper::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-/* ===== TABLE ===== */
 table {
   width: 100%;
-  min-width: 700px;
+  min-width: 600px;
   border-collapse: collapse;
   background: #ffffff;
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
 }
 
-/* ===== HEADER FIJO (sticky) ===== */
-thead {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
+/* ── ENCABEZADO ── */
 thead tr {
   border-bottom: 2px solid #e2e8f0;
 }
 
 th {
-  background: #004286;         /* azul corporativo */
-  color: #ffffff;
+  background: #ffffff;
   text-align: left;
   padding: 13px 16px;
   font-size: 11px;
   font-weight: 700;
+  color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  white-space: nowrap;
-  /* sticky por columna también */
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 1;
+  white-space: nowrap;
+  /* Línea sutil bajo el header pegajoso */
+  box-shadow: 0 1px 0 #e2e8f0;
 }
 
-/* Separador entre columnas del header */
-th:not(:last-child) {
-  border-right: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-/* Primera columna más ancha */
-th:first-child {
-  border-radius: 12px 0 0 0;
-}
-th:last-child {
-  border-radius: 0 12px 0 0;
-}
-
-/* ===== FILAS ===== */
-tbody tr {
-  transition: background 0.2s ease;
-}
-
-/* Filas alternas */
-tbody tr.odd td {
-  background: #f8fafc;
-}
-
-tbody tr:hover td {
-  background: #f0f7ff !important;
-}
-
-tbody tr:last-child td {
-  border-bottom: none;
-}
-
-/* ===== CELDAS ===== */
+/* ── FILAS ── */
 td {
   padding: 12px 16px;
   border-bottom: 1px solid #f1f5f9;
   font-size: 13px;
   color: #334155;
   white-space: nowrap;
+  transition: background 0.15s ease;
 }
 
-/* Primera columna destacada */
-td:first-child {
+tbody tr:hover td {
+  background: #f0f7ff;
+}
+
+tbody tr.odd td {
+  background: #f8fafc;
+}
+
+tbody tr.odd:hover td {
+  background: #f0f7ff;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ── COLUMNAS NUMÉRICAS (alineación derecha) ── */
+td[data-col="cuotaMes"],
+td[data-col="ventaAcum"],
+td[data-col="proyeccionVenta"],
+td[data-col="porcCump"],
+td[data-col="porcCumProy"],
+td[data-col="Venta_Unid_Cajas"] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
   font-weight: 500;
-  color: #0f172a;
+}
+
+th:has(+ th[data-col]),
+td[data-col="cuotaMes"] ~ td,
+td[data-col="ventaAcum"] ~ td {
+  text-align: right;
+}
+
+/* ── COLORES DE CUMPLIMIENTO ── */
+td.cell-success {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+td.cell-warning {
+  color: #d97706;
+  font-weight: 600;
+}
+
+td.cell-danger {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+/* ── BADGES de porcentaje ── */
+td.cell-success,
+td.cell-warning,
+td.cell-danger {
+  position: relative;
+}
+
+/* ── FILA VACÍA ── */
+td.empty {
+  text-align: center;
+  color: #94a3b8;
+  padding: 32px 16px;
+  font-size: 13px;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  th { font-size: 10px; padding: 10px 12px; }
+  td { font-size: 12px; padding: 10px 12px; }
+}
+
+@media (max-width: 480px) {
+  th { font-size: 9px; padding: 8px 10px; letter-spacing: 0.4px; }
+  td { font-size: 11px; padding: 8px 10px; }
 }
