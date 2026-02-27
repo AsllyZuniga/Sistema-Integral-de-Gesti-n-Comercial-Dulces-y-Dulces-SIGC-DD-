@@ -1,0 +1,110 @@
+<div class="chart-box dynamic-panel">
+
+  <h3>Análisis de Ventas</h3>
+
+  <!-- TABS con scroll horizontal -->
+  <div class="tabs">
+    <button *ngFor="let view of ventasViews"
+      [class.active]="activeVentasView === view.key"
+      (click)="setVentasView(view.key)">
+      {{ view.label }}
+    </button>
+  </div>
+
+  <div class="dynamic-content" [ngSwitch]="activeVentasView">
+
+    <!-- ══ VENTAS ══ -->
+    <div *ngSwitchCase="'ventas'" class="grafica-container">
+      <app-chart
+        *ngIf="chartData.length > 0; else noData"
+        [chartId]="chartId" [data]="chartData" [type]="chartType" label="Ventas">
+      </app-chart>
+    </div>
+
+    <!-- ══ PROVEEDOR ══ -->
+    <div *ngSwitchCase="'proveedor'" class="split-layout">
+      <div class="tabla-scroll">
+        <app-table *ngIf="tableData.length > 0; else noData"
+          [columns]="lineasColumns" [data]="tableData">
+        </app-table>
+      </div>
+      <div class="grafica-lateral">
+        <app-chart *ngIf="chartData.length > 0"
+          [chartId]="chartId" [data]="chartData" [type]="chartType" label="Por Proveedor">
+        </app-chart>
+      </div>
+    </div>
+
+    <!-- ══ CIUDAD ══ -->
+    <div *ngSwitchCase="'ciudad'" class="split-layout">
+      <div class="tabla-scroll">
+        <app-table *ngIf="tableData.length > 0; else noData"
+          [columns]="ciudadesColumns" [data]="tableData">
+        </app-table>
+      </div>
+      <div class="grafica-lateral">
+        <app-chart *ngIf="chartData.length > 0"
+          [chartId]="chartId" [data]="chartData" [type]="chartType" label="Por Ciudad">
+        </app-chart>
+      </div>
+    </div>
+
+    <!-- ══ VENDEDOR ══ -->
+    <div *ngSwitchCase="'vendedor'" class="tabla-vendedor">
+      <div class="tabla-scroll">
+        <app-table *ngIf="tableData.length > 0; else noData"
+          [columns]="tableColumns" [data]="tableData">
+        </app-table>
+      </div>
+    </div>
+
+    <!-- ══ DETALLE POR ITEM ══ -->
+    <div *ngSwitchCase="'item'" class="item-layout">
+
+      <!-- Filtro de proveedor -->
+      <div class="filtro-bar">
+        <label class="filtro-label" for="selectProveedor">
+          Proveedor
+        </label>
+        <div class="filtro-select-wrap">
+          <select
+            id="selectProveedor"
+            [(ngModel)]="proveedorSeleccionado"
+            (ngModelChange)="onProveedorChange()">
+            <option value="">Todos los proveedores</option>
+            <option *ngFor="let p of proveedores" [value]="p">{{ p }}</option>
+          </select>
+          <!-- Ícono flecha -->
+          <svg class="select-icon" viewBox="0 0 20 20" fill="none">
+            <path d="M5 8l5 5 5-5" stroke="#64748b" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <!-- Badge con cantidad de resultados -->
+        <span class="filtro-badge">
+          {{ tableData.length }} registro{{ tableData.length !== 1 ? 's' : '' }}
+        </span>
+      </div>
+
+      <!-- Tabla + gráfica -->
+      <div class="split-layout">
+        <div class="tabla-scroll">
+          <app-table *ngIf="tableData.length > 0; else noData"
+            [columns]="productosColumns" [data]="tableData">
+          </app-table>
+        </div>
+        <div class="grafica-lateral">
+          <app-chart *ngIf="chartData.length > 0"
+            [chartId]="chartId" [data]="chartData" [type]="chartType" label="Top 10 Items">
+          </app-chart>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<ng-template #noData>
+  <div class="placeholder">Cargando información...</div>
+</ng-template>

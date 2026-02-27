@@ -27,6 +27,7 @@
   transition: margin-left 0.25s cubic-bezier(.4, 0, .2, 1);
   box-sizing: border-box;
   min-width: 0;
+  overflow-x: hidden; /* Previene scroll lateral en desktop */
 }
 
 .main.expanded {
@@ -148,190 +149,9 @@
   grid-template-columns: 1fr;
   gap: 22px;
   width: 100%;
-}
-
-/* ===== CHART BOX ===== */
-.chart-box {
-  background: #ffffff;
-  padding: 26px;
-  border-radius: 16px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(226, 232, 240, 0.7);
-  overflow: hidden;
-}
-
-.chart-box h3 {
-  margin: 0 0 18px;
-  font-size: 16px;
-  font-weight: 700;
-  color: #004286;
-  letter-spacing: -0.2px;
-}
-
-/* ===== TABS ===== */
-.tabs {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 18px;
-  overflow-x: auto;
-  flex-wrap: nowrap;
-  width: 100%;
-  padding-bottom: 4px;
-  scrollbar-width: none;
-}
-
-.tabs::-webkit-scrollbar {
-  display: none;
-}
-
-.tabs button {
-  flex: 0 0 auto;
-  white-space: nowrap;
-  background: #f1f5f9;
-  border: 1.5px solid transparent;
-  padding: 8px 16px;
-  border-radius: 30px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  color: #64748b;
-  transition: all 0.25s cubic-bezier(.4, 0, .2, 1);
-  font-family: inherit;
-}
-
-.tabs button:hover {
-  background: #f0f7ff;
-  color: #004286;
-  border-color: #dbeafe;
-}
-
-.tabs button.active {
-  background: #004286;
-  color: #ffffff;
-  font-weight: 600;
-  border-color: transparent;
-  box-shadow: 0 4px 12px rgba(0, 66, 134, 0.20);
-}
-
-/* ===== PANEL DINÁMICO ===== */
-.dynamic-panel {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-}
-
-.dynamic-content {
-  background: #f8fafc;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  padding: 22px;
-  min-height: 420px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* ===== TABLA INTERNA ===== */
-.tabla-vendedor {
-  width: 100%;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
   min-width: 0;
-}
-
-.tabla-scroll {
-  flex: 1;
-  width: 100%;
-  min-width: 0;
-  overflow-x: auto;
-  overflow-y: auto;
-  max-height: 380px;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 #f1f5f9;
-}
-
-.tabla-scroll::-webkit-scrollbar        { width: 5px; height: 5px; }
-.tabla-scroll::-webkit-scrollbar-track  { background: #f1f5f9; border-radius: 99px; }
-.tabla-scroll::-webkit-scrollbar-thumb  { background: #cbd5e1; border-radius: 99px; }
-
-.tabla-scroll table {
-  min-width: 600px;
-  width: 100%;
-  border-collapse: collapse;
-  background: #ffffff;
-}
-
-.tabla-scroll thead tr {
-  border-bottom: 2px solid #e2e8f0;
-}
-
-.tabla-scroll th {
-  background: #ffffff;
-  text-align: left;
-  padding: 13px 16px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  white-space: nowrap;
-}
-
-.tabla-scroll td {
-  padding: 13px 16px;
-  border-bottom: 1px solid #f1f5f9;
-  font-size: 13px;
-  color: #334155;
-  white-space: nowrap;
-  transition: background 0.2s ease;
-}
-
-.tabla-scroll tbody tr:hover td {
-  background: #f0f7ff;
-}
-
-.tabla-scroll tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.placeholder {
-  text-align: center;
-  color: #94a3b8;
-  font-size: 14px;
-  padding: 40px 16px;
-}
-
-/* ===== PROVEEDOR LAYOUT ===== */
-.grafica-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.proveedor-layout {
-  display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 20px;
-  align-items: start;
-  width: 100%;
-  min-width: 0;
-}
-
-.grafica-proveedor {
-  background: #ffffff;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  padding: 12px;
-  min-width: 0;
-  overflow: hidden;
+  /* Permite que los hijos con overflow-x:auto funcionen correctamente */
+  overflow: visible;
 }
 
 /* ===== OVERLAY MÓVIL ===== */
@@ -350,31 +170,29 @@
   to   { opacity: 1; }
 }
 
-/* ===== RESPONSIVE ===== */
+/* ================================================
+   RESPONSIVE
+================================================ */
+
+/* ── 1200px ── */
 @media (max-width: 1200px) {
-  .main {
-    padding: 28px;
-  }
+  .main { padding: 28px 24px; }
 }
 
+/* ── 992px: sidebar colapsada ── */
 @media (max-width: 992px) {
-  .main {
-    margin-left: 72px;
-  }
-
-  .proveedor-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .grafica-proveedor {
-    margin-top: 4px;
-  }
+  .main { margin-left: 72px; }
 }
 
+/* ── 768px: móvil ── */
 @media (max-width: 768px) {
   .main {
     margin-left: 0 !important;
     padding: 16px 12px;
+    width: 100%;
+    box-sizing: border-box;
+    /* Aquí SÍ necesitamos overflow-x hidden para el body */
+    overflow-x: hidden;
   }
 
   .topbar {
@@ -382,7 +200,6 @@
     align-items: center;
     gap: 10px;
     padding: 8px 0 14px;
-    overflow: hidden;
   }
 
   .title-container {
@@ -397,13 +214,8 @@
     align-items: center;
   }
 
-  .topbar-logo {
-    height: 34px;
-  }
-
-  .topbar-divider {
-    display: none;
-  }
+  .topbar-logo { height: 34px; }
+  .topbar-divider { display: none; }
 
   .topbar-text h1 {
     font-size: 15px;
@@ -429,27 +241,13 @@
     gap: 12px;
   }
 
-  .chart-box {
-    padding: 18px 14px;
-  }
-
-  .proveedor-layout {
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
-
-  .dynamic-content {
-    padding: 14px 10px;
-    min-height: 300px;
-  }
-
-  .grafica-proveedor {
+  .charts {
     width: 100%;
-    max-width: 100%;
-    overflow: hidden;
+    min-width: 0;
+    overflow: visible;
   }
 
-  /* Sidebar — off-canvas */
+  /* ── Sidebar off-canvas ── */
   ::ng-deep .sidebar {
     transform: translateX(-100%);
     width: 260px !important;
@@ -470,43 +268,17 @@
   }
 }
 
+/* ── 480px: móvil pequeño ── */
 @media (max-width: 480px) {
   .main {
-    padding: 12px 10px;
+    padding: 12px 8px;
   }
 
-  .topbar-logo {
-    height: 28px;
-  }
-
-  .topbar-text h1 {
-    font-size: 14px;
-  }
+  .topbar-logo { height: 28px; }
+  .topbar-text h1 { font-size: 14px; }
 
   .kpis {
     grid-template-columns: 1fr;
     gap: 10px;
-  }
-
-  .chart-box {
-    padding: 16px 12px;
-  }
-
-  .tabs {
-    gap: 4px;
-  }
-
-  .tabs button {
-    font-size: 12px;
-    padding: 7px 10px;
-  }
-
-  .dynamic-content {
-    padding: 12px 8px;
-    min-height: 260px;
-  }
-
-  .tabla-scroll {
-    max-height: 280px;
   }
 }
