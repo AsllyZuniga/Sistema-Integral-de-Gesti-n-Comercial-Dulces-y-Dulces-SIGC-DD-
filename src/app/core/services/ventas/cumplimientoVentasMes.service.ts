@@ -28,7 +28,6 @@ export class CumplimientoService {
       .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/lineas`)
       .pipe(
         map((res) => {
-          // Aseguramos que la propiedad detallePorLinea siempre sea un array
           if (res && res.detallePorLinea) {
             res.detallePorLinea = Array.isArray(res.detallePorLinea) ? res.detallePorLinea : [];
           }
@@ -43,7 +42,6 @@ export class CumplimientoService {
       .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/ciudades`)
       .pipe(
         map((res) => {
-          // Aseguramos que la propiedad detallePorCiudad siempre sea un array
           if (res && res.detallePorCiudad) {
             res.detallePorCiudad = Array.isArray(res.detallePorCiudad) ? res.detallePorCiudad : [];
           }
@@ -52,7 +50,6 @@ export class CumplimientoService {
         catchError(() => of({ detallePorCiudad: [] })),
       );
   }
-  // NUEVO ENDPOINT → DETALLE POR ITEM (PRODUCTOS)
   getProductosPorVendedor(codigoVendedor: string): Observable<any> {
     return this.http
       .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/productos`)
