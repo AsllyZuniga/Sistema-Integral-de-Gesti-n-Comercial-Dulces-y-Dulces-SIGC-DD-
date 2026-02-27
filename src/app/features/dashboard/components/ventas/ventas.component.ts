@@ -61,7 +61,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   readonly tableColumns     = ['codVendedor', 'nombre', 'cuotaMes', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
   readonly lineasColumns    = ['linea', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
   readonly ciudadesColumns  = ['ciudad', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
-  readonly productosColumns = ['Fecha', 'Proveedor', 'Cod_Item', 'Descripcion', 'Venta_Unid_Cajas'];
+  readonly productosColumns = ['Fecha', 'Proveedor', 'Cod_Item', 'Descripcion', 'Venta_Unid_Cajas', 'Cantidad', 'Subtotal'];
 
   constructor(
     private cumplimientoService: CumplimientoService,

@@ -12,12 +12,7 @@
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  /*
-    CRÍTICO: overflow:visible para que los tabs puedan
-    hacer scroll horizontal sin ser cortados por este contenedor.
-    NUNCA cambiar a hidden u otro valor restrictivo.
-  */
-  overflow: visible;
+  overflow: hidden;
 }
 
 .chart-box h3 {
@@ -29,16 +24,6 @@
 }
 
 /* ===== TABS ===== */
-/*
-  Para que funcione el scroll horizontal en móvil:
-  - overflow-x: auto          → habilita el scroll
-  - flex-wrap: nowrap          → todos los botones en una línea
-  - flex: 0 0 auto (botones)  → nunca encogen
-  - padding-right              → el último tab se ve completo
-  - touch-action: pan-x        → mejora swipe táctil iOS/Android
-  - overscroll-behavior-x      → evita que el scroll propague al body
-  - Ningún padre con overflow: hidden o clip
-*/
 .tabs {
   display: flex;
   gap: 6px;
@@ -51,15 +36,13 @@
   padding-right: 16px;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  /* FIX: mejora el deslizamiento táctil en Android e iOS */
   touch-action: pan-x;
-  /* FIX: evita que el swipe en los tabs mueva el body */
   overscroll-behavior-x: contain;
 }
 .tabs::-webkit-scrollbar { display: none; }
 
 .tabs button {
-  flex: 0 0 auto;      /* nunca encoge — clave para el scroll */
+  flex: 0 0 auto;
   white-space: nowrap;
   background: #f1f5f9;
   border: 1.5px solid transparent;
@@ -100,10 +83,6 @@
   padding: 16px;
   min-height: 460px;
   box-sizing: border-box;
-  /*
-    overflow: visible es necesario para que .tabla-scroll
-    pueda hacer scroll sin ser recortado por este contenedor
-  */
   overflow: hidden;
   width: 100%;
   min-width: 0;
@@ -149,12 +128,6 @@
 
 /* ===== TABLA SCROLL ===== */
 .tabla-scroll {
-  /*
-    display: block es OBLIGATORIO para que overflow-x funcione
-    dentro de un contenedor flex o grid.
-    Si el padre tiene overflow: hidden, este scroll no funcionará —
-    por eso todos los padres deben tener overflow: visible.
-  */
   display: block;
   min-width: 0;
   width: 100%;
@@ -166,7 +139,6 @@
   scrollbar-width: thin;
   scrollbar-color: #94a3b8 #f1f5f9;
   -webkit-overflow-scrolling: touch;
-  /* FIX: mejora el scroll táctil horizontal en móvil */
   touch-action: pan-x pan-y;
   overscroll-behavior: contain;
   box-sizing: border-box;
@@ -324,25 +296,28 @@
   .chart-box {
     padding: 16px 14px;
     border-radius: 16px;
-    /*
-      CRÍTICO: NUNCA overflow: hidden en móvil.
-      Mantener visible para que tabs y tabla puedan hacer scroll.
-    */
-    overflow: visible;
+    overflow: hidden;
   }
 
   .chart-box h3 { font-size: 15px; margin-bottom: 14px; }
 
+  /*
+    Los tabs necesitan un contenedor padre con overflow visible
+    para que el scroll funcione. Si .chart-box tiene overflow:hidden
+    usamos un wrapper negativo para sacar el overflow del padding.
+  */
   .tabs {
     gap: 6px;
     padding-right: 24px;
     padding-bottom: 8px;
+    padding-left: 2px;
     margin-bottom: 14px;
     margin-left: -2px;
-    padding-left: 2px;
-    /* FIX: asegurar touch-action también en breakpoint móvil */
     touch-action: pan-x;
     overscroll-behavior-x: contain;
+    /* Forzar que el scroll funcione aunque el padre tenga overflow:hidden */
+    position: relative;
+    z-index: 1;
   }
 
   .tabs button {
@@ -353,8 +328,7 @@
   .dynamic-content {
     padding: 12px 10px;
     min-height: 240px;
-    /* FIX: mantener visible para no bloquear el scroll de tabla-scroll */
-    overflow: visible;
+    overflow: hidden;
   }
 
   .split-layout {
@@ -374,12 +348,12 @@
 
 /* ── Móvil pequeño 480px ── */
 @media (max-width: 480px) {
-  .chart-box { padding: 14px 12px; border-radius: 14px; overflow: visible; }
+  .chart-box { padding: 14px 12px; border-radius: 14px; overflow: hidden; }
 
   .tabs { gap: 5px; padding-right: 20px; touch-action: pan-x; }
   .tabs button { font-size: 11px; padding: 7px 11px; }
 
-  .dynamic-content { padding: 10px 8px; min-height: 200px; overflow: visible; }
+  .dynamic-content { padding: 10px 8px; min-height: 200px; overflow: hidden; }
   .grafica-container { min-height: 220px; }
   .tabla-scroll { max-height: 220px; }
   .grafica-lateral { min-height: 200px; }

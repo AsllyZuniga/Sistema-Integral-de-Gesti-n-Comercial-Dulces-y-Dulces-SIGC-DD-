@@ -112,7 +112,10 @@
   flex-shrink: 0;
   box-shadow: 0 4px 12px rgba(0, 66, 134, 0.20);
 }
-.logout-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0, 66, 134, 0.30); }
+.logout-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 66, 134, 0.30);
+}
 .logout-btn:active { transform: translateY(0); }
 
 /* ===== KPIs ===== */
@@ -157,12 +160,8 @@
 
 @media (max-width: 768px) {
   .layout {
-    /*
-      FIX CRÍTICO: era "overflow-x: clip" — ese valor en Chrome/Safari móvil
-      actúa como hidden y bloquea el scroll interno de .tabs y .tabla-scroll.
-      Con "overflow-x: visible" los hijos pueden hacer scroll sin ser cortados.
-    */
-    overflow-x: visible;
+    overflow-x: hidden;
+    position: relative;
   }
 
   .main {
@@ -170,20 +169,29 @@
     padding: 16px 14px;
     width: 100%;
     box-sizing: border-box;
-    /*
-      NUNCA overflow-x: hidden aquí — destruiría el scroll de tabs y tablas.
-      Se deja sin declarar para heredar el valor visible del padre.
-    */
+    overflow-x: hidden;
   }
 
   .topbar {
-    flex-wrap: wrap;
-    gap: 10px;
+    flex-wrap: nowrap;
+    gap: 8px;
     padding: 8px 0 14px;
+    align-items: center;
   }
 
-  .title-container { flex: 1; min-width: 0; gap: 8px; overflow: hidden; }
-  .mobile-menu-btn { display: inline-flex; align-items: center; }
+  .title-container {
+    flex: 1;
+    min-width: 0;
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .mobile-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    order: -1;
+  }
+
   .topbar-logo { height: 34px; }
   .topbar-divider { display: none; }
 
@@ -198,11 +206,25 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 180px;
   }
 
-  .logout-btn { width: 100%; text-align: center; }
+  /* Logout NO ocupa todo el ancho en móvil */
+  .logout-btn {
+    width: auto;
+    flex-shrink: 0;
+    padding: 8px 14px;
+    font-size: 12px;
+  }
 
-  .kpis { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .kpis {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .charts {
+    gap: 16px;
+  }
 
   ::ng-deep .sidebar {
     transform: translateX(-100%);
@@ -210,14 +232,30 @@
     z-index: 1001 !important;
     transition: transform 0.25s cubic-bezier(.4, 0, .2, 1) !important;
   }
-  .layout.mobile-open ::ng-deep .sidebar { transform: translateX(0); }
-  .layout.mobile-open .mobile-overlay { display: block; }
-  ::ng-deep .sidebar .top button { display: none; }
+  .layout.mobile-open ::ng-deep .sidebar {
+    transform: translateX(0);
+  }
+  .layout.mobile-open .mobile-overlay {
+    display: block;
+  }
+  ::ng-deep .sidebar .top button {
+    display: none;
+  }
 }
 
 @media (max-width: 480px) {
   .main { padding: 12px 10px; }
   .topbar-logo { height: 28px; }
-  .topbar-text h1 { font-size: 14px; }
-  .kpis { grid-template-columns: 1fr; gap: 10px; }
+  .topbar-text h1 { font-size: 13px; }
+
+  .logout-btn {
+    padding: 7px 10px;
+    font-size: 11px;
+    border-radius: 8px;
+  }
+
+  .kpis {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
 }
