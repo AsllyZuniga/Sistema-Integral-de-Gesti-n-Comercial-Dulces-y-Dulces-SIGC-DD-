@@ -14,6 +14,7 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() type: 'bar' | 'line' | 'pie' = 'bar';
   @Input() data: { name: string; value: number }[] = [];
   @Input() label: string = 'Datos';
+  @Input() chartId?: string;
 
   private chartInstance: Chart | null = null;
 
