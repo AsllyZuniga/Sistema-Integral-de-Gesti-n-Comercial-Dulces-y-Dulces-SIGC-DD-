@@ -21,9 +21,8 @@ export class VentasComponent implements OnInit, OnDestroy {
   // ── Setter: cada vez que el Dashboard cambia filtros, recarga ──
   @Input() set filtros(value: DashboardFilters) {
     this._filtros = value;
-    if (this.codigoVendedor) {
       this.cargarVistaActual();
-    }
+    
   }
   get filtros(): DashboardFilters { return this._filtros; }
   private _filtros: DashboardFilters = {
