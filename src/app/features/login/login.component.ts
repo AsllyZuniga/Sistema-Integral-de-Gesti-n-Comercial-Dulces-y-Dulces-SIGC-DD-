@@ -21,11 +21,6 @@ export class LoginComponent {
   ) {}
 
   validarUsuario() {
-    if (!this.user.codigo) {
-      this.is_error = true;
-      return;
-    }
-
     this.authService.login(this.user).subscribe({
       next: (resp) => {
         this.is_error = false;
