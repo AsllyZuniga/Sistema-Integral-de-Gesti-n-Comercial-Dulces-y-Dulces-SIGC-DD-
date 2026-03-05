@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -43,6 +43,18 @@ export class FiltersComponent {
 
   aplicar() {
     this.isFiltrosOpen = false;
-    this.apply.emit(this.filtros);
+    this.apply.emit({ ...this.filtros });
+  }
+
+  limpiar() {
+    this.filtros = {
+      fechaInicio: '',
+      fechaFin: '',
+      vendedor: '',
+      proveedor: '',
+      categoria: '',
+      ciudad: '',
+    };
+    this.apply.emit({ ...this.filtros });
   }
 }

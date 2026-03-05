@@ -1,0 +1,100 @@
+import { Component, Input, OnChanges, SimpleChanges, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { ImpactosService } from '../../../../core/services/impactos/impactos.service';
+import { TableComponent } from '../../../../shared/components/table/table.component';
+import { ChartComponent } from '../../../../shared/components/chart/chart.component';
+
+@Component({
+  selector: 'app-impactos',
+  standalone: true,
+  imports: [CommonModule, FormsModule, TableComponent, ChartComponent],
+  templateUrl: './impactos.component.html',
+  styleUrls: ['./impactos.component.css'],
+})
+export class ImpactosComponent implements OnChanges {
+  private impactosService = inject(ImpactosService);
+
+  @Input() codigoVendedor: string = '';
+  @Input() filtros: any = {};
+
+  impactosViews = [
+    { key: 'proveedor', label: 'Por Proveedor' },
+    { key: 'ciudad', label: 'Por Ciudad' },
+    { key: 'detalle', label: 'Detalle' },
+  ];
+  activeImpactosView: string = 'proveedor';
+
+  tableData: any[] = [];
+  chartData: any[] = [];
+  chartType: 'bar' | 'line' | 'pie' = 'bar';
+  chartId: string = 'impactos-chart';
+
+  proveedores: string[] = [];
+  proveedorSeleccionado: string = '';
+
+  proveedorColumns: string[] = ['proveedor', 'impactos', 'valorTotal'];
+  ciudadColumns: string[] = ['ciudad', 'impactos', 'valorTotal'];
+  detalleColumns: string[] = ['proveedor', 'producto', 'impactos', 'valorTotal'];
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['filtros'] || changes['codigoVendedor']) {
+      this.cargarDatos();
+    }
+  }
+
+  setImpactosView(key: string): void {
+    this.activeImpactosView = key;
+    this.chartId = `impactos-chart-${key}`;
+    this.cargarDatos();
+  }
+
+  onProveedorChange(): void {
+    this.cargarDatos();
+  }
+
+  private cargarDatos(): void {
+    const params = {
+      ...this.filtros,
+      vendedor: this.codigoVendedor,
+      proveedor: this.proveedorSeleccionado || undefined,
+    };
+
+    switch (this.activeImpactosView) {
+      case 'proveedor':
+        this.chartType = 'bar';
+        this.impactosService.getPorProveedor(params).subscribe((data: any[]) => {
+          this.tableData = data;
+          this.chartData = data.map((d: any) => ({
+            name: d.proveedor,
+            value: d.impactos,
+          }));
+        });
+        break;
+
+      case 'ciudad':
+        this.chartType = 'bar';
+        this.impactosService.getPorCiudad(params).subscribe((data: any[]) => {
+          this.tableData = data;
+          this.chartData = data.map((d: any) => ({
+            name: d.ciudad,
+            value: d.impactos,
+          }));
+        });
+        break;
+
+      case 'detalle':
+        this.chartType = 'bar';
+        this.impactosService.getDetalle(params).subscribe((data: any[]) => {
+          this.tableData = data;
+          const top10 = [...data].sort((a: any, b: any) => b.impactos - a.impactos).slice(0, 10);
+          this.chartData = top10.map((d: any) => ({
+            name: d.producto,
+            value: d.impactos,
+          }));
+          this.proveedores = [...new Set<string>(data.map((d: any) => d.proveedor))];
+        });
+        break;
+    }
+  }
+}

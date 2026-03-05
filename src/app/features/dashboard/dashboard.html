@@ -1,5 +1,4 @@
 <div class="layout" [class.mobile-open]="isMobileMenuOpen">
-
   <div class="mobile-overlay" *ngIf="isMobileMenuOpen" (click)="isMobileMenuOpen = false"></div>
 
   <app-sidebar (toggle)="onToggleSidebar($event)"></app-sidebar>
@@ -9,154 +8,53 @@
     <header class="topbar">
       <div class="title-container">
         <button class="mobile-menu-btn" (click)="isMobileMenuOpen = !isMobileMenuOpen">☰</button>
-        <div>
+        <img class="topbar-logo" src="logoDulces.png" alt="Logo" />
+        <div class="topbar-divider"></div>
+        <div class="topbar-text">
           <h1>Dashboard Vendedor</h1>
-          <span class="welcome">
-            Bienvenido, {{ vendedor?.nombre }}
-          </span>
+          <span class="welcome" *ngIf="vendedor">Bienvenido, {{ vendedor.nombre }}</span>
         </div>
       </div>
 
-      <button class="logout-btn" (click)="logout()">
-        Cerrar sesión
-      </button>
+      <div class="topbar-actions">
+        <div class="user-badge" *ngIf="vendedor">
+          <span class="user-avatar">{{ vendedor.nombre?.charAt(0) }}</span>
+          <span class="user-name">{{ vendedor.nombre }}</span>
+        </div>
+        <button class="logout-btn" (click)="logout()">
+          <span class="material-symbols-rounded">logout</span>
+          <span class="logout-label">Cerrar sesión</span>
+        </button>
+      </div>
     </header>
 
     <section class="filters">
-      <app-filters></app-filters>
+      <app-filters
+        [vendedores]="vendedoresList"
+        [proveedores]="proveedoresList"
+        [categorias]="categoriasList"
+        [ciudades]="ciudadesList"
+        (apply)="onAplicarFiltros($event)">
+      </app-filters>
     </section>
 
     <section class="kpis">
-      <app-card title="Venta Total" value="$155.4M"></app-card>
-      <app-card title="Cumplimiento" value="77.7%"></app-card>
-      <app-card title="Impactos" value="$20.1M"></app-card>
-      <app-card title="Nivel Servicio" value="94.3%"></app-card>
-      <app-card title="Devoluciones" value="2.4%"></app-card>
+      <app-card title="Total Venta Mes" [value]="totales?.ventaAcum      ?? 0"></app-card>
+      <app-card title="Total Cuota"     [value]="totales?.cuotaMes        ?? 0"></app-card>
+      <app-card title="Cumplimiento"    [value]="totales?.porcCump        ?? 0"></app-card>
+      <app-card title="Proyección"      [value]="totales?.proyeccionVenta ?? 0"></app-card>
     </section>
 
     <section class="charts">
-      <div class="chart-box dynamic-panel">
-        <h3>Análisis de Ventas</h3>
-        <div class="tabs">
-          <button *ngFor="let view of ventasViews"
-                  [class.active]="activeVentasView === view.key"
-                  (click)="setVentasView(view.key)">
-            {{ view.label }}
-          </button>
-        </div>
-        <div class="dynamic-content">
-          <p>Vista activa: {{ activeVentasView }}</p>
-        </div>
-      </div>
-
-      <div class="chart-box dynamic-panel">
-        <h3>Análisis de Impactos</h3>
-        <div class="tabs">
-          <button *ngFor="let view of impactosViews"
-                  [class.active]="activeImpactosView === view.key"
-                  (click)="setImpactosView(view.key)">
-            {{ view.label }}
-          </button>
-        </div>
-        <div class="dynamic-content">
-          <p>Vista activa: {{ activeImpactosView }}</p>
-        </div>
-      </div>
+      <app-ventas [codigoVendedor]="codigoVendedor" [filtros]="filtrosActivos"></app-ventas>
     </section>
 
     <section class="charts">
-      <div class="chart-box dynamic-panel">
-        <h3>Análisis de Devoluciones</h3>
-
-        <div class="tabs">
-          <button *ngFor="let view of devolucionesViews"
-                  [class.active]="activeDevolucionView === view.key"
-                  (click)="setDevolucionView(view.key)">
-            {{ view.label }}
-          </button>
-        </div>
-
-        <div class="dynamic-content">
-          <div *ngFor="let cliente of devolucionesClientes">
-            <div class="devolucion-header"
-                 (click)="toggleDevolucion(cliente)">
-              {{ cliente.cliente }} -
-              {{ cliente.total | currency }}
-            </div>
-
-            <div *ngIf="cliente.abierto">
-              <ul>
-                <li *ngFor="let item of cliente.detalle">
-                  {{ item.producto }} -
-                  {{ item.cantidad }} -
-                  {{ item.motivo }}
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-      </div>
+      <app-impactos [codigoVendedor]="codigoVendedor" [filtros]="filtrosActivos"></app-impactos>
     </section>
 
     <section class="charts">
-      <div class="chart-box dynamic-panel">
-        <h3>Nivel de Servicio</h3>
-
-        <div class="tabs">
-          <button *ngFor="let view of nivelServicioViews"
-                  [class.active]="activeNivelView === view.key"
-                  (click)="setNivelView(view.key)">
-            {{ view.label }}
-          </button>
-        </div>
-
-        <div class="dynamic-content">
-          <div *ngFor="let prov of agotadosProveedor">
-            <strong>{{ prov.proveedor }}</strong>
-            <ul>
-              <li *ngFor="let prod of prov.productos">
-                {{ prod }}
-              </li>
-            </ul>
-          </div>
-        </div>
-
-      </div>
-    </section>
-
-    <section class="charts">
-      <div class="chart-box dynamic-panel">
-        <h3>Histórico Ventas por Proveedor</h3>
-
-        <div class="tabs">
-          <button [class.active]="historicoFiltro === '2m'"
-                  (click)="setHistoricoFiltro('2m')">
-            Últimos 2 Meses
-          </button>
-
-          <button [class.active]="historicoFiltro === '12m'"
-                  (click)="setHistoricoFiltro('12m')">
-            Año Completo
-          </button>
-        </div>
-
-        <div class="dynamic-content">
-          Mostrando:
-          {{ historicoFiltro === '2m'
-              ? 'Últimos 2 meses'
-              : 'Año completo' }}
-        </div>
-
-      </div>
-    </section>
-
-    <section class="table-section">
-      <h3>Detalle por Cliente</h3>
-      <app-table
-        [columns]="tableColumns"
-        [data]="tableData">
-      </app-table>
+      <app-devoluciones [codigoVendedor]="codigoVendedor" [filtros]="filtrosActivos"></app-devoluciones>
     </section>
 
   </div>

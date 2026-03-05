@@ -1,13 +1,15 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Subject, takeUntil } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { Router } from '@angular/router';
-
+import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
 import { CardComponent } from '../../shared/components/card/card.component';
-import { ChartComponent } from '../../shared/components/chart/chart.component';
-import { TableComponent } from '../../shared/components/table/table.component';
-import { FiltersComponent } from '../../shared/components/filters/filters.component';
+import { FiltersComponent, DashboardFilters } from '../../shared/components/filters/filters.component';
 import { SidebarComponent } from '../../shared/components/sidebar/sidebar.component';
+import { VentasComponent } from '../dashboard/components/ventas/ventas.component';
+import { ImpactosComponent } from './components/impactos/impactos.component';
+import { DevolucionesComponent } from './components/devoluciones/devoluciones.component';
 
 @Component({
   selector: 'app-dashboard',
@@ -15,29 +17,109 @@ import { SidebarComponent } from '../../shared/components/sidebar/sidebar.compon
   imports: [
     CommonModule,
     CardComponent,
-    ChartComponent,
-    TableComponent,
     FiltersComponent,
-    SidebarComponent
+    SidebarComponent,
+    VentasComponent,
+    ImpactosComponent,
+    DevolucionesComponent,
   ],
   templateUrl: './dashboard.html',
-  styleUrls: ['./dashboard.css']
+  styleUrls: ['./dashboard.css'],
 })
-export class DashboardComponent {
+export class DashboardComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
 
   vendedor: any;
+  totales: any = null;
+  isSidebarCollapsed = false;
+  isMobileMenuOpen = false;
+
+  // Opciones para los dropdowns del filtro
+  proveedoresList: string[] = [];
+  categoriasList:  string[] = [];
+  ciudadesList:    string[] = [];
+  vendedoresList:  string[] = [];
+
+  filtrosActivos: DashboardFilters = {
+    fechaInicio: '', fechaFin: '', vendedor: '',
+    proveedor: '', categoria: '', ciudad: '',
+  };
 
   constructor(
     private authService: AuthService,
-    private router: Router
-  ) {
+    private router: Router,
+    private cumplimientoService: CumplimientoService,
+  ) {}
+
+  ngOnInit() {
+   
     this.vendedor = this.authService.getVendedor();
+   if (!this.vendedor) {
+     this.router.navigate(['/login']);
+       return;
+    }
+    this.cargarTotales();
+    this.cargarOpcionesFiltros();
   }
 
-  /* ================= SIDEBAR ================= */
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
 
-  isSidebarCollapsed = false;
-  isMobileMenuOpen: boolean = false;
+  get codigoVendedor(): string {
+    return this.vendedor?.codVendedor || this.vendedor?.codigo || '';
+  }
+
+  cargarTotales() {
+    if (!this.codigoVendedor) return;
+    this.cumplimientoService
+      .getCumplimientoPorCodigo(this.codigoVendedor, this.filtrosActivos)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(res => {
+        if (!res) return;
+        this.totales = {
+          ventaAcum:       res.ventaAcum,
+          cuotaMes:        res.cuotaMes,
+          porcCump:        res.porcCump,
+          proyeccionVenta: res.proyeccionVenta,
+        };
+      });
+  }
+
+  cargarOpcionesFiltros() {
+    if (!this.codigoVendedor) return;
+
+    this.cumplimientoService
+      .getProductosPorVendedor(this.codigoVendedor)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(res => {
+        const listado = res?.data ?? [];
+        this.proveedoresList = [...new Set<string>(listado.map((r: any) => r.Proveedor).filter(Boolean))].sort();
+      });
+
+    this.cumplimientoService
+      .getCiudadesPorVendedor(this.codigoVendedor)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(res => {
+        const listado = res?.detallePorCiudad ?? [];
+        this.ciudadesList = listado.map((r: any) => r.ciudad).filter(Boolean).sort();
+      });
+
+    this.cumplimientoService
+      .getLineasPorVendedor(this.codigoVendedor)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(res => {
+        const listado = res?.detallePorLinea ?? [];
+        this.categoriasList = listado.map((r: any) => r.linea).filter(Boolean).sort();
+      });
+  }
+
+  // Recibe los filtros aplicados desde FiltersComponent
+  onAplicarFiltros(filtros: DashboardFilters) {
+    this.filtrosActivos = { ...filtros };
+    this.cargarTotales();
+  }
 
   onToggleSidebar(collapsed: boolean) {
     this.isSidebarCollapsed = collapsed;
@@ -45,115 +127,6 @@ export class DashboardComponent {
 
   logout() {
     this.authService.logout();
-    this.router.navigate(['/login']);
+    this.router.navigate(['/login'], { replaceUrl: true });
   }
-
-  /* ================= VENTAS ================= */
-
-  activeVentasView = 'ventas';
-
-  ventasViews = [
-    { key: 'ventas', label: 'Ventas' },
-    { key: 'proveedor', label: 'Por Proveedor' },
-    { key: 'ciudad', label: 'Por Ciudad' },
-    { key: 'vendedor', label: 'Por Vendedor' },
-    { key: 'item', label: 'Detalle por Item' },
-    { key: 'cliente', label: 'Cliente Detallado' }
-  ];
-
-  setVentasView(view: string) {
-    this.activeVentasView = view;
-  }
-
-  /* ================= IMPACTOS ================= */
-
-  activeImpactosView = 'impactos';
-
-  impactosViews = [
-    { key: 'impactos', label: 'Impactos' },
-    { key: 'proveedor', label: 'Por Proveedor' },
-    { key: 'ciudad', label: 'Por Ciudad' },
-    { key: 'item', label: 'Por Item' }
-  ];
-
-  setImpactosView(view: string) {
-    this.activeImpactosView = view;
-  }
-
-  /* ================= DEVOLUCIONES ================= */
-
-  devolucionesViews = [
-    { key: 'cliente', label: 'Por Cliente' }
-  ];
-
-  activeDevolucionView = 'cliente';
-
-  setDevolucionView(key: string) {
-    this.activeDevolucionView = key;
-  }
-
-  devolucionesClientes = [
-    {
-      cliente: 'Tienda Norte',
-      total: 50000,
-      abierto: false,
-      detalle: [
-        { producto: 'Leche Entera', cantidad: 5, motivo: 'Vencido' },
-        { producto: 'Galletas Oreo', cantidad: 3, motivo: 'Empaque Dañado' }
-      ]
-    },
-    {
-      cliente: 'MiniMarket Centro',
-      total: 32000,
-      abierto: false,
-      detalle: [
-        { producto: 'Yogurt Fresa', cantidad: 4, motivo: 'Mal estado' }
-      ]
-    }
-  ];
-
-  toggleDevolucion(cliente: any) {
-    cliente.abierto = !cliente.abierto;
-  }
-
-  /* ================= NIVEL SERVICIO ================= */
-
-  nivelServicioViews = [
-    { key: 'agotados', label: 'Agotados por Proveedor' }
-  ];
-
-  activeNivelView = 'agotados';
-
-  setNivelView(key: string) {
-    this.activeNivelView = key;
-  }
-
-  agotadosProveedor = [
-    {
-      proveedor: 'Nestle',
-      productos: ['Leche Entera', 'Café Nescafé']
-    },
-    {
-      proveedor: 'Mondelez',
-      productos: ['Oreo Vainilla', 'Chips Ahoy']
-    }
-  ];
-
-  /* ================= HISTÓRICO ================= */
-
-  historicoFiltro = '2m';
-
-  setHistoricoFiltro(valor: string) {
-    this.historicoFiltro = valor;
-  }
-
-  /* ================= TABLA ================= */
-
-  tableColumns = ['Cliente', 'Proveedor', 'Total'];
-
-  tableData = [
-    { Cliente: 'Tienda Norte', Proveedor: 'Nestle', Total: 120000 },
-    { Cliente: 'MiniMarket Centro', Proveedor: 'Mondelez', Total: 85000 }
-  ];
-
 }

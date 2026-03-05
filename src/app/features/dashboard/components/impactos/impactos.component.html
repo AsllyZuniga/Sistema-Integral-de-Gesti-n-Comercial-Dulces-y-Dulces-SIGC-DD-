@@ -1,0 +1,123 @@
+<div class="chart-box dynamic-panel">
+  <h3>Análisis de Impactos</h3>
+
+  <div class="tabs">
+    @for (view of impactosViews; track view.key) {
+      <button [class.active]="activeImpactosView === view.key" (click)="setImpactosView(view.key)">
+        {{ view.label }}
+      </button>
+    }
+  </div>
+
+  <div class="dynamic-content">
+    @switch (activeImpactosView) {
+      <!-- ══ POR PROVEEDOR ══ -->
+      @case ('proveedor') {
+        <div class="split-layout">
+          <div class="tabla-scroll">
+            @if (tableData.length > 0) {
+              <app-table [columns]="proveedorColumns" [data]="tableData" />
+            } @else {
+              <div class="placeholder">Cargando información...</div>
+            }
+          </div>
+          <div class="grafica-lateral">
+            <h4>Por Proveedor</h4>
+            <div class="grafica-lateral-inner">
+              @if (chartData.length > 0) {
+                <app-chart
+                  [chartId]="chartId"
+                  [data]="chartData"
+                  [type]="chartType"
+                  label="Por Proveedor"
+                />
+              }
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- ══ POR CIUDAD ══ -->
+      @case ('ciudad') {
+        <div class="split-layout">
+          <div class="tabla-scroll">
+            @if (tableData.length > 0) {
+              <app-table [columns]="ciudadColumns" [data]="tableData" />
+            } @else {
+              <div class="placeholder">Cargando información...</div>
+            }
+          </div>
+          <div class="grafica-lateral">
+            <h4>Por Ciudad</h4>
+            <div class="grafica-lateral-inner">
+              @if (chartData.length > 0) {
+                <app-chart
+                  [chartId]="chartId"
+                  [data]="chartData"
+                  [type]="chartType"
+                  label="Por Ciudad"
+                />
+              }
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- ══ DETALLE POR PROVEEDOR (con filtro) ══ -->
+      @case ('detalle') {
+        <div class="item-layout">
+          <div class="filtro-bar">
+            <label class="filtro-label" for="selectProveedorImpacto">Proveedor</label>
+            <div class="filtro-select-wrap">
+              <select
+                id="selectProveedorImpacto"
+                [(ngModel)]="proveedorSeleccionado"
+                (ngModelChange)="onProveedorChange()"
+              >
+                <option value="">Todos los proveedores</option>
+                @for (p of proveedores; track p) {
+                  <option [value]="p">{{ p }}</option>
+                }
+              </select>
+              <svg class="select-icon" viewBox="0 0 20 20" fill="none">
+                <path
+                  d="M5 8l5 5 5-5"
+                  stroke="#64748b"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <span class="filtro-badge">
+              {{ tableData.length }} registro{{ tableData.length !== 1 ? 's' : '' }}
+            </span>
+          </div>
+
+          <div class="split-layout">
+            <div class="tabla-scroll">
+              @if (tableData.length > 0) {
+                <app-table [columns]="detalleColumns" [data]="tableData" />
+              } @else {
+                <div class="placeholder">Cargando información...</div>
+              }
+            </div>
+            <div class="grafica-lateral">
+              <h4>Top 10 Impactos</h4>
+              <div class="grafica-lateral-inner">
+                @if (chartData.length > 0) {
+                  <app-chart
+                    [chartId]="chartId"
+                    [data]="chartData"
+                    [type]="chartType"
+                    label="Top 10 Impactos"
+                  />
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    }
+  </div>
+</div>
