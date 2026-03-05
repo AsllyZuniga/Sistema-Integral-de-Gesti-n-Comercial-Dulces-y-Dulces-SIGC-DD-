@@ -1,11 +1,9 @@
 <div class="layout" [class.mobile-open]="isMobileMenuOpen">
-
   <div class="mobile-overlay" *ngIf="isMobileMenuOpen" (click)="isMobileMenuOpen = false"></div>
 
   <app-sidebar (toggle)="onToggleSidebar($event)"></app-sidebar>
 
   <div class="main" [class.expanded]="isSidebarCollapsed">
-
     <header class="topbar">
       <div class="title-container">
         <button class="mobile-menu-btn" (click)="isMobileMenuOpen = !isMobileMenuOpen">☰</button>
@@ -13,40 +11,39 @@
         <div class="topbar-divider"></div>
         <div class="topbar-text">
           <h1>Dashboard Vendedor</h1>
-          <span class="welcome" *ngIf="vendedor">
-            Bienvenido, {{ vendedor.nombre }}
-          </span>
+          <span class="welcome" *ngIf="vendedor"> Bienvenido, {{ vendedor.nombre }} </span>
         </div>
       </div>
       <button class="logout-btn" (click)="logout()">Cerrar sesión</button>
     </header>
 
-    <!-- ── Filtros: pasa listas y escucha el evento apply ────────── -->
+    <!-- ── Filtros: pasa listas ────────── -->
     <section class="filters">
       <app-filters
         [vendedores]="vendedoresList"
         [proveedores]="proveedoresList"
         [categorias]="categoriasList"
         [ciudades]="ciudadesList"
-        (apply)="onAplicarFiltros($event)">
+        (apply)="onAplicarFiltros($event)"
+      >
       </app-filters>
     </section>
 
     <!-- ── Tarjetas KPI ───────────────────────────────────────────── -->
     <section class="kpis">
-      <app-card title="Total Venta Mes" [value]="totales?.ventaAcum      ?? 0"></app-card>
-      <app-card title="Total Cuota"     [value]="totales?.cuotaMes        ?? 0"></app-card>
-      <app-card title="Cumplimiento"    [value]="totales?.porcCump        ?? 0"></app-card>
-      <app-card title="Proyección"      [value]="totales?.proyeccionVenta ?? 0"></app-card>
+      <app-card title="Total Venta Mes" [value]="totales?.ventaAcum ?? 0"></app-card>
+      <app-card title="Total Cuota" [value]="totales?.cuotaMes ?? 0"></app-card>
+      <app-card title="Cumplimiento" [value]="totales?.porcCump ?? 0"></app-card>
+      <app-card title="Proyección" [value]="totales?.proyeccionVenta ?? 0"></app-card>
     </section>
 
     <!-- ── Análisis de Ventas: recibe filtros activos ────────────── -->
     <section class="charts">
-      <app-ventas
-        [codigoVendedor]="codigoVendedor"
-        [filtros]="filtrosActivos">
-      </app-ventas>
+      <app-ventas [codigoVendedor]="codigoVendedor" [filtros]="filtrosActivos"> </app-ventas>
     </section>
-
+    <!-- ── Análisis de Impactos ──────────────────────────────────── -->
+    <section class="charts">
+      <app-impactos [codigoVendedor]="codigoVendedor" [filtros]="filtrosActivos"> </app-impactos>
+    </section>
   </div>
 </div>

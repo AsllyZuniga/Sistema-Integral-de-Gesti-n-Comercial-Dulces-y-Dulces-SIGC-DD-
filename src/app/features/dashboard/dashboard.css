@@ -1,36 +1,29 @@
-/* ===========================
-   DASHBOARD COMPONENT
-=========================== */
-
 ::ng-deep body,
 ::ng-deep html {
   margin: 0;
   padding: 0;
-  background: #f1f5f9;
+  background: var(--c-bg);
   min-height: 100vh;
 }
 
 .layout {
   display: flex;
-  background: #f1f5f9;
+  background: var(--c-bg);
   min-height: 100vh;
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
 }
 
 .main {
   flex: 1;
   margin-left: 240px;
   padding: 36px 40px;
-  transition: margin-left 0.25s cubic-bezier(.4, 0, .2, 1);
+  transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-sizing: border-box;
   min-width: 0;
 }
-
 .main.expanded {
   margin-left: 72px;
 }
 
-/* ===== TOPBAR ===== */
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -38,9 +31,8 @@
   margin-bottom: 32px;
   gap: 16px;
   padding: 10px 0 20px;
-  border-bottom: 1px solid rgba(0, 66, 134, 0.10);
+  border-bottom: 1px solid rgba(0, 66, 134, 0.1);
 }
-
 .title-container {
   display: flex;
   align-items: center;
@@ -48,7 +40,6 @@
   min-width: 0;
   flex: 1;
 }
-
 .topbar-logo {
   height: 48px;
   width: auto;
@@ -56,69 +47,71 @@
   flex-shrink: 0;
   filter: drop-shadow(0 2px 6px rgba(0, 66, 134, 0.15));
 }
-
 .topbar-divider {
   width: 1px;
   height: 36px;
   background: rgba(0, 66, 134, 0.15);
   flex-shrink: 0;
 }
-
-.topbar-text { min-width: 0; }
-
+.topbar-text {
+  min-width: 0;
+}
 .topbar-text h1 {
   font-size: 22px;
   font-weight: 800;
   margin: 0;
-  color: #002f63;
+  color: var(--c-text-head);
   letter-spacing: -0.5px;
   line-height: 1.1;
 }
-
 .welcome {
   display: block;
   font-size: 12px;
-  color: #64748b;
+  color: var(--c-text-muted);
   margin-top: 3px;
   font-weight: 400;
 }
 
 .mobile-menu-btn {
   display: none;
-  background: #f0f7ff;
-  border: 1.5px solid #dbeafe;
-  color: #004286;
+  background: var(--c-primary-pale);
+  border: 1.5px solid var(--c-primary-soft);
+  color: var(--c-primary);
   font-size: 18px;
   cursor: pointer;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--r-xs);
   line-height: 1;
   flex-shrink: 0;
-  transition: all 0.25s;
+  transition: var(--transition);
 }
-.mobile-menu-btn:hover { background: #dbeafe; }
+.mobile-menu-btn:hover {
+  background: var(--c-primary-soft);
+}
 
 .logout-btn {
-  background: linear-gradient(135deg, #1d63b8 0%, #004286 100%);
-  color: white;
-  border: none;
   padding: 10px 22px;
-  border-radius: 12px;
-  cursor: pointer;
   font-size: 13px;
-  font-weight: 600;
-  transition: all 0.25s;
   white-space: nowrap;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(0, 66, 134, 0.20);
+  font-family: inherit;
+  background: linear-gradient(135deg, var(--c-primary-mid) 0%, var(--c-primary) 100%);
+  color: var(--c-surface);
+  border: none;
+  border-radius: var(--r-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: var(--shadow-btn);
 }
 .logout-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 66, 134, 0.30);
+  box-shadow: var(--shadow-btn-hv);
 }
-.logout-btn:active { transform: translateY(0); }
+.logout-btn:active {
+  transform: translateY(0);
+}
 
-/* ===== KPIs ===== */
 .kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -126,8 +119,6 @@
   margin-top: 28px;
   margin-bottom: 26px;
 }
-
-/* ===== CHARTS ===== */
 .charts {
   display: grid;
   grid-template-columns: 1fr;
@@ -136,7 +127,6 @@
   min-width: 0;
 }
 
-/* ===== OVERLAY MÓVIL ===== */
 .mobile-overlay {
   display: none;
   position: fixed;
@@ -146,16 +136,15 @@
   backdrop-filter: blur(2px);
 }
 
-/* ================================================
-   RESPONSIVE
-================================================ */
-
 @media (max-width: 1200px) {
-  .main { padding: 28px 24px; }
+  .main {
+    padding: 28px 24px;
+  }
 }
-
 @media (max-width: 992px) {
-  .main { margin-left: 72px; }
+  .main {
+    margin-left: 72px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -163,65 +152,55 @@
     overflow-x: hidden;
     position: relative;
   }
-
   .main {
     margin-left: 0 !important;
     padding: 16px 14px;
     width: 100%;
-    box-sizing: border-box;
     overflow-x: hidden;
   }
-
   .topbar {
     flex-wrap: nowrap;
     gap: 8px;
     padding: 8px 0 14px;
-    align-items: center;
   }
-
   .title-container {
     flex: 1;
     min-width: 0;
     gap: 8px;
     overflow: hidden;
   }
-
   .mobile-menu-btn {
     display: inline-flex;
     align-items: center;
     order: -1;
   }
-
-  .topbar-logo { height: 34px; }
-  .topbar-divider { display: none; }
-
+  .topbar-logo {
+    height: 34px;
+  }
+  .topbar-divider {
+    display: none;
+  }
   .topbar-text h1 {
     font-size: 15px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-
   .welcome {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 180px;
   }
-
-  /* Logout NO ocupa todo el ancho en móvil */
   .logout-btn {
     width: auto;
-    flex-shrink: 0;
     padding: 8px 14px;
     font-size: 12px;
   }
-
   .kpis {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
-
   .charts {
     gap: 16px;
   }
@@ -230,7 +209,7 @@
     transform: translateX(-100%);
     width: 260px !important;
     z-index: 1001 !important;
-    transition: transform 0.25s cubic-bezier(.4, 0, .2, 1) !important;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
   .layout.mobile-open ::ng-deep .sidebar {
     transform: translateX(0);
@@ -244,16 +223,20 @@
 }
 
 @media (max-width: 480px) {
-  .main { padding: 12px 10px; }
-  .topbar-logo { height: 28px; }
-  .topbar-text h1 { font-size: 13px; }
-
+  .main {
+    padding: 12px 10px;
+  }
+  .topbar-logo {
+    height: 28px;
+  }
+  .topbar-text h1 {
+    font-size: 13px;
+  }
   .logout-btn {
     padding: 7px 10px;
     font-size: 11px;
-    border-radius: 8px;
+    border-radius: var(--r-xs);
   }
-
   .kpis {
     grid-template-columns: 1fr;
     gap: 10px;

@@ -15,7 +15,10 @@ export class LoginComponent {
   is_error = false;
   user = { codigo: '' };
 
-  constructor(private router: Router, private authService: AuthService) {}
+  constructor(
+    private router: Router,
+    private authService: AuthService,
+  ) {}
 
   validarUsuario() {
     if (!this.user.codigo) {
@@ -23,14 +26,13 @@ export class LoginComponent {
       return;
     }
 
-    // Llamada al backend
     this.authService.login(this.user).subscribe({
       next: (resp) => {
         this.is_error = false;
         localStorage.setItem('vendedor', JSON.stringify(resp.vendedor));
-        this.router.navigate(['/dashboard']); // Ruta al dashboard
+        this.router.navigate(['/dashboard']);
       },
-      error: () => (this.is_error = true)
+      error: () => (this.is_error = true),
     });
   }
 }
