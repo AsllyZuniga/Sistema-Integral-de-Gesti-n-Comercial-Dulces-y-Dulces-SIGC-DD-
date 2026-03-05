@@ -5,13 +5,11 @@ import { AuthService } from '../../core/services/auth.service';
 import { Router } from '@angular/router';
 import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
 import { CardComponent } from '../../shared/components/card/card.component';
-import {
-  FiltersComponent,
-  DashboardFilters,
-} from '../../shared/components/filters/filters.component';
+import { FiltersComponent, DashboardFilters } from '../../shared/components/filters/filters.component';
 import { SidebarComponent } from '../../shared/components/sidebar/sidebar.component';
 import { VentasComponent } from '../dashboard/components/ventas/ventas.component';
 import { ImpactosComponent } from './components/impactos/impactos.component';
+import { DevolucionesComponent } from './components/devoluciones/devoluciones.component';
 
 @Component({
   selector: 'app-dashboard',
@@ -23,6 +21,7 @@ import { ImpactosComponent } from './components/impactos/impactos.component';
     SidebarComponent,
     VentasComponent,
     ImpactosComponent,
+    DevolucionesComponent,
   ],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css'],
@@ -37,17 +36,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // Opciones para los dropdowns del filtro
   proveedoresList: string[] = [];
-  categoriasList: string[] = [];
-  ciudadesList: string[] = [];
-  vendedoresList: string[] = [];
+  categoriasList:  string[] = [];
+  ciudadesList:    string[] = [];
+  vendedoresList:  string[] = [];
 
   filtrosActivos: DashboardFilters = {
-    fechaInicio: '',
-    fechaFin: '',
-    vendedor: '',
-    proveedor: '',
-    categoria: '',
-    ciudad: '',
+    fechaInicio: '', fechaFin: '', vendedor: '',
+    proveedor: '', categoria: '', ciudad: '',
   };
 
   constructor(
@@ -57,10 +52,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
+   
     this.vendedor = this.authService.getVendedor();
-    if (!this.vendedor) {
-      this.router.navigate(['/login']);
-      return;
+   if (!this.vendedor) {
+     this.router.navigate(['/login']);
+       return;
     }
     this.cargarTotales();
     this.cargarOpcionesFiltros();
@@ -80,12 +76,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.cumplimientoService
       .getCumplimientoPorCodigo(this.codigoVendedor, this.filtrosActivos)
       .pipe(takeUntil(this.destroy$))
-      .subscribe((res) => {
+      .subscribe(res => {
         if (!res) return;
         this.totales = {
-          ventaAcum: res.ventaAcum,
-          cuotaMes: res.cuotaMes,
-          porcCump: res.porcCump,
+          ventaAcum:       res.ventaAcum,
+          cuotaMes:        res.cuotaMes,
+          porcCump:        res.porcCump,
           proyeccionVenta: res.proyeccionVenta,
         };
       });
@@ -97,33 +93,25 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.cumplimientoService
       .getProductosPorVendedor(this.codigoVendedor)
       .pipe(takeUntil(this.destroy$))
-      .subscribe((res) => {
+      .subscribe(res => {
         const listado = res?.data ?? [];
-        this.proveedoresList = [
-          ...new Set<string>(listado.map((r: any) => r.Proveedor).filter(Boolean)),
-        ].sort();
+        this.proveedoresList = [...new Set<string>(listado.map((r: any) => r.Proveedor).filter(Boolean))].sort();
       });
 
     this.cumplimientoService
       .getCiudadesPorVendedor(this.codigoVendedor)
       .pipe(takeUntil(this.destroy$))
-      .subscribe((res) => {
+      .subscribe(res => {
         const listado = res?.detallePorCiudad ?? [];
-        this.ciudadesList = listado
-          .map((r: any) => r.ciudad)
-          .filter(Boolean)
-          .sort();
+        this.ciudadesList = listado.map((r: any) => r.ciudad).filter(Boolean).sort();
       });
 
     this.cumplimientoService
       .getLineasPorVendedor(this.codigoVendedor)
       .pipe(takeUntil(this.destroy$))
-      .subscribe((res) => {
+      .subscribe(res => {
         const listado = res?.detallePorLinea ?? [];
-        this.categoriasList = listado
-          .map((r: any) => r.linea)
-          .filter(Boolean)
-          .sort();
+        this.categoriasList = listado.map((r: any) => r.linea).filter(Boolean).sort();
       });
   }
 
