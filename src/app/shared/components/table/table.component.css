@@ -1,0 +1,168 @@
+table {
+  width: 100%;
+  min-width: 620px; /* 7 columnas sin comprimir texto */
+  border-collapse: collapse;
+  background: var(--c-surface);
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  table-layout: fixed; /* anchos exactos por columna, evita desborde */
+}
+
+/* Ajusta si agregas/quitas columnas. Suma >= min-width */
+th:nth-child(1) {
+  width: 110px;
+}
+th:nth-child(2) {
+  width: 180px;
+}
+th:nth-child(3) {
+  width: 120px;
+}
+th:nth-child(4) {
+  width: 110px;
+}
+th:nth-child(5) {
+  width: 80px;
+}
+th:nth-child(6) {
+  width: 110px;
+}
+th:nth-child(7) {
+  width: 110px;
+}
+
+thead tr {
+  border-bottom: 2px solid var(--c-border);
+}
+
+th {
+  background: var(--c-surface);
+  text-align: left;
+  padding: 12px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--c-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 1px 0 var(--c-border);
+}
+
+td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--c-bg);
+  font-size: 13px;
+  color: var(--c-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.15s ease;
+}
+
+tbody tr:hover td {
+  background: var(--c-primary-pale);
+}
+tbody tr.odd td {
+  background: var(--c-surface-alt);
+}
+tbody tr.odd:hover td {
+  background: var(--c-primary-pale);
+}
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+td[data-col='cuotaMes'],
+td[data-col='ventaAcum'],
+td[data-col='proyeccionVenta'],
+td[data-col='porcCump'],
+td[data-col='porcCumProy'],
+td[data-col='Venta_Unid_Cajas'] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+th[data-col='cuotaMes'],
+th[data-col='ventaAcum'],
+th[data-col='proyeccionVenta'],
+th[data-col='porcCump'],
+th[data-col='porcCumProy'],
+th[data-col='Venta_Unid_Cajas'] {
+  text-align: right;
+}
+
+td.cell-success {
+  color: #16a34a;
+  font-weight: 700;
+}
+td.cell-warning {
+  color: #d97706;
+  font-weight: 600;
+}
+td.cell-danger {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+td.empty {
+  text-align: center;
+  color: #94a3b8;
+  padding: 32px 16px;
+  font-size: 13px;
+  white-space: normal;
+  overflow: visible;
+}
+
+@media (max-width: 768px) {
+  th {
+    font-size: 10px;
+    padding: 9px 10px;
+  }
+  td {
+    font-size: 12px;
+    padding: 9px 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  table {
+    min-width: 560px;
+  } /* mínimo para 7 columnas legibles con scroll horizontal */
+
+  th:nth-child(1) {
+    width: 90px;
+  }
+  th:nth-child(2) {
+    width: 150px;
+  }
+  th:nth-child(3) {
+    width: 100px;
+  }
+  th:nth-child(4) {
+    width: 95px;
+  }
+  th:nth-child(5) {
+    width: 65px;
+  }
+  th:nth-child(6) {
+    width: 95px;
+  }
+  th:nth-child(7) {
+    width: 95px;
+  }
+
+  th {
+    font-size: 9px;
+    padding: 7px 8px;
+    letter-spacing: 0.3px;
+  }
+  td {
+    font-size: 11px;
+    padding: 7px 8px;
+  }
+}

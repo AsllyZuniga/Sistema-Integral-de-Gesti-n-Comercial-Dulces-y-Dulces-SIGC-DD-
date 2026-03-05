@@ -1,0 +1,15 @@
+<aside class="sidebar" [class.collapsed]="isCollapsed">
+  <div class="top">
+    <span class="logo-text">Dashboard Vendedor</span>
+    <button (click)="toggleSidebar()">☰</button>
+  </div>
+
+  <nav>
+    @for (item of navItems; track item.label) {
+      <a [attr.data-tooltip]="isCollapsed ? item.label : null">
+        <span class="icon material-symbols-rounded">{{ item.icon }}</span>
+        <span class="label">{{ item.label }}</span>
+      </a>
+    }
+  </nav>
+</aside>
