@@ -1,38 +1,15 @@
 <aside class="sidebar" [class.collapsed]="isCollapsed">
   <div class="top">
-    <h2 *ngIf="!isCollapsed">Dashboard Vendedor</h2>
+    <span class="logo-text">Dashboard Vendedor</span>
     <button (click)="toggleSidebar()">☰</button>
   </div>
 
   <nav>
-    <a>
-      <span class="icon">📊</span>
-      <span class="text" *ngIf="!isCollapsed">Dashboard</span>
-    </a>
-
-    <a>
-      <span class="icon">📦</span>
-      <span class="text" *ngIf="!isCollapsed">Detalle</span>
-    </a>
-
-    <a>
-      <span class="icon">↩</span>
-      <span class="text" *ngIf="!isCollapsed">Devoluciones</span>
-    </a>
-
-    <a>
-      <span class="icon">📅</span>
-      <span class="text" *ngIf="!isCollapsed">Historicos</span>
-    </a>
-
-    <a>
-      <span class="icon">📈 </span>
-      <span class="text" *ngIf="!isCollapsed">Impactos</span>
-    </a>
-
-    <a>
-      <span class="icon">⚠</span>
-      <span class="text" *ngIf="!isCollapsed">Nivel Servicio</span>
-    </a>
+    @for (item of navItems; track item.label) {
+      <a [attr.data-tooltip]="isCollapsed ? item.label : null">
+        <span class="icon material-symbols-rounded">{{ item.icon }}</span>
+        <span class="label">{{ item.label }}</span>
+      </a>
+    }
   </nav>
 </aside>

@@ -13,6 +13,15 @@ export class SidebarComponent {
 
   @Output() toggle = new EventEmitter<boolean>();
 
+  readonly navItems = [
+    { icon: 'dashboard',      label: 'Dashboard'      },
+    { icon: 'inventory_2',    label: 'Detalle'        },
+    { icon: 'assignment_return', label: 'Devoluciones'},
+    { icon: 'history',        label: 'Históricos'     },
+    { icon: 'trending_up',    label: 'Impactos'       },
+    { icon: 'verified',       label: 'Nivel Servicio' },
+  ];
+
   toggleSidebar() {
     this.isCollapsed = !this.isCollapsed;
     this.toggle.emit(this.isCollapsed);

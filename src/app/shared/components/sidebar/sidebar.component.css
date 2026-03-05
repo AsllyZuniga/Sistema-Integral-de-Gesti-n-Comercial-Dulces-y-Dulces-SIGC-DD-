@@ -30,7 +30,7 @@
 }
 
 .logo-text {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 800;
   color: #ffffff;
   letter-spacing: -0.4px;
@@ -96,11 +96,16 @@ nav a.active {
 }
 
 .icon {
-  font-size: 17px;
-  width: 22px;
+  font-size: 20px;
+  width: 24px;
   text-align: center;
   flex-shrink: 0;
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  font-variation-settings:
+    'FILL' 1,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
 }
 nav a:hover .icon {
   transform: scale(1.15);
@@ -127,7 +132,6 @@ nav a:hover .icon {
   margin: 0;
 }
 
-/* Tooltip en modo colapsado */
 .sidebar.collapsed nav a[data-tooltip]:hover::after {
   content: attr(data-tooltip);
   position: absolute;
