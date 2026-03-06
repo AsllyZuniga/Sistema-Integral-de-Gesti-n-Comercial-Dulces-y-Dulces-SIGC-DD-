@@ -1,13 +1,12 @@
 table {
   width: 100%;
-  min-width: 620px; /* 7 columnas sin comprimir texto */
+  min-width: 620px; 
   border-collapse: collapse;
   background: var(--c-surface);
   font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-  table-layout: fixed; /* anchos exactos por columna, evita desborde */
+  table-layout: fixed; 
 }
 
-/* Ajusta si agregas/quitas columnas. Suma >= min-width */
 th:nth-child(1) {
   width: 110px;
 }
@@ -132,7 +131,7 @@ td.empty {
 @media (max-width: 480px) {
   table {
     min-width: 560px;
-  } /* mínimo para 7 columnas legibles con scroll horizontal */
+  } 
 
   th:nth-child(1) {
     width: 90px;
