@@ -139,6 +139,11 @@
 .btn-login:active {
   transform: translateY(0);
 }
+.btn-login:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 480px) {

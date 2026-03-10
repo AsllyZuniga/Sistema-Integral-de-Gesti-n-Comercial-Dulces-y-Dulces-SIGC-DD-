@@ -13,7 +13,8 @@ import { AuthService } from '../../core/services/auth.service';
 })
 export class LoginComponent {
   is_error = false;
-  user = { codigo: '' };
+  is_loading = false;
+  user = { codigo: '', password: '' };
 
   constructor(
     private router: Router,
@@ -21,13 +22,20 @@ export class LoginComponent {
   ) {}
 
   validarUsuario() {
+    if (this.is_loading) return;
+    this.is_loading = true;
+
     this.authService.login(this.user).subscribe({
       next: (resp) => {
         this.is_error = false;
+        this.is_loading = false;
         localStorage.setItem('vendedor', JSON.stringify(resp.vendedor));
         this.router.navigate(['/dashboard']);
       },
-      error: () => (this.is_error = true),
+      error: () => {
+        this.is_error = true;
+        this.is_loading = false;
+      },
     });
   }
 }
