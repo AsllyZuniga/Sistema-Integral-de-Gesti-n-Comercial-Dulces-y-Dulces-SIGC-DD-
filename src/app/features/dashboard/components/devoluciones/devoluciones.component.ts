@@ -1,6 +1,5 @@
 import { Component, Input, OnChanges, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { DevolucionesService } from '../../../../core/services/devoluciones/devoluciones.service';
 import { TableComponent } from '../../../../shared/components/table/table.component';
 import { ChartComponent } from '../../../../shared/components/chart/chart.component';
@@ -8,7 +7,7 @@ import { ChartComponent } from '../../../../shared/components/chart/chart.compon
 @Component({
   selector: 'app-devoluciones',
   standalone: true,
-  imports: [CommonModule, FormsModule, TableComponent, ChartComponent],
+  imports: [CommonModule, TableComponent, ChartComponent],
   templateUrl: './devoluciones.component.html',
   styleUrls: ['./devoluciones.component.css'],
 })
@@ -19,9 +18,9 @@ export class DevolucionesComponent implements OnChanges {
   @Input() filtros: any = {};
 
   devolucionesViews = [
-    { key: 'clientes',  label: 'Por Cliente' },
+    { key: 'clientes', label: 'Por Cliente' },
     { key: 'proveedor', label: 'Por Proveedor' },
-    { key: 'ciudad',    labñel: 'Por Ciudad' },
+    { key: 'ciudad', label: 'Por Ciudad' },
   ];
   activeView: string = 'clientes';
 
@@ -30,15 +29,11 @@ export class DevolucionesComponent implements OnChanges {
   chartType: 'bar' | 'line' | 'pie' = 'bar';
   chartId: string = 'devoluciones-chart';
 
-  // Vista clientes
-  clientes: string[] = [];
-  clienteSeleccionado: string = '';
   clientesAgrupados: ClienteAgrupado[] = [];
 
-  // Columnas
   proveedorColumns: string[] = ['proveedor', 'devoluciones', 'valorTotal'];
-  ciudadColumns:    string[] = ['ciudad',    'devoluciones', 'valorTotal'];
-  detalleColumns:   string[] = ['fecha', 'producto', 'cantidad', 'valorTotal', 'motivo'];
+  ciudadColumns: string[] = ['ciudad', 'devoluciones', 'valorTotal'];
+  detalleColumns: string[] = ['fecha', 'producto', 'cantidad', 'valorTotal', 'motivo'];
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['filtros'] || changes['codigoVendedor']) {
@@ -52,10 +47,6 @@ export class DevolucionesComponent implements OnChanges {
     this.cargarDatos();
   }
 
-  onClienteChange(): void {
-    this.agruparClientes(this.tableData);
-  }
-
   toggleCliente(cliente: ClienteAgrupado): void {
     cliente.expandido = !cliente.expandido;
   }
@@ -67,11 +58,9 @@ export class DevolucionesComponent implements OnChanges {
     };
 
     switch (this.activeView) {
-
       case 'clientes':
         this.devolucionesService.getPorCliente(params).subscribe((data: any[]) => {
           this.tableData = data;
-          this.clientes = [...new Set<string>(data.map((d: any) => d.cliente))].sort();
           this.agruparClientes(data);
         });
         break;
@@ -95,13 +84,9 @@ export class DevolucionesComponent implements OnChanges {
   }
 
   private agruparClientes(data: any[]): void {
-    const filtrado = this.clienteSeleccionado
-      ? data.filter((d: any) => d.cliente === this.clienteSeleccionado)
-      : data;
-
     const mapa = new Map<string, ClienteAgrupado>();
 
-    for (const row of filtrado) {
+    for (const row of data) {
       const nombre = row.cliente ?? 'Sin cliente';
       if (!mapa.has(nombre)) {
         mapa.set(nombre, {
@@ -114,19 +99,18 @@ export class DevolucionesComponent implements OnChanges {
       }
       const entrada = mapa.get(nombre)!;
       entrada.totalDevoluciones += Number(row.devoluciones ?? 1);
-      entrada.valorTotal        += Number(row.valorTotal ?? 0);
+      entrada.valorTotal += Number(row.valorTotal ?? 0);
       entrada.devoluciones.push(row);
     }
 
-    this.clientesAgrupados = Array.from(mapa.values())
-      .sort((a, b) => b.valorTotal - a.valorTotal);
+    this.clientesAgrupados = Array.from(mapa.values()).sort((a, b) => b.valorTotal - a.valorTotal);
   }
 }
 
 interface ClienteAgrupado {
-  nombre:            string;
+  nombre: string;
   totalDevoluciones: number;
-  valorTotal:        number;
-  devoluciones:      any[];
-  expandido:         boolean;
+  valorTotal: number;
+  devoluciones: any[];
+  expandido: boolean;
 }
