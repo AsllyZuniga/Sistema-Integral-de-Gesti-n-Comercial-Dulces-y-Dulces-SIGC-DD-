@@ -1,77 +1,49 @@
 .card {
-  border-radius: var(--r-xl);
+  border-radius: 16px;
   padding: 22px 24px;
-  transition: var(--transition);
+  transition: all 0.25s ease;
   width: 100%;
   position: relative;
   overflow: hidden;
   cursor: default;
   border: none;
+  will-change: transform;    
+  isolation: isolate;  
 }
-
 .card:hover { transform: translateY(-3px); }
 
-/* ===== COLORES ===== */
-.card[data-color="blue"] {
-  background: linear-gradient(135deg, #1d63b8 0%, #004286 100%);
-  box-shadow: 0 8px 24px rgba(0, 66, 134, 0.30);
-}
-.card[data-color="violet"] {
-  background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%);
-  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.30);
-}
-.card[data-color="green"] {
-  background: linear-gradient(135deg, #059669 0%, #065f46 100%);
-  box-shadow: 0 8px 24px rgba(5, 150, 105, 0.30);
-}
-.card[data-color="orange"] {
-  background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
-  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.30);
-}
+.card[data-color="blue"]  { background: linear-gradient(135deg, #1a6bba, #014692); box-shadow: 0 8px 24px rgba(1,70,146,0.30); }
+.card[data-color="navy"]  { background: linear-gradient(135deg, #5a7fa0, #436788); box-shadow: 0 8px 24px rgba(67,103,136,0.30); }
+.card[data-color="olive"] { background: linear-gradient(135deg, #adbd5d, #7a8f3a); box-shadow: 0 8px 24px rgba(122,143,58,0.30); }
+.card[data-color="lime"]  { background: linear-gradient(135deg, #d4ce2e, #a8a320); box-shadow: 0 8px 24px rgba(168,163,32,0.30); }
 
-.card:hover[data-color="blue"]   { box-shadow: 0 14px 32px rgba(0, 66, 134, 0.40); }
-.card:hover[data-color="violet"] { box-shadow: 0 14px 32px rgba(124, 58, 237, 0.40); }
-.card:hover[data-color="green"]  { box-shadow: 0 14px 32px rgba(5, 150, 105, 0.40); }
-.card:hover[data-color="orange"] { box-shadow: 0 14px 32px rgba(245, 158, 11, 0.40); }
+.card:hover[data-color="blue"]  { box-shadow: 0 14px 32px rgba(1,70,146,0.40); }
+.card:hover[data-color="navy"]  { box-shadow: 0 14px 32px rgba(67,103,136,0.40); }
+.card:hover[data-color="olive"] { box-shadow: 0 14px 32px rgba(122,143,58,0.40); }
+.card:hover[data-color="lime"]  { box-shadow: 0 14px 32px rgba(168,163,32,0.40); }
 
-/* ===== ÍCONO ===== */
 .card-icon {
-  position: absolute;
-  bottom: -4px; right: 10px;
-  font-size: 80px;
-  line-height: 1;
-  opacity: 0.18;
-  pointer-events: none;
-  user-select: none;
-  color: #ffffff;
-  transition: var(--transition);
+  position: absolute; bottom: -4px; right: 10px;
+  font-size: 80px; line-height: 1; opacity: 0.18;
+  pointer-events: none; user-select: none; color: #fff;
+  transition: all 0.25s ease;
   font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 48;
 }
 .card:hover .card-icon { opacity: 0.28; transform: scale(1.10) rotate(-6deg); }
 
-/* ===== TEXTOS ===== */
 .title {
-  margin: 0 0 8px;
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
+  margin: 0 0 8px; color: rgba(255,255,255,0.75);
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.8px;
 }
-
 h2 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 800;
-  color: #ffffff;
-  letter-spacing: -0.5px;
-  line-height: 1.15;
-  padding-right: 60px;
-  word-break: break-word;
+  margin: 0; font-size: 24px; font-weight: 800; color: #fff;
+  letter-spacing: -0.5px; line-height: 1.15;
+  padding-right: 60px; word-break: break-word;
 }
 
-.trend          { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; margin-top: 8px; }
-.trend.up       { color: #ffffff; background: rgba(255,255,255,0.20); }
-.trend.down     { color: #ffffff; background: rgba(255,255,255,0.15); }
-.trend.warning  { color: #ffffff; background: rgba(255,255,255,0.15); }
-.trend.neutral  { color: #ffffff; background: rgba(255,255,255,0.12); }
+.trend         { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; margin-top: 8px; color: #fff; }
+.trend.up      { background: rgba(255,255,255,0.20); }
+.trend.down,
+.trend.warning { background: rgba(255,255,255,0.15); }
+.trend.neutral { background: rgba(255,255,255,0.12); }
