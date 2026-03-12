@@ -49,13 +49,7 @@ body, html {
 
 /* ===== UTILIDADES GLOBALES ===== */
 
-.card {
-  background: var(--c-surface);
-  border-radius: var(--r-2xl);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: var(--shadow-card);
-  width: 100%; min-width: 0; overflow: hidden;
-}
+
 
 .btn-primary {
   background: linear-gradient(135deg, var(--c-primary-mid) 0%, var(--c-primary) 100%);
