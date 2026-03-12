@@ -52,12 +52,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
-   
     this.vendedor = this.authService.getVendedor();
-   if (!this.vendedor) {
-     this.router.navigate(['/login']);
-       return;
+
+    // ── TEMPORAL: hardcode para desarrollo sin login ──
+    if (!this.vendedor) {
+      this.vendedor = {
+        codigo: '990',
+        codVendedor: '990',
+        nombre: 'Vendedor Prueba'
+      };
     }
+    // ─────────────────────────────────────────────────
+
+    /* if (!this.vendedor) {
+      this.router.navigate(['/login']);
+      return;
+    } */
+
     this.cargarTotales();
     this.cargarOpcionesFiltros();
   }
@@ -119,6 +130,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   onAplicarFiltros(filtros: DashboardFilters) {
     this.filtrosActivos = { ...filtros };
     this.cargarTotales();
+    this.cargarOpcionesFiltros(); 
   }
 
   onToggleSidebar(collapsed: boolean) {
