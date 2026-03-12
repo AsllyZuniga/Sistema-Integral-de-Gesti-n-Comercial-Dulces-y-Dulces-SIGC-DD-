@@ -6,31 +6,38 @@
   <div class="main" [class.expanded]="isSidebarCollapsed">
 
     <header class="topbar">
-      <div class="title-container">
-        <button class="mobile-menu-btn" (click)="isMobileMenuOpen = !isMobileMenuOpen">☰</button>
+      <div class="topbar-left">
+        <button class="mobile-menu-btn" (click)="isMobileMenuOpen = !isMobileMenuOpen">
+          <span class="material-symbols-rounded">menu</span>
+        </button>
         <img class="topbar-logo" src="logoDulces.png" alt="Logo" />
-        <div class="topbar-divider"></div>
-        <div class="topbar-text">
-          <h1>Dashboard Vendedor</h1>
-          <span class="welcome" *ngIf="vendedor">Bienvenido, {{ vendedor.nombre }}</span>
-        </div>
       </div>
 
-      <div class="topbar-actions">
+      <div class="topbar-center">
+        <h1>
+          <span class="accent">Bienvenido,</span>
+          {{ vendedor?.nombre || 'Dashboard' }}
+        </h1>
+        <span class="welcome">Sistema de Control de Ventas · Dulces y Dulces</span>
+      </div>
+
+      <div class="topbar-right">
         <div class="user-badge" *ngIf="vendedor">
           <span class="user-avatar">{{ vendedor.nombre?.charAt(0) }}</span>
-          <span class="user-name">{{ vendedor.nombre }}</span>
+          <div class="user-info">
+            <span class="user-name">{{ vendedor.nombre }}</span>
+            <span class="user-role">Vendedor</span>
+          </div>
         </div>
         <button class="logout-btn" (click)="logout()">
           <span class="material-symbols-rounded">logout</span>
-          <span class="logout-label">Cerrar sesión</span>
+          <span class="logout-label">Salir</span>
         </button>
       </div>
     </header>
 
     <section class="filters">
       <app-filters
-        [vendedores]="vendedoresList"
         [proveedores]="proveedoresList"
         [categorias]="categoriasList"
         [ciudades]="ciudadesList"
@@ -48,11 +55,9 @@
     <section class="charts">
       <app-ventas [codigoVendedor]="codigoVendedor" [filtros]="filtrosActivos"></app-ventas>
     </section>
-
     <section class="charts">
       <app-impactos [codigoVendedor]="codigoVendedor" [filtros]="filtrosActivos"></app-impactos>
     </section>
-
     <section class="charts">
       <app-devoluciones [codigoVendedor]="codigoVendedor" [filtros]="filtrosActivos"></app-devoluciones>
     </section>
