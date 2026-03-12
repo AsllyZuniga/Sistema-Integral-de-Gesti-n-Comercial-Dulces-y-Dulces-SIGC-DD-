@@ -11,7 +11,6 @@
 
   <div class="dynamic-content">
     @switch (activeImpactosView) {
-      <!-- ══ POR PROVEEDOR ══ -->
       @case ('proveedor') {
         <div class="split-layout">
           <div class="tabla-scroll">
@@ -37,7 +36,6 @@
         </div>
       }
 
-      <!-- ══ POR CIUDAD ══ -->
       @case ('ciudad') {
         <div class="split-layout">
           <div class="tabla-scroll">
@@ -63,37 +61,13 @@
         </div>
       }
 
-      <!-- ══ DETALLE POR PROVEEDOR (con filtro) ══ -->
       @case ('detalle') {
         <div class="item-layout">
           <div class="filtro-bar">
-            <label class="filtro-label" for="selectProveedorImpacto">Proveedor</label>
-            <div class="filtro-select-wrap">
-              <select
-                id="selectProveedorImpacto"
-                [(ngModel)]="proveedorSeleccionado"
-                (ngModelChange)="onProveedorChange()"
-              >
-                <option value="">Todos los proveedores</option>
-                @for (p of proveedores; track p) {
-                  <option [value]="p">{{ p }}</option>
-                }
-              </select>
-              <svg class="select-icon" viewBox="0 0 20 20" fill="none">
-                <path
-                  d="M5 8l5 5 5-5"
-                  stroke="#64748b"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </div>
             <span class="filtro-badge">
               {{ tableData.length }} registro{{ tableData.length !== 1 ? 's' : '' }}
             </span>
           </div>
-
           <div class="split-layout">
             <div class="tabla-scroll">
               @if (tableData.length > 0) {
