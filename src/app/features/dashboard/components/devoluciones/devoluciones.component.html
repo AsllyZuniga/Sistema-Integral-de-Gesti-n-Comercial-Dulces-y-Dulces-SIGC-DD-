@@ -13,27 +13,14 @@
 
     @if (activeView === 'clientes') {
       <div class="item-layout">
-
         <div class="filtro-bar">
-          <span class="filtro-label">Cliente</span>
-          <div class="filtro-select-wrap">
-            <select [(ngModel)]="clienteSeleccionado" (ngModelChange)="onClienteChange()">
-              <option value="">Todos los clientes</option>
-              @for (c of clientes; track c) {
-                <option [value]="c">{{ c }}</option>
-              }
-            </select>
-            <svg class="select-icon" viewBox="0 0 20 20" fill="none">
-              <path d="M5 8l5 5 5-5" stroke="#64748b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <span class="filtro-badge">{{ tableData.length }} registro{{ tableData.length !== 1 ? 's' : '' }}</span>
+          <span class="filtro-badge">
+            {{ clientesAgrupados.length }} cliente{{ clientesAgrupados.length !== 1 ? 's' : '' }}
+          </span>
         </div>
-
         <div class="clientes-lista">
           @for (cliente of clientesAgrupados; track cliente.nombre) {
             <div class="cliente-row" [class.expandido]="cliente.expandido">
-
               <div class="cliente-header" (click)="toggleCliente(cliente)">
                 <div class="cliente-info">
                   <span class="cliente-nombre">{{ cliente.nombre }}</span>
@@ -44,7 +31,6 @@
                 </div>
                 <span class="expand-icon">{{ cliente.expandido ? '▲' : '▼' }}</span>
               </div>
-
               @if (cliente.expandido) {
                 <div class="cliente-detalle">
                   <div class="tabla-scroll scroll-thin">
@@ -52,15 +38,12 @@
                   </div>
                 </div>
               }
-
             </div>
           }
-
           @if (clientesAgrupados.length === 0) {
             <div class="placeholder">Sin devoluciones registradas</div>
           }
         </div>
-
       </div>
     }
 
