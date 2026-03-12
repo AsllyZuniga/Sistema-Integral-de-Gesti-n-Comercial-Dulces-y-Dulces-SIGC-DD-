@@ -1,6 +1,5 @@
 import { Component, Input, OnChanges, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { ImpactosService } from '../../../../core/services/impactos/impactos.service';
 import { TableComponent } from '../../../../shared/components/table/table.component';
 import { ChartComponent } from '../../../../shared/components/chart/chart.component';
@@ -8,7 +7,7 @@ import { ChartComponent } from '../../../../shared/components/chart/chart.compon
 @Component({
   selector: 'app-impactos',
   standalone: true,
-  imports: [CommonModule, FormsModule, TableComponent, ChartComponent],
+  imports: [CommonModule, TableComponent, ChartComponent],
   templateUrl: './impactos.component.html',
   styleUrls: ['./impactos.component.css'],
 })
@@ -20,8 +19,8 @@ export class ImpactosComponent implements OnChanges {
 
   impactosViews = [
     { key: 'proveedor', label: 'Por Proveedor' },
-    { key: 'ciudad', label: 'Por Ciudad' },
-    { key: 'detalle', label: 'Detalle' },
+    { key: 'ciudad',    label: 'Por Ciudad' },
+    { key: 'detalle',   label: 'Detalle' },
   ];
   activeImpactosView: string = 'proveedor';
 
@@ -30,12 +29,9 @@ export class ImpactosComponent implements OnChanges {
   chartType: 'bar' | 'line' | 'pie' = 'bar';
   chartId: string = 'impactos-chart';
 
-  proveedores: string[] = [];
-  proveedorSeleccionado: string = '';
-
   proveedorColumns: string[] = ['proveedor', 'impactos', 'valorTotal'];
-  ciudadColumns: string[] = ['ciudad', 'impactos', 'valorTotal'];
-  detalleColumns: string[] = ['proveedor', 'producto', 'impactos', 'valorTotal'];
+  ciudadColumns:    string[] = ['ciudad',    'impactos', 'valorTotal'];
+  detalleColumns:   string[] = ['proveedor', 'producto', 'impactos', 'valorTotal'];
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['filtros'] || changes['codigoVendedor']) {
@@ -49,15 +45,10 @@ export class ImpactosComponent implements OnChanges {
     this.cargarDatos();
   }
 
-  onProveedorChange(): void {
-    this.cargarDatos();
-  }
-
   private cargarDatos(): void {
     const params = {
       ...this.filtros,
       vendedor: this.codigoVendedor,
-      proveedor: this.proveedorSeleccionado || undefined,
     };
 
     switch (this.activeImpactosView) {
@@ -65,10 +56,7 @@ export class ImpactosComponent implements OnChanges {
         this.chartType = 'bar';
         this.impactosService.getPorProveedor(params).subscribe((data: any[]) => {
           this.tableData = data;
-          this.chartData = data.map((d: any) => ({
-            name: d.proveedor,
-            value: d.impactos,
-          }));
+          this.chartData = data.map((d: any) => ({ name: d.proveedor, value: d.impactos }));
         });
         break;
 
@@ -76,10 +64,7 @@ export class ImpactosComponent implements OnChanges {
         this.chartType = 'bar';
         this.impactosService.getPorCiudad(params).subscribe((data: any[]) => {
           this.tableData = data;
-          this.chartData = data.map((d: any) => ({
-            name: d.ciudad,
-            value: d.impactos,
-          }));
+          this.chartData = data.map((d: any) => ({ name: d.ciudad, value: d.impactos }));
         });
         break;
 
@@ -88,11 +73,7 @@ export class ImpactosComponent implements OnChanges {
         this.impactosService.getDetalle(params).subscribe((data: any[]) => {
           this.tableData = data;
           const top10 = [...data].sort((a: any, b: any) => b.impactos - a.impactos).slice(0, 10);
-          this.chartData = top10.map((d: any) => ({
-            name: d.producto,
-            value: d.impactos,
-          }));
-          this.proveedores = [...new Set<string>(data.map((d: any) => d.proveedor))];
+          this.chartData = top10.map((d: any) => ({ name: d.producto, value: d.impactos }));
         });
         break;
     }
