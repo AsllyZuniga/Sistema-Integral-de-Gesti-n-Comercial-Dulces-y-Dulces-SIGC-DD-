@@ -29,11 +29,14 @@ export class VentasComponent implements OnInit, OnDestroy {
     fechaFin:    '',
     vendedor:    '',
     proveedor:   '',
-    categoria:   '', 
+    categoria:   '',
     ciudad:      '',
   };
 
   private destroy$ = new Subject<void>();
+
+  // ✅ Rol leído desde localStorage
+  rolId: number = 0;
 
   activeVentasView = 'ventas';
   chartId: string = 'chart-main';
@@ -42,7 +45,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   chartData: any[] = [];
   private allItemData: any[] = [];
 
-  readonly ventasViews = [
+  private readonly todasLasVistas = [
     { key: 'ventas',    label: 'Ventas' },
     { key: 'proveedor', label: 'Por Proveedor' },
     { key: 'ciudad',    label: 'Por Ciudad' },
@@ -50,9 +53,17 @@ export class VentasComponent implements OnInit, OnDestroy {
     { key: 'item',      label: 'Detalle por Item' },
   ];
 
-  readonly tableColumns    = ['codVendedor', 'nombre', 'cuotaMes', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
-  readonly lineasColumns   = ['linea',   'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
-  readonly ciudadesColumns = ['ciudad',  'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
+  // ✅ Rol 3 no ve 'ventas' (gráfica) ni 'vendedor'
+  get ventasViews() {
+    if (this.rolId === 3) {
+      return this.todasLasVistas.filter(v => v.key !== 'ventas' && v.key !== 'vendedor');
+    }
+    return this.todasLasVistas;
+  }
+
+  readonly tableColumns     = ['codVendedor', 'nombre', 'cuotaMes', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
+  readonly lineasColumns    = ['linea',   'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
+  readonly ciudadesColumns  = ['ciudad',  'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
   readonly productosColumns = ['Fecha', 'Proveedor', 'Cod_Item', 'Descripcion', 'Venta_Unid_Cajas', 'Cantidad', 'Subtotal'];
 
   constructor(
@@ -61,6 +72,18 @@ export class VentasComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
+    // ✅ Leer rol desde localStorage — busca en 'vendedor' o 'usuario'
+    try {
+      const raw = localStorage.getItem('vendedor') ?? localStorage.getItem('usuario') ?? '{}';
+      const usuario = JSON.parse(raw);
+      this.rolId = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? 0);
+    } catch {
+      this.rolId = 0;
+    }
+
+    // ✅ Si rol 3, la vista inicial es 'proveedor' (primera permitida)
+    this.activeVentasView = this.rolId === 3 ? 'proveedor' : 'ventas';
+
     this.cargarVistaActual();
   }
 
@@ -92,10 +115,10 @@ export class VentasComponent implements OnInit, OnDestroy {
   cargarVistaActual() {
     if (!this.codigoVendedor) return;
 
-    this.tableData    = [];
-    this.chartData    = [];
-    this.allItemData  = [];
-    this.chartId      = 'chart-' + this.activeVentasView + '-' + Date.now();
+    this.tableData   = [];
+    this.chartData   = [];
+    this.allItemData = [];
+    this.chartId     = 'chart-' + this.activeVentasView + '-' + Date.now();
 
     if (this.activeVentasView === 'ventas') {
       this.chartType = 'line';

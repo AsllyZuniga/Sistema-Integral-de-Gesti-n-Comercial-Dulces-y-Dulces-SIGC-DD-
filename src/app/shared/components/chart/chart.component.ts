@@ -13,10 +13,27 @@ import { Chart, ChartOptions } from 'chart.js/auto';
 @Component({
   selector: 'app-chart',
   standalone: true,
-  template: `<canvas #canvas style="width:100%;"></canvas>`,
+  // ✅ Contenedor con altura máxima para evitar que crezca infinito en pantallas grandes
+  template: `
+    <div class="chart-wrapper">
+      <canvas #canvas></canvas>
+    </div>
+  `,
+  styles: [`
+    .chart-wrapper {
+      width: 100%;
+      max-height: 380px;   /* ✅ límite en pantallas grandes */
+      height: clamp(220px, 35vh, 380px); /* ✅ fluido: mínimo 220px, máximo 380px */
+      position: relative;
+    }
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+  `],
 })
 export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
-  @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>; // 👈 ViewChild
+  @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>;
 
   @Input() type: 'bar' | 'line' | 'pie' = 'bar';
   @Input() data: { name: string; value: number }[] = [];
@@ -43,18 +60,9 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private readonly COLORS = [
-    '#2563eb',
-    '#16a34a',
-    '#d97706',
-    '#7c3aed',
-    '#0891b2',
-    '#db2777',
-    '#65a30d',
-    '#ea580c',
-    '#0284c7',
-    '#9333ea',
-    '#15803d',
-    '#b45309',
+    '#2563eb', '#16a34a', '#d97706', '#7c3aed', '#0891b2',
+    '#db2777', '#65a30d', '#ea580c', '#0284c7', '#9333ea',
+    '#15803d', '#b45309',
   ];
 
   private getColors(count: number): string[] {
@@ -66,7 +74,7 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private buildChart() {
-    const canvas = this.canvasRef?.nativeElement; // 👈 desde ViewChild
+    const canvas = this.canvasRef?.nativeElement;
     if (!canvas || !this.data?.length) return;
 
     const cleanData = this.data.filter((d) => d.value != null && !isNaN(d.value));
@@ -81,14 +89,13 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
     const yMin = minVal < 0 ? Math.floor(minVal * 1.1) : 0;
     const yMax = Math.ceil(maxVal * 1.15);
 
-    const isBar = this.type === 'bar';
+    const isBar  = this.type === 'bar';
     const isLine = this.type === 'line';
-    const isPie = this.type === 'pie';
+    const isPie  = this.type === 'pie';
 
     const options: ChartOptions = {
       responsive: true,
-      maintainAspectRatio: true,
-      aspectRatio: isPie ? 1.4 : 1.6,
+      maintainAspectRatio: false, 
       plugins: {
         legend: { position: 'top' },
         tooltip: {
@@ -137,7 +144,7 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   private formatNumber(val: number): string {
     if (Math.abs(val) >= 1_000_000) return '$ ' + (val / 1_000_000).toFixed(1) + 'M';
-    if (Math.abs(val) >= 1_000) return '$ ' + (val / 1_000).toFixed(0) + 'K';
+    if (Math.abs(val) >= 1_000)     return '$ ' + (val / 1_000).toFixed(0) + 'K';
     return val.toLocaleString('es-CO');
   }
 }
