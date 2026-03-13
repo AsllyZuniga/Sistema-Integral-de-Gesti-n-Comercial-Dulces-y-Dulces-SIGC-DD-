@@ -1,32 +1,10 @@
 table {
   width: 100%;
-  min-width: 620px; 
+  min-width: 620px;
   border-collapse: collapse;
   background: var(--c-surface);
   font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-  table-layout: fixed; 
-}
-
-th:nth-child(1) {
-  width: 110px;
-}
-th:nth-child(2) {
-  width: 180px;
-}
-th:nth-child(3) {
-  width: 120px;
-}
-th:nth-child(4) {
-  width: 110px;
-}
-th:nth-child(5) {
-  width: 80px;
-}
-th:nth-child(6) {
-  width: 110px;
-}
-th:nth-child(7) {
-  width: 110px;
+  table-layout: auto; /* ✅ CORREGIDO: auto para que cada columna tome el ancho que necesita */
 }
 
 thead tr {
@@ -46,8 +24,6 @@ th {
   top: 0;
   z-index: 1;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   box-shadow: 0 1px 0 var(--c-border);
 }
 
@@ -57,8 +33,6 @@ td {
   font-size: 13px;
   color: var(--c-text);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   transition: background 0.15s ease;
 }
 
@@ -131,30 +105,7 @@ td.empty {
 @media (max-width: 480px) {
   table {
     min-width: 560px;
-  } 
-
-  th:nth-child(1) {
-    width: 90px;
   }
-  th:nth-child(2) {
-    width: 150px;
-  }
-  th:nth-child(3) {
-    width: 100px;
-  }
-  th:nth-child(4) {
-    width: 95px;
-  }
-  th:nth-child(5) {
-    width: 65px;
-  }
-  th:nth-child(6) {
-    width: 95px;
-  }
-  th:nth-child(7) {
-    width: 95px;
-  }
-
   th {
     font-size: 9px;
     padding: 7px 8px;
