@@ -6,6 +6,30 @@
   box-sizing: border-box;
 }
 
+/* ✅ Layout principal: tabla arriba, gráfica abajo */
+.stack-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
+.tabla-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.grafica-container {
+  width: 100%;
+}
+
+.grafica-container h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--c-text);
+  margin: 0 0 12px 0;
+}
+
 .tabla-vendedor {
   width: 100%;
   display: flex;
@@ -14,4 +38,32 @@
   gap: 10px;
 }
 
-.placeholder::before { content: '📈'; font-size: 32px; display: block; }
+.filtro-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 4px 0;
+}
+
+.filtro-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-text-muted);
+  background: var(--c-surface-alt);
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--c-border);
+}
+
+.placeholder {
+  text-align: center;
+  color: var(--c-text-muted);
+  padding: 48px 16px;
+  font-size: 14px;
+}
+.placeholder::before {
+  content: '📈';
+  font-size: 32px;
+  display: block;
+  margin-bottom: 8px;
+}
