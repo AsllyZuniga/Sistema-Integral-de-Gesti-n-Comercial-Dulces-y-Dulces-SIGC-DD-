@@ -7,7 +7,6 @@ export interface DashboardFilters {
   fechaFin: string;
   vendedor: string;
   proveedor: string;
-  categoria: string;
   ciudad: string;
 }
 
@@ -21,7 +20,6 @@ export interface DashboardFilters {
 export class FiltersComponent {
   @Input() vendedores: string[] = [];
   @Input() proveedores: string[] = [];
-  @Input() categorias: string[] = [];
   @Input() ciudades: string[] = [];
 
   @Output() apply = new EventEmitter<DashboardFilters>();
@@ -33,7 +31,6 @@ export class FiltersComponent {
     fechaFin: '',
     vendedor: '',
     proveedor: '',
-    categoria: '',
     ciudad: '',
   };
 
@@ -52,7 +49,6 @@ export class FiltersComponent {
       fechaFin: '',
       vendedor: '',
       proveedor: '',
-      categoria: '',
       ciudad: '',
     };
     this.apply.emit({ ...this.filtros });

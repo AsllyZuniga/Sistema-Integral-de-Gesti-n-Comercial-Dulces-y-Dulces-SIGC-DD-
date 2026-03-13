@@ -34,7 +34,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // Listas para los dropdowns del filtro
   proveedoresList: string[] = [];
-  categoriasList:  string[] = [];
   ciudadesList:    string[] = [];
   vendedoresList:  string[] = [];
 
@@ -44,7 +43,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     fechaFin:    '',
     vendedor:    '',
     proveedor:   '',
-    categoria:   '',
     ciudad:      '',
   };
 
@@ -114,14 +112,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.ciudadesList = listado.map((r: any) => r.ciudad).filter(Boolean).sort();
       });
 
-    // Categorías/líneas únicas
-    this.cumplimientoService
-      .getLineasPorVendedor(this.codigoVendedor)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(res => {
-        const listado = res?.detallePorLinea ?? [];
-        this.categoriasList = listado.map((r: any) => r.linea).filter(Boolean).sort();
-      });
+    // ...existing code...
   }
 
   // ── Recibe el evento (apply) del FiltersComponent ─────────────

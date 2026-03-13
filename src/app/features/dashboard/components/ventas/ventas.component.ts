@@ -30,7 +30,6 @@ export class VentasComponent implements OnInit, OnDestroy {
     fechaFin:    '',
     vendedor:    '',
     proveedor:   '',
-    categoria:   '',
     ciudad:      '',
   };
   // ──────────────────────────────────────────────────────────────
