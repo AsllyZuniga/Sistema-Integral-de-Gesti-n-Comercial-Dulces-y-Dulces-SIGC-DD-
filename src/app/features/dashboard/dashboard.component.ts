@@ -34,16 +34,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isSidebarCollapsed = false;
   isMobileMenuOpen = false;
 
-  // Opciones para los dropdowns del filtro
   proveedoresList: string[] = [];
   ciudadesList:    string[] = [];
-  vendedoresList:  string[] = [];
 
   filtrosActivos: DashboardFilters = {
     fechaInicio: '',
     fechaFin:    '',
     vendedor:    '',
     proveedor:   '',
+    categoria:   '',  // ← restaurado
     ciudad:      '',
   };
 
@@ -56,7 +55,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.vendedor = this.authService.getVendedor();
 
-    // ── TEMPORAL: hardcode para desarrollo sin login ──
     if (!this.vendedor) {
       this.vendedor = {
         codigo: '990',
@@ -64,12 +62,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
         nombre: 'Vendedor Prueba'
       };
     }
-    // ─────────────────────────────────────────────────
-
-    /* if (!this.vendedor) {
-      this.router.navigate(['/login']);
-      return;
-    } */
 
     this.cargarTotales();
     this.cargarOpcionesFiltros();
@@ -108,7 +100,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(res => {
         const listado = res?.data ?? [];
-        this.proveedoresList = [...new Set<string>(listado.map((r: any) => r.Proveedor).filter(Boolean))].sort();
+        this.proveedoresList = [
+          ...new Set<string>(listado.map((r: any) => r.Proveedor).filter(Boolean))
+        ].sort();
       });
 
     this.cumplimientoService
@@ -118,15 +112,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
         const listado = res?.detallePorCiudad ?? [];
         this.ciudadesList = listado.map((r: any) => r.ciudad).filter(Boolean).sort();
       });
-
-    // ...existing code...
   }
 
-  // Recibe los filtros aplicados desde FiltersComponent
   onAplicarFiltros(filtros: DashboardFilters) {
     this.filtrosActivos = { ...filtros };
     this.cargarTotales();
-    this.cargarOpcionesFiltros(); 
   }
 
   onToggleSidebar(collapsed: boolean) {

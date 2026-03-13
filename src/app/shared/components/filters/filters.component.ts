@@ -4,10 +4,11 @@ import { FormsModule } from '@angular/forms';
 
 export interface DashboardFilters {
   fechaInicio: string;
-  fechaFin: string;
-  vendedor: string;
-  proveedor: string;
-  ciudad: string;
+  fechaFin:    string;
+  vendedor:    string;
+  proveedor:   string;
+  categoria:   string;
+  ciudad:      string;
 }
 
 @Component({
@@ -19,7 +20,8 @@ export interface DashboardFilters {
 })
 export class FiltersComponent {
   @Input() proveedores: string[] = [];
-  @Input() ciudades: string[] = [];
+  @Input() categorias:  string[] = [];  // ← restaurado
+  @Input() ciudades:    string[] = [];
 
   @Output() apply = new EventEmitter<DashboardFilters>();
 
@@ -27,10 +29,11 @@ export class FiltersComponent {
 
   filtros: DashboardFilters = {
     fechaInicio: '',
-    fechaFin: '',
-    vendedor: '',
-    proveedor: '',
-    ciudad: '',
+    fechaFin:    '',
+    vendedor:    '',
+    proveedor:   '',
+    categoria:   '',
+    ciudad:      '',
   };
 
   toggleFiltros() { this.isFiltrosOpen = !this.isFiltrosOpen; }
@@ -43,10 +46,11 @@ export class FiltersComponent {
   limpiar() {
     this.filtros = {
       fechaInicio: '',
-      fechaFin: '',
-      vendedor: '',
-      proveedor: '',
-      ciudad: '',
+      fechaFin:    '',
+      vendedor:    '',
+      proveedor:   '',
+      categoria:   '',
+      ciudad:      '',
     };
     this.apply.emit({ ...this.filtros });
   }
