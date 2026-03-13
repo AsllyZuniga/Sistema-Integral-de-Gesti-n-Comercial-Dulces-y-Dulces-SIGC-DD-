@@ -1,31 +1,21 @@
 <div class="chart-box dynamic-panel">
-  <h3>Análisis de Ventas</h3>
+  <h3>Análisis de Impactos</h3>
 
   <div class="tabs">
-    @for (view of ventasViews; track view.key) {
-      <button [class.active]="activeVentasView === view.key" (click)="setVentasView(view.key)">
+    @for (view of impactosViews; track view.key) {
+      <button [class.active]="activeImpactosView === view.key" (click)="setImpactosView(view.key)">
         {{ view.label }}
       </button>
     }
   </div>
 
   <div class="dynamic-content">
-    @switch (activeVentasView) {
-      @case ('ventas') {
-        <div class="grafica-container">
-          @if (chartData.length > 0) {
-            <app-chart [chartId]="chartId" [data]="chartData" [type]="chartType" label="Ventas" />
-          } @else {
-            <div class="placeholder">Cargando información...</div>
-          }
-        </div>
-      }
-
+    @switch (activeImpactosView) {
       @case ('proveedor') {
         <div class="split-layout">
           <div class="tabla-scroll">
             @if (tableData.length > 0) {
-              <app-table [columns]="lineasColumns" [data]="tableData" />
+              <app-table [columns]="proveedorColumns" [data]="tableData" />
             } @else {
               <div class="placeholder">Cargando información...</div>
             }
@@ -50,7 +40,7 @@
         <div class="split-layout">
           <div class="tabla-scroll">
             @if (tableData.length > 0) {
-              <app-table [columns]="ciudadesColumns" [data]="tableData" />
+              <app-table [columns]="ciudadColumns" [data]="tableData" />
             } @else {
               <div class="placeholder">Cargando información...</div>
             }
@@ -71,19 +61,7 @@
         </div>
       }
 
-      @case ('vendedor') {
-        <div class="tabla-vendedor">
-          <div class="tabla-scroll">
-            @if (tableData.length > 0) {
-              <app-table [columns]="tableColumns" [data]="tableData" />
-            } @else {
-              <div class="placeholder">Cargando información...</div>
-            }
-          </div>
-        </div>
-      }
-
-      @case ('item') {
+      @case ('detalle') {
         <div class="item-layout">
           <div class="filtro-bar">
             <span class="filtro-badge">
@@ -93,20 +71,20 @@
           <div class="split-layout">
             <div class="tabla-scroll">
               @if (tableData.length > 0) {
-                <app-table [columns]="productosColumns" [data]="tableData" />
+                <app-table [columns]="detalleColumns" [data]="tableData" />
               } @else {
                 <div class="placeholder">Cargando información...</div>
               }
             </div>
             <div class="grafica-lateral">
-              <h4>Top 10 Items</h4>
+              <h4>Top 10 Impactos</h4>
               <div class="grafica-lateral-inner">
                 @if (chartData.length > 0) {
                   <app-chart
                     [chartId]="chartId"
                     [data]="chartData"
                     [type]="chartType"
-                    label="Top 10 Items"
+                    label="Top 10 Impactos"
                   />
                 }
               </div>

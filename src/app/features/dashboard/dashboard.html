@@ -1,5 +1,4 @@
 <div class="layout" [class.mobile-open]="isMobileMenuOpen">
-
   <div class="mobile-overlay" *ngIf="isMobileMenuOpen" (click)="isMobileMenuOpen = false"></div>
 
   <app-sidebar (toggle)="onToggleSidebar($event)"></app-sidebar>
@@ -7,31 +6,44 @@
   <div class="main" [class.expanded]="isSidebarCollapsed">
 
     <header class="topbar">
-      <div class="title-container">
-        <button class="mobile-menu-btn" (click)="isMobileMenuOpen = !isMobileMenuOpen">☰</button>
+      <div class="topbar-left">
+        <button class="mobile-menu-btn" (click)="isMobileMenuOpen = !isMobileMenuOpen">
+          <span class="material-symbols-rounded">menu</span>
+        </button>
         <img class="topbar-logo" src="logoDulces.png" alt="Logo" />
-        <div class="topbar-divider"></div>
-        <div class="topbar-text">
-          <h1>Dashboard Vendedor</h1>
-          <span class="welcome" *ngIf="vendedor">
-            Bienvenido, {{ vendedor.nombre }}
-          </span>
-        </div>
       </div>
-      <button class="logout-btn" (click)="logout()">Cerrar sesión</button>
+
+      <div class="topbar-center">
+        <h1>
+          <span class="accent">Bienvenido,</span>
+          {{ vendedor?.nombre || 'Dashboard' }}
+        </h1>
+        <span class="welcome">Sistema de Control de Ventas · Dulces y Dulces</span>
+      </div>
+
+      <div class="topbar-right">
+        <div class="user-badge" *ngIf="vendedor">
+          <span class="user-avatar">{{ vendedor.nombre?.charAt(0) }}</span>
+          <div class="user-info">
+            <span class="user-name">{{ vendedor.nombre }}</span>
+            <span class="user-role">Vendedor</span>
+          </div>
+        </div>
+        <button class="logout-btn" (click)="logout()">
+          <span class="material-symbols-rounded">logout</span>
+          <span class="logout-label">Salir</span>
+        </button>
+      </div>
     </header>
 
-    <!-- ── Filtros: pasa listas y escucha el evento apply ────────── -->
     <section class="filters">
       <app-filters
-        [vendedores]="vendedoresList"
         [proveedores]="proveedoresList"
         [ciudades]="ciudadesList"
         (apply)="onAplicarFiltros($event)">
       </app-filters>
     </section>
 
-    <!-- ── Tarjetas KPI ───────────────────────────────────────────── -->
     <section class="kpis">
       <app-card title="Total Venta Mes" [value]="totales?.ventaAcum      ?? 0"></app-card>
       <app-card title="Total Cuota"     [value]="totales?.cuotaMes        ?? 0"></app-card>
@@ -39,12 +51,14 @@
       <app-card title="Proyección"      [value]="totales?.proyeccionVenta ?? 0"></app-card>
     </section>
 
-    <!-- ── Análisis de Ventas: recibe filtros activos ────────────── -->
     <section class="charts">
-      <app-ventas
-        [codigoVendedor]="codigoVendedor"
-        [filtros]="filtrosActivos">
-      </app-ventas>
+      <app-ventas [codigoVendedor]="codigoVendedor" [filtros]="filtrosActivos"></app-ventas>
+    </section>
+    <section class="charts">
+      <app-impactos [codigoVendedor]="codigoVendedor" [filtros]="filtrosActivos"></app-impactos>
+    </section>
+    <section class="charts">
+      <app-devoluciones [codigoVendedor]="codigoVendedor" [filtros]="filtrosActivos"></app-devoluciones>
     </section>
 
   </div>

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -18,13 +18,12 @@ export interface DashboardFilters {
   styleUrls: ['./filters.component.css'],
 })
 export class FiltersComponent {
-  @Input() vendedores: string[] = [];
   @Input() proveedores: string[] = [];
   @Input() ciudades: string[] = [];
 
   @Output() apply = new EventEmitter<DashboardFilters>();
 
-  isFiltrosOpen: boolean = false;
+  isFiltrosOpen = false;
 
   filtros: DashboardFilters = {
     fechaInicio: '',
@@ -34,9 +33,7 @@ export class FiltersComponent {
     ciudad: '',
   };
 
-  toggleFiltros() {
-    this.isFiltrosOpen = !this.isFiltrosOpen;
-  }
+  toggleFiltros() { this.isFiltrosOpen = !this.isFiltrosOpen; }
 
   aplicar() {
     this.isFiltrosOpen = false;

@@ -1,0 +1,103 @@
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.impacto-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+}
+
+.impacto-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+.impacto-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.impacto-card-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--c-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+.impacto-card-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--c-primary);
+  line-height: 1.1;
+  letter-spacing: -0.5px;
+}
+.impacto-card-sub {
+  font-size: 12px;
+  color: var(--c-text-muted);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.badge-positive {
+  color: #16a34a;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+.badge-negative {
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+.badge-neutral {
+  color: var(--c-text-muted);
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+}
+
+.placeholder::before {
+  content: '📊';
+  font-size: 32px;
+  display: block;
+}
+
+@media (max-width: 992px) {
+  .impacto-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 768px) {
+  .impacto-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+}
+@media (max-width: 480px) {
+  .impacto-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .impacto-card-value {
+    font-size: 18px;
+  }
+}

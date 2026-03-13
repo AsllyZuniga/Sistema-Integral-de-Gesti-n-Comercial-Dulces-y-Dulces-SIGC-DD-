@@ -6,10 +6,7 @@
   </thead>
   <tbody>
     <tr *ngFor="let row of data; let odd = odd" [class.odd]="odd">
-      <td
-        *ngFor="let col of columns"
-        [class]="getCellClass(col, row[col])"
-        [attr.data-col]="col">
+      <td *ngFor="let col of columns" [class]="getCellClass(col, row[col])" [attr.data-col]="col">
         {{ formatCell(col, row[col]) }}
       </td>
     </tr>

@@ -1,14 +1,10 @@
-/* ===========================
-   SIDEBAR COMPONENT
-=========================== */
-
 .sidebar {
   width: 240px;
   height: 100%;
-  background: linear-gradient(175deg, #002f63 0%, #004286 60%, #0a5299 100%);
-  color: #f1f5f9;
+  background: linear-gradient(175deg, var(--c-text-head) 0%, var(--c-primary) 60%, #0a5299 100%);
+  color: var(--c-bg);
   padding: 24px 16px;
-  transition: width 0.25s cubic-bezier(.4, 0, .2, 1);
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: fixed;
   left: 0;
   top: 0;
@@ -20,57 +16,52 @@
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.14);
   overflow: hidden;
 }
-
 .sidebar.collapsed {
   width: 72px;
 }
 
-/* ===== TOP / LOGO ===== */
 .top {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 4px 8px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   margin-bottom: 6px;
 }
 
 .logo-text {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 800;
   color: #ffffff;
   letter-spacing: -0.4px;
   white-space: nowrap;
   overflow: hidden;
-  transition: opacity 0.25s cubic-bezier(.4, 0, .2, 1),
-              width   0.25s cubic-bezier(.4, 0, .2, 1);
+  transition:
+    opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
 .sidebar.collapsed .logo-text {
   opacity: 0;
   width: 0;
   pointer-events: none;
 }
 
-/* ===== TOGGLE BUTTON ===== */
 .top button {
-  background: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.1);
   border: none;
-  color: #e2e8f0;
+  color: var(--c-border);
   font-size: 16px;
   cursor: pointer;
   padding: 6px 9px;
-  border-radius: 8px;
-  transition: background 0.25s cubic-bezier(.4, 0, .2, 1);
+  border-radius: var(--r-xs);
+  transition: background 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   line-height: 1;
   flex-shrink: 0;
 }
-
 .top button:hover {
-  background: rgba(255, 255, 255, 0.20);
+  background: rgba(255, 255, 255, 0.2);
 }
 
-/* ===== NAV ===== */
 nav {
   margin-top: 4px;
   display: flex;
@@ -83,23 +74,20 @@ nav a {
   align-items: center;
   gap: 12px;
   padding: 11px 12px;
-  border-radius: 12px;
-  color: rgba(255, 255, 255, 0.60);
+  border-radius: var(--r-md);
+  color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
-  transition: all 0.25s cubic-bezier(.4, 0, .2, 1);
+  transition: var(--transition);
   position: relative;
 }
-
 nav a:hover {
-  background: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
 }
-
-/* Estado activo */
 nav a.active {
   background: rgba(255, 255, 255, 0.15);
   color: #ffffff;
@@ -107,44 +95,43 @@ nav a.active {
   box-shadow: inset 3px 0 0 #5a9bdf;
 }
 
-/* Ícono */
 .icon {
-  font-size: 17px;
-  width: 22px;
+  font-size: 20px;
+  width: 24px;
   text-align: center;
   flex-shrink: 0;
-  transition: transform 0.25s cubic-bezier(.4, 0, .2, 1);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  font-variation-settings:
+    'FILL' 1,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
 }
-
 nav a:hover .icon {
   transform: scale(1.15);
 }
 
-/* Label (texto) */
 .label {
   overflow: hidden;
   white-space: nowrap;
-  transition: opacity 0.25s cubic-bezier(.4, 0, .2, 1),
-              width   0.25s cubic-bezier(.4, 0, .2, 1);
+  transition:
+    opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ===== COLAPSADO ===== */
 .sidebar.collapsed nav a {
   justify-content: center;
   padding: 11px;
 }
-
 .sidebar.collapsed nav a .label {
   opacity: 0;
   width: 0;
   pointer-events: none;
 }
-
 .sidebar.collapsed .icon {
   margin: 0;
 }
 
-/* Tooltip en modo colapsado */
 .sidebar.collapsed nav a[data-tooltip]:hover::after {
   content: attr(data-tooltip);
   position: absolute;
@@ -152,32 +139,28 @@ nav a:hover .icon {
   top: 50%;
   transform: translateY(-50%);
   background: #0f172a;
-  color: #f1f5f9;
+  color: var(--c-bg);
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: var(--r-xs);
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
   z-index: 200;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.20);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
   pointer-events: none;
 }
 
-/* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .sidebar {
     transform: translateX(-100%);
     width: 260px !important;
     z-index: 1001 !important;
-    transition: transform 0.25s cubic-bezier(.4, 0, .2, 1);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 4px 0 32px rgba(0, 0, 0, 0.22);
   }
-
   .sidebar.mobile-open {
     transform: translateX(0);
   }
-
-  /* Ocultar el toggle de colapsar en móvil */
   .top button {
     display: none;
   }

@@ -1,0 +1,91 @@
+<div class="chart-box dynamic-panel">
+  <h3>Devoluciones</h3>
+
+  <div class="tabs scroll-hidden">
+    @for (view of devolucionesViews; track view.key) {
+      <button [class.active]="activeView === view.key" (click)="setView(view.key)">
+        {{ view.label }}
+      </button>
+    }
+  </div>
+
+  <div class="dynamic-content">
+
+    @if (activeView === 'clientes') {
+      <div class="item-layout">
+        <div class="filtro-bar">
+          <span class="filtro-badge">
+            {{ clientesAgrupados.length }} cliente{{ clientesAgrupados.length !== 1 ? 's' : '' }}
+          </span>
+        </div>
+        <div class="clientes-lista">
+          @for (cliente of clientesAgrupados; track cliente.nombre) {
+            <div class="cliente-row" [class.expandido]="cliente.expandido">
+              <div class="cliente-header" (click)="toggleCliente(cliente)">
+                <div class="cliente-info">
+                  <span class="cliente-nombre">{{ cliente.nombre }}</span>
+                  <span class="cliente-meta">
+                    <span class="badge badge-negative">{{ cliente.totalDevoluciones }} dev.</span>
+                    <span class="cliente-valor">{{ cliente.valorTotal | currency:'COP':'$':'1.0-0' }}</span>
+                  </span>
+                </div>
+                <span class="expand-icon">{{ cliente.expandido ? '▲' : '▼' }}</span>
+              </div>
+              @if (cliente.expandido) {
+                <div class="cliente-detalle">
+                  <div class="tabla-scroll scroll-thin">
+                    <app-table [columns]="detalleColumns" [data]="cliente.devoluciones" />
+                  </div>
+                </div>
+              }
+            </div>
+          }
+          @if (clientesAgrupados.length === 0) {
+            <div class="placeholder">Sin devoluciones registradas</div>
+          }
+        </div>
+      </div>
+    }
+
+    @if (activeView === 'proveedor') {
+      <div class="split-layout">
+        <div class="tabla-scroll scroll-thin">
+          @if (tableData.length > 0) {
+            <app-table [columns]="proveedorColumns" [data]="tableData" />
+          } @else {
+            <div class="placeholder">Cargando información...</div>
+          }
+        </div>
+        <div class="grafica-lateral">
+          <h4>Por Proveedor</h4>
+          <div class="grafica-lateral-inner">
+            @if (chartData.length > 0) {
+              <app-chart [chartId]="chartId" [data]="chartData" [type]="chartType" label="Por Proveedor" />
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (activeView === 'ciudad') {
+      <div class="split-layout">
+        <div class="tabla-scroll scroll-thin">
+          @if (tableData.length > 0) {
+            <app-table [columns]="ciudadColumns" [data]="tableData" />
+          } @else {
+            <div class="placeholder">Cargando información...</div>
+          }
+        </div>
+        <div class="grafica-lateral">
+          <h4>Por Ciudad</h4>
+          <div class="grafica-lateral-inner">
+            @if (chartData.length > 0) {
+              <app-chart [chartId]="chartId" [data]="chartData" [type]="chartType" label="Por Ciudad" />
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+  </div>
+</div>

@@ -4,11 +4,12 @@ import { Subject, takeUntil } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { Router } from '@angular/router';
 import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
-
 import { CardComponent } from '../../shared/components/card/card.component';
 import { FiltersComponent, DashboardFilters } from '../../shared/components/filters/filters.component';
 import { SidebarComponent } from '../../shared/components/sidebar/sidebar.component';
 import { VentasComponent } from '../dashboard/components/ventas/ventas.component';
+import { ImpactosComponent } from './components/impactos/impactos.component';
+import { DevolucionesComponent } from './components/devoluciones/devoluciones.component';
 
 @Component({
   selector: 'app-dashboard',
@@ -18,13 +19,14 @@ import { VentasComponent } from '../dashboard/components/ventas/ventas.component
     CardComponent,
     FiltersComponent,
     SidebarComponent,
-    VentasComponent
+    VentasComponent,
+    ImpactosComponent,
+    DevolucionesComponent,
   ],
   templateUrl: './dashboard.html',
-  styleUrls: ['./dashboard.css']
+  styleUrls: ['./dashboard.css'],
 })
 export class DashboardComponent implements OnInit, OnDestroy {
-
   private destroy$ = new Subject<void>();
 
   vendedor: any;
@@ -32,12 +34,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isSidebarCollapsed = false;
   isMobileMenuOpen = false;
 
-  // Listas para los dropdowns del filtro
+  // Opciones para los dropdowns del filtro
   proveedoresList: string[] = [];
   ciudadesList:    string[] = [];
   vendedoresList:  string[] = [];
 
-  // Filtros activos — se pasan como @Input a VentasComponent
   filtrosActivos: DashboardFilters = {
     fechaInicio: '',
     fechaFin:    '',
@@ -49,15 +50,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
   constructor(
     private authService: AuthService,
     private router: Router,
-    private cumplimientoService: CumplimientoService
+    private cumplimientoService: CumplimientoService,
   ) {}
 
   ngOnInit() {
     this.vendedor = this.authService.getVendedor();
+
+    // ── TEMPORAL: hardcode para desarrollo sin login ──
     if (!this.vendedor) {
+      this.vendedor = {
+        codigo: '990',
+        codVendedor: '990',
+        nombre: 'Vendedor Prueba'
+      };
+    }
+    // ─────────────────────────────────────────────────
+
+    /* if (!this.vendedor) {
       this.router.navigate(['/login']);
       return;
-    }
+    } */
+
     this.cargarTotales();
     this.cargarOpcionesFiltros();
   }
@@ -71,7 +84,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return this.vendedor?.codVendedor || this.vendedor?.codigo || '';
   }
 
-  // ── Carga las tarjetas superiores ─────────────────────────────
   cargarTotales() {
     if (!this.codigoVendedor) return;
     this.cumplimientoService
@@ -83,27 +95,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
           ventaAcum:       res.ventaAcum,
           cuotaMes:        res.cuotaMes,
           porcCump:        res.porcCump,
-          proyeccionVenta: res.proyeccionVenta
+          proyeccionVenta: res.proyeccionVenta,
         };
       });
   }
 
-  // ── Puebla los dropdowns del FiltersComponent ─────────────────
   cargarOpcionesFiltros() {
     if (!this.codigoVendedor) return;
 
-    // Proveedores únicos desde productos
     this.cumplimientoService
       .getProductosPorVendedor(this.codigoVendedor)
       .pipe(takeUntil(this.destroy$))
       .subscribe(res => {
         const listado = res?.data ?? [];
-        this.proveedoresList = [
-          ...new Set<string>(listado.map((r: any) => r.Proveedor).filter(Boolean))
-        ].sort();
+        this.proveedoresList = [...new Set<string>(listado.map((r: any) => r.Proveedor).filter(Boolean))].sort();
       });
 
-    // Ciudades únicas
     this.cumplimientoService
       .getCiudadesPorVendedor(this.codigoVendedor)
       .pipe(takeUntil(this.destroy$))
@@ -115,11 +122,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // ...existing code...
   }
 
-  // ── Recibe el evento (apply) del FiltersComponent ─────────────
+  // Recibe los filtros aplicados desde FiltersComponent
   onAplicarFiltros(filtros: DashboardFilters) {
     this.filtrosActivos = { ...filtros };
-    // Refresca también las tarjetas con los nuevos filtros
     this.cargarTotales();
+    this.cargarOpcionesFiltros(); 
   }
 
   onToggleSidebar(collapsed: boolean) {
