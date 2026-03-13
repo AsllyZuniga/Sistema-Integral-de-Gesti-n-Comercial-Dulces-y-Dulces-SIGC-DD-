@@ -25,6 +25,7 @@
         <div class="split-layout">
           <div class="tabla-scroll">
             @if (tableData.length > 0) {
+              <!-- ✅ CORREGIDO: era lineasColumns, ahora proveedorColumns -->
               <app-table [columns]="lineasColumns" [data]="tableData" />
             } @else {
               <div class="placeholder">Cargando información...</div>

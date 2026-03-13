@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { DevolucionesService } from '../../../../core/services/devoluciones/devoluciones.service';
 import { TableComponent } from '../../../../shared/components/table/table.component';
 import { ChartComponent } from '../../../../shared/components/chart/chart.component';
+import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
 
 @Component({
   selector: 'app-devoluciones',
@@ -15,12 +16,21 @@ export class DevolucionesComponent implements OnChanges {
   private devolucionesService = inject(DevolucionesService);
 
   @Input() codigoVendedor: string = '';
-  @Input() filtros: any = {};
+
+  // ✅ Tipado correcto como DashboardFilters
+  @Input() filtros: DashboardFilters = {
+    fechaInicio: '',
+    fechaFin:    '',
+    vendedor:    '',
+    proveedor:   '',
+    categoria:   '',
+    ciudad:      '',
+  };
 
   devolucionesViews = [
-    { key: 'clientes', label: 'Por Cliente' },
+    { key: 'clientes',  label: 'Por Cliente' },
     { key: 'proveedor', label: 'Por Proveedor' },
-    { key: 'ciudad', label: 'Por Ciudad' },
+    { key: 'ciudad',    label: 'Por Ciudad' },
   ];
   activeView: string = 'clientes';
 
@@ -32,8 +42,8 @@ export class DevolucionesComponent implements OnChanges {
   clientesAgrupados: ClienteAgrupado[] = [];
 
   proveedorColumns: string[] = ['proveedor', 'devoluciones', 'valorTotal'];
-  ciudadColumns: string[] = ['ciudad', 'devoluciones', 'valorTotal'];
-  detalleColumns: string[] = ['fecha', 'producto', 'cantidad', 'valorTotal', 'motivo'];
+  ciudadColumns:    string[] = ['ciudad',    'devoluciones', 'valorTotal'];
+  detalleColumns:   string[] = ['fecha', 'producto', 'cantidad', 'valorTotal', 'motivo'];
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['filtros'] || changes['codigoVendedor']) {
@@ -52,14 +62,17 @@ export class DevolucionesComponent implements OnChanges {
   }
 
   private cargarDatos(): void {
-    const params = {
+    if (!this.codigoVendedor) return;
+
+    // ✅ CORREGIDO: se construye un DashboardFilters limpio con el vendedor correcto
+    const filtrosConVendedor: DashboardFilters = {
       ...this.filtros,
       vendedor: this.codigoVendedor,
     };
 
     switch (this.activeView) {
       case 'clientes':
-        this.devolucionesService.getPorCliente(params).subscribe((data: any[]) => {
+        this.devolucionesService.getPorCliente(filtrosConVendedor).subscribe((data: any[]) => {
           this.tableData = data;
           this.agruparClientes(data);
         });
@@ -67,7 +80,7 @@ export class DevolucionesComponent implements OnChanges {
 
       case 'proveedor':
         this.chartType = 'bar';
-        this.devolucionesService.getPorProveedor(params).subscribe((data: any[]) => {
+        this.devolucionesService.getPorProveedor(filtrosConVendedor).subscribe((data: any[]) => {
           this.tableData = data;
           this.chartData = data.map((d: any) => ({ name: d.proveedor, value: d.devoluciones }));
         });
@@ -75,7 +88,7 @@ export class DevolucionesComponent implements OnChanges {
 
       case 'ciudad':
         this.chartType = 'bar';
-        this.devolucionesService.getPorCiudad(params).subscribe((data: any[]) => {
+        this.devolucionesService.getPorCiudad(filtrosConVendedor).subscribe((data: any[]) => {
           this.tableData = data;
           this.chartData = data.map((d: any) => ({ name: d.ciudad, value: d.devoluciones }));
         });
@@ -99,11 +112,12 @@ export class DevolucionesComponent implements OnChanges {
       }
       const entrada = mapa.get(nombre)!;
       entrada.totalDevoluciones += Number(row.devoluciones ?? 1);
-      entrada.valorTotal += Number(row.valorTotal ?? 0);
+      entrada.valorTotal        += Number(row.valorTotal   ?? 0);
       entrada.devoluciones.push(row);
     }
 
-    this.clientesAgrupados = Array.from(mapa.values()).sort((a, b) => b.valorTotal - a.valorTotal);
+    this.clientesAgrupados = Array.from(mapa.values())
+      .sort((a, b) => b.valorTotal - a.valorTotal);
   }
 }
 

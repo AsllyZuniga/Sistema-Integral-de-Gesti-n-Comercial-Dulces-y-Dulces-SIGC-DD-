@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ImpactosService } from '../../../../core/services/impactos/impactos.service';
 import { TableComponent } from '../../../../shared/components/table/table.component';
 import { ChartComponent } from '../../../../shared/components/chart/chart.component';
+import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
 
 @Component({
   selector: 'app-impactos',
@@ -15,7 +16,16 @@ export class ImpactosComponent implements OnChanges {
   private impactosService = inject(ImpactosService);
 
   @Input() codigoVendedor: string = '';
-  @Input() filtros: any = {};
+
+  // ✅ Tipado correcto como DashboardFilters
+  @Input() filtros: DashboardFilters = {
+    fechaInicio: '',
+    fechaFin:    '',
+    vendedor:    '',
+    proveedor:   '',
+    categoria:   '',
+    ciudad:      '',
+  };
 
   impactosViews = [
     { key: 'proveedor', label: 'Por Proveedor' },
@@ -46,7 +56,10 @@ export class ImpactosComponent implements OnChanges {
   }
 
   private cargarDatos(): void {
-    const params = {
+    if (!this.codigoVendedor) return;
+
+    // ✅ CORREGIDO: se construye un DashboardFilters limpio con el vendedor correcto
+    const filtrosConVendedor: DashboardFilters = {
       ...this.filtros,
       vendedor: this.codigoVendedor,
     };
@@ -54,7 +67,7 @@ export class ImpactosComponent implements OnChanges {
     switch (this.activeImpactosView) {
       case 'proveedor':
         this.chartType = 'bar';
-        this.impactosService.getPorProveedor(params).subscribe((data: any[]) => {
+        this.impactosService.getPorProveedor(filtrosConVendedor).subscribe((data: any[]) => {
           this.tableData = data;
           this.chartData = data.map((d: any) => ({ name: d.proveedor, value: d.impactos }));
         });
@@ -62,7 +75,7 @@ export class ImpactosComponent implements OnChanges {
 
       case 'ciudad':
         this.chartType = 'bar';
-        this.impactosService.getPorCiudad(params).subscribe((data: any[]) => {
+        this.impactosService.getPorCiudad(filtrosConVendedor).subscribe((data: any[]) => {
           this.tableData = data;
           this.chartData = data.map((d: any) => ({ name: d.ciudad, value: d.impactos }));
         });
@@ -70,7 +83,7 @@ export class ImpactosComponent implements OnChanges {
 
       case 'detalle':
         this.chartType = 'bar';
-        this.impactosService.getDetalle(params).subscribe((data: any[]) => {
+        this.impactosService.getDetalle(filtrosConVendedor).subscribe((data: any[]) => {
           this.tableData = data;
           const top10 = [...data].sort((a: any, b: any) => b.impactos - a.impactos).slice(0, 10);
           this.chartData = top10.map((d: any) => ({ name: d.producto, value: d.impactos }));
