@@ -12,7 +12,7 @@
   <div class="dynamic-content">
 
     @if (activeView === 'clientes') {
-      <div class="item-layout">
+      <div class="stack-layout">
         <div class="filtro-bar">
           <span class="filtro-badge">
             {{ clientesAgrupados.length }} cliente{{ clientesAgrupados.length !== 1 ? 's' : '' }}
@@ -48,7 +48,7 @@
     }
 
     @if (activeView === 'proveedor') {
-      <div class="split-layout">
+      <div class="stack-layout">
         <div class="tabla-scroll scroll-thin">
           @if (tableData.length > 0) {
             <app-table [columns]="proveedorColumns" [data]="tableData" />
@@ -56,19 +56,17 @@
             <div class="placeholder">Cargando información...</div>
           }
         </div>
-        <div class="grafica-lateral">
-          <h4>Por Proveedor</h4>
-          <div class="grafica-lateral-inner">
-            @if (chartData.length > 0) {
-              <app-chart [chartId]="chartId" [data]="chartData" [type]="chartType" label="Por Proveedor" />
-            }
+        @if (chartData.length > 0) {
+          <div class="grafica-container">
+            <h4>Por Proveedor</h4>
+            <app-chart [chartId]="chartId" [data]="chartData" [type]="chartType" label="Por Proveedor" />
           </div>
-        </div>
+        }
       </div>
     }
 
     @if (activeView === 'ciudad') {
-      <div class="split-layout">
+      <div class="stack-layout">
         <div class="tabla-scroll scroll-thin">
           @if (tableData.length > 0) {
             <app-table [columns]="ciudadColumns" [data]="tableData" />
@@ -76,14 +74,12 @@
             <div class="placeholder">Cargando información...</div>
           }
         </div>
-        <div class="grafica-lateral">
-          <h4>Por Ciudad</h4>
-          <div class="grafica-lateral-inner">
-            @if (chartData.length > 0) {
-              <app-chart [chartId]="chartId" [data]="chartData" [type]="chartType" label="Por Ciudad" />
-            }
+        @if (chartData.length > 0) {
+          <div class="grafica-container">
+            <h4>Por Ciudad</h4>
+            <app-chart [chartId]="chartId" [data]="chartData" [type]="chartType" label="Por Ciudad" />
           </div>
-        </div>
+        }
       </div>
     }
 

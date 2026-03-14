@@ -11,8 +11,9 @@
 
   <div class="dynamic-content">
     @switch (activeImpactosView) {
+
       @case ('proveedor') {
-        <div class="split-layout">
+        <div class="stack-layout">
           <div class="tabla-scroll">
             @if (tableData.length > 0) {
               <app-table [columns]="proveedorColumns" [data]="tableData" />
@@ -20,24 +21,17 @@
               <div class="placeholder">Cargando información...</div>
             }
           </div>
-          <div class="grafica-lateral">
-            <h4>Por Proveedor</h4>
-            <div class="grafica-lateral-inner">
-              @if (chartData.length > 0) {
-                <app-chart
-                  [chartId]="chartId"
-                  [data]="chartData"
-                  [type]="chartType"
-                  label="Por Proveedor"
-                />
-              }
+          @if (chartData.length > 0) {
+            <div class="grafica-container">
+              <h4>Por Proveedor</h4>
+              <app-chart [chartId]="chartId" [data]="chartData" [type]="chartType" label="Por Proveedor" />
             </div>
-          </div>
+          }
         </div>
       }
 
       @case ('ciudad') {
-        <div class="split-layout">
+        <div class="stack-layout">
           <div class="tabla-scroll">
             @if (tableData.length > 0) {
               <app-table [columns]="ciudadColumns" [data]="tableData" />
@@ -45,53 +39,38 @@
               <div class="placeholder">Cargando información...</div>
             }
           </div>
-          <div class="grafica-lateral">
-            <h4>Por Ciudad</h4>
-            <div class="grafica-lateral-inner">
-              @if (chartData.length > 0) {
-                <app-chart
-                  [chartId]="chartId"
-                  [data]="chartData"
-                  [type]="chartType"
-                  label="Por Ciudad"
-                />
-              }
+          @if (chartData.length > 0) {
+            <div class="grafica-container">
+              <h4>Por Ciudad</h4>
+              <app-chart [chartId]="chartId" [data]="chartData" [type]="chartType" label="Por Ciudad" />
             </div>
-          </div>
+          }
         </div>
       }
 
       @case ('detalle') {
-        <div class="item-layout">
+        <div class="stack-layout">
           <div class="filtro-bar">
             <span class="filtro-badge">
               {{ tableData.length }} registro{{ tableData.length !== 1 ? 's' : '' }}
             </span>
           </div>
-          <div class="split-layout">
-            <div class="tabla-scroll">
-              @if (tableData.length > 0) {
-                <app-table [columns]="detalleColumns" [data]="tableData" />
-              } @else {
-                <div class="placeholder">Cargando información...</div>
-              }
-            </div>
-            <div class="grafica-lateral">
-              <h4>Top 10 Impactos</h4>
-              <div class="grafica-lateral-inner">
-                @if (chartData.length > 0) {
-                  <app-chart
-                    [chartId]="chartId"
-                    [data]="chartData"
-                    [type]="chartType"
-                    label="Top 10 Impactos"
-                  />
-                }
-              </div>
-            </div>
+          <div class="tabla-scroll">
+            @if (tableData.length > 0) {
+              <app-table [columns]="detalleColumns" [data]="tableData" />
+            } @else {
+              <div class="placeholder">Cargando información...</div>
+            }
           </div>
+          @if (chartData.length > 0) {
+            <div class="grafica-container">
+              <h4>Top 10 Impactos</h4>
+              <app-chart [chartId]="chartId" [data]="chartData" [type]="chartType" label="Top 10 Impactos" />
+            </div>
+          }
         </div>
       }
+
     }
   </div>
 </div>

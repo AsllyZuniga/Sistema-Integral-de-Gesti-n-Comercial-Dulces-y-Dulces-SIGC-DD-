@@ -6,12 +6,65 @@
   box-sizing: border-box;
 }
 
+.stack-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
+.tabla-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.grafica-container {
+  width: 100%;
+}
+
+.grafica-container h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--c-text);
+  margin: 0 0 12px 0;
+}
+
+.filtro-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 4px 0;
+}
+
+.filtro-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-text-muted);
+  background: var(--c-surface-alt);
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--c-border);
+}
+
+.placeholder {
+  text-align: center;
+  color: var(--c-text-muted);
+  padding: 48px 16px;
+  font-size: 14px;
+}
+.placeholder::before {
+  content: '📊';
+  font-size: 32px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+/* Tarjetas de impacto (se mantienen por si se usan en otro contexto) */
 .impacto-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 14px;
   width: 100%;
-  min-width: 0;
 }
 
 .impacto-card {
@@ -29,7 +82,6 @@
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
-
 .impacto-card-label {
   font-size: 11px;
   font-weight: 700;
@@ -59,45 +111,14 @@
   border-radius: 20px;
   white-space: nowrap;
 }
-.badge-positive {
-  color: #16a34a;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-}
-.badge-negative {
-  color: #dc2626;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-}
-.badge-neutral {
-  color: var(--c-text-muted);
-  background: var(--c-bg);
-  border: 1px solid var(--c-border);
-}
+.badge-positive { color: #16a34a; background: #f0fdf4; border: 1px solid #bbf7d0; }
+.badge-negative { color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; }
+.badge-neutral  { color: var(--c-text-muted); background: var(--c-bg); border: 1px solid var(--c-border); }
 
-.placeholder::before {
-  content: '📊';
-  font-size: 32px;
-  display: block;
-}
-
-@media (max-width: 992px) {
-  .impacto-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
 @media (max-width: 768px) {
-  .impacto-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
+  .impacto-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
 }
 @media (max-width: 480px) {
-  .impacto-grid {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-  .impacto-card-value {
-    font-size: 18px;
-  }
+  .impacto-grid { grid-template-columns: 1fr; gap: 8px; }
+  .impacto-card-value { font-size: 18px; }
 }
