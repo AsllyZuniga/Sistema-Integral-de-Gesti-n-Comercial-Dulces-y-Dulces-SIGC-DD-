@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
@@ -14,12 +14,14 @@ import { DashboardFilters } from '../../../../shared/components/filters/filters.
   templateUrl: './ventas.html',
   styleUrls: ['./ventas.css'],
 })
-export class VentasComponent implements OnInit, OnDestroy {
+export class VentasComponent implements OnInit, OnChanges, OnDestroy {
   @Input() codigoVendedor!: string;
 
   @Input() set filtros(value: DashboardFilters) {
     this._filtros = value;
-    this.cargarVistaActual();
+    if (this.codigoVendedor) {
+      this.cargarVistaActual();
+    }
   }
   get filtros(): DashboardFilters {
     return this._filtros;
@@ -35,9 +37,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
-  // ✅ Rol leído desde localStorage
   rolId: number = 0;
-
   activeVentasView = 'ventas';
   chartId: string = 'chart-main';
   chartType: 'line' | 'bar' | 'pie' = 'line';
@@ -53,7 +53,6 @@ export class VentasComponent implements OnInit, OnDestroy {
     { key: 'item',      label: 'Detalle por Item' },
   ];
 
-  // ✅ Rol 3 no ve 'ventas' (gráfica) ni 'vendedor'
   get ventasViews() {
     if (this.rolId === 3) {
       return this.todasLasVistas.filter(v => v.key !== 'ventas' && v.key !== 'vendedor');
@@ -69,10 +68,9 @@ export class VentasComponent implements OnInit, OnDestroy {
   constructor(
     private cumplimientoService: CumplimientoService,
     private cdr: ChangeDetectorRef,
-  ) {}
-
-  ngOnInit() {
-    // ✅ Leer rol desde localStorage — busca en 'vendedor' o 'usuario'
+  ) {
+    // ✅ Leer rol en el constructor — se ejecuta ANTES de ngOnChanges
+    // así activeVentasView ya tiene el valor correcto cuando llegue codigoVendedor
     try {
       const raw = localStorage.getItem('vendedor') ?? localStorage.getItem('usuario') ?? '{}';
       const usuario = JSON.parse(raw);
@@ -81,10 +79,17 @@ export class VentasComponent implements OnInit, OnDestroy {
       this.rolId = 0;
     }
 
-    // ✅ Si rol 3, la vista inicial es 'proveedor' (primera permitida)
+    // Setear vista inicial según rol aquí mismo
     this.activeVentasView = this.rolId === 3 ? 'proveedor' : 'ventas';
+  }
 
-    this.cargarVistaActual();
+  ngOnInit() {}
+
+  // ✅ Dispara carga cuando codigoVendedor llega o cambia
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['codigoVendedor'] && this.codigoVendedor) {
+      this.cargarVistaActual();
+    }
   }
 
   ngOnDestroy() {
