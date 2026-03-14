@@ -38,6 +38,7 @@ export class CumplimientoService {
   }
 
   // ── Cumplimiento de un vendedor específico ───────────────────────
+  // GET /mes/cumplimiento/:codigo
   getCumplimientoPorCodigo(codigo: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     return this.http
@@ -48,6 +49,7 @@ export class CumplimientoService {
   }
 
   // ── Desglose por línea ───────────────────────────────────────────
+  // GET /mes/cumplimiento/vendedor/:codigo/lineas
   getLineasPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     return this.http
@@ -65,7 +67,28 @@ export class CumplimientoService {
       );
   }
 
+  // ── Detalle de una línea específica para un vendedor ─────────────
+  // GET /mes/cumplimiento/vendedor/:codigoVendedor/linea/:codigoLinea
+  // Devuelve: { codigoVendedor, codigoLinea, detallePorLinea: [...] }
+  getDetallePorLinea(codigoVendedor: string, codigoLinea: string, filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParams(filtros);
+    return this.http
+      .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/linea/${codigoLinea}`, { params })
+      .pipe(
+        map((res) => {
+          if (res?.detallePorLinea) {
+            res.detallePorLinea = Array.isArray(res.detallePorLinea)
+              ? res.detallePorLinea
+              : [];
+          }
+          return res;
+        }),
+        catchError(() => of({ detallePorLinea: [] })),
+      );
+  }
+
   // ── Desglose por ciudad ──────────────────────────────────────────
+  // GET /mes/cumplimiento/vendedor/:codigo/ciudades
   getCiudadesPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     return this.http
@@ -84,13 +107,13 @@ export class CumplimientoService {
   }
 
   // ── Detalle por producto ─────────────────────────────────────────
+  // GET /mes/cumplimiento/vendedor/:codigo/productos
   getProductosPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     return this.http
       .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/productos`, { params })
       .pipe(
         map((res) => {
-          // Normalizar: el resto del código espera res.data
           if (res?.detallePorProducto) {
             res.data = Array.isArray(res.detallePorProducto)
               ? res.detallePorProducto
