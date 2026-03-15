@@ -1,10 +1,11 @@
-import { Component, Input, OnChanges } from '@angular/core';
+import { Component, Input, OnChanges,  ViewEncapsulation } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-card',
   standalone: true,
   imports: [CommonModule],
+  encapsulation: ViewEncapsulation.None, 
   template: `
     <div class="card" [attr.data-color]="color">
       <span class="card-icon material-symbols-rounded">{{ icon }}</span>
@@ -23,15 +24,15 @@ export class CardComponent implements OnChanges {
   formattedValue: string = '';
 
   private configMap: { [key: string]: { icon: string; color: string } } = {
-    'total venta mes': { icon: 'paid',          color: 'blue'   },
-    'total cuota':     { icon: 'target',         color: 'violet' },
-    'cumplimiento':    { icon: 'monitoring',     color: 'green'  },
-    'proyección':      { icon: 'rocket_launch',  color: 'orange' },
-    'proyeccion':      { icon: 'rocket_launch',  color: 'orange' },
-    'ventas':          { icon: 'storefront',     color: 'blue'   },
-    'clientes':        { icon: 'groups',         color: 'violet' },
-    'pedidos':         { icon: 'deployed_code',  color: 'green'  },
-  };
+  'total venta mes': { icon: 'paid',         color: 'blue'  },
+  'total cuota':     { icon: 'target',        color: 'navy'  },
+  'cumplimiento':    { icon: 'monitoring',    color: 'olive' },
+  'proyección':      { icon: 'rocket_launch', color: 'lime'  },
+  'proyeccion':      { icon: 'rocket_launch', color: 'lime'  },
+  'ventas':          { icon: 'storefront',    color: 'blue'  },
+  'clientes':        { icon: 'groups',        color: 'navy'  },
+  'pedidos':         { icon: 'deployed_code', color: 'olive' },
+};
 
   ngOnChanges(): void {
     const key = (this.title || '').toLowerCase().trim();

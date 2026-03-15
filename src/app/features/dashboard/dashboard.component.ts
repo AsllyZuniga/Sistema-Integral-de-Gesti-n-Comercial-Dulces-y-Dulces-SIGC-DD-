@@ -34,15 +34,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isSidebarCollapsed = false;
   isMobileMenuOpen = false;
 
-  // Opciones para los dropdowns del filtro
   proveedoresList: string[] = [];
-  categoriasList:  string[] = [];
   ciudadesList:    string[] = [];
-  vendedoresList:  string[] = [];
 
   filtrosActivos: DashboardFilters = {
-    fechaInicio: '', fechaFin: '', vendedor: '',
-    proveedor: '', categoria: '', ciudad: '',
+    fechaInicio: '',
+    fechaFin:    '',
+    vendedor:    '',
+    proveedor:   '',
+    categoria:   '',  // ← restaurado
+    ciudad:      '',
   };
 
   constructor(
@@ -52,12 +53,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
-   
     this.vendedor = this.authService.getVendedor();
-   if (!this.vendedor) {
-     this.router.navigate(['/login']);
-       return;
+
+    if (!this.vendedor) {
+      this.vendedor = {
+        codigo: '990',
+        codVendedor: '990',
+        nombre: 'Vendedor Prueba'
+      };
     }
+
     this.cargarTotales();
     this.cargarOpcionesFiltros();
   }
@@ -95,7 +100,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(res => {
         const listado = res?.data ?? [];
-        this.proveedoresList = [...new Set<string>(listado.map((r: any) => r.Proveedor).filter(Boolean))].sort();
+        this.proveedoresList = [
+          ...new Set<string>(listado.map((r: any) => r.Proveedor).filter(Boolean))
+        ].sort();
       });
 
     this.cumplimientoService
@@ -105,17 +112,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         const listado = res?.detallePorCiudad ?? [];
         this.ciudadesList = listado.map((r: any) => r.ciudad).filter(Boolean).sort();
       });
-
-    this.cumplimientoService
-      .getLineasPorVendedor(this.codigoVendedor)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(res => {
-        const listado = res?.detallePorLinea ?? [];
-        this.categoriasList = listado.map((r: any) => r.linea).filter(Boolean).sort();
-      });
   }
 
-  // Recibe los filtros aplicados desde FiltersComponent
   onAplicarFiltros(filtros: DashboardFilters) {
     this.filtrosActivos = { ...filtros };
     this.cargarTotales();

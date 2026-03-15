@@ -1,20 +1,28 @@
 import { Routes } from '@angular/router';
 import { LoginComponent } from './features/login/login.component';
 import { DashboardComponent } from './features/dashboard/dashboard.component';
+import { CargaComponent } from './features/carga/carga.component';
 import { AuthGuard } from './core/guards/auth.guard';
-import { LoginGuard } from './core/guards/login.guard'; 
+import { LoginGuard } from './core/guards/login.guard';
+import { RoleGuard } from './core/guards/role.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
-  { 
-    path: 'login', 
+  {
+    path: 'login',
     component: LoginComponent,
-    canActivate: [LoginGuard] 
+    canActivate: [LoginGuard]
   },
-  { 
-    path: 'dashboard', 
-    component: DashboardComponent, 
-    canActivate: [AuthGuard] 
+  {
+    path: 'dashboard',
+    component: DashboardComponent,
+    canActivate: [AuthGuard]
   },
-  { path: '**', redirectTo: 'login' } 
+  {
+    path: 'carga',
+    component: CargaComponent,
+    canActivate: [RoleGuard],
+    data: { roles: [1, 2] }
+  },
+  { path: '**', redirectTo: 'login' }
 ];

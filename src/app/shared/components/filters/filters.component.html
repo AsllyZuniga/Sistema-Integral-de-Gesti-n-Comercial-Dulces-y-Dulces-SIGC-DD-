@@ -1,34 +1,28 @@
 <div class="filters-container">
-  <button class="btn-toggle-filtros" (click)="toggleFiltros()">
-    {{ isFiltrosOpen ? 'Ocultar Filtros ❌' : 'Mostrar Filtros ⚙️' }}
+
+  <!-- Botón toggle solo visible en móvil -->
+  <button class="btn-toggle" (click)="toggleFiltros()">
+    <span class="material-symbols-rounded">tune</span>
+    {{ isFiltrosOpen ? 'Ocultar Filtros' : 'Mostrar Filtros' }}
+    <span class="material-symbols-rounded toggle-arrow">expand_more</span>
   </button>
 
-  <div class="filters-grid" [class.oculto-movil]="!isFiltrosOpen">
-    <div class="filter-group date-filter-group">
+  <div class="filters-grid" [class.hidden-mobile]="!isFiltrosOpen">
+
+    <div class="filter-group span-2">
       <label>Rango de Fechas</label>
       <div class="date-range">
         <input type="date" [(ngModel)]="filtros.fechaInicio" />
+        <span class="sep">—</span>
         <input type="date" [(ngModel)]="filtros.fechaFin" />
       </div>
-    </div>
-
-    <div class="filter-group">
-      <label>Vendedores</label>
-      <select [(ngModel)]="filtros.vendedor">
-        <option value="">Todos</option>
-        <option *ngFor="let v of vendedores" [value]="v">
-          {{ v }}
-        </option>
-      </select>
     </div>
 
     <div class="filter-group">
       <label>Proveedor</label>
       <select [(ngModel)]="filtros.proveedor">
         <option value="">Todos</option>
-        <option *ngFor="let p of proveedores" [value]="p">
-          {{ p }}
-        </option>
+        <option *ngFor="let p of proveedores" [value]="p">{{ p }}</option>
       </select>
     </div>
 
@@ -36,9 +30,7 @@
       <label>Categoría</label>
       <select [(ngModel)]="filtros.categoria">
         <option value="">Todas</option>
-        <option *ngFor="let c of categorias" [value]="c">
-          {{ c }}
-        </option>
+        <option *ngFor="let c of categorias" [value]="c">{{ c }}</option>
       </select>
     </div>
 
@@ -46,14 +38,14 @@
       <label>Ciudad</label>
       <select [(ngModel)]="filtros.ciudad">
         <option value="">Todas</option>
-        <option *ngFor="let ci of ciudades" [value]="ci">
-          {{ ci }}
-        </option>
+        <option *ngFor="let ci of ciudades" [value]="ci">{{ ci }}</option>
       </select>
     </div>
 
-    <div class="filter-button">
-      <button class="apply-btn" (click)="aplicar()">Aplicar Filtros</button>
+    <div class="filter-actions">
+      <button class="btn-limpiar" (click)="limpiar()">Limpiar</button>
+      <button class="btn-aplicar" (click)="aplicar()">Aplicar Filtros</button>
     </div>
+
   </div>
 </div>

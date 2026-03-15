@@ -6,7 +6,10 @@
 
   <nav>
     @for (item of navItems; track item.label) {
-      <a [attr.data-tooltip]="isCollapsed ? item.label : null">
+      <a
+        [class.active]="isActive(item.ruta)"
+        [attr.data-tooltip]="isCollapsed ? item.label : null"
+        (click)="navegar(item.ruta)">
         <span class="icon material-symbols-rounded">{{ item.icon }}</span>
         <span class="label">{{ item.label }}</span>
       </a>

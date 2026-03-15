@@ -11,9 +11,9 @@ export class CumplimientoService {
 
   constructor(private http: HttpClient) {}
 
-  // ── Helper: construye HttpParams con filtros opcionales ──────────
   private buildParams(filtros?: DashboardFilters): HttpParams {
-    let params = new HttpParams();
+    // ✅ _t timestamp — fuerza petición nueva, evita 304 del servidor
+    let params = new HttpParams().set('_t', Date.now().toString());
     if (!filtros) return params;
 
     if (filtros.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
@@ -26,7 +26,6 @@ export class CumplimientoService {
     return params;
   }
 
-  // ── Todos los vendedores ─────────────────────────────────────────
   getCumplimientoMes(filtros?: DashboardFilters): Observable<any[]> {
     const params = this.buildParams(filtros);
     return this.http
@@ -37,7 +36,6 @@ export class CumplimientoService {
       );
   }
 
-  // ── Cumplimiento de un vendedor específico ───────────────────────
   getCumplimientoPorCodigo(codigo: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     return this.http
@@ -47,7 +45,6 @@ export class CumplimientoService {
       );
   }
 
-  // ── Desglose por línea ───────────────────────────────────────────
   getLineasPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     return this.http
@@ -56,8 +53,7 @@ export class CumplimientoService {
         map((res) => {
           if (res?.detallePorLinea) {
             res.detallePorLinea = Array.isArray(res.detallePorLinea)
-              ? res.detallePorLinea
-              : [];
+              ? res.detallePorLinea : [];
           }
           return res;
         }),
@@ -65,7 +61,22 @@ export class CumplimientoService {
       );
   }
 
-  // ── Desglose por ciudad ──────────────────────────────────────────
+  getDetallePorLinea(codigoVendedor: string, codigoLinea: string, filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParams(filtros);
+    return this.http
+      .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/linea/${codigoLinea}`, { params })
+      .pipe(
+        map((res) => {
+          if (res?.detallePorLinea) {
+            res.detallePorLinea = Array.isArray(res.detallePorLinea)
+              ? res.detallePorLinea : [];
+          }
+          return res;
+        }),
+        catchError(() => of({ detallePorLinea: [] })),
+      );
+  }
+
   getCiudadesPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     return this.http
@@ -74,8 +85,7 @@ export class CumplimientoService {
         map((res) => {
           if (res?.detallePorCiudad) {
             res.detallePorCiudad = Array.isArray(res.detallePorCiudad)
-              ? res.detallePorCiudad
-              : [];
+              ? res.detallePorCiudad : [];
           }
           return res;
         }),
@@ -83,18 +93,15 @@ export class CumplimientoService {
       );
   }
 
-  // ── Detalle por producto ─────────────────────────────────────────
   getProductosPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     return this.http
       .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/productos`, { params })
       .pipe(
         map((res) => {
-          // Normalizar: el resto del código espera res.data
           if (res?.detallePorProducto) {
             res.data = Array.isArray(res.detallePorProducto)
-              ? res.detallePorProducto
-              : [];
+              ? res.detallePorProducto : [];
           } else if (res?.data) {
             res.data = Array.isArray(res.data) ? res.data : [];
           } else {
