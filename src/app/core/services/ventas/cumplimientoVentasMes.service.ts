@@ -11,9 +11,9 @@ export class CumplimientoService {
 
   constructor(private http: HttpClient) {}
 
-  // ── Helper: construye HttpParams con filtros opcionales ──────────
   private buildParams(filtros?: DashboardFilters): HttpParams {
-    let params = new HttpParams();
+    // ✅ _t timestamp — fuerza petición nueva, evita 304 del servidor
+    let params = new HttpParams().set('_t', Date.now().toString());
     if (!filtros) return params;
 
     if (filtros.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
@@ -26,7 +26,6 @@ export class CumplimientoService {
     return params;
   }
 
-  // ── Todos los vendedores ─────────────────────────────────────────
   getCumplimientoMes(filtros?: DashboardFilters): Observable<any[]> {
     const params = this.buildParams(filtros);
     return this.http
@@ -37,8 +36,6 @@ export class CumplimientoService {
       );
   }
 
-  // ── Cumplimiento de un vendedor específico ───────────────────────
-  // GET /mes/cumplimiento/:codigo
   getCumplimientoPorCodigo(codigo: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     return this.http
@@ -48,8 +45,6 @@ export class CumplimientoService {
       );
   }
 
-  // ── Desglose por línea ───────────────────────────────────────────
-  // GET /mes/cumplimiento/vendedor/:codigo/lineas
   getLineasPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     return this.http
@@ -58,8 +53,7 @@ export class CumplimientoService {
         map((res) => {
           if (res?.detallePorLinea) {
             res.detallePorLinea = Array.isArray(res.detallePorLinea)
-              ? res.detallePorLinea
-              : [];
+              ? res.detallePorLinea : [];
           }
           return res;
         }),
@@ -67,9 +61,6 @@ export class CumplimientoService {
       );
   }
 
-  // ── Detalle de una línea específica para un vendedor ─────────────
-  // GET /mes/cumplimiento/vendedor/:codigoVendedor/linea/:codigoLinea
-  // Devuelve: { codigoVendedor, codigoLinea, detallePorLinea: [...] }
   getDetallePorLinea(codigoVendedor: string, codigoLinea: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     return this.http
@@ -78,8 +69,7 @@ export class CumplimientoService {
         map((res) => {
           if (res?.detallePorLinea) {
             res.detallePorLinea = Array.isArray(res.detallePorLinea)
-              ? res.detallePorLinea
-              : [];
+              ? res.detallePorLinea : [];
           }
           return res;
         }),
@@ -87,8 +77,6 @@ export class CumplimientoService {
       );
   }
 
-  // ── Desglose por ciudad ──────────────────────────────────────────
-  // GET /mes/cumplimiento/vendedor/:codigo/ciudades
   getCiudadesPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     return this.http
@@ -97,8 +85,7 @@ export class CumplimientoService {
         map((res) => {
           if (res?.detallePorCiudad) {
             res.detallePorCiudad = Array.isArray(res.detallePorCiudad)
-              ? res.detallePorCiudad
-              : [];
+              ? res.detallePorCiudad : [];
           }
           return res;
         }),
@@ -106,8 +93,6 @@ export class CumplimientoService {
       );
   }
 
-  // ── Detalle por producto ─────────────────────────────────────────
-  // GET /mes/cumplimiento/vendedor/:codigo/productos
   getProductosPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     return this.http
@@ -116,8 +101,7 @@ export class CumplimientoService {
         map((res) => {
           if (res?.detallePorProducto) {
             res.data = Array.isArray(res.detallePorProducto)
-              ? res.detallePorProducto
-              : [];
+              ? res.detallePorProducto : [];
           } else if (res?.data) {
             res.data = Array.isArray(res.data) ? res.data : [];
           } else {

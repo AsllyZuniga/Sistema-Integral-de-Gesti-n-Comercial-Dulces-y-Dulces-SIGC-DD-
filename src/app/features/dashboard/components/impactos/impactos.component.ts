@@ -1,9 +1,11 @@
-import { Component, Input, OnChanges, SimpleChanges, inject } from '@angular/core';
+import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ImpactosService } from '../../../../core/services/impactos/impactos.service';
 import { TableComponent } from '../../../../shared/components/table/table.component';
 import { ChartComponent } from '../../../../shared/components/chart/chart.component';
 import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
+
+// ⏸️ Servicio comentado — endpoints del backend pendientes de implementación
+// import { ImpactosService } from '../../../../core/services/impactos/impactos.service';
 
 @Component({
   selector: 'app-impactos',
@@ -13,11 +15,10 @@ import { DashboardFilters } from '../../../../shared/components/filters/filters.
   styleUrls: ['./impactos.component.css'],
 })
 export class ImpactosComponent implements OnChanges {
-  private impactosService = inject(ImpactosService);
+  // ⏸️ private impactosService = inject(ImpactosService);
 
   @Input() codigoVendedor: string = '';
 
-  // ✅ Tipado correcto como DashboardFilters
   @Input() filtros: DashboardFilters = {
     fechaInicio: '',
     fechaFin:    '',
@@ -43,27 +44,19 @@ export class ImpactosComponent implements OnChanges {
   ciudadColumns:    string[] = ['ciudad',    'impactos', 'valorTotal'];
   detalleColumns:   string[] = ['proveedor', 'producto', 'impactos', 'valorTotal'];
 
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['filtros'] || changes['codigoVendedor']) {
-      this.cargarDatos();
-    }
-  }
+  // ⏸️ Sin reacción hasta que el backend esté listo
+  ngOnChanges(changes: SimpleChanges): void { }
 
   setImpactosView(key: string): void {
     this.activeImpactosView = key;
     this.chartId = `impactos-chart-${key}`;
-    this.cargarDatos();
   }
 
+  // ⏸️ Descomentar cuando el backend esté disponible:
+  /*
   private cargarDatos(): void {
     if (!this.codigoVendedor) return;
-
-    // ✅ CORREGIDO: se construye un DashboardFilters limpio con el vendedor correcto
-    const filtrosConVendedor: DashboardFilters = {
-      ...this.filtros,
-      vendedor: this.codigoVendedor,
-    };
-
+    const filtrosConVendedor: DashboardFilters = { ...this.filtros, vendedor: this.codigoVendedor };
     switch (this.activeImpactosView) {
       case 'proveedor':
         this.chartType = 'bar';
@@ -72,7 +65,6 @@ export class ImpactosComponent implements OnChanges {
           this.chartData = data.map((d: any) => ({ name: d.proveedor, value: d.impactos }));
         });
         break;
-
       case 'ciudad':
         this.chartType = 'bar';
         this.impactosService.getPorCiudad(filtrosConVendedor).subscribe((data: any[]) => {
@@ -80,7 +72,6 @@ export class ImpactosComponent implements OnChanges {
           this.chartData = data.map((d: any) => ({ name: d.ciudad, value: d.impactos }));
         });
         break;
-
       case 'detalle':
         this.chartType = 'bar';
         this.impactosService.getDetalle(filtrosConVendedor).subscribe((data: any[]) => {
@@ -91,4 +82,5 @@ export class ImpactosComponent implements OnChanges {
         break;
     }
   }
+  */
 }
