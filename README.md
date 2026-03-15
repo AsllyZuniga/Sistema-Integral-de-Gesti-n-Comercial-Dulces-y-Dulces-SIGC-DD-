@@ -25,9 +25,10 @@
 3. [Instalación y Configuración](#instalación-y-configuración)
 4. [Estructura del Proyecto](#estructura-del-proyecto)
 5. [Módulos Funcionales](#módulos-funcionales)
-6. [Control de Roles](#control-de-roles)
-7. [Endpoints Consumidos](#endpoints-consumidos)
-8. [Colaboradores](#colaboradores)
+6. [Control de Roles y Acceso](#control-de-roles-y-acceso)
+7. [Carga de Archivos de Ventas](#carga-de-archivos-de-ventas)
+8. [Endpoints Consumidos](#endpoints-consumidos)
+9. [Colaboradores](#colaboradores)
 
 ---
 
@@ -41,12 +42,14 @@ El **SIGC DD Frontend** es la interfaz web del Sistema Integral de Gestión Come
 - **Análisis de Ventas** con vistas por línea, ciudad, vendedor y detalle por ítem
 - **Control de Impactos** agrupados por proveedor, ciudad y detalle de producto
 - **Gestión de Devoluciones** con agrupación expandible por cliente, proveedor y ciudad
-- **Filtros dinámicos globales** por rango de fechas, proveedor, categoría y ciudad — afectan todas las vistas y gráficas simultáneamente
-- **Control de acceso por roles**: el rol 3 (Vendedor) accede a vistas restringidas; roles 1 y 2 tienen acceso completo
-- **Gráficas interactivas** con Chart.js (barras, líneas y torta) con límite de altura responsivo
-- **Sidebar colapsable** con soporte para menú móvil
+- **Filtros dinámicos globales** por rango de fechas, proveedor, categoría y ciudad
+- **Carga de archivos de ventas** — importación de planos TSV/TXT desde el ERP directamente desde el navegador
+- **Control de acceso por roles** con guards de autenticación y autorización por nivel
+- **Navegación lateral** con visibilidad de opciones según rol del usuario autenticado
+- **Gráficas interactivas** con Chart.js (barras, líneas y torta) con altura responsiva controlada
+- **Sidebar colapsable** con soporte para menú móvil y tooltips
 - **Diseño responsivo** adaptado para escritorio, tablet y móvil
-- **Anti-caché en peticiones HTTP** mediante timestamp `_t` para forzar datos frescos en cada consulta
+- **Anti-caché en peticiones HTTP** mediante timestamp `_t` para garantizar datos frescos
 
 ---
 
@@ -131,41 +134,41 @@ Salida generada en: `dist/`
 src/
 ├── app/
 │   ├── core/
+│   │   ├── guards/
+│   │   │   ├── auth.guard.ts          # Verifica sesión activa
+│   │   │   ├── login.guard.ts         # Redirige si ya está autenticado
+│   │   │   └── role.guard.ts          # Verifica rol requerido por ruta
 │   │   └── services/
 │   │       ├── auth.service.ts                        # Autenticación y sesión (localStorage)
 │   │       ├── ventas/
 │   │       │   └── cumplimientoVentasMes.service.ts   # Cumplimiento, líneas, ciudades, productos
 │   │       ├── impactos/
-│   │       │   └── impactos.service.ts                # Impactos por proveedor, ciudad y detalle
+│   │       │   └── impactos.service.ts                # Impactos (pendiente backend)
 │   │       └── devoluciones/
-│   │           └── devoluciones.service.ts            # Devoluciones por cliente, proveedor y ciudad
+│   │           └── devoluciones.service.ts            # Devoluciones (pendiente backend)
 │   │
 │   ├── shared/
 │   │   └── components/
-│   │       ├── card/                                  # Tarjetas KPI (Venta, Cuota, Cumplimiento, Proyección)
-│   │       ├── table/                                 # Tabla genérica reutilizable con formateo COP
-│   │       ├── chart/                                 # Gráfica genérica (Chart.js: bar, line, pie)
+│   │       ├── card/                                  # Tarjetas KPI
+│   │       ├── table/                                 # Tabla genérica con formateo COP
+│   │       ├── chart/                                 # Gráfica genérica (Chart.js)
 │   │       ├── filters/                               # Filtros globales del dashboard
-│   │       └── sidebar/                               # Navegación lateral colapsable
+│   │       └── sidebar/                               # Navegación lateral con control de roles
 │   │
 │   └── features/
-│       └── dashboard/
-│           ├── dashboard.component.ts                 # Orquestador principal: KPIs, filtros, hijos
-│           ├── dashboard.html
-│           ├── dashboard.css
-│           └── components/
-│               ├── ventas/                            # Análisis de ventas
-│               │   ├── ventas.component.ts
-│               │   ├── ventas.html
-│               │   └── ventas.css
-│               ├── impactos/                          # Control de impactos
-│               │   ├── impactos.component.ts
-│               │   ├── impactos.component.html
-│               │   └── impactos.component.css
-│               └── devoluciones/                      # Gestión de devoluciones
-│                   ├── devoluciones.component.ts
-│                   ├── devoluciones.component.html
-│                   └── devoluciones.component.css
+│       ├── login/                                     # Pantalla de autenticación
+│       ├── dashboard/
+│       │   ├── dashboard.component.ts                 # Orquestador principal
+│       │   ├── dashboard.html
+│       │   ├── dashboard.css
+│       │   └── components/
+│       │       ├── ventas/                            # Análisis de ventas
+│       │       ├── impactos/                          # Control de impactos
+│       │       └── devoluciones/                      # Gestión de devoluciones
+│       └── carga/
+│           ├── carga.component.ts                     # Módulo de carga de archivos TSV/TXT
+│           ├── carga.component.html
+│           └── carga.component.css
 │
 ├── assets/
 │   └── logoDulces.png
@@ -180,20 +183,21 @@ src/
 ## Módulos Funcionales
 
 ### Dashboard Principal
-Orquesta todos los componentes hijos. Lee el vendedor autenticado desde `localStorage`, carga los KPIs globales y distribuye los filtros activos a cada sección.
+Orquesta todos los componentes hijos. Lee el vendedor autenticado desde `localStorage`, carga los KPIs globales y distribuye los filtros activos a cada sección. Implementa debounce de 100ms en las peticiones para evitar cancelaciones por actualizaciones simultáneas de `@Input`.
 
 ### Análisis de Ventas
-Vistas disponibles según rol:
 
 | Vista | Descripción | Rol mínimo |
 |---|---|---|
 | Ventas | Gráfica de línea: Venta vs Cuota vs Proyección | 1 o 2 |
 | Por Proveedor | Tabla de líneas con venta, cumplimiento y proyección | Todos |
-| Por Ciudad | Tabla y gráfica de pie por ciudad | Todos |
+| Por Ciudad | Tabla y gráfica de torta por ciudad | Todos |
 | Por Vendedor | Datos de cumplimiento del vendedor activo | 1 o 2 |
 | Detalle por Ítem | Tabla completa de productos con gráfica Top 10 | Todos |
 
 ### Control de Impactos
+> ⏸️ Pendiente de implementación en el backend. Los componentes están listos — descomentar el servicio cuando los endpoints estén disponibles.
+
 | Vista | Descripción |
 |---|---|
 | Por Proveedor | Impactos y valor total agrupados por proveedor |
@@ -201,6 +205,8 @@ Vistas disponibles según rol:
 | Detalle | Detalle por producto con Top 10 en gráfica |
 
 ### Gestión de Devoluciones
+> ⏸️ Pendiente de implementación en el backend. Los componentes están listos — descomentar el servicio cuando los endpoints estén disponibles.
+
 | Vista | Descripción |
 |---|---|
 | Por Cliente | Lista expandible de clientes con detalle de devoluciones |
@@ -208,7 +214,7 @@ Vistas disponibles según rol:
 | Por Ciudad | Devoluciones agrupadas por ciudad |
 
 ### Filtros Globales
-Afectan simultáneamente todas las secciones del dashboard:
+Afectan simultáneamente todas las secciones del dashboard. Las listas de proveedores y ciudades se cargan una sola vez al inicio para evitar bucles reactivos.
 
 | Filtro | Campo enviado al backend |
 |---|---|
@@ -217,19 +223,98 @@ Afectan simultáneamente todas las secciones del dashboard:
 | Categoría | `categoria` |
 | Ciudad | `ciudad` |
 
-> Todas las peticiones incluyen el parámetro `_t` (timestamp) para evitar respuestas cacheadas.
+> Todas las peticiones incluyen el parámetro `_t` (timestamp Unix) para evitar respuestas cacheadas (HTTP 304).
 
 ---
 
-## Control de Roles
+## Control de Roles y Acceso
 
-La sesión se almacena en `localStorage` bajo la clave `vendedor`. El rol se lee desde `vendedor.rol.idRol`.
+La sesión del usuario se almacena en `localStorage` bajo la clave `vendedor`. El rol se lee desde `vendedor.rol.idRol`.
 
-| Rol | ID | Acceso |
+### Roles del sistema
+
+| Rol | ID | Nivel de acceso |
 |---|---|---|
-| Administrador | 1 | Acceso completo a todas las vistas y módulos |
-| Supervisor | 2 | Acceso completo a todas las vistas y módulos |
-| Vendedor | 3 | Vistas restringidas: Por Proveedor, Por Ciudad, Detalle por Ítem |
+| Administrador | 1 | Acceso completo — todas las vistas, módulos y carga de archivos |
+| Supervisor | 2 | Acceso completo — todas las vistas, módulos y carga de archivos |
+| Vendedor | 3 | Acceso restringido — solo vistas: Por Proveedor, Por Ciudad y Detalle por Ítem |
+
+### Guards implementados
+
+| Guard | Archivo | Función |
+|---|---|---|
+| `AuthGuard` | `auth.guard.ts` | Verifica que el usuario tenga sesión activa. Si no, redirige a `/login` |
+| `LoginGuard` | `login.guard.ts` | Evita que un usuario autenticado acceda de nuevo al login |
+| `RoleGuard` | `role.guard.ts` | Verifica que el rol del usuario esté en la lista `data.roles` de la ruta. Si no tiene permiso, redirige a `/dashboard` |
+
+### Configuración de rutas
+
+```typescript
+{ path: 'dashboard', component: DashboardComponent, canActivate: [AuthGuard] },
+{ path: 'carga',     component: CargaComponent,     canActivate: [RoleGuard], data: { roles: [1, 2] } }
+```
+
+### Visibilidad en el sidebar por rol
+
+| Opción | Rol 1 | Rol 2 | Rol 3 |
+|---|---|---|---|
+| Dashboard | ✅ | ✅ | ✅ |
+| Carga de Ventas | ✅ | ✅ | ❌ |
+| Detalle | ✅ | ✅ | ✅ |
+| Devoluciones | ✅ | ✅ | ✅ |
+| Históricos | ✅ | ✅ | ✅ |
+| Impactos | ✅ | ✅ | ✅ |
+| Nivel Servicio | ✅ | ✅ | ✅ |
+
+---
+
+## Carga de Archivos de Ventas
+
+El módulo de carga permite a administradores y supervisores importar el plano de ventas exportado del ERP directamente desde el navegador, sin necesidad de acceder al servidor.
+
+### Acceso
+- Ruta: `/carga`
+- Roles permitidos: **Administrador (1)** y **Supervisor (2)**
+- El rol Vendedor (3) no verá esta opción en el sidebar y será redirigido si intenta acceder por URL directa
+
+### Flujo de uso
+
+```
+1. Ingresar a "Carga de Ventas" desde el sidebar
+2. Seleccionar el archivo .txt / .tsv / .csv exportado del ERP
+3. Verificar nombre y tamaño del archivo
+4. Hacer clic en "Importar Ventas"
+5. Esperar el procesamiento (puede tomar varios minutos en archivos grandes)
+6. Revisar el resumen: registros exitosos, errores y tiempo total
+```
+
+### Endpoint utilizado
+
+```
+POST http://localhost:3000/import/ventas/upload
+Content-Type: multipart/form-data
+
+Campos:
+  - archivo    : File   (archivo TSV/TXT)
+  - batchSize  : string (tamaño de lote, por defecto 100)
+```
+
+### Respuesta esperada
+
+```json
+{
+  "mensaje": "Importación completada exitosamente",
+  "archivo": "ventas_febrero_2026.txt",
+  "registrosExitosos": 52840,
+  "registrosConError": 2,
+  "tiempoTotalSegundos": "45.3"
+}
+```
+
+### Consideraciones técnicas
+- El timeout de la petición HTTP no está limitado — soporta archivos de hasta 6 GB
+- La barra de progreso es animada (no refleja porcentaje real) ya que el backend no emite eventos de progreso por streaming
+- Los errores de importación se muestran con el mensaje devuelto por el backend
 
 ---
 
@@ -245,12 +330,13 @@ El frontend consume la [SIGC DD API](https://github.com/AsllyZuniga/API_Sistema_
 | GET | `/mes/cumplimiento/vendedor/:codigo/linea/:linea` | Detalle de una línea específica | `CumplimientoService` |
 | GET | `/mes/cumplimiento/vendedor/:codigo/ciudades` | Desglose por ciudad | `CumplimientoService` |
 | GET | `/mes/cumplimiento/vendedor/:codigo/productos` | Detalle por ítem/producto | `CumplimientoService` |
-| GET | `/impactos/proveedor` | Impactos agrupados por proveedor | `ImpactosService` |
-| GET | `/impactos/ciudad` | Impactos agrupados por ciudad | `ImpactosService` |
-| GET | `/impactos/detalle` | Detalle de impactos por producto | `ImpactosService` |
-| GET | `/api/devoluciones/por-cliente` | Devoluciones agrupadas por cliente | `DevolucionesService` |
-| GET | `/api/devoluciones/por-proveedor` | Devoluciones agrupadas por proveedor | `DevolucionesService` |
-| GET | `/api/devoluciones/por-ciudad` | Devoluciones agrupadas por ciudad | `DevolucionesService` |
+| POST | `/import/ventas/upload` | Carga de archivo de ventas (multipart) | `CargaComponent` |
+| GET | `/impactos/proveedor` | Impactos por proveedor *(pendiente backend)* | `ImpactosService` |
+| GET | `/impactos/ciudad` | Impactos por ciudad *(pendiente backend)* | `ImpactosService` |
+| GET | `/impactos/detalle` | Detalle de impactos *(pendiente backend)* | `ImpactosService` |
+| GET | `/api/devoluciones/por-cliente` | Devoluciones por cliente *(pendiente backend)* | `DevolucionesService` |
+| GET | `/api/devoluciones/por-proveedor` | Devoluciones por proveedor *(pendiente backend)* | `DevolucionesService` |
+| GET | `/api/devoluciones/por-ciudad` | Devoluciones por ciudad *(pendiente backend)* | `DevolucionesService` |
 
 ---
 
