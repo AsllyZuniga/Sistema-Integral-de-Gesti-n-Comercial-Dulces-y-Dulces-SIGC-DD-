@@ -1,6 +1,6 @@
 .sidebar {
   width: 240px;
-  height: 100%;
+  height: 100vh;
   background: linear-gradient(175deg, var(--c-text-head) 0%, var(--c-primary) 60%, #0a5299 100%);
   color: var(--c-bg);
   padding: 24px 16px;
@@ -16,10 +16,9 @@
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.14);
   overflow: hidden;
 }
-.sidebar.collapsed {
-  width: 72px;
-}
+.sidebar.collapsed { width: 72px; }
 
+/* ===== ENCABEZADO ===== */
 .top {
   display: flex;
   justify-content: space-between;
@@ -27,26 +26,27 @@
   padding: 4px 8px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   margin-bottom: 6px;
+  min-width: 0;
 }
 
 .logo-text {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 800;
   color: #ffffff;
-  letter-spacing: -0.4px;
+  letter-spacing: -0.3px;
   white-space: nowrap;
   overflow: hidden;
-  transition:
-    opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-    width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-overflow: ellipsis;
+  max-width: 160px;
+  transition: opacity 0.25s ease, max-width 0.25s ease;
 }
 .sidebar.collapsed .logo-text {
   opacity: 0;
-  width: 0;
+  max-width: 0;
   pointer-events: none;
 }
 
-.top button {
+.btn-toggle-desktop {
   background: rgba(255, 255, 255, 0.1);
   border: none;
   color: var(--c-border);
@@ -54,14 +54,13 @@
   cursor: pointer;
   padding: 6px 9px;
   border-radius: var(--r-xs);
-  transition: background 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.2s ease;
   line-height: 1;
   flex-shrink: 0;
 }
-.top button:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
+.btn-toggle-desktop:hover { background: rgba(255, 255, 255, 0.2); }
 
+/* ===== NAVEGACIÓN ===== */
 nav {
   margin-top: 4px;
   display: flex;
@@ -83,63 +82,42 @@ nav a {
   white-space: nowrap;
   transition: var(--transition);
   position: relative;
+  min-width: 0;
 }
-nav a:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-}
-nav a.active {
-  background: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
-  font-weight: 600;
-  box-shadow: inset 3px 0 0 #5a9bdf;
-}
+nav a:hover  { background: rgba(255, 255, 255, 0.1); color: #fff; }
+nav a.active { background: rgba(255, 255, 255, 0.15); color: #fff; font-weight: 600; box-shadow: inset 3px 0 0 #5a9bdf; }
 
 .icon {
   font-size: 20px;
   width: 24px;
+  min-width: 24px;
   text-align: center;
   flex-shrink: 0;
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  font-variation-settings:
-    'FILL' 1,
-    'wght' 400,
-    'GRAD' 0,
-    'opsz' 24;
+  transition: transform 0.25s ease;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
-nav a:hover .icon {
-  transform: scale(1.15);
-}
+nav a:hover .icon { transform: scale(1.15); }
 
 .label {
   overflow: hidden;
   white-space: nowrap;
-  transition:
-    opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-    width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-overflow: ellipsis;
+  transition: opacity 0.25s ease, width 0.25s ease;
 }
 
-.sidebar.collapsed nav a {
-  justify-content: center;
-  padding: 11px;
-}
-.sidebar.collapsed nav a .label {
-  opacity: 0;
-  width: 0;
-  pointer-events: none;
-}
-.sidebar.collapsed .icon {
-  margin: 0;
-}
+/* Estado colapsado — solo iconos con tooltip */
+.sidebar.collapsed nav a  { justify-content: center; padding: 11px; }
+.sidebar.collapsed .label { opacity: 0; width: 0; pointer-events: none; }
+.sidebar.collapsed .icon  { margin: 0; }
 
 .sidebar.collapsed nav a[data-tooltip]:hover::after {
   content: attr(data-tooltip);
   position: absolute;
-  left: calc(72px + 12px);
+  left: calc(72px + 8px);
   top: 50%;
   transform: translateY(-50%);
   background: #0f172a;
-  color: var(--c-bg);
+  color: #fff;
   padding: 6px 12px;
   border-radius: var(--r-xs);
   font-size: 13px;
@@ -150,18 +128,29 @@ nav a:hover .icon {
   pointer-events: none;
 }
 
-@media (max-width: 768px) {
+/* ===== OVERLAY MÓVIL/TABLET ===== */
+.mobile-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 999;
+  backdrop-filter: blur(2px);
+}
+
+/* ===== TABLET Y MÓVIL (≤992px) — drawer oculto, se abre con mobile-open ===== */
+@media (max-width: 992px) {
   .sidebar {
-    transform: translateX(-100%);
     width: 260px !important;
-    z-index: 1001 !important;
+    transform: translateX(-100%);
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 4px 0 32px rgba(0, 0, 0, 0.22);
+    z-index: 1000;
+    overflow-y: auto;
   }
-  .sidebar.mobile-open {
-    transform: translateX(0);
-  }
-  .top button {
-    display: none;
-  }
+  .sidebar.mobile-open { transform: translateX(0); }
+
+  /* Siempre mostrar textos en drawer */
+  .sidebar nav a  { justify-content: flex-start !important; padding: 11px 12px !important; }
+  .sidebar .label { opacity: 1 !important; width: auto !important; pointer-events: auto !important; }
+  .logo-text      { opacity: 1 !important; max-width: 200px !important; }
+  .btn-toggle-desktop { display: none; }
 }

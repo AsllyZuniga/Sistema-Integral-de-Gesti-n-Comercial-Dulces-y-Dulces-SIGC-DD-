@@ -2,11 +2,20 @@
   <app-sidebar (toggle)="onToggleSidebar($event)"></app-sidebar>
 
   <div class="main" [class.expanded]="isSidebarCollapsed">
-    <div class="carga-page">
 
+    <!-- Topbar con botón menú para móvil/tablet -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="mobile-menu-btn" (click)="toggleMenuMovil()">
+          <span class="material-symbols-rounded">menu</span>
+        </button>
+        <h2 class="page-title">Carga de Ventas</h2>
+      </div>
+    </header>
+
+    <div class="carga-page">
       <div class="page-header">
-        <h2>Carga de Ventas</h2>
-        <p>Sube el archivo plano (.txt / .tsv) exportado del ERP para importar las ventas al sistema.</p>
+        <p>Sube el archivo plano <strong>.txt</strong> exportado del ERP para importar las ventas al sistema.</p>
       </div>
 
       <div class="upload-card">
@@ -17,14 +26,14 @@
             #fileInput
             id="fileInput"
             type="file"
-            accept=".txt,.tsv,.csv"
+            accept=".txt"
             style="display:none"
             (change)="onArchivoSeleccionado($event)"
           />
           @if (!archivoSeleccionado) {
             <span class="material-symbols-rounded upload-icon">upload_file</span>
             <p class="upload-text">Haz clic para seleccionar el archivo</p>
-            <p class="upload-hint">Formatos aceptados: .txt · .tsv · .csv</p>
+            <p class="upload-hint">Formato aceptado: <strong>.txt</strong></p>
           } @else {
             <span class="material-symbols-rounded upload-icon file-ready">task</span>
             <p class="upload-text">{{ archivoSeleccionado.name }}</p>
@@ -59,7 +68,9 @@
           <div class="progress-bar">
             <div class="progress-fill"></div>
           </div>
-          <p class="progress-text">Procesando archivo, esto puede tomar varios minutos para archivos grandes...</p>
+          <p class="progress-text">
+            Procesando archivo, esto puede tomar varios minutos para archivos grandes...
+          </p>
         }
 
         <!-- ÉXITO -->
@@ -71,22 +82,22 @@
               <div class="stats-grid">
                 <div class="stat">
                   <span class="stat-label">Registros exitosos</span>
-                  <span class="stat-value success">{{ resultado.registrosExitosos ?? resultado.estadisticas?.registrosExitosos ?? '—' }}</span>
+                  <span class="stat-value success">{{ registrosExitosos }}</span>
                 </div>
                 <div class="stat">
                   <span class="stat-label">Registros con error</span>
-                  <span class="stat-value" [class.danger]="(resultado.registrosConError ?? resultado.estadisticas?.registrosConError) > 0">
-                    {{ resultado.registrosConError ?? resultado.estadisticas?.registrosConError ?? '0' }}
+                  <span class="stat-value" [class.danger]="registrosConError > 0">
+                    {{ registrosConError }}
                   </span>
                 </div>
                 <div class="stat">
                   <span class="stat-label">Tiempo total</span>
-                  <span class="stat-value">{{ resultado.tiempoTotalSegundos ?? resultado.estadisticas?.tiempoTotalSegundos ?? '—' }} s</span>
+                  <span class="stat-value">{{ tiempoTotal }} s</span>
                 </div>
-                @if (resultado.archivo) {
+                @if (resultado.mensaje) {
                   <div class="stat">
-                    <span class="stat-label">Archivo</span>
-                    <span class="stat-value">{{ resultado.archivo }}</span>
+                    <span class="stat-label">Estado</span>
+                    <span class="stat-value" style="font-size:13px">{{ resultado.mensaje }}</span>
                   </div>
                 }
               </div>
@@ -114,15 +125,15 @@
           Instrucciones de uso
         </h3>
         <ol>
-          <li>Exporta el plano de ventas desde el ERP en formato <strong>.txt</strong> o <strong>.tsv</strong></li>
+          <li>Exporta el plano de ventas desde el ERP en formato <strong>.txt</strong> (separado por tabulaciones)</li>
           <li>Haz clic en la zona de carga y selecciona el archivo exportado</li>
-          <li>Verifica que el nombre del archivo sea correcto</li>
+          <li>Verifica que el nombre y el tamaño del archivo sean correctos</li>
           <li>Haz clic en <strong>Importar Ventas</strong> y espera a que finalice el proceso</li>
-          <li>Revisa el resumen de registros importados y errores</li>
+          <li>Revisa el resumen: registros exitosos, errores y tiempo total</li>
         </ol>
         <div class="advertencia">
           <span class="material-symbols-rounded">warning</span>
-          Para archivos grandes (más de 100 MB) el proceso puede tardar varios minutos. No cierres la ventana.
+          Para archivos grandes (más de 100 MB) el proceso puede tardar varios minutos. No cierres la ventana mientras se procesa.
         </div>
       </div>
 

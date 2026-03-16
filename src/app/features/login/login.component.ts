@@ -35,26 +35,42 @@ export class LoginComponent {
     }
 
     this.is_loading = true;
+    this.is_error = false;
 
-    this.authService
-      .login({
-        codigo,
-        password,
-      })
-      .subscribe({
-        next: (resp) => {
-          this.is_error = false;
-          this.errorMessage = 'Código o contraseña no válidos';
-          this.is_loading = false;
-          localStorage.setItem('vendedor', JSON.stringify(resp.vendedor));
-          this.router.navigate(['/dashboard']);
-        },
-        error: (error) => {
-          this.is_error = true;
-          this.errorMessage =
-            error?.error?.message || 'Código o contraseña no válidos';
-          this.is_loading = false;
-        },
-      });
+    // ✅ Intenta primero con codigo (vendedores), si falla intenta con username (admins/supervisores)
+    this.authService.login({ codigo, password }).subscribe({
+      next: (resp) => this.onLoginExitoso(resp),
+      error: () => {
+        // ✅ Reintenta con username para usuarios sin vendedor asociado
+        this.authService.login({ username: codigo, password }).subscribe({
+          next: (resp) => this.onLoginExitoso(resp),
+          error: (error) => {
+            this.is_error = true;
+            this.errorMessage = error?.error?.message || 'Código o contraseña no válidos';
+            this.is_loading = false;
+          }
+        });
+      }
+    });
+  }
+
+  private onLoginExitoso(resp: any) {
+    this.is_error = false;
+    this.is_loading = false;
+
+    // ✅ Si no viene vendedor (admin sin vendedor asociado), construye uno mínimo
+    const vendedor = resp.vendedor ?? {
+      idVendedor: null,
+      idUsuario: resp.usuario?.idUsuario ?? null,
+      codVendedor: '',
+      codigo: '',
+      nombre: resp.usuario?.username ?? 'Usuario',
+      username: resp.usuario?.username ?? '',
+      estado: true,
+      rol: resp.usuario?.rol ?? { idRol: resp.usuario?.idRol ?? 1, nombre: 'Admin' }
+    };
+
+    localStorage.setItem('vendedor', JSON.stringify(vendedor));
+    this.router.navigate(['/dashboard']);
   }
 }

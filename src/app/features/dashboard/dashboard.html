@@ -1,13 +1,12 @@
-<div class="layout" [class.mobile-open]="isMobileMenuOpen">
-  <div class="mobile-overlay" *ngIf="isMobileMenuOpen" (click)="isMobileMenuOpen = false"></div>
-
+<div class="layout">
   <app-sidebar (toggle)="onToggleSidebar($event)"></app-sidebar>
 
   <div class="main" [class.expanded]="isSidebarCollapsed">
 
     <header class="topbar">
       <div class="topbar-left">
-        <button class="mobile-menu-btn" (click)="isMobileMenuOpen = !isMobileMenuOpen">
+        <!-- ✅ Controla el drawer del sidebar en móvil/tablet -->
+        <button class="mobile-menu-btn" (click)="toggleMenuMovil()">
           <span class="material-symbols-rounded">menu</span>
         </button>
         <img class="topbar-logo" src="logoDulces.png" alt="Logo" />

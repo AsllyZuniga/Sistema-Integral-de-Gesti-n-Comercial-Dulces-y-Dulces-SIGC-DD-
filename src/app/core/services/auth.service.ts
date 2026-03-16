@@ -8,7 +8,8 @@ export class AuthService {
 
   constructor(private http: HttpClient) { }
 
-  login(data: { codigo: string; password: string }): Observable<any> {
+  // ✅ Acepta codigo (vendedores) o username (admins/supervisores sin vendedor)
+  login(data: { codigo?: string; username?: string; password: string }): Observable<any> {
     return this.http.post(`${this.apiUrl}/login`, data);
   }
 

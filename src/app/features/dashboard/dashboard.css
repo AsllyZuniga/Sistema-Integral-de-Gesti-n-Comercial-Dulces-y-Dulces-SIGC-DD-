@@ -69,6 +69,8 @@
   object-fit: contain;
   filter: drop-shadow(0 2px 6px rgba(0,0,0,0.15));
 }
+
+/* ✅ Visible desde tablet (≤992px) */
 .mobile-menu-btn {
   display: none;
   background: rgba(255,255,255,0.15);
@@ -170,29 +172,23 @@
   min-width: 0;
 }
 
-.mobile-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.45);
-  z-index: 1000;
-  backdrop-filter: blur(2px);
-}
-
 /* ===== RESPONSIVE ===== */
 @media (max-width: 1200px) {
   .main { padding: 28px 24px; }
 }
+
+/* ✅ Tablet — sidebar es drawer, main ocupa todo el ancho */
 @media (max-width: 992px) {
-  .main { margin-left: 72px; }
+  .main            { margin-left: 0; }
+  .main.expanded   { margin-left: 0; }
+  .mobile-menu-btn { display: inline-flex; }
 }
 
 @media (max-width: 768px) {
-  .layout { overflow-x: hidden; position: relative; }
-  .main   { margin-left: 0 !important; padding: 16px 14px; width: 100%; overflow-x: hidden; }
+  .layout  { overflow-x: hidden; position: relative; }
+  .main    { padding: 16px 14px; width: 100%; overflow-x: hidden; }
 
   .topbar           { padding: 12px 14px; gap: 10px; margin-bottom: 16px; }
-  .mobile-menu-btn  { display: inline-flex; }
   .topbar-center    { padding: 0 8px; }
   .topbar-center h1 { font-size: 14px; animation: ticker 12s linear infinite; }
   .logout-label     { display: none; }
@@ -200,16 +196,6 @@
 
   .kpis   { grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .charts { gap: 16px; }
-
-  ::ng-deep .sidebar {
-    transform: translateX(-100%);
-    width: 260px !important;
-    z-index: 1001 !important;
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  }
-  .layout.mobile-open ::ng-deep .sidebar { transform: translateX(0); }
-  .layout.mobile-open .mobile-overlay    { display: block; }
-  ::ng-deep .sidebar .top button         { display: none; }
 }
 
 @media (max-width: 480px) {
@@ -220,7 +206,6 @@
   .kpis        { grid-template-columns: 1fr; gap: 10px; }
 }
 
-/* ===== HOVER SOLO DESKTOP ===== */
 @media (hover: none) {
   .card:hover            { transform: none; }
   .card:hover .card-icon { opacity: 0.18; transform: none; }
