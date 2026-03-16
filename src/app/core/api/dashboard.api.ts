@@ -8,7 +8,7 @@ import { Observable } from 'rxjs';
 export class DashboardApi {
   private baseUrl = 'https://api.sisferahub.com/api/dashboard';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   resumen(codigoVendedor: string): Observable<any> {
     return this.http.get(`${this.baseUrl}/resumen/${codigoVendedor}`);

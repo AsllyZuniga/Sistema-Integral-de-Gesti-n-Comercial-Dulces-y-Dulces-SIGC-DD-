@@ -7,20 +7,20 @@ import { DashboardFilters } from '../../../shared/components/filters/filters.com
   providedIn: 'root',
 })
 export class ImpactosService {
-  private apiUrl = 'https://api.sisferahub.com/';
+  private apiUrl = 'https://api.sisferahub.com';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   // ── Helper: construye HttpParams con filtros opcionales ──────────
   private buildParams(filtros?: DashboardFilters, extra?: Record<string, string>): HttpParams {
     let params = new HttpParams();
     if (filtros) {
       if (filtros.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
-      if (filtros.fechaFin)    params = params.set('fechaFin',    filtros.fechaFin);
-      if (filtros.vendedor)    params = params.set('vendedor',    filtros.vendedor);
-      if (filtros.proveedor)   params = params.set('proveedor',   filtros.proveedor);
-      if (filtros.categoria)   params = params.set('categoria',   filtros.categoria);
-      if (filtros.ciudad)      params = params.set('ciudad',      filtros.ciudad);
+      if (filtros.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
+      if (filtros.vendedor) params = params.set('vendedor', filtros.vendedor);
+      if (filtros.proveedor) params = params.set('proveedor', filtros.proveedor);
+      if (filtros.categoria) params = params.set('categoria', filtros.categoria);
+      if (filtros.ciudad) params = params.set('ciudad', filtros.ciudad);
     }
     if (extra) {
       Object.entries(extra).forEach(([k, v]) => {
@@ -37,9 +37,9 @@ export class ImpactosService {
       .get<any>(`${this.apiUrl}/impactos/proveedor`, { params })
       .pipe(
         map((res) => {
-          if (Array.isArray(res))            return res;
-          if (Array.isArray(res?.data))      return res.data;
-          if (Array.isArray(res?.impactos))  return res.impactos;
+          if (Array.isArray(res)) return res;
+          if (Array.isArray(res?.data)) return res.data;
+          if (Array.isArray(res?.impactos)) return res.impactos;
           return [];
         }),
         catchError(() => of([])),
@@ -53,9 +53,9 @@ export class ImpactosService {
       .get<any>(`${this.apiUrl}/impactos/ciudad`, { params })
       .pipe(
         map((res) => {
-          if (Array.isArray(res))            return res;
-          if (Array.isArray(res?.data))      return res.data;
-          if (Array.isArray(res?.impactos))  return res.impactos;
+          if (Array.isArray(res)) return res;
+          if (Array.isArray(res?.data)) return res.data;
+          if (Array.isArray(res?.impactos)) return res.impactos;
           return [];
         }),
         catchError(() => of([])),
@@ -70,9 +70,9 @@ export class ImpactosService {
       .get<any>(`${this.apiUrl}/impactos/detalle`, { params })
       .pipe(
         map((res) => {
-          if (Array.isArray(res))            return res;
-          if (Array.isArray(res?.data))      return res.data;
-          if (Array.isArray(res?.impactos))  return res.impactos;
+          if (Array.isArray(res)) return res;
+          if (Array.isArray(res?.data)) return res.data;
+          if (Array.isArray(res?.impactos)) return res.impactos;
           return [];
         }),
         catchError(() => of([])),

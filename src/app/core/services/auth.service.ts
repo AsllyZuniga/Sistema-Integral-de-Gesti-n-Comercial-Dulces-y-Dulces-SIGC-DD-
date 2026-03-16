@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
 export class AuthService {
   private apiUrl = 'https://api.sisferahub.com/api/auth';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   // ✅ Acepta codigo (vendedores) o username (admins/supervisores sin vendedor)
   login(data: { codigo?: string; username?: string; password: string }): Observable<any> {

@@ -7,9 +7,9 @@ import { DashboardFilters } from '../../../shared/components/filters/filters.com
   providedIn: 'root',
 })
 export class CumplimientoService {
-  private apiUrl = 'https://api.sisferahub.com/';
+  private apiUrl = 'https://api.sisferahub.com';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   private buildParams(filtros?: DashboardFilters): HttpParams {
     // ✅ _t timestamp — fuerza petición nueva, evita 304 del servidor
@@ -17,11 +17,11 @@ export class CumplimientoService {
     if (!filtros) return params;
 
     if (filtros.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
-    if (filtros.fechaFin)    params = params.set('fechaFin',    filtros.fechaFin);
-    if (filtros.vendedor)    params = params.set('vendedor',    filtros.vendedor);
-    if (filtros.proveedor)   params = params.set('proveedor',   filtros.proveedor);
-    if (filtros.categoria)   params = params.set('categoria',   filtros.categoria);
-    if (filtros.ciudad)      params = params.set('ciudad',      filtros.ciudad);
+    if (filtros.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
+    if (filtros.vendedor) params = params.set('vendedor', filtros.vendedor);
+    if (filtros.proveedor) params = params.set('proveedor', filtros.proveedor);
+    if (filtros.categoria) params = params.set('categoria', filtros.categoria);
+    if (filtros.ciudad) params = params.set('ciudad', filtros.ciudad);
 
     return params;
   }

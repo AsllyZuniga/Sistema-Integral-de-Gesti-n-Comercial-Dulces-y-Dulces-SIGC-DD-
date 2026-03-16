@@ -9,12 +9,12 @@ export class DevolucionesService {
 
   private buildParams(filtros: any): HttpParams {
     let params = new HttpParams();
-    if (filtros?.vendedor)    params = params.set('vendedor',    filtros.vendedor);
+    if (filtros?.vendedor) params = params.set('vendedor', filtros.vendedor);
     if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
-    if (filtros?.fechaFin)    params = params.set('fechaFin',    filtros.fechaFin);
-    if (filtros?.proveedor)   params = params.set('proveedor',   filtros.proveedor);
-    if (filtros?.categoria)   params = params.set('categoria',   filtros.categoria);
-    if (filtros?.ciudad)      params = params.set('ciudad',      filtros.ciudad);
+    if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
+    if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
+    if (filtros?.categoria) params = params.set('categoria', filtros.categoria);
+    if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
     return params;
   }
 
