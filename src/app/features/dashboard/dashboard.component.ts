@@ -1,11 +1,14 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject, takeUntil } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { Router } from '@angular/router';
 import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
 import { CardComponent } from '../../shared/components/card/card.component';
-import { FiltersComponent, DashboardFilters } from '../../shared/components/filters/filters.component';
+import {
+  FiltersComponent,
+  DashboardFilters,
+} from '../../shared/components/filters/filters.component';
 import { SidebarComponent } from '../../shared/components/sidebar/sidebar.component';
 import { VentasComponent } from '../dashboard/components/ventas/ventas.component';
 import { ImpactosComponent } from './components/impactos/impactos.component';
@@ -29,21 +32,23 @@ import { DevolucionesComponent } from './components/devoluciones/devoluciones.co
 export class DashboardComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
+  // ✅ Referencia directa al sidebar para controlar el drawer móvil
+  @ViewChild(SidebarComponent) sidebarRef!: SidebarComponent;
+
   vendedor: any;
   totales: any = null;
   isSidebarCollapsed = false;
-  isMobileMenuOpen = false;
 
   proveedoresList: string[] = [];
-  ciudadesList:    string[] = [];
+  ciudadesList: string[] = [];
 
   filtrosActivos: DashboardFilters = {
     fechaInicio: '',
-    fechaFin:    '',
-    vendedor:    '',
-    proveedor:   '',
-    categoria:   '',  // ← restaurado
-    ciudad:      '',
+    fechaFin: '',
+    vendedor: '',
+    proveedor: '',
+    categoria: '',
+    ciudad: '',
   };
 
   constructor(
@@ -59,7 +64,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.vendedor = {
         codigo: '990',
         codVendedor: '990',
-        nombre: 'Vendedor Prueba'
+        nombre: 'Vendedor Prueba',
       };
     }
 
@@ -76,17 +81,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return this.vendedor?.codVendedor || this.vendedor?.codigo || '';
   }
 
+  // ✅ Abre/cierra el sidebar en móvil y tablet vía ViewChild
+  toggleMenuMovil() {
+    this.sidebarRef?.toggleMobile();
+  }
+
   cargarTotales() {
     if (!this.codigoVendedor) return;
     this.cumplimientoService
       .getCumplimientoPorCodigo(this.codigoVendedor, this.filtrosActivos)
       .pipe(takeUntil(this.destroy$))
-      .subscribe(res => {
+      .subscribe((res) => {
         if (!res) return;
         this.totales = {
-          ventaAcum:       res.ventaAcum,
-          cuotaMes:        res.cuotaMes,
-          porcCump:        res.porcCump,
+          ventaAcum: res.ventaAcum,
+          cuotaMes: res.cuotaMes,
+          porcCump: res.porcCump,
           proyeccionVenta: res.proyeccionVenta,
         };
       });
@@ -98,19 +108,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.cumplimientoService
       .getProductosPorVendedor(this.codigoVendedor)
       .pipe(takeUntil(this.destroy$))
-      .subscribe(res => {
+      .subscribe((res) => {
         const listado = res?.data ?? [];
         this.proveedoresList = [
-          ...new Set<string>(listado.map((r: any) => r.Proveedor).filter(Boolean))
+          ...new Set<string>(listado.map((r: any) => r.Proveedor).filter(Boolean)),
         ].sort();
       });
 
     this.cumplimientoService
       .getCiudadesPorVendedor(this.codigoVendedor)
       .pipe(takeUntil(this.destroy$))
-      .subscribe(res => {
+      .subscribe((res) => {
         const listado = res?.detallePorCiudad ?? [];
-        this.ciudadesList = listado.map((r: any) => r.ciudad).filter(Boolean).sort();
+        this.ciudadesList = listado
+          .map((r: any) => r.ciudad)
+          .filter(Boolean)
+          .sort();
       });
   }
 
