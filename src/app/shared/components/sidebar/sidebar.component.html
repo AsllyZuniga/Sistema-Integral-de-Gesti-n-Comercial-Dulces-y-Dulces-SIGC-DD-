@@ -1,7 +1,7 @@
-<aside class="sidebar" [class.collapsed]="isCollapsed">
+<aside class="sidebar" [class.collapsed]="isCollapsed" [class.mobile-open]="isMobileOpen">
   <div class="top">
-    <span class="logo-text">Dashboard Vendedor</span>
-    <button (click)="toggleSidebar()">☰</button>
+    <span class="logo-text">{{ tituloRol }}</span>
+    <button class="btn-toggle-desktop" (click)="toggleSidebar()" title="Colapsar menú">☰</button>
   </div>
 
   <nav>
@@ -16,3 +16,8 @@
     }
   </nav>
 </aside>
+
+<!-- Overlay móvil — cierra el sidebar al tocar fuera -->
+@if (isMobileOpen) {
+  <div class="mobile-overlay" (click)="closeMobile()"></div>
+}
