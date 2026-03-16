@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
   providedIn: 'root',
 })
 export class DashboardApi {
-  private baseUrl = 'http://localhost:3000/api/dashboard';
+  private baseUrl = 'https://api.sisferahub.com/api/dashboard';
 
   constructor(private http: HttpClient) {}
 

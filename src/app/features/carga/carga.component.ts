@@ -11,7 +11,7 @@ import { SidebarComponent } from '../../shared/components/sidebar/sidebar.compon
   styleUrls: ['./carga.component.css'],
 })
 export class CargaComponent {
-  private apiUrl = 'http://localhost:3000';
+  private apiUrl = 'https://api.sisferahub.com/';
 
   // ✅ Referencia al sidebar para controlar drawer en móvil/tablet
   @ViewChild(SidebarComponent) sidebarRef!: SidebarComponent;
