@@ -272,15 +272,15 @@ Para reportar bugs, abre un issue en el repositorio con:
 
 Este proyecto es **software propietario**. Todos los derechos reservados a Dulces y Dulces.
 
-## 👥 Autor
+## 👥 Autores
 
-**Felipe Rivas** - Desarrollador Principal
+**Aslly Zuñiga** - Desarrolladora Frontend
+**Felipe Rivas** - Desarrollador Backend
 
 ## 📞 Contacto y Soporte
 
 Para preguntas o soporte técnico:
 
-- 📧 Email: [your-email@example.com]
 - 💬 Issues: [GitHub Issues](https://github.com/tuusuario/SIGC-DD/issues)
 - 📖 Wiki: [GitHub Wiki](https://github.com/tuusuario/SIGC-DD/wiki)
 
