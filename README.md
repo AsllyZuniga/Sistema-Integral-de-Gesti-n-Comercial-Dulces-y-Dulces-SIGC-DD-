@@ -1,354 +1,302 @@
-# 🍬 SIGC DD — Sistema Integral de Gestión Comercial
-### Frontend · Dulces y Dulces S.A. · v1.0.0
+# Sistema Integral de Gestión Comercial - Dulces y Dulces (SIGC-DD)
 
-<p align="center">
-  <img src="src/assets/logoDulces.png" alt="Logo Dulces y Dulces" width="120" />
-</p>
+[![Angular](https://img.shields.io/badge/Angular-21.1.4-red.svg?style=flat-square&logo=angular)](https://angular.io/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9.2-blue.svg?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![Node](https://img.shields.io/badge/Node-LTS-green.svg?style=flat-square&logo=node.js)](https://nodejs.org/)
+[![License](https://img.shields.io/badge/License-Proprietary-yellow.svg?style=flat-square)](#licencia)
+[![Version](https://img.shields.io/badge/Version-1.0.0-brightgreen.svg?style=flat-square)](#)
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Angular-19-DD0031?style=for-the-badge&logo=angular&logoColor=white" />
-  <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
-  <img src="https://img.shields.io/badge/Chart.js-Visualización-FF6384?style=for-the-badge&logo=chartdotjs&logoColor=white" />
-  <img src="https://img.shields.io/badge/RxJS-Observables-B7178C?style=for-the-badge&logo=reactivex&logoColor=white" />
-  <img src="https://img.shields.io/badge/Estado-En%20Desarrollo-yellow?style=for-the-badge" />
-</p>
+## 📋 Descripción General
 
-> Este repositorio contiene el **cliente web** del SIGC DD. Para el backend (API REST · Node.js · Express · PostgreSQL) consulta:
-> 🔗 [API_Sistema_Integral_de_Gestion_Comercial_Dulces_y_Dulces_SIGC_DD](https://github.com/AsllyZuniga/API_Sistema_Integral_de_Gestion_Comercial_Dulces_y_Dulces_SIGC_DD)
+**SIGC-DD** es un sistema integral de gestión comercial diseñado específicamente para la empresa **Dulces y Dulces**. La aplicación proporciona herramientas profesionales para:
 
----
+- 📊 **Dashboard Analítico**: Visualización en tiempo real de métricas comerciales
+- 💰 **Gestión de Ventas**: Seguimiento de cumplimiento de objetivos mensuales
+- 📉 **Control de Devoluciones**: Monitoreo de devoluciones de productos
+- 🎯 **Análisis de Impactos**: Evaluación del impacto comercial
+- 🔐 **Autenticación Multi-rol**: Sistema de usuarios con roles diferenciados (vendedores, supervisores, administradores)
 
-## Tabla de Contenidos
+## 🏗️ Arquitectura
 
-1. [Descripción del Sistema](#descripción-del-sistema)
-2. [Tecnologías Utilizadas](#tecnologías-utilizadas)
-3. [Instalación y Configuración](#instalación-y-configuración)
-4. [Estructura del Proyecto](#estructura-del-proyecto)
-5. [Módulos Funcionales](#módulos-funcionales)
-6. [Control de Roles y Acceso](#control-de-roles-y-acceso)
-7. [Carga de Archivos de Ventas](#carga-de-archivos-de-ventas)
-8. [Endpoints Consumidos](#endpoints-consumidos)
-9. [Colaboradores](#colaboradores)
-
----
-
-## Descripción del Sistema
-
-El **SIGC DD Frontend** es la interfaz web del Sistema Integral de Gestión Comercial de **Dulces y Dulces S.A.** Consume la API REST del backend y expone un dashboard interactivo para el monitoreo en tiempo real del desempeño comercial de la fuerza de ventas.
-
-### ✅ Capacidades principales
-
-- **Dashboard con KPIs en tiempo real**: Venta Acumulada, Cuota del Mes, Porcentaje de Cumplimiento y Proyección de Venta
-- **Análisis de Ventas** con vistas por línea, ciudad, vendedor y detalle por ítem
-- **Control de Impactos** agrupados por proveedor, ciudad y detalle de producto
-- **Gestión de Devoluciones** con agrupación expandible por cliente, proveedor y ciudad
-- **Filtros dinámicos globales** por rango de fechas, proveedor, categoría y ciudad
-- **Carga de archivos de ventas** — importación de planos TSV/TXT desde el ERP directamente desde el navegador
-- **Control de acceso por roles** con guards de autenticación y autorización por nivel
-- **Navegación lateral** con visibilidad de opciones según rol del usuario autenticado
-- **Gráficas interactivas** con Chart.js (barras, líneas y torta) con altura responsiva controlada
-- **Sidebar colapsable** con soporte para menú móvil y tooltips
-- **Diseño responsivo** adaptado para escritorio, tablet y móvil
-- **Anti-caché en peticiones HTTP** mediante timestamp `_t` para garantizar datos frescos
-
----
-
-## Tecnologías Utilizadas
-
-| Capa | Tecnología | Versión | Uso |
-|---|---|---|---|
-| Framework | Angular | 19 | Arquitectura principal (standalone components) |
-| Lenguaje | TypeScript | 5.x | Tipado estático y desarrollo |
-| Gráficas | Chart.js | Latest | Visualizaciones de bar, line y pie |
-| HTTP | Angular HttpClient + RxJS | — | Comunicación con la API REST |
-| Formularios | Angular Forms (template-driven) | — | Filtros y controles del dashboard |
-| Estilos | CSS Variables + Custom Design System | — | Temas, colores y tipografía |
-| Iconos | Material Symbols Rounded | — | Iconografía del sistema |
-| Tipografía | Plus Jakarta Sans | — | Fuente principal |
-| Backend | SIGC DD API (Node.js · Express · PostgreSQL) | v1.0.0 | Fuente de datos |
-
----
-
-## Instalación y Configuración
-
-### Requisitos previos
-
-- **Node.js** ≥ 18.x
-- **npm** ≥ 9.x
-- **Angular CLI** ≥ 19.x
-- **SIGC DD API** corriendo en `http://localhost:3000`
-  → Ver instrucciones de instalación del backend en su [repositorio](https://github.com/AsllyZuniga/API_Sistema_Integral_de_Gestion_Comercial_Dulces_y_Dulces_SIGC_DD)
-
-### 1. Clonar el repositorio
-
-```bash
-git clone https://github.com/dulces-y-dulces/SIGC-DD-Frontend.git
-cd SIGC-DD-Frontend
-```
-
-### 2. Instalar dependencias
-
-```bash
-npm install
-```
-
-### 3. Configurar la URL del backend
-
-En los servicios ubicados en `src/app/core/services/`, verificar que la URL base apunte al servidor correcto:
-
-```typescript
-// src/app/core/services/ventas/cumplimientoVentasMes.service.ts
-private apiUrl = 'http://localhost:3000';
-```
-
-Para producción se recomienda usar `src/environments/environment.ts`:
-
-```typescript
-export const environment = {
-  production: false,
-  apiUrl: 'http://localhost:3000'
-};
-```
-
-### 4. Ejecutar en desarrollo
-
-```bash
-ng serve
-```
-
-Disponible en: `http://localhost:4200`
-
-### 5. Compilar para producción
-
-```bash
-ng build --configuration production
-```
-
-Salida generada en: `dist/`
-
----
-
-## Estructura del Proyecto
+La aplicación está construida bajo una arquitectura **standalone** moderna con Angular 21, implementando patrones SOLID y buenas prácticas de desarrollo:
 
 ```
 src/
 ├── app/
-│   ├── core/
-│   │   ├── guards/
-│   │   │   ├── auth.guard.ts          # Verifica sesión activa
-│   │   │   ├── login.guard.ts         # Redirige si ya está autenticado
-│   │   │   └── role.guard.ts          # Verifica rol requerido por ruta
-│   │   └── services/
-│   │       ├── auth.service.ts                        # Autenticación y sesión (localStorage)
-│   │       ├── ventas/
-│   │       │   └── cumplimientoVentasMes.service.ts   # Cumplimiento, líneas, ciudades, productos
-│   │       ├── impactos/
-│   │       │   └── impactos.service.ts                # Impactos (pendiente backend)
-│   │       └── devoluciones/
-│   │           └── devoluciones.service.ts            # Devoluciones (pendiente backend)
-│   │
-│   ├── shared/
-│   │   └── components/
-│   │       ├── card/                                  # Tarjetas KPI
-│   │       ├── table/                                 # Tabla genérica con formateo COP
-│   │       ├── chart/                                 # Gráfica genérica (Chart.js)
-│   │       ├── filters/                               # Filtros globales del dashboard
-│   │       └── sidebar/                               # Navegación lateral con control de roles
-│   │
-│   └── features/
-│       ├── login/                                     # Pantalla de autenticación
-│       ├── dashboard/
-│       │   ├── dashboard.component.ts                 # Orquestador principal
-│       │   ├── dashboard.html
-│       │   ├── dashboard.css
-│       │   └── components/
-│       │       ├── ventas/                            # Análisis de ventas
-│       │       ├── impactos/                          # Control de impactos
-│       │       └── devoluciones/                      # Gestión de devoluciones
-│       └── carga/
-│           ├── carga.component.ts                     # Módulo de carga de archivos TSV/TXT
-│           ├── carga.component.html
-│           └── carga.component.css
-│
-├── assets/
-│   └── logoDulces.png
-│
-└── environments/
-    ├── environment.ts
-    └── environment.prod.ts
+│   ├── core/                 # Lógica central de la aplicación
+│   │   ├── api/             # Servicios de API
+│   │   ├── guards/          # Guards de autenticación y autorización
+│   │   └── services/        # Servicios de negocio
+│   ├── features/            # Módulos de características
+│   │   ├── dashboard/       # Dashboard principal
+│   │   ├── login/           # Autenticación
+│   │   └── carga/           # Gestión de carga de datos
+│   └── shared/              # Componentes y servicios compartidos
+│       └── components/      # Componentes reutilizables
+├── assets/                  # Recursos estáticos
+└── styles.css              # Estilos globales (Tailwind CSS)
 ```
+
+## ⚙️ Stack Tecnológico
+
+| Tecnología | Versión | Propósito |
+|-----------|---------|----------|
+| **Angular** | 21.1.4 | Framework principal |
+| **TypeScript** | 5.9.2 | Lenguaje de programación |
+| **RxJS** | 7.8.0 | Programación reactiva |
+| **Chart.js** | 4.5.1 | Visualización de datos |
+| **Tailwind CSS** | 4.1.18 | Estilos y diseño responsivo |
+| **Vitest** | 4.0.8 | Testing unitario |
+| **Angular CLI** | 21.1.4 | Herramientas de desarrollo |
+
+## 🚀 Instalación y Configuración
+
+### Requisitos Previos
+
+- **Node.js**: v18 o superior
+- **npm**: v9 o superior
+
+### Pasos de Instalación
+
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/tuusuario/Sistema-Integral-de-Gesti-n-Comercial-Dulces-y-Dulces-SIGC-DD-.git
+
+# 2. Navegar al directorio del proyecto
+cd Sistema-Integral-de-Gesti-n-Comercial-Dulces-y-Dulces-SIGC-DD-
+
+# 3. Instalar dependencias
+npm install
+
+# 4. Iniciar servidor de desarrollo
+npm start
+```
+
+## 🛠️ Comandos Disponibles
+
+### Desarrollo
+
+```bash
+# Iniciar servidor de desarrollo
+npm start
+# Abre http://localhost:4200/ en el navegador
+```
+
+### Build
+
+```bash
+# Compilar para producción
+npm run build
+# Los artefactos se almacenan en el directorio dist/
+
+# Build en modo watch
+npm run watch
+```
+
+### Testing
+
+```bash
+# Ejecutar tests unitarios (Vitest)
+npm test
+```
+
+### Angular CLI
+
+```bash
+# Ver lista completa de comandos
+npm run ng -- --help
+
+# Generar nuevo componente
+npm run ng -- generate component nombre-componente
+
+# Generar servicio
+npm run ng -- generate service nombre-servicio
+```
+
+## 📱 Características Principales
+
+### 🔑 Autenticación y Control de Acceso
+
+- Sistema de login seguro
+- Autenticación basada en credenciales (código de vendedor o username)
+- Integración con API externa (sisferahub.com)
+- Guards de ruta para protección de componentes
+- Control de acceso basado en roles (RBAC)
+
+### 📊 Dashboard
+
+El dashboard central proporciona un resumen visual de:
+
+- **Cumplimiento de Ventas**: Gráficos de línea y barras mostrando desempeño mensual
+- **Devoluciones**: Monitoreo de tasas de devolución
+- **Impactos Comerciales**: Análisis de variables críticas
+- **Filtros Dinámicos**: Posibilidad de filtrar por fecha, vendedor, región, etc.
+
+### 🧩 Componentes Clave
+
+| Componente | Descripción |
+|-----------|-----------|
+| **Dashboard** | Vista principal con métricas consolidadas |
+| **VentasComponent** | Gráficos de cumplimiento de ventas mensuales |
+| **DevolucionesComponent** | Análisis de devoluciones de productos |
+| **ImpactosComponent** | Evaluación de impactos comerciales |
+| **Filters** | Sistema de filtrado avanzado |
+| **Sidebar** | Navegación lateral |
+| **Chart** | Componente reutilizable para gráficos |
+| **Card** | Componente de tarjeta para métricas |
+| **Table** | Componente para visualización tabular |
+
+### 🔌 Servicios
+
+- **AuthService**: Gestión de autenticación y sesion
+- **CumplimientoVentasService**: Datos de cumplimiento de ventas
+- **DevolucionesService**: Gestión de devoluciones
+- **ImpactosService**: Análisis de impactos
+- **DashboardAPI**: Llamadas a API para datos del dashboard
+
+## 🔐 Seguridad
+
+- **Guards de Ruta**: Protección de componentes mediante autenticación
+- **Local Storage**: Almacenamiento seguro de sesión
+- **HTTPS**: Comunicación encriptada con API
+- **Control de Roles**: Sistema de autorización basado en roles
+
+## 📦 Estructura de Módulos
+
+```
+Feature                Module              Componentes
+├── Authentication    → LoginComponent    → Formulario de login
+├── Dashboard        → DashboardModule   → Ventas, Devoluciones, Impactos
+├── Data Management  → CargaComponent    → Carga de datos
+└── Navigation       → SidebarComponent  → Menú lateral
+```
+
+## 🎨 Estilos y Diseño
+
+- **Framework CSS**: Tailwind CSS 4.1.18
+- **Responsive Design**: Totalmente responsivo para dispositivos móviles y desktop
+- **Configuración PostCSS**: Incluida para procesamiento avanzado
+- **Prettier**: Formateo automático de código HTML
+
+## 📊 Visualización de Datos
+
+La aplicación utiliza **Chart.js** para:
+
+- Gráficos de línea (tendencias de ventas)
+- Gráficos de barras (comparativas)
+- Gráficos de área (acumulativos)
+- Dashboards interactivos y dinámicos
+
+## 🧪 Testing
+
+```bash
+# Ejecutar suite de tests
+npm test
+
+# Tests unitarios con Vitest
+# Cubiertos: servicios, componentes, guards, pipes
+```
+
+## 📚 Documentación de API
+
+**Base URL**: `https://api.sisferahub.com/api`
+
+### Endpoints Principales
+
+```
+POST /auth/login              → Autenticación de usuarios
+GET  /dashboard              → Datos del dashboard
+GET  /ventas/cumplimiento    → Cumplimiento de ventas
+GET  /devoluciones           → Datos de devoluciones
+GET  /impactos               → Análisis de impactos
+```
+
+Para más detalles, consultar la documentación de la API externa.
+
+## 🚦 Estado del Proyecto
+
+| Aspecto | Estado |
+|--------|--------|
+| Desarrollo | ✅ Completo |
+| Testing | ✅ Implementado |
+| Documentación | ✅ Completa |
+| Production Ready | ✅ Listo para producción |
+
+## 🤝 Contribución
+
+Las contribuciones son bienvenidas. Por favor:
+
+1. Fork el repositorio
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
+
+## 📋 Convenciones de Código
+
+- **TypeScript**: Generación de componentes con tipado estricto
+- **Angular**: Componentes standalone y lazy loading
+- **Nombres**: camelCase para variables/métodos, PascalCase para clases
+- **Comentarios**: JSDoc para funciones públicas
+- **Formato**: Prettier con printWidth: 100
+
+## 🐛 Reporte de Bugs
+
+Para reportar bugs, abre un issue en el repositorio con:
+
+- Descripción clara del problema
+- Pasos para reproducir
+- Comportamiento esperado vs actual
+- Screenshots si es aplicable
+
+## 📝 Changelog
+
+### v1.0.0 - Primera Versión Estable (2026-03-15)
+
+**Features:**
+- ✅ Sistema completo de autenticación multirol
+- ✅ Dashboard principal con métricas consolidadas
+- ✅ Componentes de ventas, devoluciones e impactos
+- ✅ Integración con API externa (sisferahub.com)
+- ✅ Sistema de filtros avanzados
+- ✅ Visualización de datos con Chart.js
+- ✅ Diseño responsivo con Tailwind CSS
+
+**Improvements:**
+- ✅ Arquitectura standalone de Angular
+- ✅ Código modular y reutilizable
+- ✅ Guards de autenticación y autorización
+- ✅ Servicios reactivos con RxJS
+
+## 📄 Licencia
+
+Este proyecto es **software propietario**. Todos los derechos reservados a Dulces y Dulces.
+
+## 👥 Autor
+
+**Felipe Rivas** - Desarrollador Principal
+
+## 📞 Contacto y Soporte
+
+Para preguntas o soporte técnico:
+
+- 📧 Email: [your-email@example.com]
+- 💬 Issues: [GitHub Issues](https://github.com/tuusuario/SIGC-DD/issues)
+- 📖 Wiki: [GitHub Wiki](https://github.com/tuusuario/SIGC-DD/wiki)
 
 ---
 
-## Módulos Funcionales
+## 🎯 Roadmap Futuro
 
-### Dashboard Principal
-Orquesta todos los componentes hijos. Lee el vendedor autenticado desde `localStorage`, carga los KPIs globales y distribuye los filtros activos a cada sección. Implementa debounce de 100ms en las peticiones para evitar cancelaciones por actualizaciones simultáneas de `@Input`.
-
-### Análisis de Ventas
-
-| Vista | Descripción | Rol mínimo |
-|---|---|---|
-| Ventas | Gráfica de línea: Venta vs Cuota vs Proyección | 1 o 2 |
-| Por Proveedor | Tabla de líneas con venta, cumplimiento y proyección | Todos |
-| Por Ciudad | Tabla y gráfica de torta por ciudad | Todos |
-| Por Vendedor | Datos de cumplimiento del vendedor activo | 1 o 2 |
-| Detalle por Ítem | Tabla completa de productos con gráfica Top 10 | Todos |
-
-### Control de Impactos
-> ⏸️ Pendiente de implementación en el backend. Los componentes están listos — descomentar el servicio cuando los endpoints estén disponibles.
-
-| Vista | Descripción |
-|---|---|
-| Por Proveedor | Impactos y valor total agrupados por proveedor |
-| Por Ciudad | Impactos y valor total agrupados por ciudad |
-| Detalle | Detalle por producto con Top 10 en gráfica |
-
-### Gestión de Devoluciones
-> ⏸️ Pendiente de implementación en el backend. Los componentes están listos — descomentar el servicio cuando los endpoints estén disponibles.
-
-| Vista | Descripción |
-|---|---|
-| Por Cliente | Lista expandible de clientes con detalle de devoluciones |
-| Por Proveedor | Devoluciones agrupadas por proveedor |
-| Por Ciudad | Devoluciones agrupadas por ciudad |
-
-### Filtros Globales
-Afectan simultáneamente todas las secciones del dashboard. Las listas de proveedores y ciudades se cargan una sola vez al inicio para evitar bucles reactivos.
-
-| Filtro | Campo enviado al backend |
-|---|---|
-| Rango de fechas | `fechaInicio`, `fechaFin` |
-| Proveedor | `proveedor` |
-| Categoría | `categoria` |
-| Ciudad | `ciudad` |
-
-> Todas las peticiones incluyen el parámetro `_t` (timestamp Unix) para evitar respuestas cacheadas (HTTP 304).
+- [ ] Integración con más módulos de gestión
+- [ ] Reportes avanzados exportables (PDF/Excel)
+- [ ] Sistema de notificaciones en tiempo real
+- [ ] Mobile app nativa
+- [ ] Soporte multi-idioma
+- [ ] Análisis predictivo con ML
 
 ---
 
-## Control de Roles y Acceso
-
-La sesión del usuario se almacena en `localStorage` bajo la clave `vendedor`. El rol se lee desde `vendedor.rol.idRol`.
-
-### Roles del sistema
-
-| Rol | ID | Nivel de acceso |
-|---|---|---|
-| Administrador | 1 | Acceso completo — todas las vistas, módulos y carga de archivos |
-| Supervisor | 2 | Acceso completo — todas las vistas, módulos y carga de archivos |
-| Vendedor | 3 | Acceso restringido — solo vistas: Por Proveedor, Por Ciudad y Detalle por Ítem |
-
-### Guards implementados
-
-| Guard | Archivo | Función |
-|---|---|---|
-| `AuthGuard` | `auth.guard.ts` | Verifica que el usuario tenga sesión activa. Si no, redirige a `/login` |
-| `LoginGuard` | `login.guard.ts` | Evita que un usuario autenticado acceda de nuevo al login |
-| `RoleGuard` | `role.guard.ts` | Verifica que el rol del usuario esté en la lista `data.roles` de la ruta. Si no tiene permiso, redirige a `/dashboard` |
-
-### Configuración de rutas
-
-```typescript
-{ path: 'dashboard', component: DashboardComponent, canActivate: [AuthGuard] },
-{ path: 'carga',     component: CargaComponent,     canActivate: [RoleGuard], data: { roles: [1, 2] } }
-```
-
-### Visibilidad en el sidebar por rol
-
-| Opción | Rol 1 | Rol 2 | Rol 3 |
-|---|---|---|---|
-| Dashboard | ✅ | ✅ | ✅ |
-| Carga de Ventas | ✅ | ✅ | ❌ |
-| Detalle | ✅ | ✅ | ✅ |
-| Devoluciones | ✅ | ✅ | ✅ |
-| Históricos | ✅ | ✅ | ✅ |
-| Impactos | ✅ | ✅ | ✅ |
-| Nivel Servicio | ✅ | ✅ | ✅ |
-
----
-
-## Carga de Archivos de Ventas
-
-El módulo de carga permite a administradores y supervisores importar el plano de ventas exportado del ERP directamente desde el navegador, sin necesidad de acceder al servidor.
-
-### Acceso
-- Ruta: `/carga`
-- Roles permitidos: **Administrador (1)** y **Supervisor (2)**
-- El rol Vendedor (3) no verá esta opción en el sidebar y será redirigido si intenta acceder por URL directa
-
-### Flujo de uso
-
-```
-1. Ingresar a "Carga de Ventas" desde el sidebar
-2. Seleccionar el archivo .txt / .tsv / .csv exportado del ERP
-3. Verificar nombre y tamaño del archivo
-4. Hacer clic en "Importar Ventas"
-5. Esperar el procesamiento (puede tomar varios minutos en archivos grandes)
-6. Revisar el resumen: registros exitosos, errores y tiempo total
-```
-
-### Endpoint utilizado
-
-```
-POST http://localhost:3000/import/ventas/upload
-Content-Type: multipart/form-data
-
-Campos:
-  - archivo    : File   (archivo TSV/TXT)
-  - batchSize  : string (tamaño de lote, por defecto 100)
-```
-
-### Respuesta esperada
-
-```json
-{
-  "mensaje": "Importación completada exitosamente",
-  "archivo": "ventas_febrero_2026.txt",
-  "registrosExitosos": 52840,
-  "registrosConError": 2,
-  "tiempoTotalSegundos": "45.3"
-}
-```
-
-### Consideraciones técnicas
-- El timeout de la petición HTTP no está limitado — soporta archivos de hasta 6 GB
-- La barra de progreso es animada (no refleja porcentaje real) ya que el backend no emite eventos de progreso por streaming
-- Los errores de importación se muestran con el mensaje devuelto por el backend
-
----
-
-## Endpoints Consumidos
-
-El frontend consume la [SIGC DD API](https://github.com/AsllyZuniga/API_Sistema_Integral_de_Gestion_Comercial_Dulces_y_Dulces_SIGC_DD). Todos los endpoints aceptan los query params: `fechaInicio`, `fechaFin`, `vendedor`, `proveedor`, `categoria`, `ciudad`, `_t`.
-
-| Método | Endpoint | Descripción | Servicio |
-|---|---|---|---|
-| POST | `/api/auth/login` | Autenticación del vendedor | `AuthService` |
-| GET | `/mes/cumplimiento/:codigo` | Cumplimiento general del vendedor | `CumplimientoService` |
-| GET | `/mes/cumplimiento/vendedor/:codigo/lineas` | Desglose por línea | `CumplimientoService` |
-| GET | `/mes/cumplimiento/vendedor/:codigo/linea/:linea` | Detalle de una línea específica | `CumplimientoService` |
-| GET | `/mes/cumplimiento/vendedor/:codigo/ciudades` | Desglose por ciudad | `CumplimientoService` |
-| GET | `/mes/cumplimiento/vendedor/:codigo/productos` | Detalle por ítem/producto | `CumplimientoService` |
-| POST | `/import/ventas/upload` | Carga de archivo de ventas (multipart) | `CargaComponent` |
-| GET | `/impactos/proveedor` | Impactos por proveedor *(pendiente backend)* | `ImpactosService` |
-| GET | `/impactos/ciudad` | Impactos por ciudad *(pendiente backend)* | `ImpactosService` |
-| GET | `/impactos/detalle` | Detalle de impactos *(pendiente backend)* | `ImpactosService` |
-| GET | `/api/devoluciones/por-cliente` | Devoluciones por cliente *(pendiente backend)* | `DevolucionesService` |
-| GET | `/api/devoluciones/por-proveedor` | Devoluciones por proveedor *(pendiente backend)* | `DevolucionesService` |
-| GET | `/api/devoluciones/por-ciudad` | Devoluciones por ciudad *(pendiente backend)* | `DevolucionesService` |
-
----
-
-## Colaboradores
-
-| Colaborador | GitHub | Rol |
-|---|---|---|
-| David Felipe Gustin Rivas | [@feliperivasdev](https://github.com/feliperivasdev) | Backend Developer |
-| Aslly Ivonne Zuñiga | [@AsllyZuniga](https://github.com/AsllyZuniga) | Frontend Developer |
-
----
-
-<p align="center">
-  SIGC DD Frontend — © 2026 Dulces y Dulces S.A. · Todos los derechos reservados
-</p>
+**Versión**: 1.0.0  
+**Última actualización**: 15 de marzo de 2026  
+**Estado**: 🟢 Producción
