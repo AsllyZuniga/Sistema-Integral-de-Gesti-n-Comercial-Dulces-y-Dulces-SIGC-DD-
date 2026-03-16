@@ -59,7 +59,6 @@ export class CargaComponent {
     this.estado = 'idle';
     this.resultado = null;
     this.mensajeError = '';
-    // limpiar input file
     const input = document.getElementById('fileInput') as HTMLInputElement;
     if (input) input.value = '';
   }
