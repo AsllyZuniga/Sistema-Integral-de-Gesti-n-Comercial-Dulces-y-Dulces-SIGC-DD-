@@ -274,8 +274,8 @@ Este proyecto es **software propietario**. Todos los derechos reservados a Dulce
 
 ## 👥 Autores
 
-**Aslly Zuñiga** - Desarrolladora Frontend
-**Felipe Rivas** - Desarrollador Backend
+- **Aslly Zuñiga** - Desarrolladora Frontend
+- **Felipe Rivas** - Desarrollador Backend
 
 ## 📞 Contacto y Soporte
 
