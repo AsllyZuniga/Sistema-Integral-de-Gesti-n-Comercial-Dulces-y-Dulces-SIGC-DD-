@@ -84,8 +84,8 @@ nav a {
   position: relative;
   min-width: 0;
 }
-nav a:hover            { background: rgba(255, 255, 255, 0.1); color: #fff; }
-nav a.active           { background: rgba(255, 255, 255, 0.15); color: #fff; font-weight: 600; box-shadow: inset 3px 0 0 #5a9bdf; }
+nav a:hover  { background: rgba(255, 255, 255, 0.1); color: #fff; }
+nav a.active { background: rgba(255, 255, 255, 0.15); color: #fff; font-weight: 600; box-shadow: inset 3px 0 0 #5a9bdf; }
 
 .icon {
   font-size: 20px;
@@ -106,9 +106,9 @@ nav a:hover .icon { transform: scale(1.15); }
 }
 
 /* Estado colapsado — solo iconos con tooltip */
-.sidebar.collapsed nav a   { justify-content: center; padding: 11px; }
-.sidebar.collapsed .label  { opacity: 0; width: 0; pointer-events: none; }
-.sidebar.collapsed .icon   { margin: 0; }
+.sidebar.collapsed nav a  { justify-content: center; padding: 11px; }
+.sidebar.collapsed .label { opacity: 0; width: 0; pointer-events: none; }
+.sidebar.collapsed .icon  { margin: 0; }
 
 .sidebar.collapsed nav a[data-tooltip]:hover::after {
   content: attr(data-tooltip);
@@ -128,7 +128,7 @@ nav a:hover .icon { transform: scale(1.15); }
   pointer-events: none;
 }
 
-/* ===== OVERLAY MÓVIL ===== */
+/* ===== OVERLAY MÓVIL/TABLET ===== */
 .mobile-overlay {
   position: fixed;
   inset: 0;
@@ -137,28 +137,18 @@ nav a:hover .icon { transform: scale(1.15); }
   backdrop-filter: blur(2px);
 }
 
-/* ===== TABLET (992px) — colapsa automáticamente ===== */
-@media (max-width: 992px) and (min-width: 769px) {
-  .sidebar          { width: 72px; }
-  .logo-text        { opacity: 0; max-width: 0; pointer-events: none; }
-  .sidebar nav a    { justify-content: center; padding: 11px; }
-  .sidebar .label   { opacity: 0; width: 0; pointer-events: none; }
-  .btn-toggle-desktop { display: none; }
-}
-
-/* ===== MÓVIL (≤768px) — drawer oculto por defecto ===== */
-@media (max-width: 768px) {
+/* ===== TABLET Y MÓVIL (≤992px) — drawer oculto, se abre con mobile-open ===== */
+@media (max-width: 992px) {
   .sidebar {
     width: 260px !important;
     transform: translateX(-100%);
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 1000;
-    /* En móvil siempre muestra textos */
     overflow-y: auto;
   }
   .sidebar.mobile-open { transform: translateX(0); }
 
-  /* Restaura labels en móvil aunque esté en estado collapsed */
+  /* Siempre mostrar textos en drawer */
   .sidebar nav a  { justify-content: flex-start !important; padding: 11px 12px !important; }
   .sidebar .label { opacity: 1 !important; width: auto !important; pointer-events: auto !important; }
   .logo-text      { opacity: 1 !important; max-width: 200px !important; }
