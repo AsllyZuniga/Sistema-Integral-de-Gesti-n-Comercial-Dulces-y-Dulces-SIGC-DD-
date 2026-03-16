@@ -3,14 +3,14 @@
 
   <div class="main" [class.expanded]="isSidebarCollapsed">
     <div class="carga-page">
-
       <div class="page-header">
         <h2>Carga de Ventas</h2>
-        <p>Sube el archivo plano (.txt / .tsv) exportado del ERP para importar las ventas al sistema.</p>
+        <p>
+          Sube el archivo plano (.txt / .tsv) exportado del ERP para importar las ventas al sistema.
+        </p>
       </div>
 
       <div class="upload-card">
-
         <!-- ZONA DE CARGA -->
         <div class="upload-zone" [class.has-file]="archivoSeleccionado" (click)="fileInput.click()">
           <input
@@ -18,13 +18,13 @@
             id="fileInput"
             type="file"
             accept=".txt,.tsv,.csv"
-            style="display:none"
+            style="display: none"
             (change)="onArchivoSeleccionado($event)"
           />
           @if (!archivoSeleccionado) {
             <span class="material-symbols-rounded upload-icon">upload_file</span>
             <p class="upload-text">Haz clic para seleccionar el archivo</p>
-            <p class="upload-hint">Formatos aceptados: .txt · .tsv · .csv</p>
+            <p class="upload-hint">Formatos aceptados: .txt </p>
           } @else {
             <span class="material-symbols-rounded upload-icon file-ready">task</span>
             <p class="upload-text">{{ archivoSeleccionado.name }}</p>
@@ -43,7 +43,8 @@
           <button
             class="btn-cargar"
             [disabled]="!archivoSeleccionado || estado === 'cargando'"
-            (click)="cargar()">
+            (click)="cargar()"
+          >
             @if (estado === 'cargando') {
               <span class="spinner"></span>
               Importando...
@@ -59,7 +60,9 @@
           <div class="progress-bar">
             <div class="progress-fill"></div>
           </div>
-          <p class="progress-text">Procesando archivo, esto puede tomar varios minutos para archivos grandes...</p>
+          <p class="progress-text">
+            Procesando archivo, esto puede tomar varios minutos para archivos grandes...
+          </p>
         }
 
         <!-- ÉXITO -->
@@ -71,17 +74,35 @@
               <div class="stats-grid">
                 <div class="stat">
                   <span class="stat-label">Registros exitosos</span>
-                  <span class="stat-value success">{{ resultado.registrosExitosos ?? resultado.estadisticas?.registrosExitosos ?? '—' }}</span>
+                  <span class="stat-value success">{{
+                    resultado.registrosExitosos ?? resultado.estadisticas?.registrosExitosos ?? '—'
+                  }}</span>
                 </div>
                 <div class="stat">
                   <span class="stat-label">Registros con error</span>
-                  <span class="stat-value" [class.danger]="(resultado.registrosConError ?? resultado.estadisticas?.registrosConError) > 0">
-                    {{ resultado.registrosConError ?? resultado.estadisticas?.registrosConError ?? '0' }}
+                  <span
+                    class="stat-value"
+                    [class.danger]="
+                      (resultado.registrosConError ?? resultado.estadisticas?.registrosConError) > 0
+                    "
+                  >
+                    {{
+                      resultado.registrosConError ??
+                        resultado.estadisticas?.registrosConError ??
+                        '0'
+                    }}
                   </span>
                 </div>
                 <div class="stat">
                   <span class="stat-label">Tiempo total</span>
-                  <span class="stat-value">{{ resultado.tiempoTotalSegundos ?? resultado.estadisticas?.tiempoTotalSegundos ?? '—' }} s</span>
+                  <span class="stat-value"
+                    >{{
+                      resultado.tiempoTotalSegundos ??
+                        resultado.estadisticas?.tiempoTotalSegundos ??
+                        '—'
+                    }}
+                    s</span
+                  >
                 </div>
                 @if (resultado.archivo) {
                   <div class="stat">
@@ -104,7 +125,6 @@
             </div>
           </div>
         }
-
       </div>
 
       <!-- INSTRUCCIONES -->
@@ -114,7 +134,7 @@
           Instrucciones de uso
         </h3>
         <ol>
-          <li>Exporta el plano de ventas desde el ERP en formato <strong>.txt</strong> o <strong>.tsv</strong></li>
+          <li>Exporta el plano de ventas desde el ERP en formato <strong>.txt</strong></li>
           <li>Haz clic en la zona de carga y selecciona el archivo exportado</li>
           <li>Verifica que el nombre del archivo sea correcto</li>
           <li>Haz clic en <strong>Importar Ventas</strong> y espera a que finalice el proceso</li>
@@ -122,10 +142,10 @@
         </ol>
         <div class="advertencia">
           <span class="material-symbols-rounded">warning</span>
-          Para archivos grandes (más de 100 MB) el proceso puede tardar varios minutos. No cierres la ventana.
+          Para archivos grandes (más de 100 MB) el proceso puede tardar varios minutos. No cierres
+          la ventana.
         </div>
       </div>
-
     </div>
   </div>
 </div>
