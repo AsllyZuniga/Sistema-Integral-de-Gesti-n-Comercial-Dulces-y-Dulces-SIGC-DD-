@@ -1,70 +1,56 @@
-import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject, takeUntil } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { Router } from '@angular/router';
 import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
 import { CardComponent } from '../../shared/components/card/card.component';
-import {
-  FiltersComponent,
-  DashboardFilters,
-} from '../../shared/components/filters/filters.component';
+import { FiltersComponent, DashboardFilters } from '../../shared/components/filters/filters.component';
 import { SidebarComponent } from '../../shared/components/sidebar/sidebar.component';
 import { VentasComponent } from '../dashboard/components/ventas/ventas.component';
-import { ImpactosComponent } from './components/impactos/impactos.component';
-import { DevolucionesComponent } from './components/devoluciones/devoluciones.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [
-    CommonModule,
-    CardComponent,
-    FiltersComponent,
-    SidebarComponent,
-    VentasComponent,
-    ImpactosComponent,
-    DevolucionesComponent,
-  ],
+  imports: [CommonModule, CardComponent, FiltersComponent, SidebarComponent, VentasComponent],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css'],
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
-  // ✅ Referencia directa al sidebar para controlar el drawer móvil
   @ViewChild(SidebarComponent) sidebarRef!: SidebarComponent;
 
-  vendedor: any;
-  totales: any = null;
-  isSidebarCollapsed = false;
-
-  proveedoresList: string[] = [];
-  ciudadesList: string[] = [];
+  vendedor:          any     = null;
+  totales:           any     = null;
+  isSidebarCollapsed         = false;
+  proveedoresList:   string[] = [];
+  ciudadesList:      string[] = [];
 
   filtrosActivos: DashboardFilters = {
     fechaInicio: '',
-    fechaFin: '',
-    vendedor: '',
-    proveedor: '',
-    categoria: '',
-    ciudad: '',
+    fechaFin:    '',
+    vendedor:    '',
+    proveedor:   '',
+    categoria:   '',
+    ciudad:      '',
   };
 
   constructor(
-    private authService: AuthService,
-    private router: Router,
+    private authService:        AuthService,
+    private router:             Router,
     private cumplimientoService: CumplimientoService,
+    private cdr:                ChangeDetectorRef,
   ) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.vendedor = this.authService.getVendedor();
 
     if (!this.vendedor) {
       this.vendedor = {
-        codigo: '990',
+        codigo:      '990',
         codVendedor: '990',
-        nombre: 'Vendedor Prueba',
+        nombre:      'Vendedor Prueba',
       };
     }
 
@@ -72,7 +58,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.cargarOpcionesFiltros();
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -81,28 +67,29 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return this.vendedor?.codVendedor || this.vendedor?.codigo || '';
   }
 
-  // ✅ Abre/cierra el sidebar en móvil y tablet vía ViewChild
-  toggleMenuMovil() {
+  toggleMenuMovil(): void {
     this.sidebarRef?.toggleMobile();
   }
 
-  cargarTotales() {
+  cargarTotales(): void {
     if (!this.codigoVendedor) return;
+
     this.cumplimientoService
       .getCumplimientoPorCodigo(this.codigoVendedor, this.filtrosActivos)
       .pipe(takeUntil(this.destroy$))
       .subscribe((res) => {
         if (!res) return;
         this.totales = {
-          ventaAcum: res.ventaAcum,
-          cuotaMes: res.cuotaMes,
-          porcCump: res.porcCump,
-          proyeccionVenta: res.proyeccionVenta,
+          ventaAcum:        res.ventaAcum,
+          cuotaMes:         res.cuotaMes,
+          porcCump:         res.porcCump,
+          proyeccionVenta:  res.proyeccionVenta,
         };
+        this.cdr.detectChanges(); // ✅ notifica el cambio explícitamente
       });
   }
 
-  cargarOpcionesFiltros() {
+  cargarOpcionesFiltros(): void {
     if (!this.codigoVendedor) return;
 
     this.cumplimientoService
@@ -113,6 +100,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.proveedoresList = [
           ...new Set<string>(listado.map((r: any) => r.Proveedor).filter(Boolean)),
         ].sort();
+        this.cdr.detectChanges(); // ✅ evita NG0100
       });
 
     this.cumplimientoService
@@ -124,19 +112,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
           .map((r: any) => r.ciudad)
           .filter(Boolean)
           .sort();
+        this.cdr.detectChanges(); // ✅ evita NG0100
       });
   }
 
-  onAplicarFiltros(filtros: DashboardFilters) {
+  onAplicarFiltros(filtros: DashboardFilters): void {
     this.filtrosActivos = { ...filtros };
     this.cargarTotales();
   }
 
-  onToggleSidebar(collapsed: boolean) {
+  onToggleSidebar(collapsed: boolean): void {
     this.isSidebarCollapsed = collapsed;
   }
 
-  logout() {
+  logout(): void {
     this.authService.logout();
     this.router.navigate(['/login'], { replaceUrl: true });
   }

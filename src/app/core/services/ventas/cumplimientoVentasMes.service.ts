@@ -7,12 +7,11 @@ import { DashboardFilters } from '../../../shared/components/filters/filters.com
   providedIn: 'root',
 })
 export class CumplimientoService {
-  private apiUrl = 'https://api.sisferahub.com';
+  private apiUrl = 'http://localhost:3000';
 
   constructor(private http: HttpClient) { }
 
   private buildParams(filtros?: DashboardFilters): HttpParams {
-    // ✅ _t timestamp — fuerza petición nueva, evita 304 del servidor
     let params = new HttpParams().set('_t', Date.now().toString());
     if (!filtros) return params;
 

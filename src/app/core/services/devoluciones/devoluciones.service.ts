@@ -1,11 +1,11 @@
-import { Injectable, inject } from '@angular/core';
+/* import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class DevolucionesService {
   private http = inject(HttpClient);
-  private apiUrl = 'https://api.sisferahub.com/api/devoluciones';
+  private apiUrl = 'http://localhost:3000/api/devoluciones';
 
   private buildParams(filtros: any): HttpParams {
     let params = new HttpParams();
@@ -29,4 +29,4 @@ export class DevolucionesService {
   getPorCiudad(filtros: any): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/por-ciudad`, { params: this.buildParams(filtros) });
   }
-}
+} */

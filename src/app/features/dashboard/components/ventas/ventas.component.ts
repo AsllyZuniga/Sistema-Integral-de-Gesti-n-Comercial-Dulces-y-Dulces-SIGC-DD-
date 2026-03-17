@@ -6,6 +6,7 @@ import { CumplimientoService } from '../../../../core/services/ventas/cumplimien
 import { ChartComponent } from '../../../../shared/components/chart/chart.component';
 import { TableComponent } from '../../../../shared/components/table/table.component';
 import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
+import { AuthService } from '../../../../core/services/auth.service';
 
 @Component({
   selector: 'app-ventas',
@@ -19,30 +20,27 @@ export class VentasComponent implements OnInit, OnChanges, OnDestroy {
 
   @Input() set filtros(value: DashboardFilters) {
     this._filtros = value;
-    if (this.codigoVendedor) {
+    // ✅ Solo carga si ya tenemos codigoVendedor y el componente ya fue inicializado
+    if (this.codigoVendedor && this.iniciado) {
       this.cargarVistaActual();
     }
   }
-  get filtros(): DashboardFilters {
-    return this._filtros;
-  }
+  get filtros(): DashboardFilters { return this._filtros; }
+
   private _filtros: DashboardFilters = {
-    fechaInicio: '',
-    fechaFin:    '',
-    vendedor:    '',
-    proveedor:   '',
-    categoria:   '',
-    ciudad:      '',
+    fechaInicio: '', fechaFin: '', vendedor: '',
+    proveedor: '', categoria: '', ciudad: '',
   };
 
   private destroy$ = new Subject<void>();
+  private iniciado = false;
 
-  rolId: number = 0;
-  activeVentasView = 'ventas';
-  chartId: string = 'chart-main';
+  rolId              = 0;
+  activeVentasView   = 'ventas';
+  chartId            = 'chart-main';
   chartType: 'line' | 'bar' | 'pie' = 'line';
-  tableData: any[] = [];
-  chartData: any[] = [];
+  tableData: any[]   = [];
+  chartData: any[]   = [];
   private allItemData: any[] = [];
 
   private readonly todasLasVistas = [
@@ -67,43 +65,37 @@ export class VentasComponent implements OnInit, OnChanges, OnDestroy {
 
   constructor(
     private cumplimientoService: CumplimientoService,
+    private authService: AuthService,
     private cdr: ChangeDetectorRef,
   ) {
-    // ✅ Leer rol en el constructor — se ejecuta ANTES de ngOnChanges
-    // así activeVentasView ya tiene el valor correcto cuando llegue codigoVendedor
-    try {
-      const raw = localStorage.getItem('vendedor') ?? localStorage.getItem('usuario') ?? '{}';
-      const usuario = JSON.parse(raw);
-      this.rolId = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? 0);
-    } catch {
-      this.rolId = 0;
-    }
-
-    // Setear vista inicial según rol aquí mismo
+    // ✅ Leer rol desde sessionStorage via AuthService
+    const usuario = this.authService.getVendedor();
+    this.rolId = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? 0);
     this.activeVentasView = this.rolId === 3 ? 'proveedor' : 'ventas';
   }
 
-  ngOnInit() {}
+  ngOnInit(): void {
+    this.iniciado = true;
+  }
 
-  // ✅ Dispara carga cuando codigoVendedor llega o cambia
-  ngOnChanges(changes: SimpleChanges) {
+  ngOnChanges(changes: SimpleChanges): void {
     if (changes['codigoVendedor'] && this.codigoVendedor) {
       this.cargarVistaActual();
     }
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
-  setVentasView(view: string) {
+  setVentasView(view: string): void {
     if (this.activeVentasView === view) return;
     this.activeVentasView = view;
     this.cargarVistaActual();
   }
 
-  private recalcularChart() {
+  private recalcularChart(): void {
     const agg = new Map<string, number>();
     for (const row of this.allItemData) {
       const key = row.Descripcion ?? 'SIN DESCRIPCION';
@@ -117,7 +109,7 @@ export class VentasComponent implements OnInit, OnChanges, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  cargarVistaActual() {
+  cargarVistaActual(): void {
     if (!this.codigoVendedor) return;
 
     this.tableData   = [];
@@ -125,73 +117,80 @@ export class VentasComponent implements OnInit, OnChanges, OnDestroy {
     this.allItemData = [];
     this.chartId     = 'chart-' + this.activeVentasView + '-' + Date.now();
 
-    if (this.activeVentasView === 'ventas') {
-      this.chartType = 'line';
-      this.cumplimientoService
-        .getCumplimientoPorCodigo(this.codigoVendedor, this._filtros)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((res) => {
-          if (!res) return;
-          this.tableData = [res];
-          this.chartData = [
-            { name: 'Venta',      value: res.ventaAcum },
-            { name: 'Cuota',      value: res.cuotaMes },
-            { name: 'Proyección', value: res.proyeccionVenta },
-          ];
-          this.cdr.detectChanges();
-        });
+    switch (this.activeVentasView) {
 
-    } else if (this.activeVentasView === 'proveedor') {
-      this.chartType = 'bar';
-      this.cumplimientoService
-        .getLineasPorVendedor(this.codigoVendedor, this._filtros)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((res) => {
-          const listado = res?.detallePorLinea ?? [];
-          this.tableData = listado;
-          this.chartData = listado.map((item: any) => ({
-            name: item.linea, value: item.ventaAcum,
-          }));
-          this.cdr.detectChanges();
-        });
+      case 'ventas':
+        this.chartType = 'line';
+        this.cumplimientoService
+          .getCumplimientoPorCodigo(this.codigoVendedor, this._filtros)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((res) => {
+            if (!res) return;
+            this.tableData = [res];
+            this.chartData = [
+              { name: 'Venta',      value: res.ventaAcum },
+              { name: 'Cuota',      value: res.cuotaMes },
+              { name: 'Proyección', value: res.proyeccionVenta },
+            ];
+            this.cdr.detectChanges();
+          });
+        break;
 
-    } else if (this.activeVentasView === 'ciudad') {
-      this.chartType = 'pie';
-      this.cumplimientoService
-        .getCiudadesPorVendedor(this.codigoVendedor, this._filtros)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((res) => {
-          const listado = res?.detallePorCiudad ?? [];
-          this.tableData = listado;
-          this.chartData = listado.map((item: any) => ({
-            name: item.ciudad, value: item.ventaAcum,
-          }));
-          this.cdr.detectChanges();
-        });
+      case 'proveedor':
+        this.chartType = 'bar';
+        this.cumplimientoService
+          .getLineasPorVendedor(this.codigoVendedor, this._filtros)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((res) => {
+            const listado = res?.detallePorLinea ?? [];
+            this.tableData = listado;
+            this.chartData = listado.map((item: any) => ({
+              name: item.linea, value: item.ventaAcum,
+            }));
+            this.cdr.detectChanges();
+          });
+        break;
 
-    } else if (this.activeVentasView === 'vendedor') {
-      this.chartType = 'bar';
-      this.cumplimientoService
-        .getCumplimientoPorCodigo(this.codigoVendedor, this._filtros)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((res) => {
-          if (!res) return;
-          this.tableData = [res];
-          this.chartData = [{ name: res.nombre, value: res.ventaAcum }];
-          this.cdr.detectChanges();
-        });
+      case 'ciudad':
+        this.chartType = 'pie';
+        this.cumplimientoService
+          .getCiudadesPorVendedor(this.codigoVendedor, this._filtros)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((res) => {
+            const listado = res?.detallePorCiudad ?? [];
+            this.tableData = listado;
+            this.chartData = listado.map((item: any) => ({
+              name: item.ciudad, value: item.ventaAcum,
+            }));
+            this.cdr.detectChanges();
+          });
+        break;
 
-    } else if (this.activeVentasView === 'item') {
-      this.chartType = 'bar';
-      this.cumplimientoService
-        .getProductosPorVendedor(this.codigoVendedor, this._filtros)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((res) => {
-          const listado = res?.data ?? [];
-          this.allItemData = listado;
-          this.tableData   = [...listado];
-          this.recalcularChart();
-        });
+      case 'vendedor':
+        this.chartType = 'bar';
+        this.cumplimientoService
+          .getCumplimientoPorCodigo(this.codigoVendedor, this._filtros)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((res) => {
+            if (!res) return;
+            this.tableData = [res];
+            this.chartData = [{ name: res.nombre, value: res.ventaAcum }];
+            this.cdr.detectChanges();
+          });
+        break;
+
+      case 'item':
+        this.chartType = 'bar';
+        this.cumplimientoService
+          .getProductosPorVendedor(this.codigoVendedor, this._filtros)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((res) => {
+            const listado = res?.data ?? [];
+            this.allItemData = listado;
+            this.tableData   = [...listado];
+            this.recalcularChart();
+          });
+        break;
     }
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+/* import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map, catchError, of } from 'rxjs';
 import { DashboardFilters } from '../../../shared/components/filters/filters.component';
@@ -7,7 +7,7 @@ import { DashboardFilters } from '../../../shared/components/filters/filters.com
   providedIn: 'root',
 })
 export class ImpactosService {
-  private apiUrl = 'https://api.sisferahub.com';
+  private apiUrl = 'http://localhost:3000';
 
   constructor(private http: HttpClient) { }
 
@@ -78,4 +78,4 @@ export class ImpactosService {
         catchError(() => of([])),
       );
   }
-}
+} */
