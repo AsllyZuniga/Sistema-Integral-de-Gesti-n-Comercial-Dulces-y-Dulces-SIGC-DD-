@@ -22,7 +22,7 @@ export class LoginComponent {
     private authService: AuthService,
   ) {}
 
-  validarUsuario() {
+  validarUsuario(): void {
     if (this.is_loading) return;
 
     const codigo = this.user.codigo.trim();
@@ -37,28 +37,25 @@ export class LoginComponent {
     this.is_loading = true;
     this.is_error = false;
 
-    // ✅ Intenta primero con codigo (vendedores), si falla intenta con username (admins/supervisores)
     this.authService.login({ codigo, password }).subscribe({
       next: (resp) => this.onLoginExitoso(resp),
       error: () => {
-        // ✅ Reintenta con username para usuarios sin vendedor asociado
         this.authService.login({ username: codigo, password }).subscribe({
           next: (resp) => this.onLoginExitoso(resp),
-          error: (error) => {
+          error: (err) => {
             this.is_error = true;
-            this.errorMessage = error?.error?.message || 'Código o contraseña no válidos';
+            this.errorMessage = err?.error?.message || 'Código o contraseña no válidos';
             this.is_loading = false;
-          }
+          },
         });
-      }
+      },
     });
   }
 
-  private onLoginExitoso(resp: any) {
+  private onLoginExitoso(resp: any): void {
     this.is_error = false;
     this.is_loading = false;
 
-    // ✅ Si no viene vendedor (admin sin vendedor asociado), construye uno mínimo
     const vendedor = resp.vendedor ?? {
       idVendedor: null,
       idUsuario: resp.usuario?.idUsuario ?? null,
@@ -67,10 +64,11 @@ export class LoginComponent {
       nombre: resp.usuario?.username ?? 'Usuario',
       username: resp.usuario?.username ?? '',
       estado: true,
-      rol: resp.usuario?.rol ?? { idRol: resp.usuario?.idRol ?? 1, nombre: 'Admin' }
+      rol: resp.usuario?.rol ?? { idRol: resp.usuario?.idRol ?? 1, nombre: 'Admin' },
     };
 
-    localStorage.setItem('vendedor', JSON.stringify(vendedor));
+    this.authService.guardarSesion(vendedor); // ✅ sessionStorage — se borra al cerrar pestaña
+    this.authService.iniciarTimerInactividad();
     this.router.navigate(['/dashboard']);
   }
 }
