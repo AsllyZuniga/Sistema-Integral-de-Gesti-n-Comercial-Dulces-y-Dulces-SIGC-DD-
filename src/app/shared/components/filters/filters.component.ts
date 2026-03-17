@@ -9,6 +9,7 @@ export interface DashboardFilters {
   proveedor:   string;
   categoria:   string;
   ciudad:      string;
+  linea?:      string;
 }
 
 @Component({
@@ -22,6 +23,7 @@ export class FiltersComponent {
   @Input() proveedores: string[] = [];
   @Input() categorias:  string[] = [];  // ← restaurado
   @Input() ciudades:    string[] = [];
+  @Input() lineas:      string[] = [];
 
   @Output() apply = new EventEmitter<DashboardFilters>();
 
@@ -34,6 +36,7 @@ export class FiltersComponent {
     proveedor:   '',
     categoria:   '',
     ciudad:      '',
+    linea:       '',
   };
 
   toggleFiltros() { this.isFiltrosOpen = !this.isFiltrosOpen; }
@@ -51,6 +54,7 @@ export class FiltersComponent {
       proveedor:   '',
       categoria:   '',
       ciudad:      '',
+      linea:       '',
     };
     this.apply.emit({ ...this.filtros });
   }

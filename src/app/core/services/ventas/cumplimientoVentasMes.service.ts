@@ -14,12 +14,70 @@ export class CumplimientoService {
   private buildParams(filtros?: DashboardFilters): HttpParams {
     let params = new HttpParams();
 
-    if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
-    if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
-    if (filtros?.vendedor) params = params.set('vendedor', filtros.vendedor);
-    if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
-    if (filtros?.categoria) params = params.set('categoria', filtros.categoria);
-    if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
+    console.group('🔨 [CumplimientoService.buildParams] Construyendo parámetros HTTP');
+    
+    if (!filtros) {
+      console.warn('⚠️ Filtros es undefined - NO se agregarán parámetros');
+      console.groupEnd();
+      return params;
+    }
+    
+    console.log('📋 Filtros entrada:', filtros);
+    console.log('');
+    
+    // Fecha inicio
+    if (filtros?.fechaInicio) {
+      params = params.set('fechaInicio', filtros.fechaInicio);
+      console.log(`  ✅ fechaInicio: "${filtros.fechaInicio}"`);
+    }
+    
+    // Fecha fin
+    if (filtros?.fechaFin) {
+      params = params.set('fechaFin', filtros.fechaFin);
+      console.log(`  ✅ fechaFin: "${filtros.fechaFin}"`);
+    }
+    
+    // Vendedor
+    if (filtros?.vendedor) {
+      params = params.set('vendedor', filtros.vendedor);
+      console.log(`  ✅ vendedor: "${filtros.vendedor}"`);
+    }
+    
+    // PROVEEDOR - CRÍTICO
+    if (filtros?.proveedor) {
+      console.log(`  ➡️ PROVEEDOR ENVIADO: "${filtros.proveedor}"`);
+      console.log(`     Tipo: ${typeof filtros.proveedor}`);
+      console.log(`     Es código (3-4 dígitos)? ${/^\d{3,4}$/.test(filtros.proveedor) ? 'SÍ ✅' : 'NO ❌ - Parece un nombre'}`);
+      params = params.set('proveedor', filtros.proveedor);
+    } else {
+      console.log(`  ⭕ PROVEEDOR: (vacío/no definido)`);
+    }
+    
+    // Categoría
+    if (filtros?.categoria) {
+      params = params.set('categoria', filtros.categoria);
+      console.log(`  ✅ categoria: "${filtros.categoria}"`);
+    }
+    
+    // CIUDAD - IMPORTANTE
+    if (filtros?.ciudad) {
+      params = params.set('ciudad', filtros.ciudad);
+      console.log(`  ✅ ciudad: "${filtros.ciudad}"`);
+    } else {
+      console.log(`  ⭕ CIUDAD: (vacío/no definido)`);
+    }
+    
+    // LÍNEA
+    if (filtros?.linea) {
+      params = params.set('linea', filtros.linea);
+      console.log(`  ✅ linea: "${filtros.linea}"`);
+    }
+
+    console.log('');
+    const paramsString = params.toString();
+    console.log('📤 QUERY STRING FINAL:', paramsString);
+    console.log(`   (URL completa sería: /mes/cumplimiento/front/me?${paramsString})`);
+    console.groupEnd();
 
     return params;
   }
@@ -36,10 +94,33 @@ export class CumplimientoService {
 
   getCumplimientoPorCodigo(codigo: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
+    
+    console.group('🔗 [CumplimientoService.getCumplimientoPorCodigo] ENVIANDO REQUEST');
+    console.log('');
+    console.log('📋 RESUMEN REQUEST:');
+    console.log(`  Endpoint: /mes/cumplimiento/front/me`);
+    console.log(`  Método: GET`);
+    console.log(`  Código vendedor: "${codigo}"`);
+    console.log('');
+    console.log('📝 PARÁMETROS:');
+    const paramsObj = params.keys().reduce((acc: any, key: string) => {
+      acc[key] = params.get(key);
+      return acc;
+    }, {});
+    console.table(paramsObj);
+    
+    const queryString = params.toString();
+    console.log('');
+    console.log(`🌐 URL FINAL: ${this.apiUrl}/mes/cumplimiento/front/me?${queryString}`);
+    console.groupEnd();
+    
     return this.http
       .get<any>(`${this.apiUrl}/mes/cumplimiento/front/me`, { params })
       .pipe(
-        catchError(() => of(null)),
+        catchError((err) => {
+          console.error('❌ Error en getCumplimientoPorCodigo:', err);
+          return of(null);
+        }),
       );
   }
 
@@ -75,6 +156,15 @@ export class CumplimientoService {
       );
   }
 
+  getDetallePorLineaProveedor(codigoVendedor: string, codigoProveedor: string, filtros?: DashboardFilters): Observable<any> {
+    let params = this.buildParams(filtros);
+    // Eliminar el parámetro 'proveedor' de los params si existe
+    if (params.has('proveedor')) {
+      params = params.delete('proveedor');
+    }
+    return this.http.get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/linea/${codigoProveedor}`, { params });
+  }
+
   getCiudadesPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     return this.http
@@ -108,6 +198,35 @@ export class CumplimientoService {
           return res;
         }),
         catchError(() => of({ data: [] })),
+      );
+  }
+
+
+  /**
+   * Obtiene la lista de proveedores con sus códigos
+   * Backend devuelve: [{ id_proveedor, codigo, nombre, cuota, fecha_inicio, fecha_fin }, ...]
+   */
+  getProveedores(): Observable<any[]> {
+    console.group('📡 [CumplimientoService.getProveedores] Consultando proveedores');
+    console.log('URL: ' + this.apiUrl + '/proveedor');
+    
+    return this.http
+      .get<any[]>(`${this.apiUrl}/proveedor`)
+      .pipe(
+        map((res) => {
+          const proveedores = Array.isArray(res) ? res : [];
+          console.log(`✅ Proveedores recibidos: ${proveedores.length}`);
+          if (proveedores.length > 0) {
+            console.log('Primer proveedor (estructura):', proveedores[0]);
+          }
+          console.groupEnd();
+          return proveedores;
+        }),
+        catchError((err) => {
+          console.error('❌ Error al obtener proveedores:', err);
+          console.groupEnd();
+          return of([]);
+        })
       );
   }
 }

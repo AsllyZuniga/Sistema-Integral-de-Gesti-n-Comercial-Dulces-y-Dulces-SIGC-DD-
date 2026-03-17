@@ -117,38 +117,69 @@ export class VentasComponent implements OnInit, OnChanges, OnDestroy {
     this.allItemData = [];
     this.chartId     = 'chart-' + this.activeVentasView + '-' + Date.now();
 
+    const tieneProveedor = !!this._filtros.proveedor;
+    const codigoProveedor = this._filtros.proveedor;
+
     switch (this.activeVentasView) {
 
       case 'ventas':
         this.chartType = 'line';
-        this.cumplimientoService
-          .getCumplimientoPorCodigo(this.codigoVendedor, this._filtros)
-          .pipe(takeUntil(this.destroy$))
-          .subscribe((res) => {
-            if (!res || !res.totales) return;
-            this.tableData = res.detalle ?? [];
-            this.chartData = [
-              { name: 'Venta',      value: res.totales.ventaAcum },
-              { name: 'Cuota',      value: res.totales.cuotaMes },
-              { name: 'Proyección', value: res.totales.proyeccionVenta },
-            ];
-            this.cdr.detectChanges();
-          });
+        if (tieneProveedor) {
+          this.cumplimientoService
+            .getDetallePorLineaProveedor(this.codigoVendedor, codigoProveedor, this._filtros)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe((res) => {
+              const detalle = res?.detallePorLinea ?? [];
+              this.tableData = detalle;
+              this.chartData = detalle.map((item: any) => ({
+                name: item.linea, value: item.ventaAcum,
+              }));
+              this.cdr.detectChanges();
+            });
+        } else {
+          this.cumplimientoService
+            .getCumplimientoPorCodigo(this.codigoVendedor, this._filtros)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe((res) => {
+              if (!res || !res.totales) return;
+              this.tableData = res.detalle ?? [];
+              this.chartData = [
+                { name: 'Venta',      value: res.totales.ventaAcum },
+                { name: 'Cuota',      value: res.totales.cuotaMes },
+                { name: 'Proyección', value: res.totales.proyeccionVenta },
+              ];
+              this.cdr.detectChanges();
+            });
+        }
         break;
 
       case 'proveedor':
         this.chartType = 'bar';
-        this.cumplimientoService
-          .getLineasPorVendedor(this.codigoVendedor, this._filtros)
-          .pipe(takeUntil(this.destroy$))
-          .subscribe((res) => {
-            const listado = res?.detallePorLinea ?? [];
-            this.tableData = listado;
-            this.chartData = listado.map((item: any) => ({
-              name: item.linea, value: item.ventaAcum,
-            }));
-            this.cdr.detectChanges();
-          });
+        if (tieneProveedor) {
+          this.cumplimientoService
+            .getDetallePorLineaProveedor(this.codigoVendedor, codigoProveedor, this._filtros)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe((res) => {
+              const detalle = res?.detallePorLinea ?? [];
+              this.tableData = detalle;
+              this.chartData = detalle.map((item: any) => ({
+                name: item.linea, value: item.ventaAcum,
+              }));
+              this.cdr.detectChanges();
+            });
+        } else {
+          this.cumplimientoService
+            .getLineasPorVendedor(this.codigoVendedor, this._filtros)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe((res) => {
+              const listado = res?.detallePorLinea ?? [];
+              this.tableData = listado;
+              this.chartData = listado.map((item: any) => ({
+                name: item.linea, value: item.ventaAcum,
+              }));
+              this.cdr.detectChanges();
+            });
+        }
         break;
 
       case 'ciudad':
