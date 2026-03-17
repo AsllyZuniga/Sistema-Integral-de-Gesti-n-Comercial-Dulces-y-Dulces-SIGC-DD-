@@ -22,18 +22,29 @@ export class AuthService {
   }
 
   getVendedor(): any {
-    return JSON.parse(sessionStorage.getItem('vendedor') || 'null');
+    const vendedor = JSON.parse(sessionStorage.getItem('vendedor') || 'null');
+    console.log('👤 getVendedor() - sessionStorage:', vendedor);
+    return vendedor;
   }
 
   isLoggedIn(): boolean {
-    return !!sessionStorage.getItem('vendedor');
+    const loggedIn = !!sessionStorage.getItem('vendedor');
+    console.log('🔐 isLoggedIn():', loggedIn);
+    return loggedIn;
   }
 
   guardarSesion(vendedor: any): void {
-    sessionStorage.setItem('vendedor', JSON.stringify(vendedor));
+    console.log('💾 guardarSesion() - Guardando vendedor:', vendedor);
+    const jsonVendedor = JSON.stringify(vendedor);
+    sessionStorage.setItem('vendedor', jsonVendedor);
+    
+    // Verificar que se guardó
+    const verificacion = sessionStorage.getItem('vendedor');
+    console.log('✅ guardarSesion() - Verificación. Guardado en sessionStorage:', verificacion);
   }
 
   logout(): void {
+    console.log('🚪 logout() - Eliminando sesión');
     this.detenerTimerInactividad();
     sessionStorage.removeItem('vendedor');
     this.router.navigate(['/login']);

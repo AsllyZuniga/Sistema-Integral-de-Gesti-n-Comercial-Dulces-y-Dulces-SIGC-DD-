@@ -12,15 +12,14 @@ export class CumplimientoService {
   constructor(private http: HttpClient) { }
 
   private buildParams(filtros?: DashboardFilters): HttpParams {
-    let params = new HttpParams().set('_t', Date.now().toString());
-    if (!filtros) return params;
+    let params = new HttpParams();
 
-    if (filtros.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
-    if (filtros.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
-    if (filtros.vendedor) params = params.set('vendedor', filtros.vendedor);
-    if (filtros.proveedor) params = params.set('proveedor', filtros.proveedor);
-    if (filtros.categoria) params = params.set('categoria', filtros.categoria);
-    if (filtros.ciudad) params = params.set('ciudad', filtros.ciudad);
+    if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
+    if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
+    if (filtros?.vendedor) params = params.set('vendedor', filtros.vendedor);
+    if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
+    if (filtros?.categoria) params = params.set('categoria', filtros.categoria);
+    if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
 
     return params;
   }
@@ -38,7 +37,7 @@ export class CumplimientoService {
   getCumplimientoPorCodigo(codigo: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     return this.http
-      .get<any>(`${this.apiUrl}/mes/cumplimiento/${codigo}`, { params })
+      .get<any>(`${this.apiUrl}/mes/cumplimiento/front/me`, { params })
       .pipe(
         catchError(() => of(null)),
       );

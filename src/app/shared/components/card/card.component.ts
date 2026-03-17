@@ -1,10 +1,11 @@
-import { Component, Input, OnChanges,  ViewEncapsulation } from '@angular/core';
+import { Component, Input, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, ViewEncapsulation } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-card',
   standalone: true,
   imports: [CommonModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None, 
   template: `
     <div class="card" [attr.data-color]="color">
@@ -15,10 +16,18 @@ import { CommonModule } from '@angular/common';
   `,
   styleUrls: ['./card.component.css']
 })
-export class CardComponent implements OnChanges {
+export class CardComponent implements OnInit {
   @Input() title!: string;
-  @Input() value!: string | number;
+  @Input() set value(val: string | number) {
+    this._value = val;
+    this.updateFormatting();
+  }
+  
+  get value(): string | number {
+    return this._value;
+  }
 
+  private _value: string | number = '';
   icon: string = '';
   color: string = 'blue';
   formattedValue: string = '';
@@ -34,12 +43,23 @@ export class CardComponent implements OnChanges {
   'pedidos':         { icon: 'deployed_code', color: 'olive' },
 };
 
-  ngOnChanges(): void {
+  constructor(private cdr: ChangeDetectorRef) {}
+
+  ngOnInit(): void {
+    this.updateConfig();
+  }
+
+  private updateConfig(): void {
     const key = (this.title || '').toLowerCase().trim();
     const config = this.configMap[key] ?? { icon: 'dashboard', color: 'blue' };
-    this.icon  = config.icon;
+    this.icon = config.icon;
     this.color = config.color;
-    this.formattedValue = this.formatValue(this.value);
+  }
+
+  private updateFormatting(): void {
+    this.updateConfig();
+    this.formattedValue = this.formatValue(this._value);
+    this.cdr.markForCheck();
   }
 
   private formatValue(val: string | number): string {

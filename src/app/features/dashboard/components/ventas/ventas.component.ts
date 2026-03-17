@@ -125,12 +125,12 @@ export class VentasComponent implements OnInit, OnChanges, OnDestroy {
           .getCumplimientoPorCodigo(this.codigoVendedor, this._filtros)
           .pipe(takeUntil(this.destroy$))
           .subscribe((res) => {
-            if (!res) return;
-            this.tableData = [res];
+            if (!res || !res.totales) return;
+            this.tableData = res.detalle ?? [];
             this.chartData = [
-              { name: 'Venta',      value: res.ventaAcum },
-              { name: 'Cuota',      value: res.cuotaMes },
-              { name: 'Proyección', value: res.proyeccionVenta },
+              { name: 'Venta',      value: res.totales.ventaAcum },
+              { name: 'Cuota',      value: res.totales.cuotaMes },
+              { name: 'Proyección', value: res.totales.proyeccionVenta },
             ];
             this.cdr.detectChanges();
           });
@@ -172,9 +172,10 @@ export class VentasComponent implements OnInit, OnChanges, OnDestroy {
           .getCumplimientoPorCodigo(this.codigoVendedor, this._filtros)
           .pipe(takeUntil(this.destroy$))
           .subscribe((res) => {
-            if (!res) return;
-            this.tableData = [res];
-            this.chartData = [{ name: res.nombre, value: res.ventaAcum }];
+            if (!res || !res.totales) return;
+            const vendedor = res.detalle?.[0];
+            this.tableData = res.detalle ?? [];
+            this.chartData = [{ name: vendedor?.nombre || '', value: res.totales.ventaAcum }];
             this.cdr.detectChanges();
           });
         break;
