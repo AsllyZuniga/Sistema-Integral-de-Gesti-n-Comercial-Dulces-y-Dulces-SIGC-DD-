@@ -1,27 +1,72 @@
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
+
+const INACTIVIDAD_MS   = 20 * 60 * 1000;
+const EVENTOS_ACTIVIDAD = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private apiUrl = 'https://api.sisferahub.com/api/auth';
+  private readonly apiUrl  = 'http://localhost:3000/api/auth';
+  private timerId: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private http: HttpClient) { }
+  constructor(
+    private http:    HttpClient,
+    private router:  Router,
+    private ngZone:  NgZone,
+  ) {}
 
-  // ✅ Acepta codigo (vendedores) o username (admins/supervisores sin vendedor)
   login(data: { codigo?: string; username?: string; password: string }): Observable<any> {
     return this.http.post(`${this.apiUrl}/login`, data);
   }
 
-  getVendedor() {
-    return JSON.parse(localStorage.getItem('vendedor') || 'null');
-  }
-
-  logout() {
-    localStorage.removeItem('vendedor');
+  getVendedor(): any {
+    return JSON.parse(sessionStorage.getItem('vendedor') || 'null');
   }
 
   isLoggedIn(): boolean {
-    return !!localStorage.getItem('vendedor');
+    return !!sessionStorage.getItem('vendedor');
+  }
+
+  guardarSesion(vendedor: any): void {
+    sessionStorage.setItem('vendedor', JSON.stringify(vendedor));
+  }
+
+  logout(): void {
+    this.detenerTimerInactividad();
+    sessionStorage.removeItem('vendedor');
+    this.router.navigate(['/login']);
+  }
+
+  iniciarTimerInactividad(): void {
+    this.detenerTimerInactividad();
+    this.reiniciarTimer();
+    this.ngZone.runOutsideAngular(() => {
+      EVENTOS_ACTIVIDAD.forEach(evento =>
+        window.addEventListener(evento, this.onActividad, { passive: true })
+      );
+    });
+  }
+
+  detenerTimerInactividad(): void {
+    if (this.timerId) {
+      clearTimeout(this.timerId);
+      this.timerId = null;
+    }
+    EVENTOS_ACTIVIDAD.forEach(evento =>
+      window.removeEventListener(evento, this.onActividad)
+    );
+  }
+
+  private onActividad = (): void => {
+    this.reiniciarTimer();
+  };
+
+  private reiniciarTimer(): void {
+    if (this.timerId) clearTimeout(this.timerId);
+    this.timerId = setTimeout(() => {
+      this.ngZone.run(() => this.logout());
+    }, INACTIVIDAD_MS);
   }
 }
