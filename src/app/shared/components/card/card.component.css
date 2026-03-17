@@ -7,43 +7,102 @@
   overflow: hidden;
   cursor: default;
   border: none;
-  will-change: transform;    
-  isolation: isolate;  
+  will-change: transform;
+  isolation: isolate;
 }
-.card:hover { transform: translateY(-3px); }
+.card:hover {
+  transform: translateY(-3px);
+}
 
-.card[data-color="blue"]  { background: linear-gradient(135deg, #1a6bba, #014692); box-shadow: 0 8px 24px rgba(1,70,146,0.30); }
-.card[data-color="navy"]  { background: linear-gradient(135deg, #5a7fa0, #436788); box-shadow: 0 8px 24px rgba(67,103,136,0.30); }
-.card[data-color="olive"] { background: linear-gradient(135deg, #adbd5d, #7a8f3a); box-shadow: 0 8px 24px rgba(122,143,58,0.30); }
-.card[data-color="lime"]  { background: linear-gradient(135deg, #d4ce2e, #a8a320); box-shadow: 0 8px 24px rgba(168,163,32,0.30); }
+.card[data-color='blue'] {
+  background: linear-gradient(135deg, #1a6bba, #014692);
+  box-shadow: 0 8px 24px rgba(1, 70, 146, 0.3);
+}
+.card[data-color='navy'] {
+  background: linear-gradient(135deg, #5a7fa0, #436788);
+  box-shadow: 0 8px 24px rgba(67, 103, 136, 0.3);
+}
+.card[data-color='olive'] {
+  background: linear-gradient(135deg, #adbd5d, #7a8f3a);
+  box-shadow: 0 8px 24px rgba(122, 143, 58, 0.3);
+}
+.card[data-color='lime'] {
+  background: linear-gradient(135deg, #d4ce2e, #a8a320);
+  box-shadow: 0 8px 24px rgba(168, 163, 32, 0.3);
+}
 
-.card:hover[data-color="blue"]  { box-shadow: 0 14px 32px rgba(1,70,146,0.40); }
-.card:hover[data-color="navy"]  { box-shadow: 0 14px 32px rgba(67,103,136,0.40); }
-.card:hover[data-color="olive"] { box-shadow: 0 14px 32px rgba(122,143,58,0.40); }
-.card:hover[data-color="lime"]  { box-shadow: 0 14px 32px rgba(168,163,32,0.40); }
+.card:hover[data-color='blue'] {
+  box-shadow: 0 14px 32px rgba(1, 70, 146, 0.4);
+}
+.card:hover[data-color='navy'] {
+  box-shadow: 0 14px 32px rgba(67, 103, 136, 0.4);
+}
+.card:hover[data-color='olive'] {
+  box-shadow: 0 14px 32px rgba(122, 143, 58, 0.4);
+}
+.card:hover[data-color='lime'] {
+  box-shadow: 0 14px 32px rgba(168, 163, 32, 0.4);
+}
 
 .card-icon {
-  position: absolute; bottom: -4px; right: 10px;
-  font-size: 80px; line-height: 1; opacity: 0.18;
-  pointer-events: none; user-select: none; color: #fff;
+  position: absolute;
+  bottom: -4px;
+  right: 10px;
+  font-size: 80px;
+  line-height: 1;
+  opacity: 0.18;
+  pointer-events: none;
+  user-select: none;
+  color: #fff;
   transition: all 0.25s ease;
-  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 48;
+  font-variation-settings:
+    'FILL' 1,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 48;
 }
-.card:hover .card-icon { opacity: 0.28; transform: scale(1.10) rotate(-6deg); }
+.card:hover .card-icon {
+  opacity: 0.28;
+  transform: scale(1.1) rotate(-6deg);
+}
 
 .title {
-  margin: 0 0 8px; color: rgba(255,255,255,0.75);
-  font-size: 11px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.8px;
+  margin: 0 0 8px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
 }
 h2 {
-  margin: 0; font-size: 24px; font-weight: 800; color: #fff;
-  letter-spacing: -0.5px; line-height: 1.15;
-  padding-right: 60px; word-break: break-word;
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.5px;
+  line-height: 1.15;
+  padding-right: 60px;
+  word-break: break-word;
 }
 
-.trend         { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; margin-top: 8px; color: #fff; }
-.trend.up      { background: rgba(255,255,255,0.20); }
+.trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+  margin-top: 8px;
+  color: #fff;
+}
+.trend.up {
+  background: rgba(255, 255, 255, 0.2);
+}
 .trend.down,
-.trend.warning { background: rgba(255,255,255,0.15); }
-.trend.neutral { background: rgba(255,255,255,0.12); }
+.trend.warning {
+  background: rgba(255, 255, 255, 0.15);
+}
+.trend.neutral {
+  background: rgba(255, 255, 255, 0.12);
+}
