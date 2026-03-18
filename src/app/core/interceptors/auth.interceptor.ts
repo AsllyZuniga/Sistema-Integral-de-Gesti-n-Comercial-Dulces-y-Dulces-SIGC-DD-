@@ -10,7 +10,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     try {
       const vendedor = JSON.parse(vendedorRaw);
       jwt = vendedor?.jwt || vendedor?.token;
-      console.log('✅ [Interceptor] JWT extraído del vendedor:', jwt ? 'Presente' : 'No encontrado');
+      
     } catch (e) {
       console.error('❌ [Interceptor] Error parseando vendedor:', e);
     }
@@ -21,14 +21,14 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   console.log('🔗 [Interceptor] URL de la request:', req.url);
 
   if (jwt) {
-    console.log('✅ [Interceptor] Añadiendo Authorization header con JWT');
+    
     req = req.clone({
       setHeaders: {
         Authorization: `Bearer ${jwt}`,
       },
     });
   } else {
-    console.warn('⚠️ [Interceptor] JWT no disponible - enviando request sin Authentication');
+    
   }
 
   return next(req);

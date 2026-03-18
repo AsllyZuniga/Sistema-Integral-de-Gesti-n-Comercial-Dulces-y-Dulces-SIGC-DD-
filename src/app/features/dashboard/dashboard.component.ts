@@ -308,10 +308,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         });
         
         this.ciudadesList = Array.from(ciudadesUnicas).sort();
-        console.log(`  📊 Total ciudades: ${this.ciudadesList.length}`);
-        console.log(`  🗺️ Mapa final de ciudades:`, Object.fromEntries(this.ciudadMap));
-        console.log('');
-        console.groupEnd();
+        
       });
   }
 
@@ -355,9 +352,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (filtros.proveedor) {
       const codigoProveedor = this.proveedorMap.get(filtros.proveedor);
       
-      console.log('➡️ PROVEEDOR:');
-      console.log(`  Input (nombre): "${filtros.proveedor}"`);
-      console.log(`  Búsqueda en mapa: ${codigoProveedor ? '✅ ENCONTRADO' : '❌ NO ENCONTRADO'}`);
+      
       
       if (codigoProveedor) {
         filtrosConCodigos.proveedor = codigoProveedor;
@@ -372,9 +367,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (filtros.ciudad) {
       const codigoCiudad = this.ciudadMap.get(filtros.ciudad);
       
-      console.log('➡️ CIUDAD:');
-      console.log(`  Input (nombre): "${filtros.ciudad}"`);
-      console.log(`  Búsqueda en mapa: ${codigoCiudad ? '✅ ENCONTRADO' : '❌ NO ENCONTRADO'}`);
+      
       
       if (codigoCiudad) {
         filtrosConCodigos.ciudad = codigoCiudad;
@@ -389,9 +382,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (filtros.linea) {
       const codigoLinea = this.lineaMap.get(filtros.linea);
       
-      console.log('➡️ LÍNEA:');
-      console.log(`  Input (nombre): "${filtros.linea}"`);
-      console.log(`  Búsqueda en mapa: ${codigoLinea ? '✅ ENCONTRADO' : '❌ NO ENCONTRADO'}`);
+      
       
       if (codigoLinea) {
         filtrosConCodigos.linea = codigoLinea;

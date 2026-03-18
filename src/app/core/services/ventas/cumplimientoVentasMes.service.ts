@@ -14,11 +14,11 @@ export class CumplimientoService {
   private buildParams(filtros?: DashboardFilters): HttpParams {
     let params = new HttpParams();
 
-    console.group('🔨 [CumplimientoService.buildParams] Construyendo parámetros HTTP');
+   
     
     if (!filtros) {
       console.warn('⚠️ Filtros es undefined - NO se agregarán parámetros');
-      console.groupEnd();
+      
       return params;
     }
     
@@ -28,35 +28,33 @@ export class CumplimientoService {
     // Fecha inicio
     if (filtros?.fechaInicio) {
       params = params.set('fechaInicio', filtros.fechaInicio);
-      console.log(`  ✅ fechaInicio: "${filtros.fechaInicio}"`);
+     
     }
     
     // Fecha fin
     if (filtros?.fechaFin) {
       params = params.set('fechaFin', filtros.fechaFin);
-      console.log(`  ✅ fechaFin: "${filtros.fechaFin}"`);
+      
     }
     
     // Vendedor
     if (filtros?.vendedor) {
       params = params.set('vendedor', filtros.vendedor);
-      console.log(`  ✅ vendedor: "${filtros.vendedor}"`);
+      
     }
     
     // PROVEEDOR - CRÍTICO
     if (filtros?.proveedor) {
-      console.log(`  ➡️ PROVEEDOR ENVIADO: "${filtros.proveedor}"`);
-      console.log(`     Tipo: ${typeof filtros.proveedor}`);
-      console.log(`     Es código (3-4 dígitos)? ${/^\d{3,4}$/.test(filtros.proveedor) ? 'SÍ ✅' : 'NO ❌ - Parece un nombre'}`);
+     
       params = params.set('proveedor', filtros.proveedor);
     } else {
-      console.log(`  ⭕ PROVEEDOR: (vacío/no definido)`);
+      
     }
     
     // Categoría
     if (filtros?.categoria) {
       params = params.set('categoria', filtros.categoria);
-      console.log(`  ✅ categoria: "${filtros.categoria}"`);
+     
     }
     
     // CIUDAD - IMPORTANTE
@@ -64,13 +62,13 @@ export class CumplimientoService {
       params = params.set('ciudad', filtros.ciudad);
       console.log(`  ✅ ciudad: "${filtros.ciudad}"`);
     } else {
-      console.log(`  ⭕ CIUDAD: (vacío/no definido)`);
+     
     }
     
     // LÍNEA
     if (filtros?.linea) {
       params = params.set('linea', filtros.linea);
-      console.log(`  ✅ linea: "${filtros.linea}"`);
+      
     }
 
     console.log('');
@@ -95,14 +93,7 @@ export class CumplimientoService {
   getCumplimientoPorCodigo(codigo: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     
-    console.group('🔗 [CumplimientoService.getCumplimientoPorCodigo] ENVIANDO REQUEST');
-    console.log('');
-    console.log('📋 RESUMEN REQUEST:');
-    console.log(`  Endpoint: /mes/cumplimiento/front/me`);
-    console.log(`  Método: GET`);
-    console.log(`  Código vendedor: "${codigo}"`);
-    console.log('');
-    console.log('📝 PARÁMETROS:');
+    
     const paramsObj = params.keys().reduce((acc: any, key: string) => {
       acc[key] = params.get(key);
       return acc;
@@ -110,9 +101,7 @@ export class CumplimientoService {
     console.table(paramsObj);
     
     const queryString = params.toString();
-    console.log('');
-    console.log(`🌐 URL FINAL: ${this.apiUrl}/mes/cumplimiento/front/me?${queryString}`);
-    console.groupEnd();
+    
     
     return this.http
       .get<any>(`${this.apiUrl}/mes/cumplimiento/front/me`, { params })
@@ -207,24 +196,23 @@ export class CumplimientoService {
    * Backend devuelve: [{ id_proveedor, codigo, nombre, cuota, fecha_inicio, fecha_fin }, ...]
    */
   getProveedores(): Observable<any[]> {
-    console.group('📡 [CumplimientoService.getProveedores] Consultando proveedores');
-    console.log('URL: ' + this.apiUrl + '/proveedor');
+    
     
     return this.http
       .get<any[]>(`${this.apiUrl}/proveedor`)
       .pipe(
         map((res) => {
           const proveedores = Array.isArray(res) ? res : [];
-          console.log(`✅ Proveedores recibidos: ${proveedores.length}`);
+         
           if (proveedores.length > 0) {
-            console.log('Primer proveedor (estructura):', proveedores[0]);
+            
           }
-          console.groupEnd();
+       
           return proveedores;
         }),
         catchError((err) => {
           console.error('❌ Error al obtener proveedores:', err);
-          console.groupEnd();
+          
           return of([]);
         })
       );

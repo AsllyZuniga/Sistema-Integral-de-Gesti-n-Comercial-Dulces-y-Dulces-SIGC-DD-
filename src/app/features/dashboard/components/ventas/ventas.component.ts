@@ -35,20 +35,20 @@ export class VentasComponent implements OnInit, OnChanges, OnDestroy {
   private destroy$ = new Subject<void>();
   private iniciado = false;
 
-  rolId              = 0;
-  activeVentasView   = 'ventas';
-  chartId            = 'chart-main';
+  rolId = 0;
+  activeVentasView = 'ventas';
+  chartId = 'chart-main';
   chartType: 'line' | 'bar' | 'pie' = 'line';
-  tableData: any[]   = [];
-  chartData: any[]   = [];
+  tableData: any[] = [];
+  chartData: any[] = [];
   private allItemData: any[] = [];
 
   private readonly todasLasVistas = [
-    { key: 'ventas',    label: 'Ventas' },
+    { key: 'ventas', label: 'Ventas' },
     { key: 'proveedor', label: 'Por Proveedor' },
-    { key: 'ciudad',    label: 'Por Ciudad' },
-    { key: 'vendedor',  label: 'Por Vendedor' },
-    { key: 'item',      label: 'Detalle por Item' },
+    { key: 'ciudad', label: 'Por Ciudad' },
+    { key: 'vendedor', label: 'Por Vendedor' },
+    { key: 'item', label: 'Detalle por Item' },
   ];
 
   get ventasViews() {
@@ -58,9 +58,9 @@ export class VentasComponent implements OnInit, OnChanges, OnDestroy {
     return this.todasLasVistas;
   }
 
-  readonly tableColumns     = ['codVendedor', 'nombre', 'cuotaMes', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
-  readonly lineasColumns    = ['linea',   'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
-  readonly ciudadesColumns  = ['ciudad',  'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
+  readonly tableColumns = ['codVendedor', 'nombre', 'cuotaMes', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
+  readonly lineasColumns = ['linea', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
+  readonly ciudadesColumns = ['ciudad', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
   readonly productosColumns = ['Fecha', 'Proveedor', 'Cod_Item', 'Descripcion', 'Venta_Unid_Cajas', 'Cantidad', 'Subtotal'];
 
   constructor(
@@ -112,10 +112,10 @@ export class VentasComponent implements OnInit, OnChanges, OnDestroy {
   cargarVistaActual(): void {
     if (!this.codigoVendedor) return;
 
-    this.tableData   = [];
-    this.chartData   = [];
+    this.tableData = [];
+    this.chartData = [];
     this.allItemData = [];
-    this.chartId     = 'chart-' + this.activeVentasView + '-' + Date.now();
+    this.chartId = 'chart-' + this.activeVentasView + '-' + Date.now();
 
     const tieneProveedor = !!this._filtros.proveedor;
     const codigoProveedor = this._filtros.proveedor;
@@ -144,8 +144,8 @@ export class VentasComponent implements OnInit, OnChanges, OnDestroy {
               if (!res || !res.totales) return;
               this.tableData = res.detalle ?? [];
               this.chartData = [
-                { name: 'Venta',      value: res.totales.ventaAcum },
-                { name: 'Cuota',      value: res.totales.cuotaMes },
+                { name: 'Venta', value: res.totales.ventaAcum },
+                { name: 'Cuota', value: res.totales.cuotaMes },
                 { name: 'Proyección', value: res.totales.proyeccionVenta },
               ];
               this.cdr.detectChanges();
@@ -219,7 +219,7 @@ export class VentasComponent implements OnInit, OnChanges, OnDestroy {
           .subscribe((res) => {
             const listado = res?.data ?? [];
             this.allItemData = listado;
-            this.tableData   = [...listado];
+            this.tableData = [...listado];
             this.recalcularChart();
           });
         break;
