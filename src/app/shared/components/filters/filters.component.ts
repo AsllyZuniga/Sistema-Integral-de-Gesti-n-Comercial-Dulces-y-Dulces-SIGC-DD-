@@ -21,9 +21,10 @@ export interface DashboardFilters {
 })
 export class FiltersComponent {
   @Input() proveedores: string[] = [];
-  @Input() categorias:  string[] = [];  // ← restaurado
+  @Input() categorias:  string[] = [];
   @Input() ciudades:    string[] = [];
   @Input() lineas:      string[] = [];
+  @Input() vendedores:  string[] = []; // solo se pasa cuando es admin
 
   @Output() apply = new EventEmitter<DashboardFilters>();
 
@@ -38,6 +39,10 @@ export class FiltersComponent {
     ciudad:      '',
     linea:       '',
   };
+
+  get esAdmin(): boolean {
+    return this.vendedores.length > 0;
+  }
 
   toggleFiltros() { this.isFiltrosOpen = !this.isFiltrosOpen; }
 
