@@ -25,6 +25,70 @@
 .kpis   { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px,1fr)); gap: 18px; margin-top: 28px; margin-bottom: 26px; }
 .charts { display: grid; grid-template-columns: 1fr; gap: 22px; width: 100%; min-width: 0; }
 
+/* ===== SELECTOR DE CUOTA ===== */
+.cuota-selector-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+/* ===== TABLA ADMIN: TODOS LOS VENDEDORES ===== */
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.admin-table thead tr {
+  background: var(--c-primary);
+  color: var(--c-surface);
+}
+
+.admin-table thead th {
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.admin-table tbody tr {
+  border-bottom: 1px solid var(--c-border);
+  transition: background 0.15s;
+}
+
+.admin-table tbody tr:hover {
+  background: var(--c-primary-pale);
+}
+
+.admin-table tbody td {
+  padding: 10px 14px;
+  color: var(--c-text);
+  white-space: nowrap;
+}
+
+.admin-table td.cod {
+  font-weight: 700;
+  color: var(--c-primary);
+  font-size: 12px;
+}
+
+.admin-table td.nombre {
+  font-weight: 600;
+}
+
+.admin-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-table td.porc { font-weight: 700; }
+.admin-table td.verde { color: #16a34a; }
+.admin-table td.rojo  { color: #dc2626; }
+
+/* ===== RESPONSIVE ===== */
 @media (max-width: 1200px) { .main { padding: 28px 24px; } }
 @media (max-width: 992px)  { .main { margin-left: 0; } .main.expanded { margin-left: 0; } .mobile-menu-btn { display: inline-flex; } }
 @media (max-width: 768px)  { .layout { overflow-x: hidden; position: relative; } .main { padding: 16px 14px; width: 100%; overflow-x: hidden; } .topbar { padding: 12px 14px; gap: 10px; margin-bottom: 16px; } .topbar-center { padding: 0 8px; } .topbar-center h1 { font-size: 14px; animation: ticker 12s linear infinite; } .logout-label { display: none; } .logout-btn { padding: 8px 10px; } .kpis { grid-template-columns: repeat(2,1fr); gap: 12px; } .charts { gap: 16px; } }
