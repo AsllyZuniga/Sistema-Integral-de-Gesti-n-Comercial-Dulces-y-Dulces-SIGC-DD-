@@ -1,0 +1,36 @@
+.cuotas-toggle {
+  display: flex;
+  gap: 4px;
+  background: var(--c-bg);
+  border-radius: var(--r-pill);
+  padding: 4px;
+}
+
+.cuota-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 9px 18px;
+  border: 1.5px solid transparent;
+  border-radius: var(--r-pill);
+  background: var(--c-bg);
+  color: var(--c-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.cuota-btn:hover:not(.active) {
+  background: var(--c-primary-pale);
+  color: var(--c-primary);
+  border-color: var(--c-primary-soft);
+}
+
+.cuota-btn.active {
+  background: linear-gradient(135deg, var(--c-primary-mid), var(--c-primary));
+  color: var(--c-surface);
+  font-weight: 600;
+  border-color: transparent;
+  box-shadow: var(--shadow-tab);
+}

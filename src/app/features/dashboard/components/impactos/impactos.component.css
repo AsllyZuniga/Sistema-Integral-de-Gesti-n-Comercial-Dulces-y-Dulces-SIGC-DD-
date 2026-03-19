@@ -1,4 +1,4 @@
-:host {
+/*:host {
   display: block;
   width: 100%;
   min-width: 0;
@@ -59,7 +59,7 @@
   margin-bottom: 8px;
 }
 
-/* Tarjetas de impacto (se mantienen por si se usan en otro contexto) */
+ Tarjetas de impacto (se mantienen por si se usan en otro contexto)
 .impacto-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -121,4 +121,4 @@
 @media (max-width: 480px) {
   .impacto-grid { grid-template-columns: 1fr; gap: 8px; }
   .impacto-card-value { font-size: 18px; }
-}
+}*/

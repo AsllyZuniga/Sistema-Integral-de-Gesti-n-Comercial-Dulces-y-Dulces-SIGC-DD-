@@ -1,0 +1,11 @@
+<div class="cuotas-toggle">
+  @for (opcion of opciones; track opcion.key) {
+    <button
+      class="cuota-btn"
+      [class.active]="tipoCuota === opcion.key"
+      (click)="seleccionar(opcion.key)"
+    >
+      {{ opcion.label }}
+    </button>
+  }
+</div>

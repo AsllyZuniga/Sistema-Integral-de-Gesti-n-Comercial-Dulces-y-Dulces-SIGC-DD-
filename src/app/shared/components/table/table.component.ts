@@ -16,6 +16,8 @@ export class TableComponent {
     codVendedor: 'Cód. Vendedor',
     nombre: 'Nombre',
     cuotaMes: 'Cuota Mes',
+    cuotaSemana: 'Cuota Semana',
+    cuotaDiaria: 'Cuota Diaria',
     ventaAcum: 'Venta Acum.',
     porcCump: 'Cumpl. %',
     proyeccionVenta: 'Proyección',
@@ -35,6 +37,8 @@ export class TableComponent {
 
   private readonly currencyCols = new Set([
     'cuotaMes',
+    'cuotaSemana',
+    'cuotaDiaria',
     'ventaAcum',
     'proyeccionVenta',
     'valorTotal',

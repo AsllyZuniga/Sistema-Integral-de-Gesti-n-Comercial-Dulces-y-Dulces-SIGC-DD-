@@ -1,5 +1,9 @@
 <div class="chart-box dynamic-panel">
-  <h3>Análisis de Ventas</h3>
+  <h3>
+    Análisis de Ventas
+    <!-- Badge que indica el periodo activo -->
+    <span class="tipo-badge">{{ tipoCuota === 'semanal' ? 'Semana' : 'Mes' }}</span>
+  </h3>
 
   <div class="tabs">
     @for (view of ventasViews; track view.key) {
@@ -12,18 +16,36 @@
   <div class="dynamic-content">
     @switch (activeVentasView) {
 
+      <!-- ── VENTAS GENERALES ──────────────────────────────────────────────── -->
       @case ('ventas') {
         <div class="stack-layout">
+
+          <!-- Tabla: siempre visible si hay datos -->
+          @if (tableData.length > 0) {
+            <div class="tabla-scroll">
+              <app-table [columns]="tableColumns" [data]="tableData" />
+            </div>
+          }
+
+          <!-- Gráfico -->
           @if (chartData.length > 0) {
             <div class="grafica-container">
-              <app-chart [chartId]="chartId" [data]="chartData" [type]="chartType" label="Ventas" />
+              <app-chart
+                [chartId]="chartId"
+                [data]="chartData"
+                [type]="chartType"
+                label="Ventas" />
             </div>
-          } @else {
+          }
+
+          @if (tableData.length === 0 && chartData.length === 0) {
             <div class="placeholder">Cargando información...</div>
           }
+
         </div>
       }
 
+      <!-- ── POR PROVEEDOR ─────────────────────────────────────────────────── -->
       @case ('proveedor') {
         <div class="stack-layout">
           <div class="tabla-scroll">
@@ -36,12 +58,17 @@
           @if (chartData.length > 0) {
             <div class="grafica-container">
               <h4>Por Proveedor</h4>
-              <app-chart [chartId]="chartId" [data]="chartData" [type]="chartType" label="Por Proveedor" />
+              <app-chart
+                [chartId]="chartId"
+                [data]="chartData"
+                [type]="chartType"
+                label="Por Proveedor" />
             </div>
           }
         </div>
       }
 
+      <!-- ── POR CIUDAD ────────────────────────────────────────────────────── -->
       @case ('ciudad') {
         <div class="stack-layout">
           <div class="tabla-scroll">
@@ -54,12 +81,17 @@
           @if (chartData.length > 0) {
             <div class="grafica-container">
               <h4>Por Ciudad</h4>
-              <app-chart [chartId]="chartId" [data]="chartData" [type]="chartType" label="Por Ciudad" />
+              <app-chart
+                [chartId]="chartId"
+                [data]="chartData"
+                [type]="chartType"
+                label="Por Ciudad" />
             </div>
           }
         </div>
       }
 
+      <!-- ── POR VENDEDOR ──────────────────────────────────────────────────── -->
       @case ('vendedor') {
         <div class="stack-layout">
           <div class="tabla-scroll">
@@ -72,6 +104,7 @@
         </div>
       }
 
+      <!-- ── DETALLE POR ITEM ──────────────────────────────────────────────── -->
       @case ('item') {
         <div class="stack-layout">
           <div class="filtro-bar">
@@ -89,7 +122,11 @@
           @if (chartData.length > 0) {
             <div class="grafica-container">
               <h4>Top 10 Items</h4>
-              <app-chart [chartId]="chartId" [data]="chartData" [type]="chartType" label="Top 10 Items" />
+              <app-chart
+                [chartId]="chartId"
+                [data]="chartData"
+                [type]="chartType"
+                label="Top 10 Items" />
             </div>
           }
         </div>

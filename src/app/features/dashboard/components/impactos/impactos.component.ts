@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
+/* import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TableComponent } from '../../../../shared/components/table/table.component';
 import { ChartComponent } from '../../../../shared/components/chart/chart.component';
@@ -83,4 +83,3 @@ export class ImpactosComponent implements OnChanges {
     }
   }
   */
-}

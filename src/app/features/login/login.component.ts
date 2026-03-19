@@ -22,7 +22,7 @@ export class LoginComponent {
     private authService: AuthService,
   ) {}
 
-  validarUsuario() {
+  validarUsuario(): void {
     if (this.is_loading) return;
 
     const codigo = this.user.codigo.trim();
@@ -37,40 +37,66 @@ export class LoginComponent {
     this.is_loading = true;
     this.is_error = false;
 
-    // ✅ Intenta primero con codigo (vendedores), si falla intenta con username (admins/supervisores)
+    console.log('🔐 [LOGIN] Iniciando login con código:', codigo);
+
     this.authService.login({ codigo, password }).subscribe({
-      next: (resp) => this.onLoginExitoso(resp),
-      error: () => {
-        // ✅ Reintenta con username para usuarios sin vendedor asociado
+      next: (resp) => {
+        console.log('✅ [LOGIN] Respuesta exitosa del backend:', resp);
+        this.onLoginExitoso(resp);
+      },
+      error: (err) => {
+        console.warn('⚠️ [LOGIN] Primer intento fallido, probando con username');
         this.authService.login({ username: codigo, password }).subscribe({
-          next: (resp) => this.onLoginExitoso(resp),
-          error: (error) => {
+          next: (resp) => {
+            console.log('✅ [LOGIN] Segundo intento exitoso:', resp);
+            this.onLoginExitoso(resp);
+          },
+          error: (err) => {
             this.is_error = true;
-            this.errorMessage = error?.error?.message || 'Código o contraseña no válidos';
+            this.errorMessage = err?.error?.message || 'Código o contraseña no válidos';
             this.is_loading = false;
-          }
+            console.error('❌ [LOGIN] Ambos intentos fallaron:', err);
+          },
         });
-      }
+      },
     });
   }
 
-  private onLoginExitoso(resp: any) {
+  private onLoginExitoso(resp: any): void {
     this.is_error = false;
     this.is_loading = false;
 
-    // ✅ Si no viene vendedor (admin sin vendedor asociado), construye uno mínimo
-    const vendedor = resp.vendedor ?? {
-      idVendedor: null,
-      idUsuario: resp.usuario?.idUsuario ?? null,
-      codVendedor: '',
-      codigo: '',
-      nombre: resp.usuario?.username ?? 'Usuario',
-      username: resp.usuario?.username ?? '',
-      estado: true,
-      rol: resp.usuario?.rol ?? { idRol: resp.usuario?.idRol ?? 1, nombre: 'Admin' }
+    console.log('📩 [LOGIN] Procesando respuesta exitosa');
+    console.log('📩 [LOGIN] resp.vendedor:', resp.vendedor);
+    console.log('📩 [LOGIN] resp.token:', resp.token);
+    console.log('📩 [LOGIN] resp.jwt:', resp.jwt);
+
+    const vendedor = {
+      ...(resp.vendedor ?? {
+        idVendedor: null,
+        idUsuario: resp.usuario?.idUsuario ?? null,
+        codVendedor: '',
+        codigo: '',
+        nombre: resp.usuario?.username ?? 'Usuario',
+        username: resp.usuario?.username ?? '',
+        estado: true,
+        rol: resp.usuario?.rol ?? { idRol: resp.usuario?.idRol ?? 1, nombre: 'Admin' },
+      }),
+      jwt: resp.jwt || resp.token,
     };
 
-    localStorage.setItem('vendedor', JSON.stringify(vendedor));
+    console.log('📦 [LOGIN] Objeto vendedor a guardar:', vendedor);
+    console.log('🔑 [LOGIN] JWT extraído:', vendedor.jwt);
+
+    this.authService.guardarSesion(vendedor);
+    
+    // Verificar que se guardó correctamente
+    const sesionGuardada = JSON.parse(sessionStorage.getItem('vendedor') || '{}');
+    console.log('✅ [LOGIN] Sesión guardada en sessionStorage:', sesionGuardada);
+    console.log('✅ [LOGIN] JWT en sesión guardada:', sesionGuardada.jwt);
+
+    this.authService.iniciarTimerInactividad();
+    console.log('🎯 [LOGIN] Navegando a dashboard...');
     this.router.navigate(['/dashboard']);
   }
 }

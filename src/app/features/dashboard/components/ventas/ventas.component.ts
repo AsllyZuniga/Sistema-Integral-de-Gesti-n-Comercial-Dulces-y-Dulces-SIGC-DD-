@@ -1,11 +1,21 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  Input,
+  OnInit,
+  OnDestroy,
+  ChangeDetectorRef,
+  inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
 import { CumplimientoService } from '../../../../core/services/ventas/cumplimientoVentasMes.service';
+import { CumplimientoSemanaService } from '../../../../core/services/ventas/cumplimientoVentasSemana.service';
 import { ChartComponent } from '../../../../shared/components/chart/chart.component';
 import { TableComponent } from '../../../../shared/components/table/table.component';
 import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
+import { AuthService } from '../../../../core/services/auth.service';
+import { TipoCuota } from '../../../cumplientosCuota/cumplimientos.component';
 
 @Component({
   selector: 'app-ventas',
@@ -14,12 +24,46 @@ import { DashboardFilters } from '../../../../shared/components/filters/filters.
   templateUrl: './ventas.html',
   styleUrls: ['./ventas.css'],
 })
-export class VentasComponent implements OnInit, OnChanges, OnDestroy {
-  @Input() codigoVendedor!: string;
+export class VentasComponent implements OnInit, OnDestroy {
 
+  // ─── Inyección con inject() ───────────────────────────────────────────────────
+  private cumplimientoService = inject(CumplimientoService);       // MES
+  private semanaService       = inject(CumplimientoSemanaService); // SEMANA
+  private authService         = inject(AuthService);
+  private cdr                 = inject(ChangeDetectorRef);
+
+  // ─── Input: codigoVendedor ────────────────────────────────────────────────────
+  @Input() set codigoVendedor(value: string) {
+    console.log('📦 [VentasComponent] codigoVendedor SET:', value);
+    this._codigoVendedor = value;
+    if (value && this.iniciado) {
+      this.cargarVistaActual();
+    }
+  }
+  get codigoVendedor(): string {
+    return this._codigoVendedor;
+  }
+  private _codigoVendedor = '';
+
+  // ─── Input: tipoCuota — SETTER garantiza recarga al cambiar Mes ↔ Semana ──────
+  @Input() set tipoCuota(value: TipoCuota) {
+    const cambio = this._tipoCuota !== value;
+    console.log('🔄 [VentasComponent] tipoCuota SET:', value, '| cambio:', cambio, '| codigo:', this._codigoVendedor, '| iniciado:', this.iniciado);
+    this._tipoCuota = value;
+    if (cambio && this._codigoVendedor && this.iniciado) {
+      this.resetearVista();
+      this.cargarVistaActual();
+    }
+  }
+  get tipoCuota(): TipoCuota {
+    return this._tipoCuota;
+  }
+  private _tipoCuota: TipoCuota = 'mensual';
+
+  // ─── Input: filtros ───────────────────────────────────────────────────────────
   @Input() set filtros(value: DashboardFilters) {
     this._filtros = value;
-    if (this.codigoVendedor) {
+    if (this._codigoVendedor && this.iniciado) {
       this.cargarVistaActual();
     }
   }
@@ -27,29 +71,28 @@ export class VentasComponent implements OnInit, OnChanges, OnDestroy {
     return this._filtros;
   }
   private _filtros: DashboardFilters = {
-    fechaInicio: '',
-    fechaFin:    '',
-    vendedor:    '',
-    proveedor:   '',
-    categoria:   '',
-    ciudad:      '',
+    fechaInicio: '', fechaFin: '', vendedor: '',
+    proveedor: '', categoria: '', ciudad: '', linea: '',
   };
 
-  private destroy$ = new Subject<void>();
+  // ─── Estado interno ───────────────────────────────────────────────────────────
+  private destroy$  = new Subject<void>();
+  private iniciado  = false;
 
-  rolId: number = 0;
-  activeVentasView = 'ventas';
-  chartId: string = 'chart-main';
+  rolId             = 0;
+  activeVentasView  = 'ventas';
+  chartId           = 'chart-main';
   chartType: 'line' | 'bar' | 'pie' = 'line';
-  tableData: any[] = [];
-  chartData: any[] = [];
+  tableData: any[]  = [];
+  chartData: any[]  = [];
   private allItemData: any[] = [];
 
+  // ─── Vistas disponibles ───────────────────────────────────────────────────────
   private readonly todasLasVistas = [
-    { key: 'ventas',    label: 'Ventas' },
-    { key: 'proveedor', label: 'Por Proveedor' },
-    { key: 'ciudad',    label: 'Por Ciudad' },
-    { key: 'vendedor',  label: 'Por Vendedor' },
+    { key: 'ventas',    label: 'Ventas'           },
+    { key: 'proveedor', label: 'Por Proveedor'    },
+    { key: 'ciudad',    label: 'Por Ciudad'       },
+    { key: 'vendedor',  label: 'Por Vendedor'     },
     { key: 'item',      label: 'Detalle por Item' },
   ];
 
@@ -60,50 +103,69 @@ export class VentasComponent implements OnInit, OnChanges, OnDestroy {
     return this.todasLasVistas;
   }
 
-  readonly tableColumns     = ['codVendedor', 'nombre', 'cuotaMes', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
-  readonly lineasColumns    = ['linea',   'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
-  readonly ciudadesColumns  = ['ciudad',  'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
+  // ─── Columnas ─────────────────────────────────────────────────────────────────
+  get cuotaColumn(): string {
+    return this._tipoCuota === 'semanal'
+      ? 'cuotaSemana'
+      : this._tipoCuota === 'diaria'
+      ? 'cuotaDiaria'
+      : 'cuotaMes';
+  }
+
+  get tableColumns(): string[] {
+    return ['codVendedor', 'nombre', this.cuotaColumn, 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
+  }
+
+  readonly lineasColumns    = ['linea', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
+  readonly ciudadesColumns  = ['ciudad', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
   readonly productosColumns = ['Fecha', 'Proveedor', 'Cod_Item', 'Descripcion', 'Venta_Unid_Cajas', 'Cantidad', 'Subtotal'];
 
-  constructor(
-    private cumplimientoService: CumplimientoService,
-    private cdr: ChangeDetectorRef,
-  ) {
-    // ✅ Leer rol en el constructor — se ejecuta ANTES de ngOnChanges
-    // así activeVentasView ya tiene el valor correcto cuando llegue codigoVendedor
-    try {
-      const raw = localStorage.getItem('vendedor') ?? localStorage.getItem('usuario') ?? '{}';
-      const usuario = JSON.parse(raw);
-      this.rolId = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? 0);
-    } catch {
-      this.rolId = 0;
-    }
-
-    // Setear vista inicial según rol aquí mismo
+  // ─── Constructor ──────────────────────────────────────────────────────────────
+  constructor() {
+    const usuario         = this.authService.getVendedor();
+    this.rolId            = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? 0);
     this.activeVentasView = this.rolId === 3 ? 'proveedor' : 'ventas';
   }
 
-  ngOnInit() {}
-
-  // ✅ Dispara carga cuando codigoVendedor llega o cambia
-  ngOnChanges(changes: SimpleChanges) {
-    if (changes['codigoVendedor'] && this.codigoVendedor) {
+  // ─── Ciclo de vida ────────────────────────────────────────────────────────────
+  ngOnInit(): void {
+    this.iniciado = true;
+    console.log('🚀 [VentasComponent] ngOnInit | codigo:', this._codigoVendedor, '| tipoCuota:', this._tipoCuota);
+    if (this._codigoVendedor) {
       this.cargarVistaActual();
     }
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
-  setVentasView(view: string) {
+  // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+  /** ¿Estamos en modo semanal? */
+  get esSemanal(): boolean {
+    return this._tipoCuota === 'semanal';
+  }
+
+  /** Limpia datos para mostrar estado de carga */
+  private resetearVista(): void {
+    this.tableData   = [];
+    this.chartData   = [];
+    this.allItemData = [];
+    this.chartId     = 'chart-' + this.activeVentasView + '-' + Date.now();
+    this.cdr.detectChanges();
+  }
+
+  // ─── Cambio de tab ────────────────────────────────────────────────────────────
+  setVentasView(view: string): void {
     if (this.activeVentasView === view) return;
     this.activeVentasView = view;
     this.cargarVistaActual();
   }
 
-  private recalcularChart() {
+  // ─── Recalcula gráfico top 10 para vista "item" ───────────────────────────────
+  private recalcularChart(): void {
     const agg = new Map<string, number>();
     for (const row of this.allItemData) {
       const key = row.Descripcion ?? 'SIN DESCRIPCION';
@@ -117,81 +179,152 @@ export class VentasComponent implements OnInit, OnChanges, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  cargarVistaActual() {
-    if (!this.codigoVendedor) return;
+  // ─── Carga principal ──────────────────────────────────────────────────────────
+  cargarVistaActual(): void {
+    if (!this._codigoVendedor) return;
 
-    this.tableData   = [];
-    this.chartData   = [];
-    this.allItemData = [];
-    this.chartId     = 'chart-' + this.activeVentasView + '-' + Date.now();
+    console.log('⚡ [VentasComponent] cargarVistaActual | vista:', this.activeVentasView, '| tipoCuota:', this._tipoCuota, '| esSemanal:', this.esSemanal, '| codigo:', this._codigoVendedor);
 
-    if (this.activeVentasView === 'ventas') {
-      this.chartType = 'line';
-      this.cumplimientoService
-        .getCumplimientoPorCodigo(this.codigoVendedor, this._filtros)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((res) => {
-          if (!res) return;
-          this.tableData = [res];
-          this.chartData = [
-            { name: 'Venta',      value: res.ventaAcum },
-            { name: 'Cuota',      value: res.cuotaMes },
-            { name: 'Proyección', value: res.proyeccionVenta },
-          ];
-          this.cdr.detectChanges();
-        });
+    this.resetearVista();
 
-    } else if (this.activeVentasView === 'proveedor') {
-      this.chartType = 'bar';
-      this.cumplimientoService
-        .getLineasPorVendedor(this.codigoVendedor, this._filtros)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((res) => {
-          const listado = res?.detallePorLinea ?? [];
+    const tieneProveedor  = !!this._filtros.proveedor;
+    const codigoProveedor = this._filtros.proveedor;
+
+    switch (this.activeVentasView) {
+
+      // ── VENTAS GENERALES ──────────────────────────────────────────────────────
+      case 'ventas':
+        this.chartType = 'line';
+
+        if (tieneProveedor) {
+          // ⚠ Solo MES — no existe endpoint de proveedor en SEMANA
+          this.cumplimientoService
+            .getDetallePorLineaProveedor(this._codigoVendedor, codigoProveedor, this._filtros)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe((res: any) => {
+              const detalle  = res?.detallePorLinea ?? [];
+              this.tableData = detalle;
+              this.chartData = detalle.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
+              this.cdr.detectChanges();
+            });
+
+        } else if (this.esSemanal) {
+          // ── SEMANA: /semana/cumplimiento/front/me ─────────────────────────────
+          this.semanaService
+            .getCumplimientoSemanaVendedor(this._filtros)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe((res: any) => {
+              const d = (res?.detalle ?? []).find((v: any) => v.codVendedor !== 'TOTALES');
+              if (!d) return;
+              this.tableData = [d];
+              this.chartData = [
+                { name: 'Venta',      value: d.ventaAcum      },
+                { name: 'Cuota',      value: d.cuotaSemana    },
+                { name: 'Proyección', value: d.proyeccionVenta },
+              ];
+              this.cdr.detectChanges();
+            });
+
+        } else {
+          // ── MES: /mes/cumplimiento/front/me ───────────────────────────────────
+          this.cumplimientoService
+            .getCumplimientoPorCodigo(this._codigoVendedor, this._filtros)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe((res: any) => {
+              if (!res?.totales) return;
+              this.tableData = res.detalle ?? [];
+              this.chartData = [
+                { name: 'Venta',      value: res.totales.ventaAcum      },
+                { name: 'Cuota',      value: res.totales.cuotaMes       },
+                { name: 'Proyección', value: res.totales.proyeccionVenta },
+              ];
+              this.cdr.detectChanges();
+            });
+        }
+        break;
+
+      // ── POR PROVEEDOR / LÍNEA ─────────────────────────────────────────────────
+      case 'proveedor':
+        this.chartType = 'bar';
+
+        if (tieneProveedor) {
+          // ⚠ Solo MES
+          this.cumplimientoService
+            .getDetallePorLineaProveedor(this._codigoVendedor, codigoProveedor, this._filtros)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe((res: any) => {
+              const detalle  = res?.detallePorLinea ?? [];
+              this.tableData = detalle;
+              this.chartData = detalle.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
+              this.cdr.detectChanges();
+            });
+
+        } else {
+          // ── SEMANA: /semana/cumplimiento/lineas/:codigo
+          // ── MES:    /mes/cumplimiento/vendedor/:codigo/lineas
+          const lineas$ = this.esSemanal
+            ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, this._filtros)
+            : this.cumplimientoService.getLineasPorVendedor(this._codigoVendedor, this._filtros);
+
+          lineas$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
+            const listado  = res?.detallePorLinea ?? [];
+            this.tableData = listado;
+            this.chartData = listado.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
+            this.cdr.detectChanges();
+          });
+        }
+        break;
+
+      // ── POR CIUDAD ────────────────────────────────────────────────────────────
+      case 'ciudad':
+        this.chartType = 'pie';
+
+        // ── SEMANA: /semana/cumplimiento/ciudades/:codigo
+        // ── MES:    /mes/cumplimiento/vendedor/:codigo/ciudades
+        const ciudades$ = this.esSemanal
+          ? this.semanaService.getCiudadesPorVendedor(this._codigoVendedor, this._filtros)
+          : this.cumplimientoService.getCiudadesPorVendedor(this._codigoVendedor, this._filtros);
+
+        ciudades$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
+          const listado  = res?.detallePorCiudad ?? [];
           this.tableData = listado;
-          this.chartData = listado.map((item: any) => ({
-            name: item.linea, value: item.ventaAcum,
-          }));
+          this.chartData = listado.map((i: any) => ({ name: i.ciudad, value: i.ventaAcum }));
           this.cdr.detectChanges();
         });
+        break;
 
-    } else if (this.activeVentasView === 'ciudad') {
-      this.chartType = 'pie';
-      this.cumplimientoService
-        .getCiudadesPorVendedor(this.codigoVendedor, this._filtros)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((res) => {
-          const listado = res?.detallePorCiudad ?? [];
-          this.tableData = listado;
-          this.chartData = listado.map((item: any) => ({
-            name: item.ciudad, value: item.ventaAcum,
-          }));
-          this.cdr.detectChanges();
-        });
+      // ── POR VENDEDOR ──────────────────────────────────────────────────────────
+      case 'vendedor':
+        this.chartType = 'bar';
 
-    } else if (this.activeVentasView === 'vendedor') {
-      this.chartType = 'bar';
-      this.cumplimientoService
-        .getCumplimientoPorCodigo(this.codigoVendedor, this._filtros)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((res) => {
-          if (!res) return;
-          this.tableData = [res];
-          this.chartData = [{ name: res.nombre, value: res.ventaAcum }];
-          this.cdr.detectChanges();
-        });
+        // ⚠ Solo MES — no existe endpoint equivalente en SEMANA
+        this.cumplimientoService
+          .getCumplimientoPorCodigo(this._codigoVendedor, this._filtros)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((res: any) => {
+            if (!res?.totales) return;
+            const vendedor = res.detalle?.[0];
+            this.tableData = res.detalle ?? [];
+            this.chartData = [{ name: vendedor?.nombre || '', value: res.totales.ventaAcum }];
+            this.cdr.detectChanges();
+          });
+        break;
 
-    } else if (this.activeVentasView === 'item') {
-      this.chartType = 'bar';
-      this.cumplimientoService
-        .getProductosPorVendedor(this.codigoVendedor, this._filtros)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((res) => {
-          const listado = res?.data ?? [];
-          this.allItemData = listado;
-          this.tableData   = [...listado];
-          this.recalcularChart();
-        });
+      // ── DETALLE POR ITEM ──────────────────────────────────────────────────────
+      case 'item':
+        this.chartType = 'bar';
+
+        // ⚠ Solo MES — getProductosPorVendedor no existe en SEMANA
+        this.cumplimientoService
+          .getProductosPorVendedor(this._codigoVendedor, this._filtros)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((res: any) => {
+            const listado    = res?.data ?? [];
+            this.allItemData = listado;
+            this.tableData   = [...listado];
+            this.recalcularChart();
+          });
+        break;
     }
   }
 }

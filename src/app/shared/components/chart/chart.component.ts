@@ -89,13 +89,13 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
     const yMin = minVal < 0 ? Math.floor(minVal * 1.1) : 0;
     const yMax = Math.ceil(maxVal * 1.15);
 
-    const isBar  = this.type === 'bar';
+    const isBar = this.type === 'bar';
     const isLine = this.type === 'line';
-    const isPie  = this.type === 'pie';
+    const isPie = this.type === 'pie';
 
     const options: ChartOptions = {
       responsive: true,
-      maintainAspectRatio: false, 
+      maintainAspectRatio: false,
       plugins: {
         legend: { position: 'top' },
         tooltip: {
@@ -109,16 +109,16 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
       },
       ...(isBar || isLine
         ? {
-            scales: {
-              y: {
-                min: yMin,
-                max: yMax,
-                ticks: {
-                  callback: (val) => this.formatNumber(val as number),
-                },
+          scales: {
+            y: {
+              min: yMin,
+              max: yMax,
+              ticks: {
+                callback: (val) => this.formatNumber(val as number),
               },
             },
-          }
+          },
+        }
         : {}),
     };
 
@@ -144,7 +144,7 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   private formatNumber(val: number): string {
     if (Math.abs(val) >= 1_000_000) return '$ ' + (val / 1_000_000).toFixed(1) + 'M';
-    if (Math.abs(val) >= 1_000)     return '$ ' + (val / 1_000).toFixed(0) + 'K';
+    if (Math.abs(val) >= 1_000) return '$ ' + (val / 1_000).toFixed(0) + 'K';
     return val.toLocaleString('es-CO');
   }
 }

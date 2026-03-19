@@ -7,24 +7,42 @@ import { DashboardFilters } from '../../../shared/components/filters/filters.com
   providedIn: 'root',
 })
 export class CumplimientoService {
-  private apiUrl = 'https://api.sisferahub.com';
+  private apiUrl = 'http://localhost:3000';
 
   constructor(private http: HttpClient) { }
 
   private buildParams(filtros?: DashboardFilters): HttpParams {
-    // ✅ _t timestamp — fuerza petición nueva, evita 304 del servidor
-    let params = new HttpParams().set('_t', Date.now().toString());
+    let params = new HttpParams();
     if (!filtros) return params;
-
-    if (filtros.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
-    if (filtros.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
-    if (filtros.vendedor) params = params.set('vendedor', filtros.vendedor);
-    if (filtros.proveedor) params = params.set('proveedor', filtros.proveedor);
-    if (filtros.categoria) params = params.set('categoria', filtros.categoria);
-    if (filtros.ciudad) params = params.set('ciudad', filtros.ciudad);
-
+    if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
+    if (filtros?.fechaFin)    params = params.set('fechaFin',    filtros.fechaFin);
+    if (filtros?.vendedor)    params = params.set('vendedor',    filtros.vendedor);
+    if (filtros?.proveedor)   params = params.set('proveedor',   filtros.proveedor);
+    if (filtros?.categoria)   params = params.set('categoria',   filtros.categoria);
+    if (filtros?.ciudad)      params = params.set('ciudad',      filtros.ciudad);
+    if (filtros?.linea)       params = params.set('linea',       filtros.linea);
     return params;
   }
+
+  // ─── NUEVOS: usados por DashboardComponent ───────────────────────────────────
+
+  /** Admin: GET /mes/cumplimiento/front → { periodo, detalle: [...vendedores, TOTALES] } */
+  getCumplimientoMesAdmin(filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParams(filtros);
+    return this.http
+      .get<any>(`${this.apiUrl}/mes/cumplimiento/front`, { params })
+      .pipe(catchError(() => of({ detalle: [] })));
+  }
+
+  /** Vendedor: GET /mes/cumplimiento/front/me → { periodo, detalle: [vendedor, TOTALES] } */
+  getCumplimientoMesVendedor(filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParams(filtros);
+    return this.http
+      .get<any>(`${this.apiUrl}/mes/cumplimiento/front/me`, { params })
+      .pipe(catchError(() => of({ detalle: [] })));
+  }
+
+  // ─── EXISTENTES: usados por VentasComponent ──────────────────────────────────
 
   getCumplimientoMes(filtros?: DashboardFilters): Observable<any[]> {
     const params = this.buildParams(filtros);
@@ -39,10 +57,8 @@ export class CumplimientoService {
   getCumplimientoPorCodigo(codigo: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     return this.http
-      .get<any>(`${this.apiUrl}/mes/cumplimiento/${codigo}`, { params })
-      .pipe(
-        catchError(() => of(null)),
-      );
+      .get<any>(`${this.apiUrl}/mes/cumplimiento/front/me`, { params })
+      .pipe(catchError(() => of(null)));
   }
 
   getLineasPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
@@ -51,10 +67,7 @@ export class CumplimientoService {
       .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/lineas`, { params })
       .pipe(
         map((res) => {
-          if (res?.detallePorLinea) {
-            res.detallePorLinea = Array.isArray(res.detallePorLinea)
-              ? res.detallePorLinea : [];
-          }
+          if (res?.detallePorLinea) res.detallePorLinea = Array.isArray(res.detallePorLinea) ? res.detallePorLinea : [];
           return res;
         }),
         catchError(() => of({ detallePorLinea: [] })),
@@ -67,14 +80,19 @@ export class CumplimientoService {
       .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/linea/${codigoLinea}`, { params })
       .pipe(
         map((res) => {
-          if (res?.detallePorLinea) {
-            res.detallePorLinea = Array.isArray(res.detallePorLinea)
-              ? res.detallePorLinea : [];
-          }
+          if (res?.detallePorLinea) res.detallePorLinea = Array.isArray(res.detallePorLinea) ? res.detallePorLinea : [];
           return res;
         }),
         catchError(() => of({ detallePorLinea: [] })),
       );
+  }
+
+  getDetallePorLineaProveedor(codigoVendedor: string, codigoProveedor: string, filtros?: DashboardFilters): Observable<any> {
+    let params = this.buildParams(filtros);
+    if (params.has('proveedor')) params = params.delete('proveedor');
+    return this.http
+      .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/linea/${codigoProveedor}`, { params })
+      .pipe(catchError(() => of(null)));
   }
 
   getCiudadesPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
@@ -83,10 +101,7 @@ export class CumplimientoService {
       .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/ciudades`, { params })
       .pipe(
         map((res) => {
-          if (res?.detallePorCiudad) {
-            res.detallePorCiudad = Array.isArray(res.detallePorCiudad)
-              ? res.detallePorCiudad : [];
-          }
+          if (res?.detallePorCiudad) res.detallePorCiudad = Array.isArray(res.detallePorCiudad) ? res.detallePorCiudad : [];
           return res;
         }),
         catchError(() => of({ detallePorCiudad: [] })),
@@ -100,8 +115,7 @@ export class CumplimientoService {
       .pipe(
         map((res) => {
           if (res?.detallePorProducto) {
-            res.data = Array.isArray(res.detallePorProducto)
-              ? res.detallePorProducto : [];
+            res.data = Array.isArray(res.detallePorProducto) ? res.detallePorProducto : [];
           } else if (res?.data) {
             res.data = Array.isArray(res.data) ? res.data : [];
           } else {
@@ -110,6 +124,24 @@ export class CumplimientoService {
           return res;
         }),
         catchError(() => of({ data: [] })),
+      );
+  }
+
+  getVendedores(): Observable<any[]> {
+    return this.http
+      .get<any[]>(`${this.apiUrl}/vendedores`)
+      .pipe(
+        map((res) => (Array.isArray(res) ? res.filter((v: any) => v.status !== false) : [])),
+        catchError(() => of([])),
+      );
+  }
+
+  getProveedores(): Observable<any[]> {
+    return this.http
+      .get<any[]>(`${this.apiUrl}/proveedor`)
+      .pipe(
+        map((res) => (Array.isArray(res) ? res : [])),
+        catchError(() => of([])),
       );
   }
 }
