@@ -13,72 +13,36 @@ export class CumplimientoService {
 
   private buildParams(filtros?: DashboardFilters): HttpParams {
     let params = new HttpParams();
-
-   
-    
-    if (!filtros) {
-      console.warn('⚠️ Filtros es undefined - NO se agregarán parámetros');
-      
-      return params;
-    }
-    
-    console.log('📋 Filtros entrada:', filtros);
-    console.log('');
-    
-    // Fecha inicio
-    if (filtros?.fechaInicio) {
-      params = params.set('fechaInicio', filtros.fechaInicio);
-     
-    }
-    
-    // Fecha fin
-    if (filtros?.fechaFin) {
-      params = params.set('fechaFin', filtros.fechaFin);
-      
-    }
-    
-    // Vendedor
-    if (filtros?.vendedor) {
-      params = params.set('vendedor', filtros.vendedor);
-      
-    }
-    
-    // PROVEEDOR - CRÍTICO
-    if (filtros?.proveedor) {
-     
-      params = params.set('proveedor', filtros.proveedor);
-    } else {
-      
-    }
-    
-    // Categoría
-    if (filtros?.categoria) {
-      params = params.set('categoria', filtros.categoria);
-     
-    }
-    
-    // CIUDAD - IMPORTANTE
-    if (filtros?.ciudad) {
-      params = params.set('ciudad', filtros.ciudad);
-      console.log(`  ✅ ciudad: "${filtros.ciudad}"`);
-    } else {
-     
-    }
-    
-    // LÍNEA
-    if (filtros?.linea) {
-      params = params.set('linea', filtros.linea);
-      
-    }
-
-    console.log('');
-    const paramsString = params.toString();
-    console.log('📤 QUERY STRING FINAL:', paramsString);
-    console.log(`   (URL completa sería: /mes/cumplimiento/front/me?${paramsString})`);
-    console.groupEnd();
-
+    if (!filtros) return params;
+    if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
+    if (filtros?.fechaFin)    params = params.set('fechaFin',    filtros.fechaFin);
+    if (filtros?.vendedor)    params = params.set('vendedor',    filtros.vendedor);
+    if (filtros?.proveedor)   params = params.set('proveedor',   filtros.proveedor);
+    if (filtros?.categoria)   params = params.set('categoria',   filtros.categoria);
+    if (filtros?.ciudad)      params = params.set('ciudad',      filtros.ciudad);
+    if (filtros?.linea)       params = params.set('linea',       filtros.linea);
     return params;
   }
+
+  // ─── NUEVOS: usados por DashboardComponent ───────────────────────────────────
+
+  /** Admin: GET /mes/cumplimiento/front → { periodo, detalle: [...vendedores, TOTALES] } */
+  getCumplimientoMesAdmin(filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParams(filtros);
+    return this.http
+      .get<any>(`${this.apiUrl}/mes/cumplimiento/front`, { params })
+      .pipe(catchError(() => of({ detalle: [] })));
+  }
+
+  /** Vendedor: GET /mes/cumplimiento/front/me → { periodo, detalle: [vendedor, TOTALES] } */
+  getCumplimientoMesVendedor(filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParams(filtros);
+    return this.http
+      .get<any>(`${this.apiUrl}/mes/cumplimiento/front/me`, { params })
+      .pipe(catchError(() => of({ detalle: [] })));
+  }
+
+  // ─── EXISTENTES: usados por VentasComponent ──────────────────────────────────
 
   getCumplimientoMes(filtros?: DashboardFilters): Observable<any[]> {
     const params = this.buildParams(filtros);
@@ -92,25 +56,9 @@ export class CumplimientoService {
 
   getCumplimientoPorCodigo(codigo: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
-    
-    
-    const paramsObj = params.keys().reduce((acc: any, key: string) => {
-      acc[key] = params.get(key);
-      return acc;
-    }, {});
-    console.table(paramsObj);
-    
-    const queryString = params.toString();
-    
-    
     return this.http
       .get<any>(`${this.apiUrl}/mes/cumplimiento/front/me`, { params })
-      .pipe(
-        catchError((err) => {
-          console.error('❌ Error en getCumplimientoPorCodigo:', err);
-          return of(null);
-        }),
-      );
+      .pipe(catchError(() => of(null)));
   }
 
   getLineasPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
@@ -119,10 +67,7 @@ export class CumplimientoService {
       .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/lineas`, { params })
       .pipe(
         map((res) => {
-          if (res?.detallePorLinea) {
-            res.detallePorLinea = Array.isArray(res.detallePorLinea)
-              ? res.detallePorLinea : [];
-          }
+          if (res?.detallePorLinea) res.detallePorLinea = Array.isArray(res.detallePorLinea) ? res.detallePorLinea : [];
           return res;
         }),
         catchError(() => of({ detallePorLinea: [] })),
@@ -135,10 +80,7 @@ export class CumplimientoService {
       .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/linea/${codigoLinea}`, { params })
       .pipe(
         map((res) => {
-          if (res?.detallePorLinea) {
-            res.detallePorLinea = Array.isArray(res.detallePorLinea)
-              ? res.detallePorLinea : [];
-          }
+          if (res?.detallePorLinea) res.detallePorLinea = Array.isArray(res.detallePorLinea) ? res.detallePorLinea : [];
           return res;
         }),
         catchError(() => of({ detallePorLinea: [] })),
@@ -147,11 +89,10 @@ export class CumplimientoService {
 
   getDetallePorLineaProveedor(codigoVendedor: string, codigoProveedor: string, filtros?: DashboardFilters): Observable<any> {
     let params = this.buildParams(filtros);
-    // Eliminar el parámetro 'proveedor' de los params si existe
-    if (params.has('proveedor')) {
-      params = params.delete('proveedor');
-    }
-    return this.http.get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/linea/${codigoProveedor}`, { params });
+    if (params.has('proveedor')) params = params.delete('proveedor');
+    return this.http
+      .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/linea/${codigoProveedor}`, { params })
+      .pipe(catchError(() => of(null)));
   }
 
   getCiudadesPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
@@ -160,10 +101,7 @@ export class CumplimientoService {
       .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/ciudades`, { params })
       .pipe(
         map((res) => {
-          if (res?.detallePorCiudad) {
-            res.detallePorCiudad = Array.isArray(res.detallePorCiudad)
-              ? res.detallePorCiudad : [];
-          }
+          if (res?.detallePorCiudad) res.detallePorCiudad = Array.isArray(res.detallePorCiudad) ? res.detallePorCiudad : [];
           return res;
         }),
         catchError(() => of({ detallePorCiudad: [] })),
@@ -177,8 +115,7 @@ export class CumplimientoService {
       .pipe(
         map((res) => {
           if (res?.detallePorProducto) {
-            res.data = Array.isArray(res.detallePorProducto)
-              ? res.detallePorProducto : [];
+            res.data = Array.isArray(res.detallePorProducto) ? res.detallePorProducto : [];
           } else if (res?.data) {
             res.data = Array.isArray(res.data) ? res.data : [];
           } else {
@@ -190,31 +127,21 @@ export class CumplimientoService {
       );
   }
 
+  getVendedores(): Observable<any[]> {
+    return this.http
+      .get<any[]>(`${this.apiUrl}/vendedores`)
+      .pipe(
+        map((res) => (Array.isArray(res) ? res.filter((v: any) => v.status !== false) : [])),
+        catchError(() => of([])),
+      );
+  }
 
-  /**
-   * Obtiene la lista de proveedores con sus códigos
-   * Backend devuelve: [{ id_proveedor, codigo, nombre, cuota, fecha_inicio, fecha_fin }, ...]
-   */
   getProveedores(): Observable<any[]> {
-    
-    
     return this.http
       .get<any[]>(`${this.apiUrl}/proveedor`)
       .pipe(
-        map((res) => {
-          const proveedores = Array.isArray(res) ? res : [];
-         
-          if (proveedores.length > 0) {
-            
-          }
-       
-          return proveedores;
-        }),
-        catchError((err) => {
-          console.error('❌ Error al obtener proveedores:', err);
-          
-          return of([]);
-        })
+        map((res) => (Array.isArray(res) ? res : [])),
+        catchError(() => of([])),
       );
   }
 }
