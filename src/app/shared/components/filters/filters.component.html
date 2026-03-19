@@ -9,6 +9,7 @@
 
   <div class="filters-grid" [class.hidden-mobile]="!isFiltrosOpen">
 
+    <!-- RANGO DE FECHAS -->
     <div class="filter-group span-2">
       <label>Rango de Fechas</label>
       <div class="date-range">
@@ -18,38 +19,53 @@
       </div>
     </div>
 
+    <!-- VENDEDOR (solo admin) -->
+    @if (esAdmin) {
+      <div class="filter-group">
+        <label>Vendedor</label>
+        <select [(ngModel)]="filtros.vendedor">
+          <option value="">Todos</option>
+          @for (v of vendedores; track v) {
+            <option [value]="v">{{ v }}</option>
+          }
+        </select>
+      </div>
+    }
+
+    <!-- PROVEEDOR -->
     <div class="filter-group">
       <label>Proveedor</label>
       <select [(ngModel)]="filtros.proveedor">
         <option value="">Todos</option>
-        <option *ngFor="let p of proveedores" [value]="p">{{ p }}</option>
+        @for (p of proveedores; track p) {
+          <option [value]="p">{{ p }}</option>
+        }
       </select>
     </div>
 
+    <!-- CATEGORÍA -->
     <div class="filter-group">
       <label>Categoría</label>
       <select [(ngModel)]="filtros.categoria">
         <option value="">Todas</option>
-        <option *ngFor="let c of categorias" [value]="c">{{ c }}</option>
+        @for (c of categorias; track c) {
+          <option [value]="c">{{ c }}</option>
+        }
       </select>
     </div>
 
+    <!-- CIUDAD -->
     <div class="filter-group">
       <label>Ciudad</label>
       <select [(ngModel)]="filtros.ciudad">
         <option value="">Todas</option>
-        <option *ngFor="let ci of ciudades" [value]="ci">{{ ci }}</option>
+        @for (ci of ciudades; track ci) {
+          <option [value]="ci">{{ ci }}</option>
+        }
       </select>
     </div>
 
-    <!-- <div class="filter-group">
-      <label>Línea</label>
-      <select [(ngModel)]="filtros.linea">
-        <option value="">Todas</option>
-        <option *ngFor="let l of lineas" [value]="l">{{ l }}</option>
-      </select>
-    </div> -->
-
+    <!-- ACCIONES -->
     <div class="filter-actions">
       <button class="btn-limpiar" (click)="limpiar()">Limpiar</button>
       <button class="btn-aplicar" (click)="aplicar()">Aplicar Filtros</button>
