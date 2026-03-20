@@ -10,44 +10,75 @@ export class UsuariosService {
 
   constructor(private http: HttpClient) { }
 
+  /**
+   * GET /usuario
+   * Obtiene lista de usuarios (supervisores y vendedores)
+   */
+  listarUsuarios(): Observable<any[]> {
+    return this.http
+      .get<any>(`${this.apiUrl}/usuario`)
+      .pipe(
+        map((res) => (Array.isArray(res) ? res : res?.data ?? [])),
+        catchError(() => of([])),
+      );
+  }
+
+  /**
+   * GET /usuario
+   * Obtiene lista de supervisores (rolId = 2)
+   */
   listarSupervisores(): Observable<any[]> {
     return this.http
-      .get<any>(`${this.apiUrl}/supervisores`)
+      .get<any>(`${this.apiUrl}/usuario`)
       .pipe(
-        map((res) => (Array.isArray(res) ? res : res?.data ?? [])),
+        map((res) => {
+          const usuarios = Array.isArray(res) ? res : res?.data ?? [];
+          // Filtrar solo supervisores (id_rol = 2)
+          return usuarios.filter((u: any) => {
+            const rol = u?.id_rol ?? u?.rol?.idRol ?? u?.idRol ?? u?.rolId ?? 0;
+            console.log('🔍 Filtrando usuario:', u?.username, 'rol:', rol);
+            return Number(rol) === 2;
+          });
+        }),
         catchError(() => of([])),
       );
   }
 
+  /**
+   * GET /usuario
+   * Obtiene lista de vendedores
+   */
   listarVendedores(): Observable<any[]> {
     return this.http
-      .get<any>(`${this.apiUrl}/vendedores`)
+      .get<any>(`${this.apiUrl}/usuario`)
       .pipe(
         map((res) => (Array.isArray(res) ? res : res?.data ?? [])),
         catchError(() => of([])),
       );
   }
 
+  /**
+   * GET /usuario
+   * Obtiene vendedores asignados a un supervisor
+   */
   obtenerVendedoresDelSupervisor(idSupervisor: string): Observable<any[]> {
     return this.http
-      .get<any>(`${this.apiUrl}/supervisores/${idSupervisor}/vendedores`)
-      .pipe(
-        map((res) => (Array.isArray(res) ? res : res?.data ?? [])),
-        catchError(() => of([])),
-      );
-  }
-  obtenerSupervisores(): Observable<any[]> {
-    return this.http
-      .get<any>(`${this.apiUrl}/usuario/supervisores`)
+      .get<any>(`${this.apiUrl}/usuario`)
       .pipe(
         map((res) => (Array.isArray(res) ? res : res?.data ?? [])),
         catchError(() => of([])),
       );
   }
 
+  /**
+   * PUT /vendedor/{id}/asignar-supervisor
+   * Asigna un supervisor a un vendedor
+   */
   asignarSupervisor(idVendedor: string, idSupervisor: string): Observable<any> {
-    return this.http.patch<any>(`${this.apiUrl}/vendedores/${idVendedor}/supervisor`, {
-      idSupervisor,
+    const supervisorId = Number(idSupervisor);
+    return this.http.put<any>(`${this.apiUrl}/vendedor/${idVendedor}/asignar-supervisor`, {
+      idSupervisor: supervisorId,
+      id_supervisor: supervisorId,
     });
   }
 }
