@@ -1,7 +1,6 @@
 import { Component, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
-import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -13,14 +12,21 @@ import { AuthService } from '../../../core/services/auth.service';
 export class SidebarComponent {
   isCollapsed  = false;
   isMobileOpen = false;
-  rolId        = 0;
+  rolId: number = 0;
 
   @Output() toggle = new EventEmitter<boolean>();
 
-  constructor(private router: Router, private authService: AuthService) {
-    // ✅ Lee desde sessionStorage via AuthService
-    const usuario = this.authService.getVendedor();
-    this.rolId = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? 0);
+  constructor(private router: Router) {
+    try {
+      const raw     = sessionStorage.getItem('vendedor') ?? '{}';
+      const usuario = JSON.parse(raw);
+      // Intentar leer idRol de diferentes ubicaciones posibles
+      this.rolId    = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? usuario?.rolId ?? usuario?.rol?.id ?? 0);
+      console.log('👤 Sidebar - rolId:', this.rolId, 'usuario:', usuario);
+    } catch (error) {
+      console.error('❌ Error leyendo sessionStorage:', error);
+      this.rolId = 0;
+    }
   }
 
   get tituloRol(): string {
@@ -31,7 +37,14 @@ export class SidebarComponent {
 
   private readonly todasLasOpciones = [
     { icon: 'dashboard',   label: 'Dashboard',       ruta: '/dashboard', roles: [1, 2, 3] },
-    { icon: 'upload_file', label: 'Carga de Ventas', ruta: '/carga',     roles: [1, 2]    },
+    { icon: 'upload_file', label: 'Carga de Ventas', ruta: '/carga',     roles: [1]      },
+
+    // ⏸️ Módulos pendientes de implementación
+    // { icon: 'inventory_2',       label: 'Detalle',        ruta: '/detalle',      roles: [1, 2, 3] },
+    // { icon: 'assignment_return', label: 'Devoluciones',   ruta: '/devoluciones', roles: [1, 2, 3] },
+    // { icon: 'history',           label: 'Históricos',     ruta: '/historicos',   roles: [1, 2, 3] },
+    // { icon: 'trending_up',       label: 'Impactos',       ruta: '/impactos',     roles: [1, 2, 3] },
+    // { icon: 'verified',          label: 'Nivel Servicio', ruta: '/nivel',        roles: [1, 2, 3] },
   ];
 
   get navItems() {
@@ -42,20 +55,20 @@ export class SidebarComponent {
     return this.router.url === ruta;
   }
 
-  toggleSidebar(): void {
+  toggleSidebar() {
     this.isCollapsed = !this.isCollapsed;
     this.toggle.emit(this.isCollapsed);
   }
 
-  toggleMobile(): void {
+  toggleMobile() {
     this.isMobileOpen = !this.isMobileOpen;
   }
 
-  closeMobile(): void {
+  closeMobile() {
     this.isMobileOpen = false;
   }
 
-  navegar(ruta: string): void {
+  navegar(ruta: string) {
     this.closeMobile();
     this.router.navigate([ruta]);
   }
