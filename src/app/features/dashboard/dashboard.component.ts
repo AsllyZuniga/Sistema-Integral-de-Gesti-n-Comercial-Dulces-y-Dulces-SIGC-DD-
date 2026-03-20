@@ -56,15 +56,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
   lineasList: string[] = [];
   tipoCuota: TipoCuota = 'mensual';
   rolId = 0;
+  idSupervisor = 0; // ← ID del supervisor actual (para filtrar sus vendedores)
   cargandoVendedores = false;
 
   todosLosVendedores: any[] = [];
   vendedoresList: string[] = [];
 
+  // ─── Modal de asignación de supervisores ──────────────────────────────────────
   supervisoresList: any[] = [];
   modalAsignarVisible = false;
   vendedorEnModal: any = null;
-  supervisorSeleccionado = '';
+  supervisorSeleccionado: string = '';
   asignandoSupervisor = false;
 
   private proveedorMap: Map<string, string> = new Map();
@@ -93,6 +95,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.vendedor = { codigo: '990', codVendedor: '990', nombre: 'Vendedor Prueba' };
     }
     this.rolId = Number(this.vendedor?.rol?.idRol ?? this.vendedor?.idRol ?? 0);
+    
+    // Guardar ID del supervisor si es supervisor
+    if (this.esSupervisor) {
+      this.idSupervisor = Number(this.vendedor?.id_usuario ?? this.vendedor?.idUsuario ?? this.vendedor?.id ?? 0);
+      console.log('👤 Supervisor con ID:', this.idSupervisor, 'Nombre:', this.vendedor?.nombre);
+    }
 
     const { inicio, fin } = this.getDefaultDateRange();
     this.filtrosActivos.fechaInicio = inicio;
@@ -100,7 +108,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     this.cargarTotales();
     this.cargarOpcionesFiltros();
-
+    
+    // ─── Cargar supervisores para el modal (admin) ──────────────────────────────
     if (this.esAdmin) {
       this.cargarSupervisores();
     }
@@ -113,15 +122,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ─── Getters de rol y vendedor ───────────────────────────────────────────────
   get esAdmin(): boolean {
-    return this.rolId === 1 || this.rolId === 2;
+    return this.rolId === 1;
   }
 
-  get nombreRolSesion(): string {
-    return this.rolId === 1 ? 'Admin' : this.rolId === 2 ? 'Supervisor' : 'Vendedor';
+  get esSupervisor(): boolean {
+    return this.rolId === 2;
   }
 
   get codigoVendedor(): string {
-    return this.vendedor?.codVendedor || this.vendedor?.codigo || '';
+    return this.vendedor?.codVendedor || this.vendedor?.codigo || this.vendedor?.codigo_vendedor || '';
   }
 
   // ─── Getters de etiquetas dinámicas según tipoCuota ─────────────────────────
@@ -215,20 +224,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     if (this.tipoCuota === 'semanal') {
       // ── SEMANA ──────────────────────────────────────────────────────────────
-      const obs$ = this.esAdmin
+      const obs$ = this.esAdmin || this.esSupervisor
         ? this.semanaService.getCumplimientoSemanaAdmin(filtros)
         : this.semanaService.getCumplimientoSemanaVendedor(filtros);
 
-      this.esAdmin
+      (this.esAdmin || this.esSupervisor)
         ? this.cargarDesdeEndpointAdmin(obs$, 'cuotaSemana')
         : this.cargarDesdeEndpointVendedor(obs$, 'cuotaSemana');
     } else {
       // ── MES (default) ───────────────────────────────────────────────────────
-      const obs$ = this.esAdmin
+      const obs$ = this.esAdmin || this.esSupervisor
         ? this.cumplimientoService.getCumplimientoMesAdmin(filtros)
         : this.cumplimientoService.getCumplimientoMesVendedor(filtros);
 
-      this.esAdmin
+      (this.esAdmin || this.esSupervisor)
         ? this.cargarDesdeEndpointAdmin(obs$, 'cuotaMes')
         : this.cargarDesdeEndpointVendedor(obs$, 'cuotaMes');
     }
@@ -240,13 +249,38 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     obs$.pipe(takeUntil(this.destroy$)).subscribe({
       next: (res: any) => {
-        const detalle: any[] = (res?.detalle ?? []).filter((v: any) => v.codVendedor !== 'TOTALES');
+        console.log('📊 RESPONSE COMPLETO del endpoint:', res);
+        
+        let detalle: any[] = (res?.detalle ?? []).filter((v: any) => v.codVendedor !== 'TOTALES');
+
+        console.log('📋 Detalle después de filtrar TOTALES:', detalle);
+        console.log('📋 Total vendedores en detalle:', detalle.length);
+        
+        // SUPERVISOR: Filtrar solo vendedores asignados a este supervisor
+        if (this.esSupervisor) {
+          console.log('🔍 SOY SUPERVISOR - ID de este supervisor:', this.idSupervisor);
+          console.log('🔍 Mostrando TODOS los vendedores y sus id_supervisor:');
+          
+          detalle.forEach((v: any, idx: number) => {
+            const idSupervisorDelVendedor = v?.id_supervisor ?? v?.idSupervisor ?? 0;
+            console.log(`   [${idx}] ${v?.nombre} | id_supervisor en objeto: ${idSupervisorDelVendedor} | ¿Match? ${Number(idSupervisorDelVendedor) === this.idSupervisor}`);
+          });
+          
+          detalle = detalle.filter((v: any) => {
+            const idSupervisorDelVendedor = v?.id_supervisor ?? v?.idSupervisor ?? 0;
+            const match = Number(idSupervisorDelVendedor) === this.idSupervisor;
+            return match;
+          });
+          
+          console.log('🔍 Vendedores después de filtrar por supervisor:', detalle.length);
+        }
 
         const lista = this.filtrosActivos.vendedor
           ? detalle.filter((v: any) => v.codVendedor === this.filtrosActivos.vendedor)
           : detalle;
 
         this.todosLosVendedores = lista;
+        console.log('📌 todosLosVendedores asignado:', this.todosLosVendedores.length, 'vendedores');
 
         // Reconstruir lista de vendedores para el filtro
         this.vendedorMap.clear();
@@ -384,30 +418,42 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.cargarTotales();
   }
 
+  // ─── Supervisores ───────────────────────────────────────────────────────────
+
+  /**
+   * Carga la lista de supervisores disponibles
+   */
   private cargarSupervisores(): void {
-    this.usuariosService
-      .listarSupervisores()
+    console.log('📥 Cargando supervisores...');
+    this.usuariosService.listarSupervisores()
       .pipe(takeUntil(this.destroy$))
-      .subscribe((supervisores) => {
-        this.supervisoresList = supervisores;
-        this.cdr.detectChanges();
+      .subscribe({
+        next: (res: any[]) => {
+          console.log('✅ Supervisores cargados:', res);
+          this.supervisoresList = Array.isArray(res) ? res : [];
+          console.log('📋 supervisoresList actualizada:', this.supervisoresList);
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          console.error('❌ Error cargando supervisores:', err);
+          this.supervisoresList = [];
+        }
       });
   }
 
+  /**
+   * Abre la modal para asignar supervisor a un vendedor
+   */
   abrirModalAsignar(vendedor: any): void {
-    if (!this.esAdmin) return;
-
     this.vendedorEnModal = vendedor;
-    this.supervisorSeleccionado =
-      vendedor?.id_supervisor ??
-      vendedor?.idSupervisor ??
-      vendedor?.id_usuario ??
-      vendedor?.idUsuario ??
-      '';
+      this.supervisorSeleccionado = vendedor?.id_supervisor ?? vendedor?.idSupervisor ?? '';
     this.modalAsignarVisible = true;
     this.cdr.detectChanges();
   }
 
+  /**
+   * Cierra la modal de asignación
+   */
   cerrarModalAsignar(): void {
     this.modalAsignarVisible = false;
     this.vendedorEnModal = null;
@@ -416,56 +462,146 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
+  /**
+   * Asigna el supervisor seleccionado al vendedor
+   */
   asignarSupervisor(): void {
-    if (!this.vendedorEnModal || !this.supervisorSeleccionado) return;
+    if (!this.vendedorEnModal || !this.supervisorSeleccionado) {
+      console.warn('⚠️ Modal vacio o supervisor no seleccionado');
+      return;
+    }
 
     this.asignandoSupervisor = true;
     this.cdr.detectChanges();
 
-    const idVendedor =
-      this.vendedorEnModal.id_vendedor ??
-      this.vendedorEnModal.idVendedor ??
-      this.vendedorEnModal.codigo_vendedor ??
-      this.vendedorEnModal.codVendedor ??
-      '';
-
-    if (!idVendedor) {
+    // Usar codVendedor del objeto vendedor
+    const codVendedor = this.vendedorEnModal.codVendedor;
+    const idSupervisor = this.supervisorSeleccionado;
+    
+    if (!codVendedor) {
+      alert('Error: No se pudo identificar el vendedor');
       this.asignandoSupervisor = false;
-      this.cdr.detectChanges();
       return;
     }
 
-    this.usuariosService
-      .asignarSupervisor(idVendedor.toString(), this.supervisorSeleccionado)
+    console.log('📤 ENVIANDO: PUT /vendedor/' + codVendedor + '/asignar-supervisor');
+    console.log('   Payload:', { idSupervisor });
+
+    this.usuariosService.asignarSupervisor(codVendedor.toString(), idSupervisor)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: () => {
-          const supervisorAsignado = this.supervisoresList.find(
-            (s) =>
-              (s.id_usuario ?? s.idUsuario ?? s.id)?.toString() ===
-              this.supervisorSeleccionado.toString(),
-          );
+        next: (res: any) => {
+          console.log('✅ RESPUESTA ÉXITO:', res);
+          console.log('✅ Supervisor asignado correctamente a vendedor', codVendedor);
 
-          const idx = this.todosLosVendedores.findIndex(
-            (v) =>
-              (v.id_vendedor ?? v.idVendedor ?? v.codigo_vendedor ?? v.codVendedor)?.toString() ===
-              idVendedor.toString(),
-          );
-
-          if (idx >= 0) {
-            this.todosLosVendedores[idx].id_supervisor = this.supervisorSeleccionado;
-            this.todosLosVendedores[idx].nombreSupervisor =
-              supervisorAsignado?.nombre ?? supervisorAsignado?.nombre_completo ?? '';
+          const supervisorPersistido = Number(res?.id_supervisor ?? res?.idSupervisor ?? 0);
+          if (!supervisorPersistido) {
+            console.warn('⚠️ Backend respondió éxito pero no persistió id_supervisor:', res);
+            this.asignandoSupervisor = false;
+            alert('⚠️ El backend respondió éxito, pero no guardó el supervisor (id_supervisor sigue null). Revisa el endpoint de asignación.');
+            this.cdr.detectChanges();
+            return;
           }
-
+          
+          // Actualizar vendedor en la tabla
+          const idx = this.todosLosVendedores.findIndex(
+            v => v.codVendedor === this.vendedorEnModal.codVendedor
+          );
+          console.log('   Índice en tabla:', idx, 'Total vendedores en tabla:', this.todosLosVendedores.length);
+          
+          if (idx >= 0) {
+            const supervisorAsignado = this.supervisoresList.find(
+              (s: any) => (s.id_usuario ?? s.idUsuario ?? s.id) === idSupervisor
+            );
+            this.todosLosVendedores[idx].id_supervisor = idSupervisor;
+            this.todosLosVendedores[idx].nombreSupervisor = supervisorAsignado?.username ?? supervisorAsignado?.nombre ?? '';
+            console.log('   ✅ Tabla actualizada');
+          } else {
+            console.warn('   ⚠️ No se encontró vendedor en tabla local para actualizar');
+          }
+          
           this.asignandoSupervisor = false;
           this.cerrarModalAsignar();
+          alert('✅ Supervisor asignado correctamente');
+          this.cdr.detectChanges();
+          
+          // IMPORTANTE: Si eres supervisor, recarga los datos para ver el vendedor asignado
+          if (this.esSupervisor) {
+            console.log('🔄 Supervisor: Recargando datos para ver vendedores asignados...');
+            setTimeout(() => {
+              this.cargarTotales();
+            }, 500);
+          }
+        },
+        error: (err: any) => {
+          console.error('❌ ERROR EN PUT:', err);
+          console.error('   Status:', err?.status);
+          console.error('   Message:', err?.message);
+          console.error('   Error completo:', err);
+          this.asignandoSupervisor = false;
+          alert('❌ Error al asignar supervisor: ' + (err?.error?.message || err?.message || 'Error desconocido'));
+          this.cdr.detectChanges();
+        }
+      });
+  }
+
+  // ─── Carga de Vendedores (Admin y Supervisor) ────────────────────────────────
+
+  /**
+   * Admin: Carga TODOS los vendedores para la tabla
+   */
+  private cargarVendedoresAdmin(): void {
+    this.cargandoVendedores = true;
+    this.todosLosVendedores = [];
+
+    this.usuariosService.listarVendedores()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res: any) => {
+          const vendedores = Array.isArray(res) ? res : res?.data ?? [];
+          this.todosLosVendedores = vendedores;
+          this.cargandoVendedores = false;
           this.cdr.detectChanges();
         },
         error: () => {
-          this.asignandoSupervisor = false;
+          console.error('❌ Error cargando vendedores');
+          this.todosLosVendedores = [];
+          this.cargandoVendedores = false;
+          this.cdr.detectChanges();
+        }
+      });
+  }
+
+  /**
+   * Supervisor: Carga solo sus vendedores asignados
+   */
+  private cargarVendedoresSupervisor(): void {
+    const idSupervisor = this.vendedor?.id_usuario ?? this.vendedor?.idUsuario ?? this.vendedor?.id ?? '';
+    
+    if (!idSupervisor) {
+      console.warn('⚠️ No se pudo obtener ID del supervisor');
+      this.todosLosVendedores = [];
+      return;
+    }
+
+    this.cargandoVendedores = true;
+    this.todosLosVendedores = [];
+
+    this.usuariosService.obtenerVendedoresDelSupervisor(idSupervisor)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res: any) => {
+          const vendedores = Array.isArray(res) ? res : res?.data ?? [];
+          this.todosLosVendedores = vendedores;
+          this.cargandoVendedores = false;
           this.cdr.detectChanges();
         },
+        error: () => {
+          console.error('❌ Error cargando vendedores del supervisor');
+          this.todosLosVendedores = [];
+          this.cargandoVendedores = false;
+          this.cdr.detectChanges();
+        }
       });
   }
 }
