@@ -28,7 +28,7 @@
     <!-- Selector de tipo de cuota -->
     <div class="cuota-selector-row">
       <app-cuotas-cumplimiento
-        [tipoCuota]="tipoCuota"
+        [(tipoCuota)]="tipoCuota"
         (tipoCuotaChange)="onCambiarTipoCuota($event)">
       </app-cuotas-cumplimiento>
     </div>
@@ -64,12 +64,12 @@
       </app-card>
     </section>
 
-    <!-- ADMIN: tabla con todos los vendedores -->
-    @if (esAdmin) {
+    <!-- ADMIN/SUPERVISOR: tabla con vendedores -->
+    @if (esAdmin || esSupervisor) {
       <section class="charts">
         <div class="chart-box dynamic-panel">
           <h3>
-            Panel {{ nombreRolSesion }} · Todos los Vendedores
+            {{ esAdmin ? 'Todos los Vendedores' : 'Mis Vendedores Asignados' }}
             <span class="tipo-badge">{{ labelCuota }}</span>
           </h3>
 
@@ -106,12 +106,14 @@
                       <td class="num">$ {{ (v.proyeccionVenta ?? 0) | number:'1.0-0' }}</td>
                       <td class="supervisor">{{ v.nombreSupervisor ?? v.supervisor?.nombre ?? '—' }}</td>
                       <td class="acciones">
-                        <button
-                          class="btn-asignar"
-                          (click)="abrirModalAsignar(v)"
-                          title="Asignar supervisor">
-                          <span class="material-symbols-rounded">person_add</span>
-                        </button>
+                        @if (esAdmin) {
+                          <button 
+                            class="btn-asignar"
+                            (click)="abrirModalAsignar(v)"
+                            title="Asignar supervisor">
+                            <span class="material-symbols-rounded">person_add</span>
+                          </button>
+                        }
                       </td>
                     </tr>
                   }
@@ -125,6 +127,7 @@
       </section>
     }
 
+    <!-- MODAL: Asignar Supervisor -->
     @if (modalAsignarVisible && vendedorEnModal) {
       <div class="modal-overlay" (click)="cerrarModalAsignar()">
         <div class="modal-content" (click)="$event.stopPropagation()">
@@ -134,28 +137,36 @@
               <span class="material-symbols-rounded">close</span>
             </button>
           </div>
-
           <div class="modal-body">
             <p><strong>Vendedor:</strong> {{ vendedorEnModal.nombre }}</p>
-            <p><strong>Código:</strong> {{ vendedorEnModal.codVendedor ?? vendedorEnModal.codigo_vendedor ?? '—' }}</p>
-
+            <p><strong>Código:</strong> {{ vendedorEnModal.codigo_vendedor ?? vendedorEnModal.codVendedor ?? '—' }}</p>
+            
             <label for="supervisorSelect">Seleccionar Supervisor:</label>
-            <select id="supervisorSelect" [(ngModel)]="supervisorSeleccionado" class="form-select">
+            <select 
+              id="supervisorSelect"
+              [(ngModel)]="supervisorSeleccionado"
+              class="form-select">
               <option value="">-- Sin Supervisor --</option>
               @for (supervisor of supervisoresList; track supervisor.id_usuario ?? supervisor.idUsuario ?? supervisor.id) {
                 <option [value]="supervisor.id_usuario ?? supervisor.idUsuario ?? supervisor.id">
-                  {{ supervisor.nombre ?? supervisor.nombre_completo }}
+                  {{ supervisor.username ?? supervisor.nombre ?? supervisor.nombre }}
                 </option>
               }
             </select>
           </div>
-
           <div class="modal-footer">
-            <button class="btn-cancelar" (click)="cerrarModalAsignar()" [disabled]="asignandoSupervisor">
+            <button 
+              class="btn-cancelar"
+              (click)="cerrarModalAsignar()"
+              [disabled]="asignandoSupervisor">
               Cancelar
             </button>
-            <button class="btn-guardar" (click)="asignarSupervisor()" [disabled]="asignandoSupervisor || !supervisorSeleccionado">
+            <button 
+              class="btn-guardar"
+              (click)="asignarSupervisor()"
+              [disabled]="asignandoSupervisor">
               @if (asignandoSupervisor) {
+                <span class="spinner"></span>
                 Asignando...
               } @else {
                 Guardar
@@ -167,7 +178,7 @@
     }
 
     <!-- VENDEDOR: gráficas y detalle — recibe tipoCuota para usar el servicio correcto -->
-    @if (!esAdmin) {
+    @if (rolId === 3) {
       <section class="charts">
         <app-ventas
           [codigoVendedor]="codigoVendedor"
