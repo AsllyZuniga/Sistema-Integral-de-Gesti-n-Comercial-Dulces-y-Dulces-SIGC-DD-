@@ -22,7 +22,7 @@ export const routes: Routes = [
     path: 'carga',
     component: CargaComponent,
     canActivate: [RoleGuard],
-    data: { roles: [1, 2] }
+    data: { roles: [1] }
   },
   { path: '**', redirectTo: 'login' }
 ];
