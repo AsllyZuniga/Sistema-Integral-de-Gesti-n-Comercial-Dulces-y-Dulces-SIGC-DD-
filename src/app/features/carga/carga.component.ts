@@ -62,8 +62,9 @@ export class CargaComponent {
     const archivo = input.files[0];
     input.value = ''; // Limpiar input para permitir seleccionar el mismo archivo luego
 
-    if (!archivo.name.toLowerCase().endsWith('.txt')) {
-      this.setError('formato', 'Solo se aceptan archivos .txt exportados desde el ERP.');
+    const nombre = archivo.name.toLowerCase();
+    if (!nombre.endsWith('.txt') && !nombre.endsWith('.csv')) {
+      this.setError('formato', 'Solo se aceptan archivos .txt o .csv exportados desde el ERP.');
       return;
     }
 
@@ -189,7 +190,7 @@ export class CargaComponent {
     if (msg.includes('formato') || msg.includes('separador') || msg.includes('tabulacion') || msg.includes('encoding') || msg.includes('parse')) {
       return {
         tipo: 'formato',
-        mensaje: 'El archivo no tiene el formato correcto. Debe ser un .txt separado por tabulaciones exportado desde el ERP.'
+        mensaje: 'El archivo no tiene el formato correcto. Debe ser un .txt o .csv separado por tabulaciones exportado desde el ERP.'
       };
     }
 

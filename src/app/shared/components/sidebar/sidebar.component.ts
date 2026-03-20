@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -12,22 +13,18 @@ import { Router, RouterModule } from '@angular/router';
 export class SidebarComponent {
   isCollapsed  = false;
   isMobileOpen = false;
-  rolId: number = 0;
+  rolId        = 0;
 
   @Output() toggle = new EventEmitter<boolean>();
 
-  constructor(private router: Router) {
-    try {
-      const raw     = localStorage.getItem('vendedor') ?? '{}';
-      const usuario = JSON.parse(raw);
-      this.rolId    = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? 0);
-    } catch {
-      this.rolId = 0;
-    }
+  constructor(private router: Router, private authService: AuthService) {
+    // ✅ Lee desde sessionStorage via AuthService
+    const usuario = this.authService.getVendedor();
+    this.rolId = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? 0);
   }
 
   get tituloRol(): string {
-    if (this.rolId === 1) return 'Administrador';
+    if (this.rolId === 1) return 'Admin';
     if (this.rolId === 2) return 'Supervisor';
     return 'Vendedor';
   }
@@ -35,13 +32,6 @@ export class SidebarComponent {
   private readonly todasLasOpciones = [
     { icon: 'dashboard',   label: 'Dashboard',       ruta: '/dashboard', roles: [1, 2, 3] },
     { icon: 'upload_file', label: 'Carga de Ventas', ruta: '/carga',     roles: [1, 2]    },
-
-    // ⏸️ Módulos pendientes de implementación
-    // { icon: 'inventory_2',       label: 'Detalle',        ruta: '/detalle',      roles: [1, 2, 3] },
-    // { icon: 'assignment_return', label: 'Devoluciones',   ruta: '/devoluciones', roles: [1, 2, 3] },
-    // { icon: 'history',           label: 'Históricos',     ruta: '/historicos',   roles: [1, 2, 3] },
-    // { icon: 'trending_up',       label: 'Impactos',       ruta: '/impactos',     roles: [1, 2, 3] },
-    // { icon: 'verified',          label: 'Nivel Servicio', ruta: '/nivel',        roles: [1, 2, 3] },
   ];
 
   get navItems() {
@@ -52,20 +42,20 @@ export class SidebarComponent {
     return this.router.url === ruta;
   }
 
-  toggleSidebar() {
+  toggleSidebar(): void {
     this.isCollapsed = !this.isCollapsed;
     this.toggle.emit(this.isCollapsed);
   }
 
-  toggleMobile() {
+  toggleMobile(): void {
     this.isMobileOpen = !this.isMobileOpen;
   }
 
-  closeMobile() {
+  closeMobile(): void {
     this.isMobileOpen = false;
   }
 
-  navegar(ruta: string) {
+  navegar(ruta: string): void {
     this.closeMobile();
     this.router.navigate([ruta]);
   }

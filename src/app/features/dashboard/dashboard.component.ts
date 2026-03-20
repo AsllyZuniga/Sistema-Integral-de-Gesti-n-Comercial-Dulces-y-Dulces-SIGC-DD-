@@ -1,18 +1,13 @@
-import {
-  Component,
-  OnInit,
-  OnDestroy,
-  ViewChild,
-  ChangeDetectorRef,
-  inject,
-} from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ChangeDetectorRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { Router } from '@angular/router';
 import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../core/services/ventas/cumplimientoVentasSemana.service';
 import { ProveedorService } from '../../core/services/proveedor.service';
+import { UsuariosService } from '../../core/services/usuarios.service';
 import { CardComponent } from '../../shared/components/card/card.component';
 import {
   FiltersComponent,
@@ -30,6 +25,7 @@ import {
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     CardComponent,
     FiltersComponent,
     SidebarComponent,
@@ -40,41 +36,52 @@ import {
   styleUrls: ['./dashboard.css'],
 })
 export class DashboardComponent implements OnInit, OnDestroy {
-
   // ─── Inyección con inject() — evita NG2003 en standalone ─────────────────────
-  private authService         = inject(AuthService);
-  private router              = inject(Router);
-  private cumplimientoService = inject(CumplimientoService);       // MES
-  private semanaService       = inject(CumplimientoSemanaService); // SEMANA
-  private proveedorService    = inject(ProveedorService);
-  private cdr                 = inject(ChangeDetectorRef);
+  private authService = inject(AuthService);
+  private router = inject(Router);
+  private cumplimientoService = inject(CumplimientoService); // MES
+  private semanaService = inject(CumplimientoSemanaService); // SEMANA
+  private proveedorService = inject(ProveedorService);
+  private usuariosService = inject(UsuariosService);
+  private cdr = inject(ChangeDetectorRef);
 
   @ViewChild(SidebarComponent) sidebarRef!: SidebarComponent;
 
   // ─── Estado ──────────────────────────────────────────────────────────────────
-  vendedor:           any       = null;
-  totales:            any       = null;
-  isSidebarCollapsed            = false;
-  proveedoresList:    string[]  = [];
-  ciudadesList:       string[]  = [];
-  lineasList:         string[]  = [];
-  tipoCuota:          TipoCuota = 'mensual';
-  rolId                         = 0;
-  cargandoVendedores            = false;
+  vendedor: any = null;
+  totales: any = null;
+  isSidebarCollapsed = false;
+  proveedoresList: string[] = [];
+  ciudadesList: string[] = [];
+  lineasList: string[] = [];
+  tipoCuota: TipoCuota = 'mensual';
+  rolId = 0;
+  cargandoVendedores = false;
 
-  todosLosVendedores: any[]    = [];
-  vendedoresList:     string[] = [];
+  todosLosVendedores: any[] = [];
+  vendedoresList: string[] = [];
+
+  supervisoresList: any[] = [];
+  modalAsignarVisible = false;
+  vendedorEnModal: any = null;
+  supervisorSeleccionado = '';
+  asignandoSupervisor = false;
 
   private proveedorMap: Map<string, string> = new Map();
-  private ciudadMap:    Map<string, string> = new Map();
-  private lineaMap:     Map<string, string> = new Map();
-  private vendedorMap:  Map<string, string> = new Map();
+  private ciudadMap: Map<string, string> = new Map();
+  private lineaMap: Map<string, string> = new Map();
+  private vendedorMap: Map<string, string> = new Map();
 
   private destroy$ = new Subject<void>();
 
   filtrosActivos: DashboardFilters = {
-    fechaInicio: '', fechaFin: '', vendedor: '',
-    proveedor: '', categoria: '', ciudad: '', linea: '',
+    fechaInicio: '',
+    fechaFin: '',
+    vendedor: '',
+    proveedor: '',
+    categoria: '',
+    ciudad: '',
+    linea: '',
   };
 
   constructor() {}
@@ -89,10 +96,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     const { inicio, fin } = this.getDefaultDateRange();
     this.filtrosActivos.fechaInicio = inicio;
-    this.filtrosActivos.fechaFin    = fin;
+    this.filtrosActivos.fechaFin = fin;
 
     this.cargarTotales();
     this.cargarOpcionesFiltros();
+
+    if (this.esAdmin) {
+      this.cargarSupervisores();
+    }
   }
 
   ngOnDestroy(): void {
@@ -105,6 +116,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return this.rolId === 1 || this.rolId === 2;
   }
 
+  get nombreRolSesion(): string {
+    return this.rolId === 1 ? 'Admin' : this.rolId === 2 ? 'Supervisor' : 'Vendedor';
+  }
+
   get codigoVendedor(): string {
     return this.vendedor?.codVendedor || this.vendedor?.codigo || '';
   }
@@ -114,27 +129,36 @@ export class DashboardComponent implements OnInit, OnDestroy {
   /** Etiqueta del botón/columna de cuota */
   get labelCuota(): string {
     switch (this.tipoCuota) {
-      case 'semanal': return 'Cuota Semana';
-      case 'diaria':  return 'Cuota Diaria';
-      default:        return 'Cuota Mes';
+      case 'semanal':
+        return 'Cuota Semana';
+      case 'diaria':
+        return 'Cuota Diaria';
+      default:
+        return 'Cuota Mes';
     }
   }
 
   /** Campo del objeto vendedor que contiene la cuota según el periodo activo */
   get campoCuota(): string {
     switch (this.tipoCuota) {
-      case 'semanal': return 'cuotaSemana';
-      case 'diaria':  return 'cuotaDiaria';
-      default:        return 'cuotaMes';
+      case 'semanal':
+        return 'cuotaSemana';
+      case 'diaria':
+        return 'cuotaDiaria';
+      default:
+        return 'cuotaMes';
     }
   }
 
   /** Etiqueta de la venta acumulada según el periodo activo */
   get labelVentaAcum(): string {
     switch (this.tipoCuota) {
-      case 'semanal': return 'Venta Semana';
-      case 'diaria':  return 'Venta Diaria';
-      default:        return 'Venta Mes';
+      case 'semanal':
+        return 'Venta Semana';
+      case 'diaria':
+        return 'Venta Diaria';
+      default:
+        return 'Venta Mes';
     }
   }
 
@@ -143,7 +167,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const hoy = new Date();
     return {
       inicio: this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth(), 1)),
-      fin:    this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0)),
+      fin: this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0)),
     };
   }
 
@@ -166,7 +190,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   onCambiarTipoCuota(tipo: TipoCuota): void {
     if (this.tipoCuota === tipo) return; // evitar recargas innecesarias
     this.tipoCuota = tipo;
-    this.totales   = null; // limpiar cards mientras carga
+    this.totales = null; // limpiar cards mientras carga
     this.cdr.detectChanges();
     this.cargarTotales();
   }
@@ -198,7 +222,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.esAdmin
         ? this.cargarDesdeEndpointAdmin(obs$, 'cuotaSemana')
         : this.cargarDesdeEndpointVendedor(obs$, 'cuotaSemana');
-
     } else {
       // ── MES (default) ───────────────────────────────────────────────────────
       const obs$ = this.esAdmin
@@ -217,9 +240,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     obs$.pipe(takeUntil(this.destroy$)).subscribe({
       next: (res: any) => {
-        const detalle: any[] = (res?.detalle ?? []).filter(
-          (v: any) => v.codVendedor !== 'TOTALES'
-        );
+        const detalle: any[] = (res?.detalle ?? []).filter((v: any) => v.codVendedor !== 'TOTALES');
 
         const lista = this.filtrosActivos.vendedor
           ? detalle.filter((v: any) => v.codVendedor === this.filtrosActivos.vendedor)
@@ -239,18 +260,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.vendedoresList = Array.from(nombresUnicos).sort();
 
         // Calcular totales para las cards KPI
-        const ventaAcum       = lista.reduce((s: number, v: any) => s + (Number(v.ventaAcum)      || 0), 0);
-        const cuota           = lista.reduce((s: number, v: any) => s + (Number(v[campoCuota])     || 0), 0);
-        const proyeccionVenta = lista.reduce((s: number, v: any) => s + (Number(v.proyeccionVenta) || 0), 0);
-        const porcCump        = cuota > 0 ? (ventaAcum / cuota) * 100 : 0;
+        const ventaAcum = lista.reduce((s: number, v: any) => s + (Number(v.ventaAcum) || 0), 0);
+        const cuota = lista.reduce((s: number, v: any) => s + (Number(v[campoCuota]) || 0), 0);
+        const proyeccionVenta = lista.reduce(
+          (s: number, v: any) => s + (Number(v.proyeccionVenta) || 0),
+          0,
+        );
+        const porcCump = cuota > 0 ? (ventaAcum / cuota) * 100 : 0;
 
         // cuotaMes se usa como campo genérico en totales para el card
-        this.totales            = { ventaAcum, cuotaMes: cuota, porcCump, proyeccionVenta };
+        this.totales = { ventaAcum, cuotaMes: cuota, porcCump, proyeccionVenta };
         this.cargandoVendedores = false;
         this.cdr.detectChanges();
       },
       error: () => {
-        this.totales            = null;
+        this.totales = null;
         this.cargandoVendedores = false;
         this.cdr.detectChanges();
       },
@@ -260,21 +284,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private cargarDesdeEndpointVendedor(obs$: any, campoCuota: string): void {
     obs$.pipe(takeUntil(this.destroy$)).subscribe({
       next: (res: any) => {
-        const detalle: any[] = (res?.detalle ?? []).filter(
-          (v: any) => v.codVendedor !== 'TOTALES'
-        );
+        const detalle: any[] = (res?.detalle ?? []).filter((v: any) => v.codVendedor !== 'TOTALES');
         const d = detalle[0];
-        if (!d) { this.totales = null; this.cdr.detectChanges(); return; }
+        if (!d) {
+          this.totales = null;
+          this.cdr.detectChanges();
+          return;
+        }
 
         this.totales = {
-          ventaAcum:       d.ventaAcum,
-          cuotaMes:        d[campoCuota], // campo genérico para el card
-          porcCump:        d.porcCump,
+          ventaAcum: d.ventaAcum,
+          cuotaMes: d[campoCuota], // campo genérico para el card
+          porcCump: d.porcCump,
           proyeccionVenta: d.proyeccionVenta,
         };
         this.cdr.detectChanges();
       },
-      error: () => { this.totales = null; this.cdr.detectChanges(); },
+      error: () => {
+        this.totales = null;
+        this.cdr.detectChanges();
+      },
     });
   }
 
@@ -335,20 +364,108 @@ export class DashboardComponent implements OnInit, OnDestroy {
   onAplicarFiltros(filtros: DashboardFilters): void {
     const filtrosConCodigos: DashboardFilters = {
       fechaInicio: filtros.fechaInicio,
-      fechaFin:    filtros.fechaFin,
-      vendedor:    '',
-      proveedor:   '',
-      categoria:   filtros.categoria || '',
-      ciudad:      '',
-      linea:       filtros.linea     || '',
+      fechaFin: filtros.fechaFin,
+      vendedor: '',
+      proveedor: '',
+      categoria: filtros.categoria || '',
+      ciudad: '',
+      linea: filtros.linea || '',
     };
 
-    if (filtros.vendedor)  filtrosConCodigos.vendedor  = this.vendedorMap.get(filtros.vendedor)   ?? filtros.vendedor;
-    if (filtros.proveedor) filtrosConCodigos.proveedor = this.proveedorMap.get(filtros.proveedor) ?? filtros.proveedor;
-    if (filtros.ciudad)    filtrosConCodigos.ciudad    = this.ciudadMap.get(filtros.ciudad)        ?? filtros.ciudad;
-    if (filtros.linea)     filtrosConCodigos.linea     = this.lineaMap.get(filtros.linea)          ?? filtros.linea;
+    if (filtros.vendedor)
+      filtrosConCodigos.vendedor = this.vendedorMap.get(filtros.vendedor) ?? filtros.vendedor;
+    if (filtros.proveedor)
+      filtrosConCodigos.proveedor = this.proveedorMap.get(filtros.proveedor) ?? filtros.proveedor;
+    if (filtros.ciudad)
+      filtrosConCodigos.ciudad = this.ciudadMap.get(filtros.ciudad) ?? filtros.ciudad;
+    if (filtros.linea) filtrosConCodigos.linea = this.lineaMap.get(filtros.linea) ?? filtros.linea;
 
     this.filtrosActivos = filtrosConCodigos;
     this.cargarTotales();
+  }
+
+  private cargarSupervisores(): void {
+    this.usuariosService
+      .listarSupervisores()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((supervisores) => {
+        this.supervisoresList = supervisores;
+        this.cdr.detectChanges();
+      });
+  }
+
+  abrirModalAsignar(vendedor: any): void {
+    if (!this.esAdmin) return;
+
+    this.vendedorEnModal = vendedor;
+    this.supervisorSeleccionado =
+      vendedor?.id_supervisor ??
+      vendedor?.idSupervisor ??
+      vendedor?.id_usuario ??
+      vendedor?.idUsuario ??
+      '';
+    this.modalAsignarVisible = true;
+    this.cdr.detectChanges();
+  }
+
+  cerrarModalAsignar(): void {
+    this.modalAsignarVisible = false;
+    this.vendedorEnModal = null;
+    this.supervisorSeleccionado = '';
+    this.asignandoSupervisor = false;
+    this.cdr.detectChanges();
+  }
+
+  asignarSupervisor(): void {
+    if (!this.vendedorEnModal || !this.supervisorSeleccionado) return;
+
+    this.asignandoSupervisor = true;
+    this.cdr.detectChanges();
+
+    const idVendedor =
+      this.vendedorEnModal.id_vendedor ??
+      this.vendedorEnModal.idVendedor ??
+      this.vendedorEnModal.codigo_vendedor ??
+      this.vendedorEnModal.codVendedor ??
+      '';
+
+    if (!idVendedor) {
+      this.asignandoSupervisor = false;
+      this.cdr.detectChanges();
+      return;
+    }
+
+    this.usuariosService
+      .asignarSupervisor(idVendedor.toString(), this.supervisorSeleccionado)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          const supervisorAsignado = this.supervisoresList.find(
+            (s) =>
+              (s.id_usuario ?? s.idUsuario ?? s.id)?.toString() ===
+              this.supervisorSeleccionado.toString(),
+          );
+
+          const idx = this.todosLosVendedores.findIndex(
+            (v) =>
+              (v.id_vendedor ?? v.idVendedor ?? v.codigo_vendedor ?? v.codVendedor)?.toString() ===
+              idVendedor.toString(),
+          );
+
+          if (idx >= 0) {
+            this.todosLosVendedores[idx].id_supervisor = this.supervisorSeleccionado;
+            this.todosLosVendedores[idx].nombreSupervisor =
+              supervisorAsignado?.nombre ?? supervisorAsignado?.nombre_completo ?? '';
+          }
+
+          this.asignandoSupervisor = false;
+          this.cerrarModalAsignar();
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.asignandoSupervisor = false;
+          this.cdr.detectChanges();
+        },
+      });
   }
 }

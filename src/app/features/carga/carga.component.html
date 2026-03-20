@@ -30,7 +30,7 @@
           <input
             id="fileInput"
             type="file"
-            accept=".txt"
+            accept=".txt,.csv"
             style="display:none"
             (change)="onArchivoSeleccionado($event)"
           />
@@ -38,7 +38,7 @@
           @if (!archivoSeleccionado) {
             <span class="material-symbols-rounded upload-icon">upload_file</span>
             <p class="upload-text">Haz clic para seleccionar el archivo</p>
-            <p class="upload-hint">Formato aceptado: <strong>.txt</strong></p>
+            <p class="upload-hint">Formato aceptado: <strong>.txt, .csv</strong></p>
           } @else {
             <span class="material-symbols-rounded upload-icon file-ready">task</span>
             <p class="upload-text">{{ archivoSeleccionado.name }}</p>
@@ -142,7 +142,7 @@
           Instrucciones de uso
         </h3>
         <ol>
-          <li>Exporta el plano de ventas desde el ERP en formato <strong>.txt</strong> (separado por tabulaciones)</li>
+          <li>Exporta el plano de ventas desde el ERP en formato <strong>.txt</strong> o <strong>.csv</strong> (separado por tabulaciones)</li>
           <li>Haz clic en la zona de carga y selecciona el archivo exportado</li>
           <li>Verifica que el nombre y el tamaño del archivo sean correctos</li>
           <li>Haz clic en <strong>Importar Ventas</strong> y espera a que finalice el proceso</li>

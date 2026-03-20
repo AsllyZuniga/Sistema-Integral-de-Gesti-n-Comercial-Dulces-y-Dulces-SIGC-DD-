@@ -16,17 +16,13 @@ export class RoleGuard implements CanActivate {
     }
 
     const rolesPermitidos: number[] = route.data['roles'] ?? [];
-
     if (rolesPermitidos.length === 0) return true;
 
-    try {
-      const raw = localStorage.getItem('vendedor') ?? localStorage.getItem('usuario') ?? '{}';
-      const usuario = JSON.parse(raw);
-      const rolId = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? 0);
+    // ✅ Lee desde sessionStorage via AuthService
+    const usuario = this.auth.getVendedor();
+    const rolId   = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? 0);
 
-      if (rolesPermitidos.includes(rolId)) return true;
-    } catch {
-    }
+    if (rolesPermitidos.includes(rolId)) return true;
 
     this.router.navigate(['/dashboard']);
     return false;
