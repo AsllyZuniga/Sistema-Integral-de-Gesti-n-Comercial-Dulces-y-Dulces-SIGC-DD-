@@ -58,15 +58,24 @@ export class UsuariosService {
   }
 
   /**
-   * GET /usuario
+   * GET /vendedor/supervisor/{id}
    * Obtiene vendedores asignados a un supervisor
    */
   obtenerVendedoresDelSupervisor(idSupervisor: string): Observable<any[]> {
+    const url = `${this.apiUrl}/vendedor/supervisor/${idSupervisor}`;
+    console.log('🔗 [UsuariosService] Llamando a:', url);
     return this.http
-      .get<any>(`${this.apiUrl}/usuario`)
+      .get<any[]>(url)
       .pipe(
-        map((res) => (Array.isArray(res) ? res : res?.data ?? [])),
-        catchError(() => of([])),
+        map((res) => {
+          const vendedores = Array.isArray(res) ? res : [];
+          console.log('📥 [UsuariosService] Respuesta:', vendedores.length, 'vendedores');
+          return vendedores;
+        }),
+        catchError((err) => {
+          console.error('❌ [UsuariosService] Error cargando vendedores del supervisor:', err);
+          return of([]);
+        }),
       );
   }
 

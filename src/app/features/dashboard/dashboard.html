@@ -73,10 +73,9 @@
             <span class="tipo-badge">{{ labelCuota }}</span>
           </h3>
 
-          @if (cargandoVendedores) {
-            <div class="placeholder">Cargando vendedores...</div>
-          } @else if (todosLosVendedores.length > 0) {
-            <div class="tabla-scroll">
+          <!-- Mostrar tabla si hay datos (incluso mientras carga desde servidor) -->
+          @if (todosLosVendedores.length > 0) {
+            <div class="tabla-scroll" [class.loading-overlay]="cargandoVendedores">
               <table class="admin-table">
                 <thead>
                   <tr>
@@ -104,7 +103,9 @@
                         {{ (v.porcCump ?? 0) | number:'1.1-1' }} %
                       </td>
                       <td class="num">$ {{ (v.proyeccionVenta ?? 0) | number:'1.0-0' }}</td>
-                      <td class="supervisor">{{ v.nombreSupervisor ?? v.supervisor?.nombre ?? '—' }}</td>
+                      <td class="supervisor" [class.sin-asignar]="!v.nombreSupervisor || v.nombreSupervisor === ''">
+                        {{ v.nombreSupervisor && v.nombreSupervisor !== '' ? v.nombreSupervisor : 'Sin asignar' }}
+                      </td>
                       <td class="acciones">
                         @if (esAdmin) {
                           <button 
@@ -120,8 +121,10 @@
                 </tbody>
               </table>
             </div>
-          } @else {
+          } @else if (!cargandoVendedores) {
             <div class="placeholder">No hay datos disponibles.</div>
+          } @else {
+            <div class="placeholder">Cargando vendedores...</div>
           }
         </div>
       </section>
