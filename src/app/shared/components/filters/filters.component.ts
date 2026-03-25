@@ -9,6 +9,7 @@ export interface DashboardFilters {
   proveedor:   string;
   categoria:   string;
   ciudad:      string;
+  ciudadNombre?: string;
   linea?:      string;
 }
 

@@ -58,12 +58,12 @@ export class UsuariosService {
   }
 
   /**
-   * GET /vendedores
+   * GET /vendedor
    * Obtiene detalle de vendedores con código y nombre
    */
   listarDetalleVendedores(): Observable<any[]> {
     return this.http
-      .get<any>(`${this.apiUrl}/vendedores`)
+      .get<any>(`${this.apiUrl}/vendedor`)
       .pipe(
         map((res) => (Array.isArray(res) ? res : res?.data ?? [])),
         catchError(() => of([])),

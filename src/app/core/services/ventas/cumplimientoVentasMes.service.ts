@@ -129,7 +129,7 @@ export class CumplimientoService {
 
   getVendedores(): Observable<any[]> {
     return this.http
-      .get<any[]>(`${this.apiUrl}/vendedores`)
+      .get<any[]>(`${this.apiUrl}/vendedor`)
       .pipe(
         map((res) => (Array.isArray(res) ? res.filter((v: any) => v.status !== false) : [])),
         catchError(() => of([])),

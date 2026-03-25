@@ -65,8 +65,6 @@
                       </div>
                     </div>
                     <h4>{{ vendedor.nombre ?? vendedor.nom_vendedor ?? vendedor.vendedor?.nombre ?? 'Sin nombre' }}</h4>
-                    <p><strong>Nombre:</strong> {{ vendedor.nombre ?? vendedor.nom_vendedor ?? vendedor.vendedor?.nombre ?? '—' }}</p>
-                    <p><strong>Usuario:</strong> {{ vendedor.username ?? '—' }}</p>
                     <p><strong>Código:</strong> {{ vendedor.codigo ?? vendedor.cod_vendedor ?? vendedor.codigo_vendedor ?? vendedor.vendedor?.codigo_vendedor ?? '—' }}</p>
                     <div class="usuario-actions">
                       <button class="btn-sm btn-edit" (click)="irAEditarVendedor(vendedor)" [disabled]="eliminando">
@@ -111,9 +109,8 @@
                         }
                       </div>
                     </div>
-                    <h4>{{ supervisor.nombre ?? supervisor.nom_supervisor ?? 'Sin nombre' }}</h4>
-                    <p><strong>Nombre:</strong> {{ supervisor.nombre ?? supervisor.nom_supervisor ?? '—' }}</p>
-                    <p><strong>Usuario:</strong> {{ supervisor.username ?? '—' }}</p>
+                    <h4>{{ supervisor.nombre ?? supervisor.nom_supervisor ?? supervisor.username ?? 'Sin nombre' }}</h4>
+                    <p><strong>Código:</strong> {{ supervisor.codigo ?? supervisor.cod_supervisor ?? supervisor.codigo_supervisor ?? '—' }}</p>
                     <div class="usuario-actions">
                       <button class="btn-sm btn-edit" (click)="irAEditarSupervisor(supervisor)" [disabled]="eliminando">
                         <span class="material-symbols-rounded">edit</span>

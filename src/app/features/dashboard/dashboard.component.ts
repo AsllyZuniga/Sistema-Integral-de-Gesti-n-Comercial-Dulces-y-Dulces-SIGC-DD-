@@ -191,15 +191,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
       });
 
     if (this.esAdmin) {
-      this.usuariosService
-        .listarVendedores()
+      this.cumplimientoService
+        .getVendedores()
         .pipe(takeUntil(this.destroy$))
         .subscribe((res: any[]) => {
           this.vendedorMap.clear();
           const etiquetas = new Set<string>();
           res.forEach((item: any) => {
-            const codigo = item?.codigo_vendedor ?? item?.codVendedor ?? item?.username ?? '';
-            const nombre = item?.nombre ?? '';
+            const codigo = item?.codigo_vendedor ?? item?.codVendedor ?? item?.codigo ?? '';
+            const nombre = item?.nombre ?? item?.nom_vendedor ?? '';
             if (codigo && nombre) {
               const etiqueta = `${String(codigo)} - ${String(nombre)}`;
               this.vendedorMap.set(etiqueta, String(codigo));
@@ -254,6 +254,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       proveedor: '',
       categoria: filtros.categoria || '',
       ciudad: '',
+      ciudadNombre: filtros.ciudad || '',
       linea: filtros.linea || '',
     };
 

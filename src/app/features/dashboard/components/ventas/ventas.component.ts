@@ -179,6 +179,29 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
+  private filtrarPorCiudadSeleccionada(listado: any[]): any[] {
+    const ciudadFiltroRaw = String(
+      this._filtros.ciudadNombre ?? this._filtros.ciudad ?? '',
+    ).trim();
+    const normalizar = (txt: string) =>
+      txt
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s.,-]/g, '')
+        .trim();
+
+    const ciudadFiltro = normalizar(ciudadFiltroRaw);
+    if (!ciudadFiltro) return listado;
+
+    const filtrado = listado.filter((item: any) => {
+      const ciudadItem = normalizar(String(item?.ciudad ?? '').trim());
+      return ciudadItem === ciudadFiltro;
+    });
+
+    return filtrado.length > 0 ? filtrado : listado;
+  }
+
   // ─── Carga principal ──────────────────────────────────────────────────────────
   cargarVistaActual(): void {
     if (!this._codigoVendedor) return;
@@ -189,6 +212,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
     const tieneProveedor  = !!this._filtros.proveedor;
     const codigoProveedor = this._filtros.proveedor;
+    const tieneCiudad     = !!this._filtros.ciudad;
 
     switch (this.activeVentasView) {
 
@@ -207,6 +231,18 @@ export class VentasComponent implements OnInit, OnDestroy {
               this.chartData = detalle.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
               this.cdr.detectChanges();
             });
+
+        } else if (tieneCiudad) {
+          const ciudades$ = this.esSemanal
+            ? this.semanaService.getCiudadesPorVendedor(this._codigoVendedor, this._filtros)
+            : this.cumplimientoService.getCiudadesPorVendedor(this._codigoVendedor, this._filtros);
+
+          ciudades$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
+            const listado = this.filtrarPorCiudadSeleccionada(res?.detallePorCiudad ?? []);
+            this.tableData = listado;
+            this.chartData = listado.map((i: any) => ({ name: i.ciudad, value: i.ventaAcum }));
+            this.cdr.detectChanges();
+          });
 
         } else if (this.esSemanal) {
           // ── SEMANA: /semana/cumplimiento/front/me ─────────────────────────────
@@ -286,7 +322,7 @@ export class VentasComponent implements OnInit, OnDestroy {
           : this.cumplimientoService.getCiudadesPorVendedor(this._codigoVendedor, this._filtros);
 
         ciudades$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
-          const listado  = res?.detallePorCiudad ?? [];
+          const listado = this.filtrarPorCiudadSeleccionada(res?.detallePorCiudad ?? []);
           this.tableData = listado;
           this.chartData = listado.map((i: any) => ({ name: i.ciudad, value: i.ventaAcum }));
           this.cdr.detectChanges();

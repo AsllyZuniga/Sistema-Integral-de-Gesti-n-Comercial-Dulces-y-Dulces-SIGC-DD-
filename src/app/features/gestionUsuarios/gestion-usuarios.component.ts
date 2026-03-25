@@ -1,17 +1,16 @@
-import {
-  Component,
-  OnInit,
-  OnDestroy,
-  inject,
-  ChangeDetectorRef,
-} from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, forkJoin, takeUntil } from 'rxjs';
 import { UsuariosService } from '../../core/services/usuarios.service';
 import { SidebarComponent } from '../../shared/components/sidebar/sidebar.component';
 
-type Seccion = 'list' | 'crear-vendedor' | 'crear-supervisor' | 'editar-vendedor' | 'editar-supervisor';
+type Seccion =
+  | 'list'
+  | 'crear-vendedor'
+  | 'crear-supervisor'
+  | 'editar-vendedor'
+  | 'editar-supervisor';
 
 @Component({
   selector: 'app-gestion-usuarios',
@@ -103,55 +102,115 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
               })
             : [];
 
-          const detallePorIdUsuario = new Map<number, any>();
+          const normalizarCodigo = (value: any): string => {
+            return String(value ?? '').trim();
+          };
+
+          const codigoSinCeros = (value: any): string => {
+            const codigo = normalizarCodigo(value);
+            if (!codigo) return '';
+            const sinCeros = codigo.replace(/^0+/, '');
+            return sinCeros || '0';
+          };
+
+          const obtenerNombre = (item: any): string => {
+            return String(
+              item?.nombre ??
+                item?.nom_vendedor ??
+                item?.nombre_vendedor ??
+                item?.vendedor?.nombre ??
+                item?.usuario?.nombre ??
+                '',
+            ).trim();
+          };
+
+          const obtenerCodigo = (item: any): string => {
+            return normalizarCodigo(
+              item?.codigo_vendedor ??
+                item?.codVendedor ??
+                item?.codigo ??
+                item?.vendedor?.codigo_vendedor ??
+                item?.vendedor?.codVendedor ??
+                item?.vendedor?.codigo ??
+                item?.usuario?.codigo ??
+                item?.usuario?.username ??
+                '',
+            );
+          };
+
+          const detallePorIdUsuario = new Map<string, any>();
           const detallePorCodigo = new Map<string, any>();
 
           (Array.isArray(detalleVendedores) ? detalleVendedores : []).forEach((detalle: any) => {
-            const idUsuario = Number(detalle?.id_usuario ?? detalle?.idUsuario ?? NaN);
-            const codigo = String(
-              detalle?.codigo_vendedor ?? detalle?.codVendedor ?? detalle?.codigo ?? '',
+            const idUsuario = String(
+              detalle?.id_usuario ??
+                detalle?.idUsuario ??
+                detalle?.usuario?.id_usuario ??
+                detalle?.usuario?.id ??
+                '',
             ).trim();
+            const codigo = obtenerCodigo(detalle);
+            const codigoNormalizado = codigoSinCeros(codigo);
 
-            if (!Number.isNaN(idUsuario)) {
+            if (idUsuario) {
               detallePorIdUsuario.set(idUsuario, detalle);
             }
             if (codigo) {
               detallePorCodigo.set(codigo, detalle);
             }
+            if (codigoNormalizado) {
+              detallePorCodigo.set(codigoNormalizado, detalle);
+            }
           });
 
           this.vendedores = usuariosVendedores.map((usuario: any) => {
-            const idUsuario = Number(usuario?.id_usuario ?? usuario?.id ?? NaN);
+            const idUsuario = String(usuario?.id_usuario ?? usuario?.id ?? '').trim();
             const codigoUsuario = String(
-              usuario?.codigo ?? usuario?.codigo_vendedor ?? usuario?.codVendedor ?? usuario?.username ?? '',
+              usuario?.codigo ??
+                usuario?.codigo_vendedor ??
+                usuario?.codVendedor ??
+                usuario?.username ??
+                '',
             ).trim();
+            const codigoUsuarioNormalizado = codigoSinCeros(codigoUsuario);
 
             const detalleAsociado =
-              (!Number.isNaN(idUsuario) ? detallePorIdUsuario.get(idUsuario) : null) ??
-              (codigoUsuario ? detallePorCodigo.get(codigoUsuario) : null);
+              (idUsuario ? detallePorIdUsuario.get(idUsuario) : null) ??
+              (codigoUsuario ? detallePorCodigo.get(codigoUsuario) : null) ??
+              (codigoUsuarioNormalizado ? detallePorCodigo.get(codigoUsuarioNormalizado) : null);
+
+            const idVendedorAsociado =
+              detalleAsociado?.id_vendedor ?? detalleAsociado?.idVendedor ?? null;
 
             const codigoAsociado =
-              detalleAsociado?.codigo_vendedor ??
-              detalleAsociado?.codVendedor ??
-              detalleAsociado?.codigo ??
-              usuario?.codigo ??
-              usuario?.codigo_vendedor ??
-              usuario?.codVendedor ??
-              usuario?.username ??
-              '';
+              [
+                obtenerCodigo(detalleAsociado),
+                usuario?.codigo,
+                usuario?.codigo_vendedor,
+                usuario?.codVendedor,
+                usuario?.username,
+                usuario?.usuario?.username,
+              ]
+                .map((v) => String(v ?? '').trim())
+                .find((v) => v.length > 0) ?? '';
 
             const nombreAsociado =
-              detalleAsociado?.nombre ??
-              detalleAsociado?.nom_vendedor ??
-              usuario?.nombre ??
-              usuario?.nom_vendedor ??
-              '';
+              [
+                obtenerNombre(detalleAsociado),
+                usuario?.nombre,
+                usuario?.nom_vendedor,
+                usuario?.nombre_vendedor,
+                usuario?.vendedor?.nombre,
+              ]
+                .map((v) => String(v ?? '').trim())
+                .find((v) => v.length > 0) ?? '';
 
             return {
               ...usuario,
               nombre: nombreAsociado,
               codigo: String(codigoAsociado).trim(),
               codigo_vendedor: String(codigoAsociado).trim(),
+              id_vendedor: idVendedorAsociado,
             };
           });
 
@@ -174,7 +233,24 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res: any[]) => {
-          this.supervisores = Array.isArray(res) ? res : [];
+          this.supervisores = Array.isArray(res)
+            ? res.map((supervisor: any) => {
+                const nombreAsociado =
+                  [
+                    supervisor?.nombre,
+                    supervisor?.nom_supervisor,
+                    supervisor?.usuario?.nombre,
+                    supervisor?.username,
+                  ]
+                    .map((v) => String(v ?? '').trim())
+                    .find((v) => v.length > 0) ?? '';
+
+                return {
+                  ...supervisor,
+                  nombre: nombreAsociado,
+                };
+              })
+            : [];
           this.cargandoSupervisores = false;
           this.cdr.detectChanges();
         },
@@ -347,9 +423,9 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
-          // Actualizar vendedor si tiene ID
-          if (this.vendedorEnEdicion?.id_vendedor || this.vendedorEnEdicion?.id) {
-            const idVendedor = this.vendedorEnEdicion?.id_vendedor ?? this.vendedorEnEdicion?.id;
+          // Actualizar vendedor si tiene id_vendedor real
+          if (this.vendedorEnEdicion?.id_vendedor) {
+            const idVendedor = this.vendedorEnEdicion.id_vendedor;
 
             const datosVendedor = {
               codigo_vendedor: this.formVendedor.codigo.trim(),
