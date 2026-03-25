@@ -1,0 +1,24 @@
+<section class="kpis">
+  <app-card [title]="labelVentaAcum" [value]="totales?.ventaAcum ?? 0"></app-card>
+  <app-card [title]="labelCuota" [value]="totales?.cuotaMes ?? 0"></app-card>
+  <app-card title="Cumplimiento" [value]="totales?.porcCump ?? 0"></app-card>
+  <app-card title="Proyección" [value]="totales?.proyeccionVenta ?? 0"></app-card>
+</section>
+
+<section class="charts">
+  <div class="chart-box dynamic-panel">
+    <h3>
+      Mis Vendedores Asignados
+      <span class="tipo-badge">{{ labelCuota }}</span>
+    </h3>
+
+    <app-vendedores-table
+      [esAdmin]="false"
+      [labelCuota]="labelCuota"
+      [labelVentaAcum]="labelVentaAcum"
+      [campoCuota]="campoCuota"
+      [cargandoVendedores]="cargandoVendedores"
+      [todosLosVendedores]="todosLosVendedores"
+    ></app-vendedores-table>
+  </div>
+</section>

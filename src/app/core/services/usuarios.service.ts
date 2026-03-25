@@ -58,6 +58,19 @@ export class UsuariosService {
   }
 
   /**
+   * GET /vendedores
+   * Obtiene detalle de vendedores con código y nombre
+   */
+  listarDetalleVendedores(): Observable<any[]> {
+    return this.http
+      .get<any>(`${this.apiUrl}/vendedores`)
+      .pipe(
+        map((res) => (Array.isArray(res) ? res : res?.data ?? [])),
+        catchError(() => of([])),
+      );
+  }
+
+  /**
    * GET /vendedor/supervisor/{id}
    * Obtiene vendedores asignados a un supervisor
    */
@@ -77,6 +90,94 @@ export class UsuariosService {
           return of([]);
         }),
       );
+  }
+
+  /**
+   * PUT /usuario/{id}
+   * Actualiza un usuario
+   */
+  actualizarUsuario(idUsuario: string | number, datos: any): Observable<any> {
+    return this.http.put<any>(
+      `${this.apiUrl}/usuario/${idUsuario}`,
+      datos,
+    ).pipe(
+      catchError((err) => {
+        console.error('❌ Error actualizando usuario:', err);
+        throw err;
+      }),
+    );
+  }
+
+  /**
+   * PUT /usuario/{id}
+   * Desactiva un usuario (cambia estado a false)
+   */
+  desactivarUsuario(idUsuario: string | number): Observable<any> {
+    return this.http.put<any>(
+      `${this.apiUrl}/usuario/${idUsuario}`,
+      { estado: false },
+    ).pipe(
+      catchError((err) => {
+        console.error('❌ Error desactivando usuario:', err);
+        throw err;
+      }),
+    );
+  }
+
+  /**
+   * POST /usuario
+   * Crea un nuevo usuario
+   */
+  crearUsuario(datos: { username: string; password: string; id_rol: number; estado?: boolean }): Observable<any> {
+    const payload = {
+      username: datos.username,
+      password: datos.password,
+      id_rol: datos.id_rol,
+      estado: datos.estado !== false, // Por defecto true
+    };
+
+    return this.http.post<any>(`${this.apiUrl}/usuario`, payload).pipe(
+      catchError((err) => {
+        console.error('❌ Error creando usuario:', err);
+        throw err;
+      }),
+    );
+  }
+
+  /**
+   * POST /vendedor
+   * Crea un nuevo vendedor
+   */
+  crearVendedor(datos: {
+    codigo_vendedor: string;
+    nombre: string;
+    id_usuario: number;
+    id_cuotaMes?: number;
+    id_cuotaSemana?: number;
+    id_cuotaDia?: number;
+  }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/vendedor`, datos).pipe(
+      catchError((err) => {
+        console.error('❌ Error creando vendedor:', err);
+        throw err;
+      }),
+    );
+  }
+
+  /**
+   * PUT /vendedor/{id}
+   * Actualiza un vendedor
+   */
+  actualizarVendedor(idVendedor: string | number, datos: any): Observable<any> {
+    return this.http.put<any>(
+      `${this.apiUrl}/vendedor/${idVendedor}`,
+      datos,
+    ).pipe(
+      catchError((err) => {
+        console.error('❌ Error actualizando vendedor:', err);
+        throw err;
+      }),
+    );
   }
 
   /**

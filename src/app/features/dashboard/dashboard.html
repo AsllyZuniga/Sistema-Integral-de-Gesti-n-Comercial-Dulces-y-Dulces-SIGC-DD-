@@ -2,7 +2,6 @@
   <app-sidebar (toggle)="onToggleSidebar($event)"></app-sidebar>
 
   <div class="main" [class.expanded]="isSidebarCollapsed">
-
     <header class="topbar">
       <div class="topbar-left">
         <button class="mobile-menu-btn" (click)="toggleMenuMovil()">
@@ -29,7 +28,8 @@
     <div class="cuota-selector-row">
       <app-cuotas-cumplimiento
         [(tipoCuota)]="tipoCuota"
-        (tipoCuotaChange)="onCambiarTipoCuota($event)">
+        (tipoCuotaChange)="onCambiarTipoCuota($event)"
+      >
       </app-cuotas-cumplimiento>
     </div>
 
@@ -40,156 +40,43 @@
         [ciudades]="ciudadesList"
         [lineas]="lineasList"
         [vendedores]="esAdmin ? vendedoresList : []"
-        (apply)="onAplicarFiltros($event)">
+        (apply)="onAplicarFiltros($event)"
+      >
       </app-filters>
     </section>
 
-    <!-- KPIs — títulos dinámicos según tipoCuota -->
-    <section class="kpis">
-      <app-card
-        [title]="labelVentaAcum"
-        [value]="totales?.ventaAcum ?? 0">
-      </app-card>
-      <app-card
-        [title]="labelCuota"
-        [value]="totales?.cuotaMes ?? 0">
-      </app-card>
-      <app-card
-        title="Cumplimiento"
-        [value]="totales?.porcCump ?? 0">
-      </app-card>
-      <app-card
-        title="Proyección"
-        [value]="totales?.proyeccionVenta ?? 0">
-      </app-card>
-    </section>
-
-    <!-- ADMIN/SUPERVISOR: tabla con vendedores -->
-    @if (esAdmin || esSupervisor) {
-      <section class="charts">
-        <div class="chart-box dynamic-panel">
-          <h3>
-            {{ esAdmin ? 'Todos los Vendedores' : 'Mis Vendedores Asignados' }}
-            <span class="tipo-badge">{{ labelCuota }}</span>
-          </h3>
-
-          <!-- Mostrar tabla si hay datos (incluso mientras carga desde servidor) -->
-          @if (todosLosVendedores.length > 0) {
-            <div class="tabla-scroll" [class.loading-overlay]="cargandoVendedores">
-              <table class="admin-table">
-                <thead>
-                  <tr>
-                    <th>Código</th>
-                    <th>Nombre</th>
-                    <th>{{ labelCuota }}</th>
-                    <th>{{ labelVentaAcum }}</th>
-                    <th>Cumplimiento</th>
-                    <th>Proyección</th>
-                    <th>Supervisor</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (v of todosLosVendedores; track v.codVendedor) {
-                    <tr>
-                      <td class="cod">{{ v.codVendedor ?? '—' }}</td>
-                      <td class="nombre">{{ v.nombre ?? '—' }}</td>
-                      <!-- campoCuota cambia según tipoCuota: cuotaMes | cuotaSemana | cuotaDiaria -->
-                      <td class="num">$ {{ (v[campoCuota] ?? 0) | number:'1.0-0' }}</td>
-                      <td class="num">$ {{ (v.ventaAcum   ?? 0) | number:'1.0-0' }}</td>
-                      <td class="num porc"
-                          [class.verde]="(v.porcCump ?? 0) >= 100"
-                          [class.rojo]="(v.porcCump ?? 0) < 80">
-                        {{ (v.porcCump ?? 0) | number:'1.1-1' }} %
-                      </td>
-                      <td class="num">$ {{ (v.proyeccionVenta ?? 0) | number:'1.0-0' }}</td>
-                      <td class="supervisor" [class.sin-asignar]="!v.nombreSupervisor || v.nombreSupervisor === ''">
-                        {{ v.nombreSupervisor && v.nombreSupervisor !== '' ? v.nombreSupervisor : 'Sin asignar' }}
-                      </td>
-                      <td class="acciones">
-                        @if (esAdmin) {
-                          <button 
-                            class="btn-asignar"
-                            (click)="abrirModalAsignar(v)"
-                            title="Asignar supervisor">
-                            <span class="material-symbols-rounded">person_add</span>
-                          </button>
-                        }
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          } @else if (!cargandoVendedores) {
-            <div class="placeholder">No hay datos disponibles.</div>
-          } @else {
-            <div class="placeholder">Cargando vendedores...</div>
-          }
-        </div>
-      </section>
+    @if (esAdmin) {
+      <app-administrador-dashboard
+        [tipoCuota]="tipoCuota"
+        [filtrosActivos]="filtrosActivos"
+      ></app-administrador-dashboard>
     }
 
-    <!-- MODAL: Asignar Supervisor -->
-    @if (modalAsignarVisible && vendedorEnModal) {
-      <div class="modal-overlay" (click)="cerrarModalAsignar()">
-        <div class="modal-content" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h3>Asignar Supervisor</h3>
-            <button class="btn-close" (click)="cerrarModalAsignar()">
-              <span class="material-symbols-rounded">close</span>
-            </button>
-          </div>
-          <div class="modal-body">
-            <p><strong>Vendedor:</strong> {{ vendedorEnModal.nombre }}</p>
-            <p><strong>Código:</strong> {{ vendedorEnModal.codigo_vendedor ?? vendedorEnModal.codVendedor ?? '—' }}</p>
-            
-            <label for="supervisorSelect">Seleccionar Supervisor:</label>
-            <select 
-              id="supervisorSelect"
-              [(ngModel)]="supervisorSeleccionado"
-              class="form-select">
-              <option value="">-- Sin Supervisor --</option>
-              @for (supervisor of supervisoresList; track supervisor.id_usuario ?? supervisor.idUsuario ?? supervisor.id) {
-                <option [value]="supervisor.id_usuario ?? supervisor.idUsuario ?? supervisor.id">
-                  {{ supervisor.username ?? supervisor.nombre ?? supervisor.nombre }}
-                </option>
-              }
-            </select>
-          </div>
-          <div class="modal-footer">
-            <button 
-              class="btn-cancelar"
-              (click)="cerrarModalAsignar()"
-              [disabled]="asignandoSupervisor">
-              Cancelar
-            </button>
-            <button 
-              class="btn-guardar"
-              (click)="asignarSupervisor()"
-              [disabled]="asignandoSupervisor">
-              @if (asignandoSupervisor) {
-                <span class="spinner"></span>
-                Asignando...
-              } @else {
-                Guardar
-              }
-            </button>
-          </div>
-        </div>
-      </div>
+    @if (esSupervisor) {
+      <app-supervisor-dashboard
+        [tipoCuota]="tipoCuota"
+        [filtrosActivos]="filtrosActivos"
+      ></app-supervisor-dashboard>
     }
 
     <!-- VENDEDOR: gráficas y detalle — recibe tipoCuota para usar el servicio correcto -->
     @if (rolId === 3) {
+      <!-- KPIs vendedor -->
+      <section class="kpis">
+        <app-card [title]="labelVentaAcum" [value]="totalesVendedor?.ventaAcum ?? 0"> </app-card>
+        <app-card [title]="labelCuota" [value]="totalesVendedor?.cuotaMes ?? 0"> </app-card>
+        <app-card title="Cumplimiento" [value]="totalesVendedor?.porcCump ?? 0"> </app-card>
+        <app-card title="Proyección" [value]="totalesVendedor?.proyeccionVenta ?? 0"> </app-card>
+      </section>
+
       <section class="charts">
         <app-ventas
           [codigoVendedor]="codigoVendedor"
           [filtros]="filtrosActivos"
-          [tipoCuota]="tipoCuota">
+          [tipoCuota]="tipoCuota"
+        >
         </app-ventas>
       </section>
     }
-
   </div>
 </div>

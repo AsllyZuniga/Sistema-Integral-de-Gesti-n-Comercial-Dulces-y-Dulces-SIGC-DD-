@@ -1,0 +1,90 @@
+@import '../../../../../shared/components/table/table.component.css';
+
+.admin-table td.cod {
+  font-weight: 700;
+  color: var(--c-primary);
+  font-size: 12px;
+}
+
+.admin-table td.nombre {
+  font-weight: 600;
+}
+
+.admin-table td.supervisor {
+  min-width: 140px;
+}
+
+.admin-table td.supervisor.sin-asignar {
+  color: var(--c-text-muted);
+  font-style: italic;
+}
+
+.admin-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.admin-table td.porc {
+  font-weight: 700;
+}
+
+.admin-table td.verde {
+  color: #16a34a;
+}
+
+.admin-table td.rojo {
+  color: #dc2626;
+}
+
+.admin-table th:nth-child(3),
+.admin-table th:nth-child(4),
+.admin-table th:nth-child(5),
+.admin-table th:nth-child(6) {
+  text-align: right;
+}
+
+.btn-asignar {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--r-sm);
+  background: linear-gradient(135deg, var(--c-primary-mid), var(--c-primary));
+  color: var(--c-surface);
+  cursor: pointer;
+  box-shadow: var(--shadow-btn);
+  transition: var(--transition);
+}
+
+.btn-asignar:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-btn-hv);
+}
+
+.btn-asignar .material-symbols-rounded {
+  font-size: 18px;
+}
+
+.tabla-scroll {
+  position: relative;
+}
+
+.tabla-scroll.loading-overlay::before {
+  content: '⟳ Actualizando...';
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(1, 70, 146, 0.95);
+  color: white;
+  padding: 16px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  z-index: 101;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
