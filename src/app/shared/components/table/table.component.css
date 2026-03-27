@@ -1,10 +1,14 @@
 table {
   width: 100%;
   min-width: 620px;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   background: var(--c-surface);
   font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
   table-layout: auto; /* ✅ CORREGIDO: auto para que cada columna tome el ancho que necesita */
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  overflow: hidden;
 }
 
 thead tr {
@@ -12,7 +16,7 @@ thead tr {
 }
 
 th {
-  background: var(--c-surface);
+  background: var(--c-surface-alt);
   text-align: left;
   padding: 12px 14px;
   font-size: 11px;
@@ -25,25 +29,36 @@ th {
   z-index: 1;
   white-space: nowrap;
   box-shadow: 0 1px 0 var(--c-border);
+  border-bottom: 1px solid var(--c-border);
+  border-right: 1px solid var(--c-border);
+}
+
+th:last-child {
+  border-right: none;
 }
 
 td {
   padding: 11px 14px;
-  border-bottom: 1px solid var(--c-bg);
+  border-bottom: 1px solid var(--c-border);
+  border-right: 1px solid var(--c-border);
   font-size: 13px;
   color: var(--c-text);
   white-space: nowrap;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+td:last-child {
+  border-right: none;
 }
 
 tbody tr:hover td {
-  background: var(--c-primary-pale);
+  background: #eaf3ff;
 }
 tbody tr.odd td {
-  background: var(--c-surface-alt);
+  background: #fcfdff;
 }
 tbody tr.odd:hover td {
-  background: var(--c-primary-pale);
+  background: #eaf3ff;
 }
 tbody tr:last-child td {
   border-bottom: none;
