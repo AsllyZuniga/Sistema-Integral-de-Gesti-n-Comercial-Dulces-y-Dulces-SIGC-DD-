@@ -101,6 +101,61 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     this.destroy$.complete();
   }
 
+  private normalizarTexto(valor: unknown): string {
+    return String(valor ?? '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  private repararTexto(valor: unknown): string {
+    return String(valor ?? '')
+      .replace(/�/g, 'a')
+      .trim();
+  }
+
+  private aplicarFiltrosSupervisor(lista: any[]): any[] {
+    const filtros = this.filtrosActivos ?? ({} as DashboardFilters);
+
+    const codVendedorFiltro = String(filtros.vendedor ?? '').trim();
+    const proveedorFiltro = this.normalizarTexto(filtros.proveedor);
+    const categoriaFiltro = this.normalizarTexto(filtros.categoria);
+    const ciudadFiltro = this.normalizarTexto(filtros.ciudadNombre ?? filtros.ciudad ?? '');
+    const lineaFiltro = this.normalizarTexto(filtros.linea);
+
+    return lista.filter((v: any) => {
+      if (codVendedorFiltro) {
+        const codigoV = String(v.codVendedor ?? '').trim();
+        if (codigoV !== codVendedorFiltro) return false;
+      }
+
+      if (proveedorFiltro) {
+        const proveedorV = this.normalizarTexto(v.proveedor ?? v.nomProveedor ?? v.nombreProveedor);
+        if (!proveedorV.includes(proveedorFiltro)) return false;
+      }
+
+      if (categoriaFiltro) {
+        const categoriaV = this.normalizarTexto(v.categoria ?? v.nomCategoria ?? v.nombreCategoria);
+        if (!categoriaV.includes(categoriaFiltro)) return false;
+      }
+
+      if (ciudadFiltro) {
+        const ciudadV = this.normalizarTexto(
+          this.repararTexto(v.ciudad ?? v.nomCiudad ?? v.nombreCiudad),
+        );
+        if (ciudadV !== ciudadFiltro) return false;
+      }
+
+      if (lineaFiltro) {
+        const lineaV = this.normalizarTexto(v.linea ?? v.nomLinea ?? v.nombreLinea);
+        if (!lineaV.includes(lineaFiltro)) return false;
+      }
+
+      return true;
+    });
+  }
+
   private cargarVendedoresSupervisor(): void {
     if (!this.idSupervisor) {
       this.todosLosVendedores = [];
@@ -128,9 +183,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
             proyeccionVenta: Number(v.proyeccionVenta ?? 0),
           }));
 
-          const listaFiltrada = this.filtrosActivos.vendedor
-            ? lista.filter((v: any) => v.codVendedor === this.filtrosActivos.vendedor)
-            : lista;
+          const listaFiltrada = this.aplicarFiltrosSupervisor(lista);
 
           this.todosLosVendedores = listaFiltrada;
 
