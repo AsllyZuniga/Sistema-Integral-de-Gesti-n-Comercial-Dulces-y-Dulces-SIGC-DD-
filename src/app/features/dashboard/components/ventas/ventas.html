@@ -1,7 +1,6 @@
 <div class="chart-box dynamic-panel">
   <h3>
     Análisis de Ventas
-    <!-- Badge que indica el periodo activo -->
     <span class="tipo-badge">{{ tipoCuota === 'semanal' ? 'Semana' : 'Mes' }}</span>
   </h3>
 
@@ -16,18 +15,14 @@
   <div class="dynamic-content">
     @switch (activeVentasView) {
 
-      <!-- ── VENTAS GENERALES ──────────────────────────────────────────────── -->
       @case ('ventas') {
         <div class="stack-layout">
-
-          <!-- Tabla: siempre visible si hay datos -->
           @if (tableData.length > 0) {
             <div class="tabla-scroll">
               <app-table [columns]="tableColumns" [data]="tableData" />
             </div>
           }
 
-          <!-- Gráfico -->
           @if (chartData.length > 0) {
             <div class="grafica-container">
               <app-chart
@@ -41,11 +36,9 @@
           @if (tableData.length === 0 && chartData.length === 0) {
             <div class="placeholder">Cargando información...</div>
           }
-
         </div>
       }
 
-      <!-- ── POR PROVEEDOR ─────────────────────────────────────────────────── -->
       @case ('proveedor') {
         <div class="stack-layout">
           <div class="tabla-scroll">
@@ -55,6 +48,7 @@
               <div class="placeholder">Cargando información...</div>
             }
           </div>
+
           @if (chartData.length > 0) {
             <div class="grafica-container">
               <h4>Por Proveedor</h4>
@@ -68,7 +62,6 @@
         </div>
       }
 
-      <!-- ── POR CIUDAD ────────────────────────────────────────────────────── -->
       @case ('ciudad') {
         <div class="stack-layout">
           <div class="tabla-scroll">
@@ -78,6 +71,7 @@
               <div class="placeholder">Cargando información...</div>
             }
           </div>
+
           @if (chartData.length > 0) {
             <div class="grafica-container">
               <h4>Por Ciudad</h4>
@@ -91,7 +85,6 @@
         </div>
       }
 
-      <!-- ── POR VENDEDOR ──────────────────────────────────────────────────── -->
       @case ('vendedor') {
         <div class="stack-layout">
           <div class="tabla-scroll">
@@ -104,7 +97,6 @@
         </div>
       }
 
-      <!-- ── DETALLE POR ITEM ──────────────────────────────────────────────── -->
       @case ('item') {
         <div class="stack-layout">
           <div class="filtro-bar">
@@ -112,6 +104,7 @@
               {{ tableData.length }} registro{{ tableData.length !== 1 ? 's' : '' }}
             </span>
           </div>
+
           <div class="tabla-scroll">
             @if (tableData.length > 0) {
               <app-table [columns]="productosColumns" [data]="tableData" />
@@ -119,6 +112,7 @@
               <div class="placeholder">Cargando información...</div>
             }
           </div>
+
           @if (chartData.length > 0) {
             <div class="grafica-container">
               <h4>Top 10 Items</h4>
