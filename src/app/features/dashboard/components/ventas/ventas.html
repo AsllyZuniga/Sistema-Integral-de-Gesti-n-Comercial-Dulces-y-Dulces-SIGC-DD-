@@ -126,6 +126,58 @@
         </div>
       }
 
+      @case ('cliente') {
+        <div class="stack-layout">
+          <div class="filtro-bar">
+            <span class="filtro-badge">
+              {{ clientesAgrupados.length }} cliente{{ clientesAgrupados.length !== 1 ? 's' : '' }}
+            </span>
+          </div>
+
+          @if (clientesAgrupados.length > 0) {
+            <div class="clientes-listado">
+              @for (cliente of clientesAgrupados; track cliente.key) {
+                <article class="cliente-card">
+                  <button class="cliente-head" type="button" (click)="toggleCliente(cliente)">
+                    <div class="cliente-identidad">
+                      <h4>{{ cliente.cliente }}</h4>
+                      <span class="cliente-sucursal">Sucursal: {{ cliente.sucursal }}</span>
+                      <span class="cliente-sucursal">Documento: {{ cliente.documento }}</span>
+                      @if (cliente.idClienteSucursal) {
+                        <span class="cliente-sucursal">ID Cliente Sucursal: {{ cliente.idClienteSucursal }}</span>
+                      }
+                    </div>
+                    <div class="cliente-resumen">
+                      <span>{{ cliente.cantidadItems }} item{{ cliente.cantidadItems !== 1 ? 's' : '' }}</span>
+                      <strong>{{ cliente.ventaAcum | currency:'COP':'symbol':'1.0-0':'es-CO' }}</strong>
+                    </div>
+                  </button>
+
+                  @if (cliente.expandido) {
+                    <div class="cliente-body tabla-scroll">
+                      <app-table [columns]="clienteProductosColumns" [data]="cliente.productos" />
+                    </div>
+                  }
+                </article>
+              }
+            </div>
+          } @else {
+            <div class="placeholder">Cargando información...</div>
+          }
+
+          @if (chartData.length > 0) {
+            <div class="grafica-container">
+              <h4>Top 10 Clientes</h4>
+              <app-chart
+                [chartId]="chartId"
+                [data]="chartData"
+                [type]="chartType"
+                label="Top 10 Clientes" />
+            </div>
+          }
+        </div>
+      }
+
     }
   </div>
 </div>

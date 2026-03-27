@@ -30,6 +30,9 @@ export class TableComponent {
     Cod_Item: 'Cód. Item',
     Descripcion: 'Descripción',
     Venta_Unid_Cajas: 'Unid. Cajas',
+    Cantidad: 'Cantidad',
+    cliente: 'Cliente',
+    cantidadItems: 'Cantidad Items',
     proveedor: 'Proveedor',
     producto: 'Producto',
     impactos: 'Impactos',
@@ -46,7 +49,8 @@ export class TableComponent {
     'valorTotal',
   ]);
   private readonly percentCols = new Set(['porcCump', 'porcCumProy']);
-  private readonly integerCols = new Set(['Venta_Unid_Cajas', 'impactos']);
+  private readonly integerCols = new Set(['Venta_Unid_Cajas', 'Cantidad', 'impactos']);
+  private readonly integerColsExt = new Set(['cantidadItems']);
 
   getHeader(col: string): string {
     return this.headerMap[col] ?? col;
@@ -71,7 +75,7 @@ export class TableComponent {
             '\u00a0%';
     }
 
-    if (this.integerCols.has(col)) {
+    if (this.integerCols.has(col) || this.integerColsExt.has(col)) {
       const num = Number(value);
       return isNaN(num) ? value : num.toLocaleString('es-CO');
     }

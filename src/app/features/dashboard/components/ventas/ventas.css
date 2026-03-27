@@ -67,3 +67,59 @@
   display: block;
   margin-bottom: 8px;
 }
+
+.clientes-listado {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cliente-card {
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--c-surface);
+}
+
+.cliente-head {
+  width: 100%;
+  border: none;
+  background: var(--c-surface-alt);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cliente-identidad h4 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--c-text);
+}
+
+.cliente-sucursal {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--c-text-muted);
+}
+
+.cliente-resumen {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 12px;
+  color: var(--c-text-muted);
+}
+
+.cliente-resumen strong {
+  font-size: 14px;
+  color: var(--c-text);
+}
+
+.cliente-body {
+  padding: 12px;
+}
