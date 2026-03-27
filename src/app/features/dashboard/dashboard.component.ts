@@ -1,6 +1,7 @@
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, forkJoin, of, takeUntil } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { AuthService } from '../../core/services/auth.service';
 import { Router } from '@angular/router';
 import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
@@ -63,7 +64,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
-  // Solo para vista vendedor
   totalesVendedor: any = null;
 
   filtrosActivos: DashboardFilters = {
@@ -73,6 +73,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     proveedor: '',
     categoria: '',
     ciudad: '',
+    ciudadNombre: '',
     linea: '',
   };
 
@@ -169,6 +170,116 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.isSidebarCollapsed = collapsed;
   }
 
+  private normalizarTexto(valor: unknown): string {
+    return String(valor ?? '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s.,-]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private repararTextoCiudad(valor: unknown): string {
+    const txt = String(valor ?? '').trim();
+    if (!txt) return '';
+
+    return txt
+      .replace(/�/g, 'a')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private registrarCiudad(nombreCiudad: unknown, codigoCiudad: unknown, setCiudades: Set<string>): void {
+    const ciudadOriginal = this.repararTextoCiudad(nombreCiudad);
+    const ciudadNormalizada = this.normalizarTexto(ciudadOriginal);
+    const codigo = String(codigoCiudad ?? '').trim();
+
+    if (!ciudadOriginal || !ciudadNormalizada) return;
+
+    if (codigo) {
+      this.ciudadMap.set(ciudadOriginal, codigo);
+      this.ciudadMap.set(ciudadNormalizada, codigo);
+    }
+
+    setCiudades.add(ciudadOriginal);
+  }
+
+  private cargarCiudadesYLineasSupervisor(): void {
+    const idSupervisor = String(
+      this.vendedor?.id_usuario ?? this.vendedor?.idUsuario ?? this.vendedor?.id ?? '',
+    );
+
+    if (!idSupervisor) {
+      this.ciudadesList = [];
+      this.lineasList = [];
+      return;
+    }
+
+    this.usuariosService
+      .obtenerVendedoresDelSupervisor(idSupervisor)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((vendedores: any[]) => {
+        const codigos = vendedores
+          .map((v: any) => String(v?.codigo_vendedor ?? v?.codVendedor ?? v?.codigo ?? '').trim())
+          .filter((c: string) => !!c);
+
+        if (!codigos.length) {
+          this.ciudadesList = [];
+          this.lineasList = [];
+          this.ciudadMap.clear();
+          this.lineaMap.clear();
+          return;
+        }
+
+        this.ciudadMap.clear();
+        this.lineaMap.clear();
+
+        const peticiones = codigos.map((codigo) =>
+          forkJoin({
+            ciudades: this.cumplimientoService.getCiudadesPorVendedor(codigo).pipe(
+              catchError(() => of({ detallePorCiudad: [] }))
+            ),
+            lineas: this.cumplimientoService.getLineasPorVendedor(codigo).pipe(
+              catchError(() => of({ detallePorLinea: [] }))
+            ),
+          })
+        );
+
+        forkJoin(peticiones)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((resultados) => {
+            const ciudadesUnicas = new Set<string>();
+            const lineasUnicas = new Set<string>();
+
+            resultados.forEach((resultado: any) => {
+              const ciudades = resultado?.ciudades?.detallePorCiudad ?? [];
+              const lineas = resultado?.lineas?.detallePorLinea ?? [];
+
+              ciudades.forEach((item: any) => {
+                const cod = item?.codCiudad ?? item?.codigo ?? item?.cod ?? '';
+                this.registrarCiudad(item?.ciudad, cod, ciudadesUnicas);
+              });
+
+              lineas.forEach((item: any) => {
+                const linea = String(item?.linea ?? '').trim();
+                const cod = String(item?.codigoLinea ?? '').trim();
+                if (!linea) return;
+
+                if (cod) {
+                  this.lineaMap.set(linea, cod);
+                }
+                lineasUnicas.add(linea);
+              });
+            });
+
+            this.ciudadesList = Array.from(ciudadesUnicas).sort((a, b) => a.localeCompare(b));
+            this.lineasList = Array.from(lineasUnicas).sort((a, b) => a.localeCompare(b));
+          });
+      });
+  }
+
   logout(): void {
     this.authService.logout();
     this.router.navigate(['/login'], { replaceUrl: true });
@@ -181,13 +292,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .subscribe((proveedores) => {
         this.proveedorMap.clear();
         const unicos = new Set<string>();
+
         proveedores.forEach((item: any) => {
           if (item.nombre && item.codigo) {
             this.proveedorMap.set(item.nombre, item.codigo);
             unicos.add(item.nombre);
           }
         });
-        this.proveedoresList = Array.from(unicos).sort();
+
+        this.proveedoresList = Array.from(unicos).sort((a, b) => a.localeCompare(b));
       });
 
     if (this.esAdmin) {
@@ -197,16 +310,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
         .subscribe((res: any[]) => {
           this.vendedorMap.clear();
           const etiquetas = new Set<string>();
+
           res.forEach((item: any) => {
             const codigo = item?.codigo_vendedor ?? item?.codVendedor ?? item?.codigo ?? '';
             const nombre = item?.nombre ?? item?.nom_vendedor ?? '';
+
             if (codigo && nombre) {
               const etiqueta = `${String(codigo)} - ${String(nombre)}`;
               this.vendedorMap.set(etiqueta, String(codigo));
               etiquetas.add(etiqueta);
             }
           });
-          this.vendedoresList = Array.from(etiquetas).sort();
+
+          this.vendedoresList = Array.from(etiquetas).sort((a, b) => a.localeCompare(b));
         });
     }
 
@@ -217,14 +333,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
         .subscribe((res) => {
           const listado = res?.detallePorLinea ?? [];
           this.lineaMap.clear();
+
           const unicos = new Set<string>();
           listado.forEach((item: any) => {
-            if (item.codigoLinea && item.linea) {
-              this.lineaMap.set(item.linea, item.codigoLinea);
-              unicos.add(item.linea);
+            const linea = String(item?.linea ?? '').trim();
+            const codigoLinea = String(item?.codigoLinea ?? '').trim();
+
+            if (linea) {
+              if (codigoLinea) this.lineaMap.set(linea, codigoLinea);
+              unicos.add(linea);
             }
           });
-          this.lineasList = Array.from(unicos).sort();
+
+          this.lineasList = Array.from(unicos).sort((a, b) => a.localeCompare(b));
         });
 
       this.cumplimientoService
@@ -233,20 +354,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
         .subscribe((res) => {
           const listado = res?.detallePorCiudad ?? [];
           this.ciudadMap.clear();
+
           const unicos = new Set<string>();
           listado.forEach((item: any) => {
-            const cod = item.codCiudad || item.codigo || item.cod;
-            if (item.ciudad && cod) {
-              this.ciudadMap.set(item.ciudad, cod);
-              unicos.add(item.ciudad);
-            }
+            const cod = item?.codCiudad ?? item?.codigo ?? item?.cod ?? '';
+            this.registrarCiudad(item?.ciudad, cod, unicos);
           });
-          this.ciudadesList = Array.from(unicos).sort();
+
+          this.ciudadesList = Array.from(unicos).sort((a, b) => a.localeCompare(b));
         });
+
+      if (this.esSupervisor) {
+        this.cargarCiudadesYLineasSupervisor();
+      }
     }
   }
 
   onAplicarFiltros(filtros: DashboardFilters): void {
+    const ciudadVisible = String(filtros.ciudad ?? '').trim();
+    const ciudadNormalizada = this.normalizarTexto(ciudadVisible);
+
     const filtrosConCodigos: DashboardFilters = {
       fechaInicio: filtros.fechaInicio,
       fechaFin: filtros.fechaFin,
@@ -254,24 +381,30 @@ export class DashboardComponent implements OnInit, OnDestroy {
       proveedor: '',
       categoria: filtros.categoria || '',
       ciudad: '',
-      ciudadNombre: filtros.ciudad || '',
+      ciudadNombre: ciudadVisible || '',
       linea: filtros.linea || '',
     };
 
     if (filtros.vendedor) {
       filtrosConCodigos.vendedor = this.vendedorMap.get(filtros.vendedor) ?? filtros.vendedor;
     }
+
     if (filtros.proveedor) {
       filtrosConCodigos.proveedor = this.proveedorMap.get(filtros.proveedor) ?? filtros.proveedor;
     }
-    if (filtros.ciudad) {
-      filtrosConCodigos.ciudad = this.ciudadMap.get(filtros.ciudad) ?? filtros.ciudad;
+
+    if (ciudadVisible) {
+      filtrosConCodigos.ciudad =
+        this.ciudadMap.get(ciudadVisible) ??
+        this.ciudadMap.get(ciudadNormalizada) ??
+        ciudadVisible;
     }
+
     if (filtros.linea) {
       filtrosConCodigos.linea = this.lineaMap.get(filtros.linea) ?? filtros.linea;
     }
 
-    this.filtrosActivos = filtrosConCodigos;
+    this.filtrosActivos = { ...filtrosConCodigos };
 
     if (this.rolId === 3) {
       this.cargarTotalesVendedor();
@@ -292,6 +425,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       next: (res: any) => {
         const detalle: any[] = (res?.detalle ?? []).filter((v: any) => v.codVendedor !== 'TOTALES');
         const d = detalle[0];
+
         if (!d) {
           this.totalesVendedor = null;
           return;
