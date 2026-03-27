@@ -235,6 +235,7 @@ export class VentasComponent implements OnInit, OnDestroy {
     const tieneProveedor = !!this._filtros.proveedor;
     const codigoProveedor = this._filtros.proveedor;
     const tieneCiudad = !!(this._filtros.ciudad || this._filtros.ciudadNombre);
+    const codigoCiudad = String(this._filtros.ciudad ?? '').trim();
 
     switch (this.activeVentasView) {
       case 'ventas':
@@ -254,7 +255,9 @@ export class VentasComponent implements OnInit, OnDestroy {
         } else if (tieneCiudad) {
           const ciudades$ = this.esSemanal
             ? this.semanaService.getCiudadesPorVendedor(this._codigoVendedor, this._filtros)
-            : this.cumplimientoService.getCiudadesPorVendedor(this._codigoVendedor, this._filtros);
+            : codigoCiudad
+              ? this.cumplimientoService.getDetallePorCiudad(this._codigoVendedor, codigoCiudad, this._filtros)
+              : this.cumplimientoService.getCiudadesPorVendedor(this._codigoVendedor, this._filtros);
 
           ciudades$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
             const listado = this.filtrarPorCiudadSeleccionada(res?.detallePorCiudad ?? []);
@@ -331,7 +334,9 @@ export class VentasComponent implements OnInit, OnDestroy {
 
         const ciudades$ = this.esSemanal
           ? this.semanaService.getCiudadesPorVendedor(this._codigoVendedor, this._filtros)
-          : this.cumplimientoService.getCiudadesPorVendedor(this._codigoVendedor, this._filtros);
+          : codigoCiudad
+            ? this.cumplimientoService.getDetallePorCiudad(this._codigoVendedor, codigoCiudad, this._filtros)
+            : this.cumplimientoService.getCiudadesPorVendedor(this._codigoVendedor, this._filtros);
 
         ciudades$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
           const listado = this.filtrarPorCiudadSeleccionada(res?.detallePorCiudad ?? []);

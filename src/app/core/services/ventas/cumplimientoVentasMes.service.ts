@@ -108,6 +108,23 @@ export class CumplimientoService {
       );
   }
 
+  getDetallePorCiudad(codigoVendedor: string, codigoCiudad: string, filtros?: DashboardFilters): Observable<any> {
+    let params = this.buildParams(filtros);
+    if (params.has('ciudad')) params = params.delete('ciudad');
+
+    return this.http
+      .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/ciudad/${codigoCiudad}`, { params })
+      .pipe(
+        map((res) => {
+          if (res?.detallePorCiudad) {
+            res.detallePorCiudad = Array.isArray(res.detallePorCiudad) ? res.detallePorCiudad : [];
+          }
+          return res;
+        }),
+        catchError(() => of({ detallePorCiudad: [] })),
+      );
+  }
+
   getProductosPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     return this.http

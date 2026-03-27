@@ -110,9 +110,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   get codigoVendedor(): string {
-    return (
-      this.vendedor?.codVendedor || this.vendedor?.codigo || this.vendedor?.codigo_vendedor || ''
-    );
+    const codigoRaw =
+      this.vendedor?.codVendedor || this.vendedor?.codigo || this.vendedor?.codigo_vendedor || '';
+    return this.normalizarCodigoVendedor(codigoRaw);
+  }
+
+  private normalizarCodigoVendedor(valor: unknown): string {
+    const codigo = String(valor ?? '').trim();
+    if (!codigo) return '';
+    return /^\d+$/.test(codigo) && codigo.length < 4 ? codigo.padStart(4, '0') : codigo;
   }
 
   get labelCuota(): string {
@@ -222,7 +228,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((vendedores: any[]) => {
         const codigos = vendedores
-          .map((v: any) => String(v?.codigo_vendedor ?? v?.codVendedor ?? v?.codigo ?? '').trim())
+          .map((v: any) =>
+            this.normalizarCodigoVendedor(v?.codigo_vendedor ?? v?.codVendedor ?? v?.codigo ?? ''),
+          )
           .filter((c: string) => !!c);
 
         if (!codigos.length) {
@@ -258,7 +266,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
               const lineas = resultado?.lineas?.detallePorLinea ?? [];
 
               ciudades.forEach((item: any) => {
-                const cod = item?.codCiudad ?? item?.codigo ?? item?.cod ?? '';
+                const cod =
+                  item?.id_ciudad ??
+                  item?.idCiudad ??
+                  item?.codCiudad ??
+                  item?.codigo ??
+                  item?.cod ??
+                  '';
                 this.registrarCiudad(item?.ciudad, cod, ciudadesUnicas);
               });
 
@@ -312,7 +326,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
           const etiquetas = new Set<string>();
 
           res.forEach((item: any) => {
-            const codigo = item?.codigo_vendedor ?? item?.codVendedor ?? item?.codigo ?? '';
+            const codigo = this.normalizarCodigoVendedor(
+              item?.codigo_vendedor ?? item?.codVendedor ?? item?.codigo ?? '',
+            );
             const nombre = item?.nombre ?? item?.nom_vendedor ?? '';
 
             if (codigo && nombre) {
@@ -357,7 +373,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
           const unicos = new Set<string>();
           listado.forEach((item: any) => {
-            const cod = item?.codCiudad ?? item?.codigo ?? item?.cod ?? '';
+            const cod =
+              item?.id_ciudad ??
+              item?.idCiudad ??
+              item?.codCiudad ??
+              item?.codigo ??
+              item?.cod ??
+              '';
             this.registrarCiudad(item?.ciudad, cod, unicos);
           });
 
