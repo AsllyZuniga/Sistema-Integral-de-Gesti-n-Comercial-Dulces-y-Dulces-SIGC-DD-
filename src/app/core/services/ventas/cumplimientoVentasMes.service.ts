@@ -216,4 +216,19 @@ export class CumplimientoService {
         catchError(() => of([])),
       );
   }
+
+  /** GET /cuota-categoria/vendedores → categorías de múltiples vendedores con filtros de fecha */
+  getCuotaCategoriasPorVendedores(filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParams(filtros);
+    return this.http
+      .get<any>(`${this.apiUrl}/cuota-categoria/vendedores`, { params })
+      .pipe(
+        map((res) => ({
+          ...(res ?? {}),
+          periodo: res?.periodo ?? {},
+          detalle: Array.isArray(res?.detalle) ? res.detalle : [],
+        })),
+        catchError(() => of({ periodo: {}, detalle: [] })),
+      );
+  }
 }
