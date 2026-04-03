@@ -12,6 +12,14 @@ export class TableComponent {
   @Input() columns: string[] = [];
   @Input() data: any[] = [];
 
+  trackByColumn(_index: number, col: string): string {
+    return col;
+  }
+
+  trackByRow(index: number, row: any): any {
+    return row?.id_venta ?? row?.id_item ?? row?.id_cliente ?? row?.key ?? index;
+  }
+
   private readonly headerMap: Record<string, string> = {
     codVendedor: 'Cód. Vendedor',
     nombre: 'Nombre',
@@ -26,6 +34,7 @@ export class TableComponent {
     linea: 'Línea',
     ciudad: 'Ciudad',
     Fecha: 'Fecha',
+    fecha: 'Fecha',
     Proveedor: 'Proveedor',
     Cod_Item: 'Cód. Item',
     id_item: 'ID Item',
@@ -37,6 +46,9 @@ export class TableComponent {
     cantidadItems: 'Cantidad Items',
     proveedor: 'Proveedor',
     producto: 'Producto',
+    precio: 'Precio',
+    subtotal: 'Subtotal',
+    numero_documento: 'Núm. Documento',
     precio_unitario: 'Precio Unitario',
     subtotal_producto: 'Subtotal Producto',
     Subtotal: 'Subtotal',
@@ -54,6 +66,8 @@ export class TableComponent {
     'valorTotal',
     'precio_unitario',
     'subtotal_producto',
+    'precio',
+    'subtotal',
     'Subtotal',
   ]);
   private readonly percentCols = new Set(['porcCump', 'porcCumProy']);

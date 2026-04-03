@@ -1,7 +1,15 @@
-import { Component, Input, OnInit, OnDestroy, ChangeDetectorRef, inject } from '@angular/core';
+import {
+  Component,
+  Input,
+  OnInit,
+  OnDestroy,
+  ChangeDetectorRef,
+  ChangeDetectionStrategy,
+  inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, finalize, takeUntil } from 'rxjs';
 import { CumplimientoService } from '../../../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../../../core/services/ventas/cumplimientoVentasSemana.service';
 import { ChartComponent } from '../../../../shared/components/chart/chart.component';
@@ -16,6 +24,7 @@ import { TipoCuota } from '../../../cumplientosCuota/cumplimientos.component';
   imports: [CommonModule, FormsModule, ChartComponent, TableComponent],
   templateUrl: './ventas.html',
   styleUrls: ['./ventas.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VentasComponent implements OnInit, OnDestroy {
   private cumplimientoService = inject(CumplimientoService);
@@ -79,6 +88,15 @@ export class VentasComponent implements OnInit, OnDestroy {
   chartData: any[] = [];
   private allItemData: any[] = [];
   clientesAgrupados: any[] = [];
+  clientesVista: any[] = [];
+  totalClientesFiltrados = 0;
+  clienteBusqueda = '';
+  cargandoClientes = false;
+
+  private readonly clientesPageSize = 30;
+  private readonly productosPageSize = 25;
+  private clientesVisibles = this.clientesPageSize;
+  private readonly productosVisiblesPorCliente: Record<string, number> = {};
 
   private readonly todasLasVistas = [
     { key: 'ventas', label: 'Ventas' },
@@ -126,7 +144,7 @@ export class VentasComponent implements OnInit, OnDestroy {
     'Cantidad',
     'Subtotal',
   ];
-  readonly clienteProductosColumns = ['producto', 'cantidad', 'precio_unitario', 'subtotal_producto'];
+  readonly clienteProductosColumns = ['producto', 'cantidad', 'precio', 'subtotal'];
 
   private readonly cuotaLineaMock: Record<string, number> = {
     confiteria: 2500000,
@@ -172,8 +190,13 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.chartData = [];
     this.allItemData = [];
     this.clientesAgrupados = [];
+    this.clientesVista = [];
+    this.totalClientesFiltrados = 0;
+    this.clienteBusqueda = '';
+    this.cargandoClientes = false;
+    this.clientesVisibles = this.clientesPageSize;
     this.chartId = 'chart-' + this.activeVentasView + '-' + Date.now();
-    this.cdr.detectChanges();
+    this.cdr.markForCheck();
   }
 
   setVentasView(view: string): void {
@@ -196,7 +219,7 @@ export class VentasComponent implements OnInit, OnDestroy {
       .slice(0, 10);
 
     this.chartId = 'chart-item-' + Date.now();
-    this.cdr.detectChanges();
+    this.cdr.markForCheck();
   }
 
   private obtenerNombreCliente(row: any): string {
@@ -248,8 +271,37 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private obtenerDocumentoCliente(row: any): string {
-    const doc = row?.nro_documento ?? row?.numeroDocumento ?? row?.documento ?? row?.nit ?? '';
+    const doc =
+      row?.numero_documento ??
+      row?.nro_documento ??
+      row?.numeroDocumento ??
+      row?.documento ??
+      row?.nit ??
+      '';
     return String(doc).trim() || '—';
+  }
+
+  private obtenerFechaVenta(row: any): string {
+    const fecha = row?.fecha ?? row?.Fecha ?? row?.fecha_venta ?? row?.fechaVenta ?? '';
+    return String(fecha).trim();
+  }
+
+  private formatearFechaCorta(fechaIso: string): string {
+    if (!fechaIso) return 'Sin fecha';
+    const fecha = new Date(`${fechaIso}T00:00:00`);
+    if (Number.isNaN(fecha.getTime())) return 'Sin fecha';
+    return fecha.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }).replace('.', '');
+  }
+
+  private obtenerInicialesCliente(nombre: string): string {
+    const limpio = String(nombre ?? '')
+      .trim()
+      .replace(/\s+/g, ' ');
+    if (!limpio) return 'CL';
+
+    const partes = limpio.split(' ').slice(0, 2);
+    const iniciales = partes.map((p) => p.charAt(0).toUpperCase()).join('');
+    return iniciales || 'CL';
   }
 
   private obtenerDescripcionItem(row: any): string {
@@ -293,8 +345,13 @@ export class VentasComponent implements OnInit, OnDestroy {
         cliente: string;
         sucursal: string;
         cantidadItems: number;
+        cantidadTotal: number;
         ventaAcum: number;
         expandido: boolean;
+        ultimaCompra: string;
+        ultimaCompraLabel: string;
+        iniciales: string;
+        progressItems: number;
         productos: any[];
       }
     >();
@@ -314,17 +371,34 @@ export class VentasComponent implements OnInit, OnDestroy {
         cliente,
         sucursal,
         cantidadItems: 0,
+        cantidadTotal: 0,
         ventaAcum: 0,
         expandido: false,
+        ultimaCompra: '',
+        ultimaCompraLabel: 'Sin fecha',
+        iniciales: this.obtenerInicialesCliente(cliente),
+        progressItems: 0,
         productos: [],
       };
 
+      const fechaVenta = this.obtenerFechaVenta(row);
+      if (fechaVenta && (!actual.ultimaCompra || fechaVenta > actual.ultimaCompra)) {
+        actual.ultimaCompra = fechaVenta;
+        actual.ultimaCompraLabel = this.formatearFechaCorta(fechaVenta);
+        actual.documento = this.obtenerDocumentoCliente(row);
+      }
+
       actual.cantidadItems += 1;
+      actual.cantidadTotal += this.obtenerCantidadItem(row);
       actual.ventaAcum += this.calcularVentaRow(row);
       actual.productos.push({
         id_item: this.obtenerCodigoItem(row),
+        fecha: fechaVenta || '—',
+        numero_documento: this.obtenerDocumentoCliente(row),
         producto: this.obtenerDescripcionItem(row),
         cantidad: this.obtenerCantidadItem(row),
+        precio: this.obtenerPrecioUnitarioItem(row),
+        subtotal: this.calcularVentaRow(row),
         precio_unitario: this.obtenerPrecioUnitarioItem(row),
         subtotal_producto: this.calcularVentaRow(row),
       });
@@ -332,18 +406,114 @@ export class VentasComponent implements OnInit, OnDestroy {
       agg.set(key, actual);
     }
 
-    return Array.from(agg.values())
+    const resultado = Array.from(agg.values())
       .map((item) => ({
         ...item,
-        productos: item.productos.sort(
-          (a, b) => Number(b.subtotal_producto) - Number(a.subtotal_producto),
+        productos: item.productos.sort((a, b) =>
+          String(a?.producto ?? '').localeCompare(String(b?.producto ?? ''), 'es', {
+            sensitivity: 'base',
+            numeric: true,
+          }),
         ),
       }))
-      .sort((a, b) => b.ventaAcum - a.ventaAcum);
+      .sort((a, b) =>
+        String(a?.cliente ?? '').localeCompare(String(b?.cliente ?? ''), 'es', {
+          sensitivity: 'base',
+          numeric: true,
+        }),
+      );
+
+    const maxItems = Math.max(1, ...resultado.map((c) => Number(c.cantidadTotal) || 0));
+    return resultado.map((item) => ({
+      ...item,
+      progressItems: Math.max(8, Math.round(((Number(item.cantidadTotal) || 0) / maxItems) * 100)),
+    }));
+  }
+
+  private normalizarBusquedaCliente(valor: unknown): string {
+    return String(valor ?? '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+  }
+
+  private actualizarClientesVista(): void {
+    const term = this.normalizarBusquedaCliente(this.clienteBusqueda);
+    const filtrados = term
+      ? this.clientesAgrupados.filter((c) =>
+          this.normalizarBusquedaCliente(c?.cliente).includes(term),
+        )
+      : this.clientesAgrupados;
+
+    this.totalClientesFiltrados = filtrados.length;
+    this.clientesVista = filtrados.slice(0, this.clientesVisibles);
+  }
+
+  onBuscarClienteChange(valor: string): void {
+    this.clienteBusqueda = valor;
+    this.clientesVisibles = this.clientesPageSize;
+    this.actualizarClientesVista();
+    this.cdr.markForCheck();
+  }
+
+  get hayMasClientes(): boolean {
+    return this.totalClientesFiltrados > this.clientesVista.length;
+  }
+
+  verMasClientes(): void {
+    this.clientesVisibles += this.clientesPageSize;
+    this.actualizarClientesVista();
+    this.cdr.markForCheck();
+  }
+
+  private getLimiteProductosCliente(key: string): number {
+    return this.productosVisiblesPorCliente[key] ?? this.productosPageSize;
+  }
+
+  getProductosClienteVisibles(cliente: any): any[] {
+    return (cliente?.productos ?? []).slice(0, this.getLimiteProductosCliente(cliente?.key));
+  }
+
+  getCantidadItemsCliente(cliente: any): number {
+    const cantidadItems = Number(cliente?.cantidadItems);
+    if (Number.isFinite(cantidadItems) && cantidadItems >= 0) return cantidadItems;
+
+    const cantidadTotal = Number(cliente?.cantidadTotal);
+    if (Number.isFinite(cantidadTotal) && cantidadTotal >= 0) return cantidadTotal;
+
+    const productos = Array.isArray(cliente?.productos) ? cliente.productos.length : 0;
+    return Number.isFinite(productos) ? productos : 0;
+  }
+
+  getCantidadItemsClienteLabel(cliente: any): string {
+    return this.getCantidadItemsCliente(cliente).toLocaleString('es-CO');
+  }
+
+  tieneMasProductos(cliente: any): boolean {
+    const total = cliente?.productos?.length ?? 0;
+    return total > this.getLimiteProductosCliente(cliente?.key);
+  }
+
+  verMasProductos(cliente: any): void {
+    const key = String(cliente?.key ?? '');
+    if (!key) return;
+    this.productosVisiblesPorCliente[key] = this.getLimiteProductosCliente(key) + this.productosPageSize;
+    this.cdr.markForCheck();
   }
 
   toggleCliente(cliente: any): void {
+    for (const c of this.clientesVista) {
+      if (c !== cliente) c.expandido = false;
+    }
+
     cliente.expandido = !cliente.expandido;
+
+    if (cliente.expandido && cliente?.key && !this.productosVisiblesPorCliente[cliente.key]) {
+      this.productosVisiblesPorCliente[cliente.key] = this.productosPageSize;
+    }
+
+    this.cdr.markForCheck();
   }
 
   private repararTextoCiudad(valor: unknown): string {
@@ -466,7 +636,7 @@ export class VentasComponent implements OnInit, OnDestroy {
               const detalle = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
               this.tableData = this.ordenarProveedoresPorAlfabeto(detalle);
               this.chartData = detalle.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
-              this.cdr.detectChanges();
+              this.cdr.markForCheck();
             });
         } else if (tieneCiudad) {
           const ciudades$ = this.esSemanal
@@ -489,7 +659,7 @@ export class VentasComponent implements OnInit, OnDestroy {
               name: this.repararTextoCiudad(i.ciudad),
               value: i.ventaAcum,
             }));
-            this.cdr.detectChanges();
+            this.cdr.markForCheck();
           });
         } else if (this.esSemanal) {
           this.semanaService
@@ -505,7 +675,7 @@ export class VentasComponent implements OnInit, OnDestroy {
                 { name: 'Cuota', value: d.cuotaSemana },
                 { name: 'Proyección', value: d.proyeccionVenta },
               ];
-              this.cdr.detectChanges();
+              this.cdr.markForCheck();
             });
         } else {
           this.cumplimientoService
@@ -520,7 +690,7 @@ export class VentasComponent implements OnInit, OnDestroy {
                 { name: 'Cuota', value: res.totales.cuotaMes },
                 { name: 'Proyección', value: res.totales.proyeccionVenta },
               ];
-              this.cdr.detectChanges();
+              this.cdr.markForCheck();
             });
         }
         break;
@@ -536,7 +706,7 @@ export class VentasComponent implements OnInit, OnDestroy {
               const detalle = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
               this.tableData = this.ordenarProveedoresPorAlfabeto(detalle);
               this.chartData = detalle.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
-              this.cdr.detectChanges();
+              this.cdr.markForCheck();
             });
         } else {
           const lineas$ = this.esSemanal
@@ -547,7 +717,7 @@ export class VentasComponent implements OnInit, OnDestroy {
             const listado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
             this.tableData = this.ordenarProveedoresPorAlfabeto(listado);
             this.chartData = listado.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
-            this.cdr.detectChanges();
+            this.cdr.markForCheck();
           });
         }
         break;
@@ -575,7 +745,7 @@ export class VentasComponent implements OnInit, OnDestroy {
             name: this.repararTextoCiudad(i.ciudad),
             value: i.ventaAcum,
           }));
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
         });
         break;
 
@@ -591,7 +761,7 @@ export class VentasComponent implements OnInit, OnDestroy {
             const vendedor = res.detalle?.[0];
             this.tableData = res.detalle ?? [];
             this.chartData = [{ name: vendedor?.nombre || '', value: res.totales.ventaAcum }];
-            this.cdr.detectChanges();
+            this.cdr.markForCheck();
           });
         break;
 
@@ -615,26 +785,36 @@ export class VentasComponent implements OnInit, OnDestroy {
         const idVendedor = this.obtenerIdVendedorSesion();
         if (!idVendedor) {
           this.clientesAgrupados = [];
+          this.clientesVista = [];
+          this.totalClientesFiltrados = 0;
           this.tableData = [];
           this.chartData = [];
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
           return;
         }
+
+        this.cargandoClientes = true;
 
         this.cumplimientoService
           .getProductosPorCliente(idVendedor, this._filtros)
           .pipe(takeUntil(this.destroy$))
+          .pipe(finalize(() => {
+            this.cargandoClientes = false;
+            this.cdr.markForCheck();
+          }))
           .subscribe((res: any) => {
             const listado = res?.data ?? [];
             const detalleClientes = this.construirDetalleClientes(listado);
 
             this.clientesAgrupados = detalleClientes;
+            this.clientesVisibles = this.clientesPageSize;
+            this.actualizarClientesVista();
             this.tableData = detalleClientes;
             this.chartData = detalleClientes
               .slice(0, 10)
               .map((i: any) => ({ name: i.cliente, value: i.ventaAcum }));
 
-            this.cdr.detectChanges();
+            this.cdr.markForCheck();
           });
         break;
     }

@@ -1,12 +1,15 @@
 <table>
   <thead>
     <tr>
-      <th *ngFor="let col of columns">{{ getHeader(col) }}</th>
+      <th *ngFor="let col of columns; trackBy: trackByColumn">{{ getHeader(col) }}</th>
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let row of data; let odd = odd" [class.odd]="odd">
-      <td *ngFor="let col of columns" [class]="getCellClass(col, row[col])" [attr.data-col]="col">
+    <tr *ngFor="let row of data; let odd = odd; trackBy: trackByRow" [class.odd]="odd">
+      <td
+        *ngFor="let col of columns; trackBy: trackByColumn"
+        [class]="getCellClass(col, row[col])"
+        [attr.data-col]="col">
         {{ formatCell(col, row[col]) }}
       </td>
     </tr>
