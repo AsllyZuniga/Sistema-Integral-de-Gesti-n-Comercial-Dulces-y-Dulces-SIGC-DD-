@@ -12,7 +12,7 @@ import { FormsModule } from '@angular/forms';
 import { Subject, finalize, takeUntil } from 'rxjs';
 import { CumplimientoService } from '../../../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../../../core/services/ventas/cumplimientoVentasSemana.service';
-import { ChartComponent } from '../../../../shared/components/chart/chart.component';
+import { ChartComponent } from '../../../../shared/components/chart';
 import { TableComponent } from '../../../../shared/components/table/table.component';
 import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -614,6 +614,12 @@ export class VentasComponent implements OnInit, OnDestroy {
     });
   }
 
+  private limitarTopProveedores(listado: any[]): any[] {
+    return [...listado]
+      .sort((a, b) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+      .slice(0, 12);
+  }
+
   cargarVistaActual(): void {
     if (!this._codigoVendedor) return;
 
@@ -634,8 +640,9 @@ export class VentasComponent implements OnInit, OnDestroy {
             .pipe(takeUntil(this.destroy$))
             .subscribe((res: any) => {
               const detalle = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
-              this.tableData = this.ordenarProveedoresPorAlfabeto(detalle);
-              this.chartData = detalle.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
+              const topProveedores = this.limitarTopProveedores(detalle);
+              this.tableData = topProveedores;
+              this.chartData = topProveedores.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
               this.cdr.markForCheck();
             });
         } else if (tieneCiudad) {
@@ -704,8 +711,9 @@ export class VentasComponent implements OnInit, OnDestroy {
             .pipe(takeUntil(this.destroy$))
             .subscribe((res: any) => {
               const detalle = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
-              this.tableData = this.ordenarProveedoresPorAlfabeto(detalle);
-              this.chartData = detalle.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
+              const topProveedores = this.limitarTopProveedores(detalle);
+              this.tableData = topProveedores;
+              this.chartData = topProveedores.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
               this.cdr.markForCheck();
             });
         } else {
@@ -715,8 +723,9 @@ export class VentasComponent implements OnInit, OnDestroy {
 
           lineas$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
             const listado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
-            this.tableData = this.ordenarProveedoresPorAlfabeto(listado);
-            this.chartData = listado.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
+            const topProveedores = this.limitarTopProveedores(listado);
+            this.tableData = topProveedores;
+            this.chartData = topProveedores.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
             this.cdr.markForCheck();
           });
         }

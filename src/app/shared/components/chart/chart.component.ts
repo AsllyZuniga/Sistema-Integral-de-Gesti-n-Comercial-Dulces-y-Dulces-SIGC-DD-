@@ -148,3 +148,5 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
     return val.toLocaleString('es-CO');
   }
 }
+
+export const CHART_COMPONENT_MODULE = true;
