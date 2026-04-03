@@ -1,0 +1,38 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 18px;
+  margin-top: 28px;
+  margin-bottom: 26px;
+}
+
+.charts {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 22px;
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .kpis {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .charts {
+    gap: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .kpis {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}

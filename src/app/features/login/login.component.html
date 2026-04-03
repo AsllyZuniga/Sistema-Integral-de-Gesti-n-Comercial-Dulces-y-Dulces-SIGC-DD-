@@ -18,9 +18,11 @@
         <input
           id="codigo"
           [(ngModel)]="user.codigo"
+          [ngModelOptions]="{ updateOn: 'change' }"
           type="text"
           class="form-input"
           placeholder="Ingrese su código"
+          (input)="onCredentialInput()"
           (keyup.enter)="validarUsuario()"
         />
       </div>
@@ -30,9 +32,11 @@
         <input
           id="password"
           [(ngModel)]="user.password"
+          [ngModelOptions]="{ updateOn: 'change' }"
           type="password"
           class="form-input"
           placeholder="Ingrese su contraseña"
+          (input)="onCredentialInput()"
           (keyup.enter)="validarUsuario()"
         />
       </div>

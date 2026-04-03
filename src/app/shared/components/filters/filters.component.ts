@@ -4,12 +4,13 @@ import { FormsModule } from '@angular/forms';
 
 export interface DashboardFilters {
   fechaInicio: string;
-  fechaFin:    string;
-  vendedor:    string;
-  proveedor:   string;
-  categoria:   string;
-  ciudad:      string;
-  linea?:      string;
+  fechaFin: string;
+  vendedor: string;
+  proveedor: string;
+  categoria: string;
+  ciudad: string;
+  ciudadNombre?: string;
+  linea?: string;
 }
 
 @Component({
@@ -21,10 +22,10 @@ export interface DashboardFilters {
 })
 export class FiltersComponent {
   @Input() proveedores: string[] = [];
-  @Input() categorias:  string[] = [];
-  @Input() ciudades:    string[] = [];
-  @Input() lineas:      string[] = [];
-  @Input() vendedores:  string[] = []; // solo se pasa cuando es admin
+  @Input() categorias: string[] = [];
+  @Input() ciudades: string[] = [];
+  @Input() lineas: string[] = [];
+  @Input() vendedores: string[] = [];
 
   @Output() apply = new EventEmitter<DashboardFilters>();
 
@@ -32,34 +33,38 @@ export class FiltersComponent {
 
   filtros: DashboardFilters = {
     fechaInicio: '',
-    fechaFin:    '',
-    vendedor:    '',
-    proveedor:   '',
-    categoria:   '',
-    ciudad:      '',
-    linea:       '',
+    fechaFin: '',
+    vendedor: '',
+    proveedor: '',
+    categoria: '',
+    ciudad: '',
+    linea: '',
+    ciudadNombre: '',
   };
 
   get esAdmin(): boolean {
     return this.vendedores.length > 0;
   }
 
-  toggleFiltros() { this.isFiltrosOpen = !this.isFiltrosOpen; }
-
-  aplicar() {
-    this.isFiltrosOpen = false;
-    this.apply.emit({ ...this.filtros });
+  toggleFiltros(): void {
+    this.isFiltrosOpen = !this.isFiltrosOpen;
   }
 
-  limpiar() {
+  aplicar(): void {
+    this.isFiltrosOpen = false;
+    this.apply.emit({ ...this.filtros, ciudadNombre: this.filtros.ciudad || '' });
+  }
+
+  limpiar(): void {
     this.filtros = {
       fechaInicio: '',
-      fechaFin:    '',
-      vendedor:    '',
-      proveedor:   '',
-      categoria:   '',
-      ciudad:      '',
-      linea:       '',
+      fechaFin: '',
+      vendedor: '',
+      proveedor: '',
+      categoria: '',
+      ciudad: '',
+      linea: '',
+      ciudadNombre: '',
     };
     this.apply.emit({ ...this.filtros });
   }

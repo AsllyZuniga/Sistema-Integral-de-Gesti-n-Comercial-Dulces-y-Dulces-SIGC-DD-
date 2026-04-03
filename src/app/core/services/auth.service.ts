@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
 
-const INACTIVIDAD_MS   = 20 * 60 * 1000;
+const INACTIVIDAD_MS   = 60 * 60 * 1000;
 const EVENTOS_ACTIVIDAD = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
 
 @Injectable({ providedIn: 'root' })

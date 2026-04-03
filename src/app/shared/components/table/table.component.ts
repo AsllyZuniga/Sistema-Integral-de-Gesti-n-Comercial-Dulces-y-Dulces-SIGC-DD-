@@ -12,25 +12,54 @@ export class TableComponent {
   @Input() columns: string[] = [];
   @Input() data: any[] = [];
 
+  trackByColumn(_index: number, col: string): string {
+    return col;
+  }
+
+  trackByRow(index: number, row: any): any {
+    return row?.id_venta ?? row?.id_item ?? row?.id_cliente ?? row?.key ?? index;
+  }
+
   private readonly headerMap: Record<string, string> = {
     codVendedor: 'Cód. Vendedor',
     nombre: 'Nombre',
     cuotaMes: 'Cuota Mes',
     cuotaSemana: 'Cuota Semana',
     cuotaDiaria: 'Cuota Diaria',
+    cuotaLinea: 'Cuota Línea',
     ventaAcum: 'Venta Acum.',
     porcCump: 'Cumpl. %',
     proyeccionVenta: 'Proyección',
     porcCumProy: 'Cumpl. Proy. %',
     linea: 'Línea',
+    id_categoria: 'ID Categoría',
+    categoria: 'Categoría',
+    cuota: 'Cuota',
+    acumulado: 'Acumulado',
+    porcentajeCumplimiento: 'Cumpl. %',
+    porcentajeCumplimientoProyectado: 'Cumpl. Proy. %',
+    proyectado: 'Proyectado',
+    part: 'Part. %',
     ciudad: 'Ciudad',
     Fecha: 'Fecha',
+    fecha: 'Fecha',
     Proveedor: 'Proveedor',
     Cod_Item: 'Cód. Item',
+    id_item: 'ID Item',
     Descripcion: 'Descripción',
     Venta_Unid_Cajas: 'Unid. Cajas',
+    Cantidad: 'Cantidad',
+    cantidad: 'Cantidad',
+    cliente: 'Cliente',
+    cantidadItems: 'Cantidad Items',
     proveedor: 'Proveedor',
     producto: 'Producto',
+    precio: 'Precio',
+    subtotal: 'Subtotal',
+    numero_documento: 'Núm. Documento',
+    precio_unitario: 'Precio Unitario',
+    subtotal_producto: 'Subtotal Producto',
+    Subtotal: 'Subtotal',
     impactos: 'Impactos',
     valorTotal: 'Valor Total',
   };
@@ -39,12 +68,28 @@ export class TableComponent {
     'cuotaMes',
     'cuotaSemana',
     'cuotaDiaria',
+    'cuotaLinea',
+    'cuota',
     'ventaAcum',
+    'acumulado',
+    'proyectado',
     'proyeccionVenta',
     'valorTotal',
+    'precio_unitario',
+    'subtotal_producto',
+    'precio',
+    'subtotal',
+    'Subtotal',
   ]);
-  private readonly percentCols = new Set(['porcCump', 'porcCumProy']);
-  private readonly integerCols = new Set(['Venta_Unid_Cajas', 'impactos']);
+  private readonly percentCols = new Set([
+    'porcCump',
+    'porcCumProy',
+    'porcentajeCumplimiento',
+    'porcentajeCumplimientoProyectado',
+    'part',
+  ]);
+  private readonly integerCols = new Set(['Venta_Unid_Cajas', 'Cantidad', 'cantidad', 'impactos']);
+  private readonly integerColsExt = new Set(['cantidadItems', 'id_categoria']);
 
   getHeader(col: string): string {
     return this.headerMap[col] ?? col;
@@ -69,7 +114,7 @@ export class TableComponent {
             '\u00a0%';
     }
 
-    if (this.integerCols.has(col)) {
+    if (this.integerCols.has(col) || this.integerColsExt.has(col)) {
       const num = Number(value);
       return isNaN(num) ? value : num.toLocaleString('es-CO');
     }

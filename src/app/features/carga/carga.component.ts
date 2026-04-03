@@ -50,7 +50,10 @@ export class CargaComponent {
     return this.estado === 'cargando';
   }
 
-  constructor(private http: HttpClient, private cd: ChangeDetectorRef) {}
+  constructor(
+    private http: HttpClient,
+    private cd: ChangeDetectorRef,
+  ) {}
 
   onArchivoSeleccionado(event: Event): void {
     // Ignorar si está importando
@@ -94,58 +97,70 @@ export class CargaComponent {
     this.tipoError = null;
     this.cd.detectChanges();
 
-    this.http.post(`${this.apiUrl}/import/ventas/upload`, formData, {
-      responseType: 'text',
-      observe: 'response'
-    }).subscribe({
-      next: (response) => {
-        const textoRespuesta = response.body ?? '';
-        const jsons = this.parsearJsonsConcatenados(textoRespuesta);
+    this.http
+      .post(`${this.apiUrl}/import/ventas/upload`, formData, {
+        responseType: 'text',
+        observe: 'response',
+      })
+      .subscribe({
+        next: (response) => {
+          const textoRespuesta = response.body ?? '';
+          const jsons = this.parsearJsonsConcatenados(textoRespuesta);
 
-        if (jsons.length === 0) {
-          this.setError('servidor', 'El servidor no devolvió una respuesta válida. Intenta nuevamente.');
-          return;
-        }
+          if (jsons.length === 0) {
+            this.setError(
+              'servidor',
+              'El servidor no devolvió una respuesta válida. Intenta nuevamente.',
+            );
+            return;
+          }
 
-        const ultimoJson = jsons[jsons.length - 1];
+          const ultimoJson = jsons[jsons.length - 1];
 
-        if (ultimoJson.status === 'error') {
-          const { tipo, mensaje } = this.clasificarError(ultimoJson.mensaje ?? ultimoJson.error ?? '');
-          this.setError(tipo, mensaje);
-          return;
-        }
-
-        if (
-          ultimoJson.status === 'completado' ||
-          ultimoJson.status === 'exito' ||
-          ultimoJson.exitosas !== undefined
-        ) {
-          this.estado = 'exito';
-          this.resultado = ultimoJson;
-          this.tipoError = null;
-          this.cd.detectChanges();
-          return;
-        }
-
-        this.setError('desconocido', ultimoJson.mensaje ?? 'Respuesta inesperada del servidor.');
-      },
-      error: (err) => {
-        if (typeof err.error === 'string') {
-          const jsons = this.parsearJsonsConcatenados(err.error);
-          if (jsons.length > 0) {
-            const ultimoJson = jsons[jsons.length - 1];
-            const { tipo, mensaje } = this.clasificarError(ultimoJson.mensaje ?? ultimoJson.error ?? '');
+          if (ultimoJson.status === 'error') {
+            const { tipo, mensaje } = this.clasificarError(
+              ultimoJson.mensaje ?? ultimoJson.error ?? '',
+            );
             this.setError(tipo, mensaje);
             return;
           }
-        }
 
-        this.setError(
-          'servidor',
-          err?.error?.mensaje ?? err?.error?.message ?? err?.message ?? 'No se pudo conectar con el servidor.'
-        );
-      }
-    });
+          if (
+            ultimoJson.status === 'completado' ||
+            ultimoJson.status === 'exito' ||
+            ultimoJson.exitosas !== undefined
+          ) {
+            this.estado = 'exito';
+            this.resultado = ultimoJson;
+            this.tipoError = null;
+            this.cd.detectChanges();
+            return;
+          }
+
+          this.setError('desconocido', ultimoJson.mensaje ?? 'Respuesta inesperada del servidor.');
+        },
+        error: (err) => {
+          if (typeof err.error === 'string') {
+            const jsons = this.parsearJsonsConcatenados(err.error);
+            if (jsons.length > 0) {
+              const ultimoJson = jsons[jsons.length - 1];
+              const { tipo, mensaje } = this.clasificarError(
+                ultimoJson.mensaje ?? ultimoJson.error ?? '',
+              );
+              this.setError(tipo, mensaje);
+              return;
+            }
+          }
+
+          this.setError(
+            'servidor',
+            err?.error?.mensaje ??
+              err?.error?.message ??
+              err?.message ??
+              'No se pudo conectar con el servidor.',
+          );
+        },
+      });
   }
 
   limpiar(): void {
@@ -182,34 +197,54 @@ export class CargaComponent {
     if (msg.includes('faltan columnas') || msg.includes('columnas requeridas')) {
       return {
         tipo: 'columnas',
-        mensaje: 'El archivo no tiene las columnas requeridas. Verifica que sea el plano de ventas correcto exportado desde el ERP.'
+        mensaje:
+          'El archivo no tiene las columnas requeridas. Verifica que sea el plano de ventas correcto exportado desde el ERP.',
       };
     }
 
-    if (msg.includes('formato') || msg.includes('separador') || msg.includes('tabulacion') || msg.includes('encoding') || msg.includes('parse')) {
+    if (
+      msg.includes('formato') ||
+      msg.includes('separador') ||
+      msg.includes('tabulacion') ||
+      msg.includes('encoding') ||
+      msg.includes('parse')
+    ) {
       return {
         tipo: 'formato',
-        mensaje: 'El archivo no tiene el formato correcto. Debe ser un .txt separado por tabulaciones exportado desde el ERP.'
+        mensaje:
+          'El archivo no tiene el formato correcto. Debe ser un .txt separado por tabulaciones exportado desde el ERP.',
       };
     }
 
-    if (msg.includes('fecha') || msg.includes('numero') || msg.includes('número') || msg.includes('valor inv')) {
+    if (
+      msg.includes('fecha') ||
+      msg.includes('numero') ||
+      msg.includes('número') ||
+      msg.includes('valor inv')
+    ) {
       return {
         tipo: 'datos',
-        mensaje: 'El archivo contiene datos con formato incorrecto. Revisa los valores antes de importar.'
+        mensaje:
+          'El archivo contiene datos con formato incorrecto. Revisa los valores antes de importar.',
       };
     }
 
-    if (msg.includes('database') || msg.includes('connection') || msg.includes('timeout') || msg.includes('sql')) {
+    if (
+      msg.includes('database') ||
+      msg.includes('connection') ||
+      msg.includes('timeout') ||
+      msg.includes('sql')
+    ) {
       return {
         tipo: 'servidor',
-        mensaje: 'Error interno del servidor. Contacta al administrador del sistema.'
+        mensaje: 'Error interno del servidor. Contacta al administrador del sistema.',
       };
     }
 
     return {
       tipo: 'desconocido',
-      mensaje: mensajeOriginal.length > 200 ? mensajeOriginal.substring(0, 200) + '...' : mensajeOriginal
+      mensaje:
+        mensajeOriginal.length > 200 ? mensajeOriginal.substring(0, 200) + '...' : mensajeOriginal,
     };
   }
 

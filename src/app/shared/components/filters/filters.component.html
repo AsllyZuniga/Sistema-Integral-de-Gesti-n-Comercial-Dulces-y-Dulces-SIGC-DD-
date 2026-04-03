@@ -1,6 +1,4 @@
 <div class="filters-container">
-
-  <!-- Botón toggle solo visible en móvil -->
   <button class="btn-toggle" (click)="toggleFiltros()">
     <span class="material-symbols-rounded">tune</span>
     {{ isFiltrosOpen ? 'Ocultar Filtros' : 'Mostrar Filtros' }}
@@ -9,7 +7,6 @@
 
   <div class="filters-grid" [class.hidden-mobile]="!isFiltrosOpen">
 
-    <!-- RANGO DE FECHAS -->
     <div class="filter-group span-2">
       <label>Rango de Fechas</label>
       <div class="date-range">
@@ -19,7 +16,6 @@
       </div>
     </div>
 
-    <!-- VENDEDOR (solo admin) -->
     @if (esAdmin) {
       <div class="filter-group">
         <label>Vendedor</label>
@@ -32,7 +28,6 @@
       </div>
     }
 
-    <!-- PROVEEDOR -->
     <div class="filter-group">
       <label>Proveedor</label>
       <select [(ngModel)]="filtros.proveedor">
@@ -43,7 +38,6 @@
       </select>
     </div>
 
-    <!-- CATEGORÍA -->
     <div class="filter-group">
       <label>Categoría</label>
       <select [(ngModel)]="filtros.categoria">
@@ -54,7 +48,6 @@
       </select>
     </div>
 
-    <!-- CIUDAD -->
     <div class="filter-group">
       <label>Ciudad</label>
       <select [(ngModel)]="filtros.ciudad">
@@ -65,11 +58,9 @@
       </select>
     </div>
 
-    <!-- ACCIONES -->
     <div class="filter-actions">
       <button class="btn-limpiar" (click)="limpiar()">Limpiar</button>
       <button class="btn-aplicar" (click)="aplicar()">Aplicar Filtros</button>
     </div>
-
   </div>
 </div>

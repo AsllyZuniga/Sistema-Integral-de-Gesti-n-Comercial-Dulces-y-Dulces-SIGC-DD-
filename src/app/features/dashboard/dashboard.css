@@ -32,61 +32,8 @@
   margin-bottom: 12px;
 }
 
-/* ===== TABLA ADMIN: TODOS LOS VENDEDORES ===== */
-.admin-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-  font-family: inherit;
-}
-
-.admin-table thead tr {
-  background: var(--c-primary);
-  color: var(--c-surface);
-}
-
-.admin-table thead th {
-  padding: 10px 14px;
-  text-align: left;
-  font-weight: 600;
-  font-size: 12px;
-  letter-spacing: 0.4px;
-  white-space: nowrap;
-}
-
-.admin-table tbody tr {
-  border-bottom: 1px solid var(--c-border);
-  transition: background 0.15s;
-}
-
-.admin-table tbody tr:hover {
-  background: var(--c-primary-pale);
-}
-
-.admin-table tbody td {
-  padding: 10px 14px;
-  color: var(--c-text);
-  white-space: nowrap;
-}
-
-.admin-table td.cod {
-  font-weight: 700;
-  color: var(--c-primary);
-  font-size: 12px;
-}
-
-.admin-table td.nombre {
-  font-weight: 600;
-}
-
-.admin-table td.num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.admin-table td.porc { font-weight: 700; }
-.admin-table td.verde { color: #16a34a; }
-.admin-table td.rojo  { color: #dc2626; }
+/* La tabla de admin/supervisor fue extraída a:
+   admin-supervisor/vendedores-table/vendedores-table.component.css */
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 1200px) { .main { padding: 28px 24px; } }
@@ -95,3 +42,4 @@
 @media (max-width: 480px)  { .main { padding: 12px 10px; } .topbar { padding: 10px 12px; } .topbar-logo { height: 32px; } .welcome { display: none; } .kpis { grid-template-columns: 1fr; gap: 10px; } }
 @media (hover: none)       { .card:hover { transform: none; } .card:hover .card-icon { opacity: 0.18; transform: none; } }
 @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+

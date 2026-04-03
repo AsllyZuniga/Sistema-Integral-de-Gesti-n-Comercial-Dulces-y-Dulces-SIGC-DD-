@@ -1,0 +1,48 @@
+@if (todosLosVendedores.length > 0) {
+  <div class="tabla-scroll" [class.loading-overlay]="cargandoVendedores">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th data-col="codVendedor">Código</th>
+          <th data-col="nombre">Nombre</th>
+          <th data-col="cuotaMes">{{ labelCuota }}</th>
+          <th data-col="ventaAcum">{{ labelVentaAcum }}</th>
+          <th data-col="porcCump">Cumplimiento</th>
+          <th data-col="proyeccionVenta">Proyección</th>
+          @if (esAdmin) {
+            <th>Supervisor</th>
+            <th>Acciones</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (v of todosLosVendedores; track v.codVendedor; let i = $index) {
+          <tr [class.odd]="i % 2 === 1">
+            <td class="cod">{{ v.codVendedor ?? '—' }}</td>
+            <td class="nombre">{{ v.nombre ?? '—' }}</td>
+            <td class="num">$ {{ v[campoCuota] ?? 0 | number: '1.0-0' }}</td>
+            <td class="num">$ {{ v.ventaAcum ?? 0 | number: '1.0-0' }}</td>
+            <td class="num porc" [class.verde]="(v.porcCump ?? 0) >= 100" [class.rojo]="(v.porcCump ?? 0) < 80">
+              {{ v.porcCump ?? 0 | number: '1.1-1' }} %
+            </td>
+            <td class="num">$ {{ v.proyeccionVenta ?? 0 | number: '1.0-0' }}</td>
+            @if (esAdmin) {
+              <td class="supervisor" [class.sin-asignar]="!v.nombreSupervisor || v.nombreSupervisor === ''">
+                {{ v.nombreSupervisor && v.nombreSupervisor !== '' ? v.nombreSupervisor : 'Sin asignar' }}
+              </td>
+              <td class="acciones">
+                <button class="btn-asignar" (click)="onAsignar(v)" title="Asignar supervisor">
+                  <span class="material-symbols-rounded">person_add</span>
+                </button>
+              </td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+} @else if (!cargandoVendedores) {
+  <div class="placeholder">No hay datos disponibles.</div>
+} @else {
+  <div class="placeholder">Cargando vendedores...</div>
+}

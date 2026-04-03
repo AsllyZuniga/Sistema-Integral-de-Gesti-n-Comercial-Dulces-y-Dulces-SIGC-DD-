@@ -1,7 +1,8 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { finalize, timeout } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 
 @Component({
@@ -20,6 +21,8 @@ export class LoginComponent {
   constructor(
     private router: Router,
     private authService: AuthService,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   validarUsuario(): void {
@@ -39,27 +42,41 @@ export class LoginComponent {
 
     console.log('🔐 [LOGIN] Iniciando login con código:', codigo);
 
-    this.authService.login({ codigo, password }).subscribe({
-      next: (resp) => {
-        console.log('✅ [LOGIN] Respuesta exitosa del backend:', resp);
-        this.onLoginExitoso(resp);
-      },
-      error: (err) => {
-        console.warn('⚠️ [LOGIN] Primer intento fallido, probando con username');
-        this.authService.login({ username: codigo, password }).subscribe({
-          next: (resp) => {
-            console.log('✅ [LOGIN] Segundo intento exitoso:', resp);
-            this.onLoginExitoso(resp);
-          },
-          error: (err) => {
-            this.is_error = true;
-            this.errorMessage = err?.error?.message || 'Código o contraseña no válidos';
+    this.authService
+      .login({ codigo, password })
+      .pipe(
+        timeout(10000),
+        finalize(() => {
+          this.is_loading = false;
+        }),
+      )
+      .subscribe({
+        next: (resp) => {
+          console.log('✅ [LOGIN] Respuesta exitosa del backend:', resp);
+          this.onLoginExitoso(resp);
+        },
+        error: (err) => {
+          this.ngZone.run(() => {
             this.is_loading = false;
-            console.error('❌ [LOGIN] Ambos intentos fallaron:', err);
-          },
-        });
-      },
-    });
+            this.is_error = true;
+            this.errorMessage =
+              err?.name === 'TimeoutError'
+                ? 'El servidor está tardando demasiado. Intente nuevamente.'
+                : err?.status === 401
+                  ? 'Código o contraseña no válidos'
+                  : err?.error?.message || 'No se pudo iniciar sesión. Intente nuevamente.';
+            this.cdr.detectChanges();
+          });
+          console.error('❌ [LOGIN] Login fallido:', err);
+        },
+      });
+  }
+
+  onCredentialInput(): void {
+    if (this.is_error) {
+      this.is_error = false;
+      this.errorMessage = 'Código o contraseña no válidos';
+    }
   }
 
   private onLoginExitoso(resp: any): void {

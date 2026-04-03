@@ -18,23 +18,27 @@ export class SidebarComponent {
 
   constructor(private router: Router) {
     try {
-      const raw     = localStorage.getItem('vendedor') ?? '{}';
+      const raw     = sessionStorage.getItem('vendedor') ?? '{}';
       const usuario = JSON.parse(raw);
-      this.rolId    = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? 0);
-    } catch {
+      // Intentar leer idRol de diferentes ubicaciones posibles
+      this.rolId    = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? usuario?.rolId ?? usuario?.rol?.id ?? 0);
+      console.log('👤 Sidebar - rolId:', this.rolId, 'usuario:', usuario);
+    } catch (error) {
+      console.error('❌ Error leyendo sessionStorage:', error);
       this.rolId = 0;
     }
   }
 
   get tituloRol(): string {
-    if (this.rolId === 1) return 'Administrador';
+    if (this.rolId === 1) return 'Admin';
     if (this.rolId === 2) return 'Supervisor';
     return 'Vendedor';
   }
 
   private readonly todasLasOpciones = [
     { icon: 'dashboard',   label: 'Dashboard',       ruta: '/dashboard', roles: [1, 2, 3] },
-    { icon: 'upload_file', label: 'Carga de Ventas', ruta: '/carga',     roles: [1, 2]    },
+    { icon: 'upload_file', label: 'Carga de Ventas', ruta: '/carga',     roles: [1]      },
+    { icon: 'group',       label: 'Gestión Usuarios', ruta: '/gestion-usuarios', roles: [1] },
 
     // ⏸️ Módulos pendientes de implementación
     // { icon: 'inventory_2',       label: 'Detalle',        ruta: '/detalle',      roles: [1, 2, 3] },
@@ -63,10 +67,5 @@ export class SidebarComponent {
 
   closeMobile() {
     this.isMobileOpen = false;
-  }
-
-  navegar(ruta: string) {
-    this.closeMobile();
-    this.router.navigate([ruta]);
   }
 }

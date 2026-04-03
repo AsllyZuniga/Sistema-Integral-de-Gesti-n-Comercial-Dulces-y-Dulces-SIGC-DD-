@@ -108,6 +108,23 @@ export class CumplimientoService {
       );
   }
 
+  getDetallePorCiudad(codigoVendedor: string, codigoCiudad: string, filtros?: DashboardFilters): Observable<any> {
+    let params = this.buildParams(filtros);
+    if (params.has('ciudad')) params = params.delete('ciudad');
+
+    return this.http
+      .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/ciudad/${codigoCiudad}`, { params })
+      .pipe(
+        map((res) => {
+          if (res?.detallePorCiudad) {
+            res.detallePorCiudad = Array.isArray(res.detallePorCiudad) ? res.detallePorCiudad : [];
+          }
+          return res;
+        }),
+        catchError(() => of({ detallePorCiudad: [] })),
+      );
+  }
+
   getProductosPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
     return this.http
@@ -127,9 +144,64 @@ export class CumplimientoService {
       );
   }
 
+  getCuotaCategoriaPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
+    let params = this.buildParams(filtros);
+    if (params.has('vendedor')) params = params.delete('vendedor');
+
+    const codigo = String(codigoVendedor ?? '').trim();
+    if (!codigo) return of({ detalle: [] });
+
+    return this.http
+      .get<any>(`${this.apiUrl}/cuota-categoria/vendedor/${encodeURIComponent(codigo)}`, { params })
+      .pipe(
+        map((res) => ({
+          ...(res ?? {}),
+          detalle: Array.isArray(res?.detalle) ? res.detalle : [],
+        })),
+        catchError(() => of({ detalle: [] })),
+      );
+  }
+
+  getProductosPorCliente(idVendedor: string | number, filtros?: DashboardFilters): Observable<any> {
+    let params = this.buildParams(filtros);
+    if (params.has('vendedor')) params = params.delete('vendedor');
+
+    const id = String(idVendedor ?? '').trim();
+
+    if (!id) {
+      return of({ data: [] });
+    }
+
+    const endpoint = `${this.apiUrl}/cliente/productos-por-cliente/vendedor/${encodeURIComponent(id)}`;
+
+    return this.http
+      .get<any>(endpoint, { params })
+      .pipe(
+        map((res) => {
+          const data = Array.isArray(res)
+            ? res
+            : Array.isArray(res?.data)
+              ? res.data
+              : Array.isArray(res?.detalle)
+                ? res.detalle
+                : [];
+
+          const idObjetivo = String(id).trim();
+          const dataFiltrada = data.filter((row: any) => {
+            const idRow = row?.id_vendedor ?? row?.idVendedor ?? row?.vendedor_id ?? row?.idVendedorAsociado;
+            if (idRow === null || idRow === undefined) return false;
+            return String(idRow).trim() === idObjetivo;
+          });
+
+          return { ...(res ?? {}), data: dataFiltrada };
+        }),
+        catchError(() => of({ data: [] })),
+      );
+  }
+
   getVendedores(): Observable<any[]> {
     return this.http
-      .get<any[]>(`${this.apiUrl}/vendedores`)
+      .get<any[]>(`${this.apiUrl}/vendedor`)
       .pipe(
         map((res) => (Array.isArray(res) ? res.filter((v: any) => v.status !== false) : [])),
         catchError(() => of([])),
@@ -142,6 +214,21 @@ export class CumplimientoService {
       .pipe(
         map((res) => (Array.isArray(res) ? res : [])),
         catchError(() => of([])),
+      );
+  }
+
+  /** GET /cuota-categoria/vendedores → categorías de múltiples vendedores con filtros de fecha */
+  getCuotaCategoriasPorVendedores(filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParams(filtros);
+    return this.http
+      .get<any>(`${this.apiUrl}/cuota-categoria/vendedores`, { params })
+      .pipe(
+        map((res) => ({
+          ...(res ?? {}),
+          periodo: res?.periodo ?? {},
+          detalle: Array.isArray(res?.detalle) ? res.detalle : [],
+        })),
+        catchError(() => of({ periodo: {}, detalle: [] })),
       );
   }
 }

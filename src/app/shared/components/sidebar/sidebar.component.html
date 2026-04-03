@@ -7,9 +7,9 @@
   <nav>
     @for (item of navItems; track item.label) {
       <a
+        [routerLink]="item.ruta"
         [class.active]="isActive(item.ruta)"
-        [attr.data-tooltip]="isCollapsed ? item.label : null"
-        (click)="navegar(item.ruta)">
+        [attr.data-tooltip]="isCollapsed ? item.label : null">
         <span class="icon material-symbols-rounded">{{ item.icon }}</span>
         <span class="label">{{ item.label }}</span>
       </a>
