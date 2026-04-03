@@ -1,14 +1,26 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.table-scroll-wrap {
+  width: 100%;
+  overflow: auto;
+  max-height: var(--table-max-height, none);
+  overscroll-behavior: contain;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+}
+
 table {
   width: 100%;
   min-width: 620px;
   border-collapse: separate;
   border-spacing: 0;
-  background: var(--c-surface);
+  background: transparent;
   font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-  table-layout: auto; /* ✅ CORREGIDO: auto para que cada columna tome el ancho que necesita */
-  border: 1px solid var(--c-border);
-  border-radius: var(--r-md);
-  overflow: hidden;
+  table-layout: auto;
 }
 
 thead tr {

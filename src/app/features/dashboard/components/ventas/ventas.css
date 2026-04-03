@@ -19,6 +19,15 @@
   overflow-x: auto;
 }
 
+.category-table-scroll {
+  max-height: none;
+  overflow: visible;
+}
+
+.category-table-scroll app-table {
+  --table-max-height: 460px;
+}
+
 .grafica-container {
   width: 100%;
 }

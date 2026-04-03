@@ -32,6 +32,14 @@ export class TableComponent {
     proyeccionVenta: 'Proyección',
     porcCumProy: 'Cumpl. Proy. %',
     linea: 'Línea',
+    id_categoria: 'ID Categoría',
+    categoria: 'Categoría',
+    cuota: 'Cuota',
+    acumulado: 'Acumulado',
+    porcentajeCumplimiento: 'Cumpl. %',
+    porcentajeCumplimientoProyectado: 'Cumpl. Proy. %',
+    proyectado: 'Proyectado',
+    part: 'Part. %',
     ciudad: 'Ciudad',
     Fecha: 'Fecha',
     fecha: 'Fecha',
@@ -61,7 +69,10 @@ export class TableComponent {
     'cuotaSemana',
     'cuotaDiaria',
     'cuotaLinea',
+    'cuota',
     'ventaAcum',
+    'acumulado',
+    'proyectado',
     'proyeccionVenta',
     'valorTotal',
     'precio_unitario',
@@ -70,9 +81,15 @@ export class TableComponent {
     'subtotal',
     'Subtotal',
   ]);
-  private readonly percentCols = new Set(['porcCump', 'porcCumProy']);
+  private readonly percentCols = new Set([
+    'porcCump',
+    'porcCumProy',
+    'porcentajeCumplimiento',
+    'porcentajeCumplimientoProyectado',
+    'part',
+  ]);
   private readonly integerCols = new Set(['Venta_Unid_Cajas', 'Cantidad', 'cantidad', 'impactos']);
-  private readonly integerColsExt = new Set(['cantidadItems']);
+  private readonly integerColsExt = new Set(['cantidadItems', 'id_categoria']);
 
   getHeader(col: string): string {
     return this.headerMap[col] ?? col;

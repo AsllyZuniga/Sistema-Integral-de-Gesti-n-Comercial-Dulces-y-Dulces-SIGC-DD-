@@ -144,6 +144,24 @@ export class CumplimientoService {
       );
   }
 
+  getCuotaCategoriaPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
+    let params = this.buildParams(filtros);
+    if (params.has('vendedor')) params = params.delete('vendedor');
+
+    const codigo = String(codigoVendedor ?? '').trim();
+    if (!codigo) return of({ detalle: [] });
+
+    return this.http
+      .get<any>(`${this.apiUrl}/cuota-categoria/vendedor/${encodeURIComponent(codigo)}`, { params })
+      .pipe(
+        map((res) => ({
+          ...(res ?? {}),
+          detalle: Array.isArray(res?.detalle) ? res.detalle : [],
+        })),
+        catchError(() => of({ detalle: [] })),
+      );
+  }
+
   getProductosPorCliente(idVendedor: string | number, filtros?: DashboardFilters): Observable<any> {
     let params = this.buildParams(filtros);
     if (params.has('vendedor')) params = params.delete('vendedor');

@@ -62,6 +62,29 @@
         </div>
       }
 
+      @case ('categoria') {
+        <div class="stack-layout">
+          <div class="tabla-scroll category-table-scroll">
+            @if (tableData.length > 0) {
+              <app-table [columns]="categoriasColumns" [data]="tableData" />
+            } @else {
+              <div class="placeholder">Cargando información...</div>
+            }
+          </div>
+
+          @if (chartData.length > 0) {
+            <div class="grafica-container">
+              <h4>Por Categoría</h4>
+              <app-chart
+                [chartId]="chartId"
+                [data]="chartData"
+                [type]="chartType"
+                label="Por Categoría" />
+            </div>
+          }
+        </div>
+      }
+
       @case ('ciudad') {
         <div class="stack-layout">
           <div class="tabla-scroll">

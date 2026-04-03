@@ -101,6 +101,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   private readonly todasLasVistas = [
     { key: 'ventas', label: 'Ventas' },
     { key: 'proveedor', label: 'Por Proveedor' },
+    { key: 'categoria', label: 'Por Categoría' },
     { key: 'ciudad', label: 'Por Ciudad' },
     { key: 'cliente', label: 'Detalle por Cliente' },
     { key: 'vendedor', label: 'Por Vendedor' },
@@ -135,6 +136,15 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   readonly ciudadesColumns = ['ciudad', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
+  readonly categoriasColumns = [
+    'categoria',
+    'cuota',
+    'acumulado',
+    'porcentajeCumplimiento',
+    'part',
+    'proyectado',
+    'porcentajeCumplimientoProyectado',
+  ];
   readonly productosColumns = [
     'Fecha',
     'Proveedor',
@@ -729,6 +739,26 @@ export class VentasComponent implements OnInit, OnDestroy {
             this.cdr.markForCheck();
           });
         }
+        break;
+
+      case 'categoria':
+        this.chartType = 'bar';
+
+        this.cumplimientoService
+          .getCuotaCategoriaPorVendedor(this._codigoVendedor, this._filtros)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((res: any) => {
+            const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+            this.tableData = detalle;
+            this.chartData = [...detalle]
+              .sort((a: any, b: any) => Number(b?.acumulado ?? 0) - Number(a?.acumulado ?? 0))
+              .slice(0, 10)
+              .map((i: any) => ({
+                name: i?.categoria ?? 'Sin categoría',
+                value: Number(i?.acumulado ?? 0),
+              }));
+            this.cdr.markForCheck();
+          });
         break;
 
       case 'ciudad':
