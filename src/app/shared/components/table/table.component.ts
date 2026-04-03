@@ -28,13 +28,18 @@ export class TableComponent {
     Fecha: 'Fecha',
     Proveedor: 'Proveedor',
     Cod_Item: 'Cód. Item',
+    id_item: 'ID Item',
     Descripcion: 'Descripción',
     Venta_Unid_Cajas: 'Unid. Cajas',
     Cantidad: 'Cantidad',
+    cantidad: 'Cantidad',
     cliente: 'Cliente',
     cantidadItems: 'Cantidad Items',
     proveedor: 'Proveedor',
     producto: 'Producto',
+    precio_unitario: 'Precio Unitario',
+    subtotal_producto: 'Subtotal Producto',
+    Subtotal: 'Subtotal',
     impactos: 'Impactos',
     valorTotal: 'Valor Total',
   };
@@ -47,9 +52,12 @@ export class TableComponent {
     'ventaAcum',
     'proyeccionVenta',
     'valorTotal',
+    'precio_unitario',
+    'subtotal_producto',
+    'Subtotal',
   ]);
   private readonly percentCols = new Set(['porcCump', 'porcCumProy']);
-  private readonly integerCols = new Set(['Venta_Unid_Cajas', 'Cantidad', 'impactos']);
+  private readonly integerCols = new Set(['Venta_Unid_Cajas', 'Cantidad', 'cantidad', 'impactos']);
   private readonly integerColsExt = new Set(['cantidadItems']);
 
   getHeader(col: string): string {

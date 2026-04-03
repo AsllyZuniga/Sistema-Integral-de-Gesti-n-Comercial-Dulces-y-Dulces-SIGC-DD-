@@ -141,11 +141,6 @@
                   <button class="cliente-head" type="button" (click)="toggleCliente(cliente)">
                     <div class="cliente-identidad">
                       <h4>{{ cliente.cliente }}</h4>
-                      <span class="cliente-sucursal">Sucursal: {{ cliente.sucursal }}</span>
-                      <span class="cliente-sucursal">Documento: {{ cliente.documento }}</span>
-                      @if (cliente.idClienteSucursal) {
-                        <span class="cliente-sucursal">ID Cliente Sucursal: {{ cliente.idClienteSucursal }}</span>
-                      }
                     </div>
                     <div class="cliente-resumen">
                       <span>{{ cliente.cantidadItems }} item{{ cliente.cantidadItems !== 1 ? 's' : '' }}</span>

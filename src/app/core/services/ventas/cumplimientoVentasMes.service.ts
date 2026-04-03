@@ -144,6 +144,43 @@ export class CumplimientoService {
       );
   }
 
+  getProductosPorCliente(idVendedor: string | number, filtros?: DashboardFilters): Observable<any> {
+    let params = this.buildParams(filtros);
+    if (params.has('vendedor')) params = params.delete('vendedor');
+
+    const id = String(idVendedor ?? '').trim();
+
+    if (!id) {
+      return of({ data: [] });
+    }
+
+    const endpoint = `${this.apiUrl}/cliente/productos-por-cliente/vendedor/${encodeURIComponent(id)}`;
+
+    return this.http
+      .get<any>(endpoint, { params })
+      .pipe(
+        map((res) => {
+          const data = Array.isArray(res)
+            ? res
+            : Array.isArray(res?.data)
+              ? res.data
+              : Array.isArray(res?.detalle)
+                ? res.detalle
+                : [];
+
+          const idObjetivo = String(id).trim();
+          const dataFiltrada = data.filter((row: any) => {
+            const idRow = row?.id_vendedor ?? row?.idVendedor ?? row?.vendedor_id ?? row?.idVendedorAsociado;
+            if (idRow === null || idRow === undefined) return false;
+            return String(idRow).trim() === idObjetivo;
+          });
+
+          return { ...(res ?? {}), data: dataFiltrada };
+        }),
+        catchError(() => of({ data: [] })),
+      );
+  }
+
   getVendedores(): Observable<any[]> {
     return this.http
       .get<any[]>(`${this.apiUrl}/vendedor`)

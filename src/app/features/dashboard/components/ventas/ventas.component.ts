@@ -24,7 +24,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
 
   @Input() set codigoVendedor(value: string) {
-    this._codigoVendedor = value;
+    this._codigoVendedor = this.normalizarCodigoVendedor(value);
     if (value && this.iniciado) {
       this.cargarVistaActual();
     }
@@ -126,7 +126,7 @@ export class VentasComponent implements OnInit, OnDestroy {
     'Cantidad',
     'Subtotal',
   ];
-  readonly clienteProductosColumns = ['Cod_Item', 'Descripcion', 'Cantidad', 'Subtotal'];
+  readonly clienteProductosColumns = ['producto', 'cantidad', 'precio_unitario', 'subtotal_producto'];
 
   private readonly cuotaLineaMock: Record<string, number> = {
     confiteria: 2500000,
@@ -201,18 +201,18 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   private obtenerNombreCliente(row: any): string {
     const nombre =
+      row?.cliente ??
       row?.razon_social ??
       row?.razonSocial ??
       row?.nombre_establecimiento ??
       row?.nombreEstablecimiento ??
-      row?.cliente ??
       row?.Cliente ??
       row?.nombreCliente ??
       row?.Nombre_Cliente ??
       row?.Razon_Social ??
-      'Sin cliente';
+      '';
 
-    return String(nombre).trim() || 'Sin cliente';
+    return String(nombre).trim();
   }
 
   private obtenerSucursalCliente(row: any): string {
@@ -231,12 +231,19 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private obtenerCodigoItem(row: any): string {
-    const codigo = row?.Cod_Item ?? row?.cod_item ?? row?.codigoItem ?? row?.codigo ?? '';
+    const codigo =
+      row?.id_item ??
+      row?.codigo_item ??
+      row?.Cod_Item ??
+      row?.cod_item ??
+      row?.codigoItem ??
+      row?.codigo ??
+      '';
     return String(codigo).trim() || '—';
   }
 
   private obtenerIdClienteSucursal(row: any): string {
-    const id = row?.id_cliente_sucursal ?? row?.idClienteSucursal ?? row?.idCliente ?? '';
+    const id = row?.id_cliente ?? row?.id_cliente_sucursal ?? row?.idClienteSucursal ?? row?.idCliente ?? '';
     return String(id).trim();
   }
 
@@ -251,13 +258,27 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private obtenerCantidadItem(row: any): number {
-    const cantidad = row?.Cantidad ?? row?.cantidad ?? row?.Venta_Unid_Cajas ?? 0;
+    const cantidad = row?.cantidad_total ?? row?.Cantidad ?? row?.cantidad ?? row?.Venta_Unid_Cajas ?? 0;
     const num = Number(cantidad);
     return Number.isFinite(num) ? num : 0;
   }
 
+  private obtenerPrecioUnitarioItem(row: any): number {
+    const valor = row?.precio_unitario ?? row?.precioUnitario ?? row?.Precio_Unitario ?? row?.precio ?? 0;
+    const num = Number(valor);
+    return Number.isFinite(num) ? num : 0;
+  }
+
   private calcularVentaRow(row: any): number {
-    const valor = row?.Subtotal ?? row?.subTotal ?? row?.ventaAcum ?? row?.valorTotal ?? 0;
+    const valor =
+      row?.subtotal_producto ??
+      row?.subtotalProducto ??
+      row?.subtotal_total ??
+      row?.Subtotal ??
+      row?.subTotal ??
+      row?.ventaAcum ??
+      row?.valorTotal ??
+      0;
     const num = Number(valor);
     return Number.isFinite(num) ? num : 0;
   }
@@ -281,6 +302,8 @@ export class VentasComponent implements OnInit, OnDestroy {
     for (const row of rows) {
       const idClienteSucursal = this.obtenerIdClienteSucursal(row);
       const cliente = this.obtenerNombreCliente(row);
+      if (!cliente) continue;
+
       const sucursal = this.obtenerSucursalCliente(row);
       const key = idClienteSucursal || `${cliente}::${sucursal}`;
 
@@ -299,10 +322,11 @@ export class VentasComponent implements OnInit, OnDestroy {
       actual.cantidadItems += 1;
       actual.ventaAcum += this.calcularVentaRow(row);
       actual.productos.push({
-        Cod_Item: this.obtenerCodigoItem(row),
-        Descripcion: this.obtenerDescripcionItem(row),
-        Cantidad: this.obtenerCantidadItem(row),
-        Subtotal: this.calcularVentaRow(row),
+        id_item: this.obtenerCodigoItem(row),
+        producto: this.obtenerDescripcionItem(row),
+        cantidad: this.obtenerCantidadItem(row),
+        precio_unitario: this.obtenerPrecioUnitarioItem(row),
+        subtotal_producto: this.calcularVentaRow(row),
       });
 
       agg.set(key, actual);
@@ -311,7 +335,9 @@ export class VentasComponent implements OnInit, OnDestroy {
     return Array.from(agg.values())
       .map((item) => ({
         ...item,
-        productos: item.productos.sort((a, b) => Number(b.Subtotal) - Number(a.Subtotal)),
+        productos: item.productos.sort(
+          (a, b) => Number(b.subtotal_producto) - Number(a.subtotal_producto),
+        ),
       }))
       .sort((a, b) => b.ventaAcum - a.ventaAcum);
   }
@@ -355,6 +381,26 @@ export class VentasComponent implements OnInit, OnDestroy {
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  private normalizarCodigoVendedor(valor: unknown): string {
+    const codigo = String(valor ?? '').trim();
+    if (!codigo) return '';
+    return /^\d+$/.test(codigo) && codigo.length < 4 ? codigo.padStart(4, '0') : codigo;
+  }
+
+  private obtenerIdVendedorSesion(): string {
+    const usuario = this.authService.getVendedor();
+    const idRaw =
+      usuario?.idVendedor ??
+      usuario?.id_vendedor ??
+      usuario?.idVendedorAsociado ??
+      usuario?.vendedor?.idVendedor ??
+      usuario?.vendedor?.id_vendedor ??
+      usuario?.vendedor?.id ??
+      usuario?.id ??
+      '';
+    return String(idRaw ?? '').trim();
   }
 
   private mapearCuotaPorLinea(listado: any[]): any[] {
@@ -566,8 +612,17 @@ export class VentasComponent implements OnInit, OnDestroy {
       case 'cliente':
         this.chartType = 'bar';
 
+        const idVendedor = this.obtenerIdVendedorSesion();
+        if (!idVendedor) {
+          this.clientesAgrupados = [];
+          this.tableData = [];
+          this.chartData = [];
+          this.cdr.detectChanges();
+          return;
+        }
+
         this.cumplimientoService
-          .getProductosPorVendedor(this._codigoVendedor, this._filtros)
+          .getProductosPorCliente(idVendedor, this._filtros)
           .pipe(takeUntil(this.destroy$))
           .subscribe((res: any) => {
             const listado = res?.data ?? [];
