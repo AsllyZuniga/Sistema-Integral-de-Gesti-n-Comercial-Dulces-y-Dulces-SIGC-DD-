@@ -2,6 +2,7 @@ import { Component, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { SidebarComponent } from '../../shared/components/sidebar/sidebar.component';
+import { environment } from '../../../environments/environment';
 
 type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
 type TipoError = 'formato' | 'columnas' | 'datos' | 'servidor' | 'desconocido';
@@ -14,7 +15,7 @@ type TipoError = 'formato' | 'columnas' | 'datos' | 'servidor' | 'desconocido';
   styleUrls: ['./carga.component.css'],
 })
 export class CargaComponent {
-  private readonly apiUrl = 'http://localhost:3000';
+  private readonly apiUrl = environment.apiUrl;
 
   @ViewChild(SidebarComponent) sidebarRef?: SidebarComponent;
 
@@ -63,7 +64,7 @@ export class CargaComponent {
     if (!input.files?.length) return;
 
     const archivo = input.files[0];
-    input.value = ''; // Limpiar input para permitir seleccionar el mismo archivo luego
+    input.value = '';
 
     if (!archivo.name.toLowerCase().endsWith('.txt')) {
       this.setError('formato', 'Solo se aceptan archivos .txt exportados desde el ERP.');
@@ -263,9 +264,7 @@ export class CargaComponent {
         if (profundidad === 0 && inicio !== -1) {
           try {
             objetos.push(JSON.parse(texto.substring(inicio, i + 1)));
-          } catch {
-            // fragmento inválido, ignorar
-          }
+          } catch {}
           inicio = -1;
         }
       }

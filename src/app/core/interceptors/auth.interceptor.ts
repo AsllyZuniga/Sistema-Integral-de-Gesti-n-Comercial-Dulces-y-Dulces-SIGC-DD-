@@ -1,6 +1,12 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  const isAuthLoginRequest = req.url.includes('/api/auth/login');
+
+  if (isAuthLoginRequest) {
+    return next(req);
+  }
+
   // Leer el vendedor directamente de sessionStorage
   const vendedorRaw = sessionStorage.getItem('vendedor');
   console.log('🔍 [Interceptor] vendedor RAW en sessionStorage:', vendedorRaw);

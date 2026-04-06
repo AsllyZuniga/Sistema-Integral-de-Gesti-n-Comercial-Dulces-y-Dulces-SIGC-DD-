@@ -2,7 +2,6 @@
   <app-sidebar (toggle)="onToggleSidebar($event)"></app-sidebar>
 
   <div class="main" [class.expanded]="sidebarColapsado">
-
     <header class="topbar">
       <div class="topbar-left">
         <button class="mobile-menu-btn" (click)="toggleMenuMovil()">
@@ -13,25 +12,26 @@
     </header>
 
     <div class="carga-page">
-
       <div class="page-header">
-        <p>Sube el archivo plano <strong>.txt</strong> exportado del ERP para importar las ventas al sistema.</p>
+        <p>
+          Sube el archivo plano <strong>.txt</strong> exportado del ERP para importar las ventas al
+          sistema.
+        </p>
       </div>
 
       <div class="upload-card">
-
         <!-- ZONA DE CARGA -->
         <div
           class="upload-zone"
           [class.has-file]="archivoSeleccionado"
           [class.is-loading]="estaImportando"
-          (click)="onClickZonaCarga()">
-
+          (click)="onClickZonaCarga()"
+        >
           <input
             id="fileInput"
             type="file"
             accept=".txt"
-            style="display:none"
+            style="display: none"
             (change)="onArchivoSeleccionado($event)"
           />
 
@@ -57,7 +57,8 @@
           <button
             class="btn-cargar"
             [disabled]="!archivoSeleccionado || estaImportando"
-            (click)="cargar()">
+            (click)="cargar()"
+          >
             @if (estaImportando) {
               <span class="spinner"></span>
               Importando...
@@ -102,7 +103,7 @@
                 @if (resultado.mensaje) {
                   <div class="stat">
                     <span class="stat-label">Estado</span>
-                    <span class="stat-value" style="font-size:13px">{{ resultado.mensaje }}</span>
+                    <span class="stat-value" style="font-size: 13px">{{ resultado.mensaje }}</span>
                   </div>
                 }
               </div>
@@ -114,25 +115,36 @@
         @if (estado === 'error') {
           <div class="resultado error">
             <span class="material-symbols-rounded resultado-icon">
-              @if (tipoError === 'formato') { draft }
-              @else if (tipoError === 'columnas') { table_chart }
-              @else if (tipoError === 'datos') { edit_note }
-              @else if (tipoError === 'servidor') { dns }
-              @else { error }
+              @if (tipoError === 'formato') {
+                draft
+              } @else if (tipoError === 'columnas') {
+                table_chart
+              } @else if (tipoError === 'datos') {
+                edit_note
+              } @else if (tipoError === 'servidor') {
+                dns
+              } @else {
+                error
+              }
             </span>
             <div class="resultado-info">
               <h4>
-                @if (tipoError === 'formato') { Tipo de archivo incorrecto }
-                @else if (tipoError === 'columnas') { Columnas faltantes }
-                @else if (tipoError === 'datos') { Datos inválidos }
-                @else if (tipoError === 'servidor') { Error del servidor }
-                @else { Error en la importación }
+                @if (tipoError === 'formato') {
+                  Tipo de archivo incorrecto
+                } @else if (tipoError === 'columnas') {
+                  Columnas faltantes
+                } @else if (tipoError === 'datos') {
+                  Datos inválidos
+                } @else if (tipoError === 'servidor') {
+                  Error del servidor
+                } @else {
+                  Error en la importación
+                }
               </h4>
               <p>{{ mensajeError }}</p>
             </div>
           </div>
         }
-
       </div>
 
       <!-- INSTRUCCIONES -->
@@ -142,7 +154,10 @@
           Instrucciones de uso
         </h3>
         <ol>
-          <li>Exporta el plano de ventas desde el ERP en formato <strong>.txt</strong> (separado por tabulaciones)</li>
+          <li>
+            Exporta el plano de ventas desde el ERP en formato <strong>.txt</strong> (separado por
+            tabulaciones)
+          </li>
           <li>Haz clic en la zona de carga y selecciona el archivo exportado</li>
           <li>Verifica que el nombre y el tamaño del archivo sean correctos</li>
           <li>Haz clic en <strong>Importar Ventas</strong> y espera a que finalice el proceso</li>
@@ -150,10 +165,10 @@
         </ol>
         <div class="advertencia">
           <span class="material-symbols-rounded">warning</span>
-          Para archivos grandes (más de 100 MB) el proceso puede tardar varios minutos. No cierres la ventana mientras se procesa.
+          Para archivos grandes (más de 100 MB) el proceso puede tardar varios minutos. No cierres
+          la ventana mientras se procesa.
         </div>
       </div>
-
     </div>
   </div>
 </div>

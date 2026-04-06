@@ -50,6 +50,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isSidebarCollapsed = false;
 
   proveedoresList: string[] = [];
+  categoriasList: string[] = [];
   ciudadesList: string[] = [];
   lineasList: string[] = [];
   vendedoresList: string[] = [];
@@ -58,6 +59,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   rolId = 0;
 
   private proveedorMap: Map<string, string> = new Map();
+  private categoriaMap: Map<string, string> = new Map();
   private ciudadMap: Map<string, string> = new Map();
   private lineaMap: Map<string, string> = new Map();
   private vendedorMap: Map<string, string> = new Map();
@@ -187,17 +189,29 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .trim();
   }
 
+  private limpiarNombreCategoria(valor: unknown): string {
+    let nombre = String(valor ?? '').trim();
+    if (!nombre) return '';
+
+    // Quita prefijos tipo: "0001 -" y "1000-" para mostrar solo el nombre.
+    nombre = nombre.replace(/^\d+\s*-\s*/u, '');
+    nombre = nombre.replace(/^\d+\s*-\s*/u, '');
+
+    return nombre.trim();
+  }
+
   private repararTextoCiudad(valor: unknown): string {
     const txt = String(valor ?? '').trim();
     if (!txt) return '';
 
-    return txt
-      .replace(/�/g, 'a')
-      .replace(/\s+/g, ' ')
-      .trim();
+    return txt.replace(/�/g, 'a').replace(/\s+/g, ' ').trim();
   }
 
-  private registrarCiudad(nombreCiudad: unknown, codigoCiudad: unknown, setCiudades: Set<string>): void {
+  private registrarCiudad(
+    nombreCiudad: unknown,
+    codigoCiudad: unknown,
+    setCiudades: Set<string>,
+  ): void {
     const ciudadOriginal = this.repararTextoCiudad(nombreCiudad);
     const ciudadNormalizada = this.normalizarTexto(ciudadOriginal);
     const codigo = String(codigoCiudad ?? '').trim();
@@ -246,13 +260,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
         const peticiones = codigos.map((codigo) =>
           forkJoin({
-            ciudades: this.cumplimientoService.getCiudadesPorVendedor(codigo).pipe(
-              catchError(() => of({ detallePorCiudad: [] }))
-            ),
-            lineas: this.cumplimientoService.getLineasPorVendedor(codigo).pipe(
-              catchError(() => of({ detallePorLinea: [] }))
-            ),
-          })
+            ciudades: this.cumplimientoService
+              .getCiudadesPorVendedor(codigo)
+              .pipe(catchError(() => of({ detallePorCiudad: [] }))),
+            lineas: this.cumplimientoService
+              .getLineasPorVendedor(codigo)
+              .pipe(catchError(() => of({ detallePorLinea: [] }))),
+          }),
         );
 
         forkJoin(peticiones)
@@ -300,6 +314,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   cargarOpcionesFiltros(): void {
+    this.cargarCategoriasFiltros();
+
     this.cumplimientoService
       .getProveedores()
       .pipe(takeUntil(this.destroy$))
@@ -392,6 +408,45 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
+  private cargarCategoriasFiltros(): void {
+    const filtrosBase: DashboardFilters = {
+      ...this.filtrosActivos,
+      categoria: '',
+      ciudad: '',
+      ciudadNombre: '',
+      linea: '',
+    };
+
+    const categorias$ = this.esAdmin
+      ? this.cumplimientoService.getCuotaCategoriasPorVendedores(filtrosBase)
+      : this.codigoVendedor
+        ? this.cumplimientoService.getCuotaCategoriaPorVendedor(this.codigoVendedor, filtrosBase)
+        : of({ detalle: [] });
+
+    categorias$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
+      const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+      const unicas = new Set<string>();
+
+      this.categoriaMap.clear();
+
+      detalle.forEach((item: any) => {
+        const categoriaRaw = String(
+          item?.categoria ?? item?.nomCategoria ?? item?.nombreCategoria ?? '',
+        ).trim();
+
+        if (!categoriaRaw) return;
+
+        const categoriaLimpia = this.limpiarNombreCategoria(categoriaRaw);
+        if (!categoriaLimpia) return;
+
+        this.categoriaMap.set(categoriaLimpia, categoriaRaw);
+        unicas.add(categoriaLimpia);
+      });
+
+      this.categoriasList = Array.from(unicas).sort((a, b) => a.localeCompare(b, 'es'));
+    });
+  }
+
   onAplicarFiltros(filtros: DashboardFilters): void {
     const ciudadVisible = String(filtros.ciudad ?? '').trim();
     const ciudadNormalizada = this.normalizarTexto(ciudadVisible);
@@ -401,11 +456,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
       fechaFin: filtros.fechaFin,
       vendedor: '',
       proveedor: '',
-      categoria: filtros.categoria || '',
+      categoria: '',
       ciudad: '',
       ciudadNombre: ciudadVisible || '',
       linea: filtros.linea || '',
     };
+
+    if (filtros.categoria) {
+      filtrosConCodigos.categoria = this.categoriaMap.get(filtros.categoria) ?? filtros.categoria;
+    }
 
     if (filtros.vendedor) {
       filtrosConCodigos.vendedor = this.vendedorMap.get(filtros.vendedor) ?? filtros.vendedor;
@@ -417,9 +476,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     if (ciudadVisible) {
       filtrosConCodigos.ciudad =
-        this.ciudadMap.get(ciudadVisible) ??
-        this.ciudadMap.get(ciudadNormalizada) ??
-        ciudadVisible;
+        this.ciudadMap.get(ciudadVisible) ?? this.ciudadMap.get(ciudadNormalizada) ?? ciudadVisible;
     }
 
     if (filtros.linea) {

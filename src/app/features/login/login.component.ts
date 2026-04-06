@@ -42,8 +42,9 @@ export class LoginComponent {
 
     console.log('🔐 [LOGIN] Iniciando login con código:', codigo);
 
+    // Enviamos ambos campos para compatibilidad con backends que autentican por username o codigo.
     this.authService
-      .login({ codigo, password })
+      .login({ codigo, username: codigo, password })
       .pipe(
         timeout(10000),
         finalize(() => {
