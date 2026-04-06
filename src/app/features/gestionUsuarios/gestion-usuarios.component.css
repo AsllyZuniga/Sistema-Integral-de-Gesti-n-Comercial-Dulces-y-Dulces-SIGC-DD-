@@ -79,6 +79,27 @@
   color: var(--c-text-muted);
 }
 
+.message-banner {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.message-banner.success {
+  color: #166534;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.message-banner.error {
+  color: #991b1b;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
 /* ====== Tarjetas ====== */
 .usuarios-grid {
   display: grid;

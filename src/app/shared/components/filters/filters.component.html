@@ -21,8 +21,8 @@
         <label>Vendedor</label>
         <select [(ngModel)]="filtros.vendedor">
           <option value="">Todos</option>
-          @for (v of vendedores; track v) {
-            <option [value]="v">{{ v }}</option>
+          @for (v of vendedores; track v.value) {
+            <option [value]="v.value">{{ v.label }}</option>
           }
         </select>
       </div>
@@ -32,8 +32,8 @@
       <label>Proveedor</label>
       <select [(ngModel)]="filtros.proveedor">
         <option value="">Todos</option>
-        @for (p of proveedores; track p) {
-          <option [value]="p">{{ p }}</option>
+        @for (p of proveedores; track p.value) {
+          <option [value]="p.value">{{ p.label }}</option>
         }
       </select>
     </div>
@@ -42,8 +42,8 @@
       <label>Categoría</label>
       <select [(ngModel)]="filtros.categoria">
         <option value="">Todas</option>
-        @for (c of categorias; track c) {
-          <option [value]="c">{{ c }}</option>
+        @for (c of categorias; track c.value) {
+          <option [value]="c.value">{{ c.label }}</option>
         }
       </select>
     </div>
@@ -52,8 +52,8 @@
       <label>Ciudad</label>
       <select [(ngModel)]="filtros.ciudad">
         <option value="">Todas</option>
-        @for (ci of ciudades; track ci) {
-          <option [value]="ci">{{ ci }}</option>
+        @for (ci of ciudades; track ci.value) {
+          <option [value]="ci.value">{{ ci.label }}</option>
         }
       </select>
     </div>

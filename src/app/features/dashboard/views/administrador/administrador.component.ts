@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Subject, takeUntil } from 'rxjs';
+import { Observable, Subject, takeUntil } from 'rxjs';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import {
   DashboardFilters,
@@ -19,7 +19,40 @@ import { CumplimientoService } from '../../../../core/services/ventas/cumplimien
 import { CumplimientoSemanaService } from '../../../../core/services/ventas/cumplimientoVentasSemana.service';
 import { UsuariosService } from '../../../../core/services/usuarios.service';
 import { TipoCuota } from '../../../cumplientosCuota/cumplimientos.component';
-import { VendedoresTableComponent } from '../shared/vendedores-table/vendedores-table.component';
+import {
+  VendedorTabla,
+  VendedoresTableComponent,
+} from '../shared/vendedores-table/vendedores-table.component';
+
+interface SupervisorResumen {
+  id_usuario?: number | string;
+  idUsuario?: number | string;
+  id?: number | string;
+  username?: string;
+  nombre?: string;
+}
+
+interface CuotaDetalle {
+  cuota_mes?: number;
+  cuota_semana?: number;
+  cuota_dia?: number;
+}
+
+interface VendedorApiRow {
+  codigo_vendedor?: string;
+  codVendedor?: string;
+  nombre?: string;
+  cuotaMes?: number | CuotaDetalle;
+  cuotaSemana?: number | CuotaDetalle;
+  cuotaDiaria?: number | CuotaDetalle;
+  ventaAcum?: number;
+  porcCump?: number;
+  proyeccionVenta?: number;
+  nombreSupervisor?: string;
+  id_supervisor?: number | string | null;
+  idSupervisor?: number | string | null;
+  supervisor?: { username?: string; nombre?: string } | null;
+}
 
 @Component({
   selector: 'app-administrador-dashboard',
@@ -45,19 +78,49 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     linea: '',
   };
 
-  totales: any = null;
+  totales: { ventaAcum: number; cuotaMes: number; porcCump: number; proyeccionVenta: number } | null = null;
   cargandoVendedores = false;
-  todosLosVendedores: any[] = [];
+  todosLosVendedores: VendedorTabla[] = [];
 
-  supervisoresList: any[] = [];
+  supervisoresList: SupervisorResumen[] = [];
   modalAsignarVisible = false;
-  vendedorEnModal: any = null;
+  vendedorEnModal: VendedorTabla | null = null;
   supervisorSeleccionado = '';
   asignandoSupervisor = false;
 
   private supervisorPorCodigoVendedor: Map<string, string> = new Map();
   private destroy$ = new Subject<void>();
   private initialized = false;
+
+  private obtenerCodigoVendedor(vendedor: Pick<VendedorTabla, 'codVendedor' | 'codigo_vendedor'> | VendedorApiRow): string {
+    return String(vendedor.codVendedor ?? vendedor.codigo_vendedor ?? '').trim();
+  }
+
+  private obtenerNombreSupervisor(
+    vendedor: VendedorApiRow | VendedorTabla,
+    supervisor?: SupervisorResumen,
+  ): string {
+    return (
+      vendedor.supervisor?.username ??
+      vendedor.supervisor?.nombre ??
+      supervisor?.username ??
+      supervisor?.nombre ??
+      vendedor.nombreSupervisor ??
+      ''
+    );
+  }
+
+  private leerCuota(valor: number | CuotaDetalle | null | undefined, clave: keyof CuotaDetalle): number {
+    if (typeof valor === 'number') {
+      return valor;
+    }
+
+    if (valor && typeof valor === 'object') {
+      return Number(valor[clave] ?? 0);
+    }
+
+    return Number(valor ?? 0);
+  }
 
   get labelCuota(): string {
     switch (this.tipoCuota) {
@@ -81,7 +144,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  get campoCuota(): string {
+  get campoCuota(): keyof Pick<VendedorTabla, 'cuotaMes' | 'cuotaSemana' | 'cuotaDiaria'> {
     switch (this.tipoCuota) {
       case 'semanal':
         return 'cuotaSemana';
@@ -115,7 +178,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
       .listarSupervisores()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (res: any[]) => {
+        next: (res: SupervisorResumen[]) => {
           this.supervisoresList = Array.isArray(res) ? res : [];
           this.recargarSupervisoresPorVendedorAdmin();
           this.cargarTotales();
@@ -145,7 +208,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
       }
     };
 
-    this.supervisoresList.forEach((supervisor: any) => {
+    this.supervisoresList.forEach((supervisor) => {
       const idSupervisor = String(
         supervisor?.id_usuario ?? supervisor?.idUsuario ?? supervisor?.id ?? '',
       );
@@ -159,15 +222,10 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
         .obtenerVendedoresDelSupervisor(idSupervisor)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
-          next: (vendedores: any[]) => {
-            vendedores.forEach((v: any) => {
-              const codigo = String(v?.codigo_vendedor ?? v?.codVendedor ?? '').trim();
-              const nombreSupervisor =
-                v?.supervisor?.username ??
-                v?.supervisor?.nombre ??
-                supervisor?.username ??
-                supervisor?.nombre ??
-                '';
+          next: (vendedores: VendedorApiRow[]) => {
+            vendedores.forEach((v) => {
+              const codigo = this.obtenerCodigoVendedor(v);
+              const nombreSupervisor = this.obtenerNombreSupervisor(v, supervisor);
 
               if (codigo && nombreSupervisor) {
                 mapaTemporal.set(codigo, nombreSupervisor);
@@ -190,24 +248,40 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     this.cargarDesdeEndpointAdmin(obs$, this.campoCuota);
   }
 
-  private cargarDesdeEndpointAdmin(obs$: any, campoCuota: string): void {
+  private cargarDesdeEndpointAdmin(
+    obs$: Observable<{ detalle?: VendedorApiRow[] }>,
+    campoCuota: keyof Pick<VendedorTabla, 'cuotaMes' | 'cuotaSemana' | 'cuotaDiaria'>,
+  ): void {
     this.cargandoVendedores = true;
 
     obs$.pipe(takeUntil(this.destroy$)).subscribe({
-      next: (res: any) => {
-        const detalle: any[] = (res?.detalle ?? []).filter((v: any) => v.codVendedor !== 'TOTALES');
+      next: (res) => {
+        const detalle = (res?.detalle ?? []).filter((v) => this.obtenerCodigoVendedor(v) !== 'TOTALES');
 
-        const lista = this.filtrosActivos.vendedor
-          ? detalle.filter((v: any) => v.codVendedor === this.filtrosActivos.vendedor)
-          : detalle;
+        const listaNormalizada: VendedorTabla[] = detalle.map((v) => ({
+          codigo_vendedor: v.codigo_vendedor ?? v.codVendedor,
+          codVendedor: this.obtenerCodigoVendedor(v),
+          nombre: v.nombre ?? '',
+          cuotaMes: this.leerCuota(v.cuotaMes, 'cuota_mes'),
+          cuotaSemana: this.leerCuota(v.cuotaSemana, 'cuota_semana'),
+          cuotaDiaria: this.leerCuota(v.cuotaDiaria, 'cuota_dia'),
+          ventaAcum: Number(v.ventaAcum ?? 0),
+          porcCump: Number(v.porcCump ?? 0),
+          proyeccionVenta: Number(v.proyeccionVenta ?? 0),
+          nombreSupervisor: this.obtenerNombreSupervisor(v),
+          id_supervisor: v.id_supervisor ?? v.idSupervisor ?? null,
+          supervisor: v.supervisor,
+        }));
 
-        this.todosLosVendedores = lista;
+        this.todosLosVendedores = this.filtrosActivos.vendedor
+          ? listaNormalizada.filter((v) => v.codVendedor === this.filtrosActivos.vendedor)
+          : listaNormalizada;
         this.aplicarNombresSupervisorEnTabla();
 
-        const ventaAcum = lista.reduce((s: number, v: any) => s + (Number(v.ventaAcum) || 0), 0);
-        const cuota = lista.reduce((s: number, v: any) => s + (Number(v[campoCuota]) || 0), 0);
-        const proyeccionVenta = lista.reduce(
-          (s: number, v: any) => s + (Number(v.proyeccionVenta) || 0),
+        const ventaAcum = this.todosLosVendedores.reduce((s: number, v) => s + (Number(v.ventaAcum) || 0), 0);
+        const cuota = this.todosLosVendedores.reduce((s: number, v) => s + (Number(v[campoCuota]) || 0), 0);
+        const proyeccionVenta = this.todosLosVendedores.reduce(
+          (s: number, v) => s + (Number(v.proyeccionVenta) || 0),
           0,
         );
         const porcCump = cuota > 0 ? (ventaAcum / cuota) * 100 : 0;
@@ -227,12 +301,12 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
   private aplicarNombresSupervisorEnTabla(): void {
     if (!this.todosLosVendedores.length) return;
 
-    this.todosLosVendedores = this.todosLosVendedores.map((v: any) => {
-      const codigo = String(v?.codVendedor ?? v?.codigo_vendedor ?? '').trim();
+    this.todosLosVendedores = this.todosLosVendedores.map((v) => {
+      const codigo = this.obtenerCodigoVendedor(v);
       const nombreSupervisor =
         this.supervisorPorCodigoVendedor.get(codigo) ??
-        v?.supervisor?.username ??
-        v?.supervisor?.nombre ??
+        v.supervisor?.username ??
+        v.supervisor?.nombre ??
         v?.nombreSupervisor ??
         '';
 
@@ -240,9 +314,9 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  abrirModalAsignar(vendedor: any): void {
+  abrirModalAsignar(vendedor: VendedorTabla): void {
     this.vendedorEnModal = vendedor;
-    this.supervisorSeleccionado = vendedor?.id_supervisor ?? vendedor?.idSupervisor ?? '';
+    this.supervisorSeleccionado = String(vendedor.id_supervisor ?? vendedor.idSupervisor ?? '');
     this.modalAsignarVisible = true;
     this.cdr.detectChanges();
   }
@@ -262,7 +336,8 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
 
     this.asignandoSupervisor = true;
 
-    const codVendedor = this.vendedorEnModal.codVendedor;
+    const vendedorActual = this.vendedorEnModal;
+    const codVendedor = vendedorActual.codVendedor ?? vendedorActual.codigo_vendedor ?? '';
     const idSupervisor = this.supervisorSeleccionado;
 
     if (!codVendedor) {
@@ -276,13 +351,13 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
       .subscribe({
         next: () => {
           const idx = this.todosLosVendedores.findIndex(
-            (v) => v.codVendedor === this.vendedorEnModal.codVendedor,
+            (v) => v.codVendedor === vendedorActual.codVendedor,
           );
 
           if (idx >= 0) {
             const idSupervisorNum = Number(idSupervisor);
             const supervisorAsignado = this.supervisoresList.find(
-              (s: any) => Number(s.id_usuario ?? s.idUsuario ?? s.id ?? 0) === idSupervisorNum,
+              (s) => Number(s.id_usuario ?? s.idUsuario ?? s.id ?? 0) === idSupervisorNum,
             );
             const nombreSupervisor =
               supervisorAsignado?.username ??

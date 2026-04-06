@@ -16,7 +16,7 @@
 
 .tabla-scroll {
   width: 100%;
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .category-table-scroll {

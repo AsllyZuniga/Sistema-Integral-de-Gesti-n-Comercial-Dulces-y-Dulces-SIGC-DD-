@@ -1,6 +1,35 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 
+export interface VendedorTabla {
+  codigo_vendedor?: string;
+  codVendedor?: string;
+  nombre?: string;
+  proveedor?: string;
+  nomProveedor?: string;
+  nombreProveedor?: string;
+  categoria?: string;
+  nomCategoria?: string;
+  nombreCategoria?: string;
+  ciudad?: string;
+  nomCiudad?: string;
+  nombreCiudad?: string;
+  linea?: string;
+  nomLinea?: string;
+  nombreLinea?: string;
+  cuotaMes?: number;
+  cuotaSemana?: number;
+  cuotaDiaria?: number;
+  ventaAcum?: number;
+  porcCump?: number;
+  proyeccionVenta?: number;
+  nombreSupervisor?: string;
+  id_supervisor?: number | string | null;
+  idSupervisor?: number | string | null;
+  supervisor?: { username?: string; nombre?: string } | null;
+  estado?: boolean;
+}
+
 @Component({
   selector: 'app-vendedores-table',
   standalone: true,
@@ -12,13 +41,17 @@ export class VendedoresTableComponent {
   @Input() esAdmin = false;
   @Input() labelCuota = 'Cuota Mes';
   @Input() labelVentaAcum = 'Venta Mes';
-  @Input() campoCuota = 'cuotaMes';
+  @Input() campoCuota: keyof Pick<VendedorTabla, 'cuotaMes' | 'cuotaSemana' | 'cuotaDiaria'> = 'cuotaMes';
   @Input() cargandoVendedores = false;
-  @Input() todosLosVendedores: any[] = [];
+  @Input() todosLosVendedores: VendedorTabla[] = [];
 
-  @Output() asignarSupervisor = new EventEmitter<any>();
+  @Output() asignarSupervisor = new EventEmitter<VendedorTabla>();
 
-  onAsignar(vendedor: any): void {
+  montoCuota(vendedor: VendedorTabla): number {
+    return Number(vendedor[this.campoCuota] ?? 0);
+  }
+
+  onAsignar(vendedor: VendedorTabla): void {
     this.asignarSupervisor.emit(vendedor);
   }
 }

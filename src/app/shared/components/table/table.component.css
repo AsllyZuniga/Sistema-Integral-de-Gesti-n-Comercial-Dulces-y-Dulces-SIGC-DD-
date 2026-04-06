@@ -5,18 +5,20 @@
 
 .table-scroll-wrap {
   width: 100%;
-  overflow-x: auto;
-  overflow-y: auto;
-  max-height: var(--table-max-height, none);
-  overscroll-behavior: auto;
+  max-width: 100%;
+  overflow: auto;
+  max-height: var(--table-max-height, 58vh);
+  scrollbar-gutter: stable both-edges;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--c-border);
   border-radius: var(--r-md);
   background: var(--c-surface);
 }
 
 table {
-  width: 100%;
-  min-width: 620px;
+  width: max-content;
+  min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   background: transparent;
@@ -44,6 +46,29 @@ th {
   box-shadow: 0 1px 0 var(--c-border);
   border-bottom: 1px solid var(--c-border);
   border-right: 1px solid var(--c-border);
+}
+
+th:first-child,
+td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--c-surface);
+  box-shadow: 1px 0 0 var(--c-border);
+}
+
+th:first-child {
+  z-index: 4;
+  background: var(--c-surface-alt);
+}
+
+tbody tr:hover td:first-child,
+tbody tr.odd:hover td:first-child {
+  background: #eaf3ff;
+}
+
+tbody tr.odd td:first-child {
+  background: #fcfdff;
 }
 
 th:last-child {

@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
+import { SessionService } from '../../../core/services/session.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -12,21 +13,15 @@ import { Router, RouterModule } from '@angular/router';
 export class SidebarComponent {
   isCollapsed  = false;
   isMobileOpen = false;
-  rolId: number = 0;
+  rolId = 0;
 
   @Output() toggle = new EventEmitter<boolean>();
 
-  constructor(private router: Router) {
-    try {
-      const raw     = sessionStorage.getItem('vendedor') ?? '{}';
-      const usuario = JSON.parse(raw);
-      // Intentar leer idRol de diferentes ubicaciones posibles
-      this.rolId    = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? usuario?.rolId ?? usuario?.rol?.id ?? 0);
-      console.log('👤 Sidebar - rolId:', this.rolId, 'usuario:', usuario);
-    } catch (error) {
-      console.error('❌ Error leyendo sessionStorage:', error);
-      this.rolId = 0;
-    }
+  constructor(
+    private router: Router,
+    private session: SessionService,
+  ) {
+    this.rolId = this.session.getRoleId();
   }
 
   get tituloRol(): string {

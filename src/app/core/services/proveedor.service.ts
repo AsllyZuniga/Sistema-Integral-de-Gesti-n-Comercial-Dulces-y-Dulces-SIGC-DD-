@@ -23,13 +23,10 @@ export class ProveedorService {
 
   // Obtener todos los proveedores de la BD
   getAllProveedores(): Observable<ProveedorDB[]> {
-    console.log('🔗 [ProveedorService] Llamando a:', this.apiUrl);
-    
     return this.http
       .get<ProveedorDB[]>(this.apiUrl)
       .pipe(
         map((res) => {
-          console.log('📥 [ProveedorService] Respuesta del endpoint:', res);
           return Array.isArray(res) ? res : [];
         }),
         catchError((err) => {

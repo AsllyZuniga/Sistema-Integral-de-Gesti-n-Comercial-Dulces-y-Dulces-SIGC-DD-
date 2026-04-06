@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Subject, forkJoin, takeUntil } from 'rxjs';
 import { UsuariosService } from '../../core/services/usuarios.service';
 import { SidebarComponent } from '../../shared/components/sidebar/sidebar.component';
+import { SessionService } from '../../core/services/session.service';
 
 type Seccion =
   | 'list'
@@ -21,6 +22,7 @@ type Seccion =
 })
 export class GestionUsuariosComponent implements OnInit, OnDestroy {
   private usuariosService = inject(UsuariosService);
+  private session = inject(SessionService);
   private cdr = inject(ChangeDetectorRef);
   private destroy$ = new Subject<void>();
 
@@ -39,6 +41,8 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
   cargandoSupervisores = false;
   guardando = false;
   eliminando = false;
+  mensajeOperacion: string | null = null;
+  tipoOperacion: 'success' | 'error' | null = null;
 
   // Para edición
   usuarioEnEdicion: any = null;
@@ -81,8 +85,14 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
   }
 
   logout(): void {
-    sessionStorage.removeItem('vendedor');
+    this.session.clearUser();
     window.location.href = '/login';
+  }
+
+  private notificar(tipo: 'success' | 'error', mensaje: string): void {
+    this.tipoOperacion = tipo;
+    this.mensajeOperacion = mensaje;
+    this.cdr.detectChanges();
   }
 
   // ============ CARGA DE DATOS ============
@@ -343,13 +353,13 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
                 this.limpiarFormVendedor();
                 this.cargarVendedores();
                 this.cdr.detectChanges();
-                alert('Vendedor creado exitosamente');
+                this.notificar('success', 'Vendedor creado exitosamente');
                 this.volverALista();
               },
               error: (err) => {
                 console.error('Error creando vendedor:', err);
                 this.guardando = false;
-                alert('Error al crear vendedor: ' + err?.error?.message || err?.message);
+                this.notificar('error', `Error al crear vendedor: ${err?.error?.message || err?.message}`);
                 this.cdr.detectChanges();
               },
             });
@@ -357,7 +367,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
         error: (err) => {
           console.error('Error creando usuario:', err);
           this.guardando = false;
-          alert('Error al crear usuario: ' + err?.error?.message || err?.message);
+          this.notificar('error', `Error al crear usuario: ${err?.error?.message || err?.message}`);
           this.cdr.detectChanges();
         },
       });
@@ -387,13 +397,13 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
           this.limpiarFormSupervisor();
           this.cargarSupervisores();
           this.cdr.detectChanges();
-          alert('Supervisor creado exitosamente');
+          this.notificar('success', 'Supervisor creado exitosamente');
           this.volverALista();
         },
         error: (err) => {
           console.error('Error creando supervisor:', err);
           this.guardando = false;
-          alert('Error al crear supervisor: ' + err?.error?.message || err?.message);
+          this.notificar('error', `Error al crear supervisor: ${err?.error?.message || err?.message}`);
           this.cdr.detectChanges();
         },
       });
@@ -440,13 +450,13 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
                   this.guardando = false;
                   this.cargarVendedores();
                   this.cdr.detectChanges();
-                  alert('Vendedor actualizado exitosamente');
+                  this.notificar('success', 'Vendedor actualizado exitosamente');
                   this.volverALista();
                 },
                 error: (err) => {
                   console.error('Error actualizando vendedor:', err);
                   this.guardando = false;
-                  alert('Error al actualizar vendedor');
+                  this.notificar('error', 'Error al actualizar vendedor');
                   this.cdr.detectChanges();
                 },
               });
@@ -454,14 +464,14 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
             this.guardando = false;
             this.cargarVendedores();
             this.cdr.detectChanges();
-            alert('Vendedor actualizado exitosamente');
+            this.notificar('success', 'Vendedor actualizado exitosamente');
             this.volverALista();
           }
         },
         error: (err) => {
           console.error('Error actualizando usuario:', err);
           this.guardando = false;
-          alert('Error al actualizar usuario');
+          this.notificar('error', 'Error al actualizar usuario');
           this.cdr.detectChanges();
         },
       });
@@ -493,13 +503,13 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
           this.guardando = false;
           this.cargarSupervisores();
           this.cdr.detectChanges();
-          alert('Supervisor actualizado exitosamente');
+          this.notificar('success', 'Supervisor actualizado exitosamente');
           this.volverALista();
         },
         error: (err) => {
           console.error('Error actualizando supervisor:', err);
           this.guardando = false;
-          alert('Error al actualizar supervisor');
+          this.notificar('error', 'Error al actualizar supervisor');
           this.cdr.detectChanges();
         },
       });
@@ -523,12 +533,12 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
           this.eliminando = false;
           this.cargarVendedores();
           this.cdr.detectChanges();
-          alert('Vendedor desactivado exitosamente');
+          this.notificar('success', 'Vendedor desactivado exitosamente');
         },
         error: (err) => {
           console.error('Error desactivando vendedor:', err);
           this.eliminando = false;
-          alert('Error al desactivar vendedor');
+          this.notificar('error', 'Error al desactivar vendedor');
           this.cdr.detectChanges();
         },
       });
@@ -551,12 +561,12 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
           this.eliminando = false;
           this.cargarSupervisores();
           this.cdr.detectChanges();
-          alert('Supervisor desactivado exitosamente');
+          this.notificar('success', 'Supervisor desactivado exitosamente');
         },
         error: (err) => {
           console.error('Error desactivando supervisor:', err);
           this.eliminando = false;
-          alert('Error al desactivar supervisor');
+          this.notificar('error', 'Error al desactivar supervisor');
           this.cdr.detectChanges();
         },
       });
@@ -566,7 +576,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
   private validarFormVendedor(): boolean {
     const { nombre, codigo, username, password } = this.formVendedor;
     if (!nombre.trim() || !codigo.trim() || !username.trim() || !password.trim()) {
-      alert('Por favor completa todos los campos obligatorios');
+      this.notificar('error', 'Por favor completa todos los campos obligatorios');
       return false;
     }
     return true;
@@ -575,7 +585,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
   private validarFormSupervisor(): boolean {
     const { nombre, username, password } = this.formSupervisor;
     if (!nombre.trim() || !username.trim() || !password.trim()) {
-      alert('Por favor completa todos los campos obligatorios');
+      this.notificar('error', 'Por favor completa todos los campos obligatorios');
       return false;
     }
     return true;

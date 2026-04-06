@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { SessionService, SessionUser } from './session.service';
 
 const INACTIVIDAD_MS   = 60 * 60 * 1000;
 const EVENTOS_ACTIVIDAD = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
@@ -16,38 +17,28 @@ export class AuthService {
     private http:    HttpClient,
     private router:  Router,
     private ngZone:  NgZone,
+    private session: SessionService,
   ) {}
 
   login(data: { codigo?: string; username?: string; password: string }): Observable<any> {
     return this.http.post(`${this.apiUrl}/login`, data);
   }
 
-  getVendedor(): any {
-    const vendedor = JSON.parse(sessionStorage.getItem('vendedor') || 'null');
-    console.log('👤 getVendedor() - sessionStorage:', vendedor);
-    return vendedor;
+  getVendedor(): SessionUser | null {
+    return this.session.getUser();
   }
 
   isLoggedIn(): boolean {
-    const loggedIn = !!sessionStorage.getItem('vendedor');
-    console.log('🔐 isLoggedIn():', loggedIn);
-    return loggedIn;
+    return this.session.isAuthenticated();
   }
 
-  guardarSesion(vendedor: any): void {
-    console.log('💾 guardarSesion() - Guardando vendedor:', vendedor);
-    const jsonVendedor = JSON.stringify(vendedor);
-    sessionStorage.setItem('vendedor', jsonVendedor);
-    
-    // Verificar que se guardó
-    const verificacion = sessionStorage.getItem('vendedor');
-    console.log('✅ guardarSesion() - Verificación. Guardado en sessionStorage:', verificacion);
+  guardarSesion(vendedor: SessionUser): void {
+    this.session.saveUser(vendedor);
   }
 
   logout(): void {
-    console.log('🚪 logout() - Eliminando sesión');
     this.detenerTimerInactividad();
-    sessionStorage.removeItem('vendedor');
+    this.session.clearUser();
     this.router.navigate(['/login']);
   }
 
