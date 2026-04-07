@@ -45,18 +45,18 @@
             @if (tableData.length > 0) {
               <app-table [columns]="lineasColumns" [data]="tableData" />
             } @else {
-              <div class="placeholder">Cargando información...</div>
+              <div class="placeholder">No hay datos disponibles para los filtros seleccionados.</div>
             }
           </div>
 
           @if (chartData.length > 0) {
             <div class="grafica-container">
-              <h4>Por Proveedor</h4>
+              <h4>Cuota por Proveedor</h4>
               <app-chart
                 [chartId]="chartId"
                 [data]="chartData"
                 [type]="chartType"
-                label="Por Proveedor" />
+                label="Cuota por Proveedor" />
             </div>
           }
         </div>
