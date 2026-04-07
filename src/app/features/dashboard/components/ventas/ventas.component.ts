@@ -16,7 +16,7 @@ import { ChartComponent } from '../../../../shared/components/chart';
 import { TableComponent } from '../../../../shared/components/table/table.component';
 import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
 import { AuthService } from '../../../../core/services/auth.service';
-import { TipoCuota } from '../../../cumplientosCuota/cumplimientos.component';
+import { TipoCuota } from '../../../cumplimientos-cuota/cumplimientos.component';
 
 @Component({
   selector: 'app-ventas',

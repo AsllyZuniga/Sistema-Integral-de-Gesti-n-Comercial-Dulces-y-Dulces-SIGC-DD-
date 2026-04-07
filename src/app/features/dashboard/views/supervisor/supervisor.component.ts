@@ -14,7 +14,7 @@ import { CardComponent } from '../../../../shared/components/card/card.component
 import { UsuariosService } from '../../../../core/services/usuarios.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
-import { TipoCuota } from '../../../cumplientosCuota/cumplimientos.component';
+import { TipoCuota } from '../../../cumplimientos-cuota/cumplimientos.component';
 import {
   VendedorTabla,
   VendedoresTableComponent,

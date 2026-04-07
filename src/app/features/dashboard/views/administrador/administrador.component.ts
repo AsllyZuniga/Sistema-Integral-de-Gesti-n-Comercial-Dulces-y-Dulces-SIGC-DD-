@@ -18,7 +18,7 @@ import {
 import { CumplimientoService } from '../../../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../../../core/services/ventas/cumplimientoVentasSemana.service';
 import { UsuariosService } from '../../../../core/services/usuarios.service';
-import { TipoCuota } from '../../../cumplientosCuota/cumplimientos.component';
+import { TipoCuota } from '../../../cumplimientos-cuota/cumplimientos.component';
 import {
   VendedorTabla,
   VendedoresTableComponent,

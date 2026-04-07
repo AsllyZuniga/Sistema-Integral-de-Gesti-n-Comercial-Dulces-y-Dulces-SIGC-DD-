@@ -2,7 +2,7 @@ import { Routes } from '@angular/router';
 import { LoginComponent } from './features/login/login.component';
 import { DashboardComponent } from './features/dashboard/dashboard.component';
 import { CargaComponent } from './features/carga/carga.component';
-import { GestionUsuariosComponent } from './features/gestionUsuarios/gestion-usuarios.component';
+import { GestionUsuariosComponent } from './features/gestion-usuarios/gestion-usuarios.component';
 import { AuthGuard } from './core/guards/auth.guard';
 import { LoginGuard } from './core/guards/login.guard';
 import { RoleGuard } from './core/guards/role.guard';

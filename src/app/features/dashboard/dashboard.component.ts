@@ -18,7 +18,7 @@ import { VentasComponent } from '../dashboard/components/ventas/ventas.component
 import {
   CuotasCumplimientoComponent,
   TipoCuota,
-} from '../cumplientosCuota/cumplimientos.component';
+} from '../cumplimientos-cuota/cumplimientos.component';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { DashboardRoleViewsModule } from './views/dashboard-role-views.module';
 
