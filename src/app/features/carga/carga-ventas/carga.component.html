@@ -20,6 +20,7 @@
       </div>
 
       <div class="upload-card">
+        <!-- ZONA DE CARGA -->
         <div
           class="upload-zone"
           [class.has-file]="archivoSeleccionado"
@@ -45,6 +46,7 @@
           }
         </div>
 
+        <!-- ACCIONES -->
         <div class="upload-actions">
           @if (archivoSeleccionado && !estaImportando) {
             <button class="btn-limpiar" (click)="limpiar()">
@@ -67,6 +69,7 @@
           </button>
         </div>
 
+        <!-- PROGRESO -->
         @if (estaImportando) {
           <div class="progress-bar">
             <div class="progress-fill"></div>
@@ -76,6 +79,7 @@
           </p>
         }
 
+        <!-- ÉXITO -->
         @if (estado === 'exito' && resultado) {
           <div class="resultado exito">
             <span class="material-symbols-rounded resultado-icon">check_circle</span>
@@ -99,7 +103,9 @@
                 @if (resultado.mensaje) {
                   <div class="stat">
                     <span class="stat-label">Estado</span>
-                    <span class="stat-value" style="font-size: 13px">{{ resultado.mensaje }}</span>
+                    <span class="stat-value" style="font-size: 13px">
+                      {{ resultado.mensaje }}
+                    </span>
                   </div>
                 }
               </div>
@@ -107,6 +113,7 @@
           </div>
         }
 
+        <!-- ERROR -->
         @if (estado === 'error') {
           <div class="resultado error">
             <span class="material-symbols-rounded resultado-icon">
@@ -142,6 +149,7 @@
         }
       </div>
 
+      <!-- INSTRUCCIONES -->
       <div class="instrucciones-card">
         <h3>
           <span class="material-symbols-rounded">info</span>

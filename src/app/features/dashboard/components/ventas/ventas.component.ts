@@ -672,8 +672,9 @@ export class VentasComponent implements OnInit, OnDestroy {
             .pipe(takeUntil(this.destroy$))
             .subscribe((res: any) => {
               const detalle = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
+              const listadoTabla = this.ordenarProveedoresPorAlfabeto(detalle);
               const topProveedores = this.limitarTopProveedores(detalle);
-              this.tableData = topProveedores;
+              this.tableData = listadoTabla;
               this.chartData = topProveedores.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
               this.cdr.markForCheck();
             });
@@ -745,8 +746,9 @@ export class VentasComponent implements OnInit, OnDestroy {
         lineas$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
           const listado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
           const listadoFiltrado = this.filtrarProveedores(listado, codigoProveedor);
+          const listadoTabla = this.ordenarProveedoresPorAlfabeto(listadoFiltrado);
           const topProveedores = this.limitarTopProveedores(listadoFiltrado);
-          this.tableData = topProveedores;
+          this.tableData = listadoTabla;
           this.chartData = topProveedores.map((i: any) => ({
             name: i.linea,
             value: Number(i.cuotaLinea ?? 0),
@@ -790,11 +792,15 @@ export class VentasComponent implements OnInit, OnDestroy {
 
         ciudades$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
           const listado = this.filtrarPorCiudadSeleccionada(res?.detallePorCiudad ?? []);
-          this.tableData = listado.map((i: any) => ({
+          const listadoMapeado = listado.map((i: any) => ({
             ...i,
             ciudad: this.repararTextoCiudad(i.ciudad),
           }));
-          this.chartData = listado.map((i: any) => ({
+          const topCiudades = [...listado]
+            .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+            .slice(0, 12);
+          this.tableData = listadoMapeado;
+          this.chartData = topCiudades.map((i: any) => ({
             name: this.repararTextoCiudad(i.ciudad),
             value: i.ventaAcum,
           }));
