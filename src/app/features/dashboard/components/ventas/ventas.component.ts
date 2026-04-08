@@ -638,10 +638,29 @@ export class VentasComponent implements OnInit, OnDestroy {
     return `${y}-${m}-${d}`;
   }
 
-  private aplicarFechasPorDefecto(filtros: DashboardFilters): DashboardFilters {
+  private obtenerRangoMesActual(): { inicioMes: string; finMes: string } {
     const hoy = new Date();
-    const inicioMes = this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
-    const finMes = this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0));
+    return {
+      inicioMes: this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth(), 1)),
+      finMes: this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0)),
+    };
+  }
+
+  private obtenerRangoMesAnterior(): { inicioMes: string; finMes: string } {
+    const hoy = new Date();
+    return {
+      inicioMes: this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1)),
+      finMes: this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth(), 0)),
+    };
+  }
+
+  private esRangoMesActual(fechaInicio: string, fechaFin: string): boolean {
+    const { inicioMes, finMes } = this.obtenerRangoMesActual();
+    return fechaInicio === inicioMes && fechaFin === finMes;
+  }
+
+  private aplicarFechasPorDefecto(filtros: DashboardFilters): DashboardFilters {
+    const { inicioMes, finMes } = this.obtenerRangoMesActual();
 
     return {
       ...filtros,
@@ -650,12 +669,39 @@ export class VentasComponent implements OnInit, OnDestroy {
     };
   }
 
+  private vistaUsaUltimoMesPorDefecto(view: string): boolean {
+    return view === 'proveedor' || view === 'ciudad' || view === 'item';
+  }
+
+  private aplicarUltimoMesCargadoPorDefecto(filtros: DashboardFilters): DashboardFilters {
+    const fechaInicio = String(filtros?.fechaInicio ?? '').trim();
+    const fechaFin = String(filtros?.fechaFin ?? '').trim();
+
+    if (!fechaInicio || !fechaFin || this.esRangoMesActual(fechaInicio, fechaFin)) {
+      const { inicioMes, finMes } = this.obtenerRangoMesAnterior();
+      return {
+        ...filtros,
+        fechaInicio: inicioMes,
+        fechaFin: finMes,
+      };
+    }
+
+    return {
+      ...filtros,
+      fechaInicio,
+      fechaFin,
+    };
+  }
+
   cargarVistaActual(): void {
     if (!this._codigoVendedor) return;
 
     this.resetearVista();
 
-    const filtrosConsulta = this.aplicarFechasPorDefecto(this._filtros);
+    const filtrosBase = this.aplicarFechasPorDefecto(this._filtros);
+    const filtrosConsulta = this.vistaUsaUltimoMesPorDefecto(this.activeVentasView)
+      ? this.aplicarUltimoMesCargadoPorDefecto(filtrosBase)
+      : filtrosBase;
 
     const tieneProveedor = !!filtrosConsulta.proveedor;
     const codigoProveedor = filtrosConsulta.proveedor;
@@ -746,7 +792,7 @@ export class VentasComponent implements OnInit, OnDestroy {
         lineas$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
           const listado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
           const listadoFiltrado = this.filtrarProveedores(listado, codigoProveedor);
-          const listadoTabla = this.ordenarProveedoresPorAlfabeto(listadoFiltrado);
+          const listadoTabla = this.ordenarProveedoresPorAlfabeto(listado);
           const topProveedores = this.limitarTopProveedores(listadoFiltrado);
           this.tableData = listadoTabla;
           this.chartData = topProveedores.map((i: any) => ({
@@ -791,12 +837,13 @@ export class VentasComponent implements OnInit, OnDestroy {
             : this.cumplimientoService.getCiudadesPorVendedor(this._codigoVendedor, filtrosConsulta);
 
         ciudades$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
-          const listado = this.filtrarPorCiudadSeleccionada(res?.detallePorCiudad ?? []);
-          const listadoMapeado = listado.map((i: any) => ({
+          const listadoCompleto = res?.detallePorCiudad ?? [];
+          const listadoFiltrado = this.filtrarPorCiudadSeleccionada(listadoCompleto);
+          const listadoMapeado = listadoCompleto.map((i: any) => ({
             ...i,
             ciudad: this.repararTextoCiudad(i.ciudad),
           }));
-          const topCiudades = [...listado]
+          const topCiudades = [...listadoFiltrado]
             .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
             .slice(0, 12);
           this.tableData = listadoMapeado;
@@ -864,14 +911,15 @@ export class VentasComponent implements OnInit, OnDestroy {
           .subscribe((res: any) => {
             const listado = res?.data ?? [];
             const detalleClientes = this.construirDetalleClientes(listado);
+            const topClientes = [...detalleClientes]
+              .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+              .slice(0, 10);
 
             this.clientesAgrupados = detalleClientes;
             this.clientesVisibles = this.clientesPageSize;
             this.actualizarClientesVista();
             this.tableData = detalleClientes;
-            this.chartData = detalleClientes
-              .slice(0, 10)
-              .map((i: any) => ({ name: i.cliente, value: i.ventaAcum }));
+            this.chartData = topClientes.map((i: any) => ({ name: i.cliente, value: i.ventaAcum }));
 
             this.cdr.markForCheck();
           });

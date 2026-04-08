@@ -110,7 +110,7 @@ body, html { margin: 0; padding: 0; background: var(--c-bg); min-height: 100vh; 
   .main              { margin-left: 0 !important; padding: 16px 14px; }
   .chart-box         { padding: 16px 14px; border-radius: var(--r-xl); }
   .chart-box h3      { font-size: 15px; margin-bottom: 14px; }
-  .tabs              { gap: 6px; padding-right: 24px; padding-bottom: 8px; margin-bottom: 14px; }
+  .tabs              { gap: 6px; padding-right: 0; padding-bottom: 8px; margin-bottom: 14px; flex-wrap: wrap; overflow: visible; }
   .tabs button       { font-size: 12px; padding: 8px 14px; }
   .dynamic-content   { padding: 12px 10px; min-height: 240px; }
   .split-layout      { grid-template-columns: 1fr; gap: 12px; }
@@ -124,6 +124,7 @@ body, html { margin: 0; padding: 0; background: var(--c-bg); min-height: 100vh; 
 }
 @media (max-width: 480px) {
   .chart-box         { padding: 14px 12px; border-radius: var(--r-lg); }
+  .tabs              { gap: 5px; }
   .tabs button       { font-size: 11px; padding: 7px 11px; }
   .dynamic-content   { padding: 10px 8px; min-height: 200px; }
   .grafica-container { min-height: 220px; }

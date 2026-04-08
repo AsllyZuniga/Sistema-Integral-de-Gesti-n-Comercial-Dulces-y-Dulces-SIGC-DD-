@@ -1,6 +1,10 @@
 @if (todosLosVendedores.length > 0) {
-  <div class="tabla-scroll" [class.loading-overlay]="cargandoVendedores">
-    <table class="admin-table">
+  <div
+    class="tabla-scroll"
+    [class.loading-overlay]="cargandoVendedores"
+    [class.role-scroll]="true"
+    [class.table-scroll-wrap]="true">
+    <table class="admin-table" [class.supervisor-table]="!esAdmin">
       <thead>
         <tr>
           <th data-col="codVendedor">Código</th>
