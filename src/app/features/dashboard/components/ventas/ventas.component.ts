@@ -16,7 +16,7 @@ import { ChartComponent } from '../../../../shared/components/chart';
 import { TableComponent } from '../../../../shared/components/table/table.component';
 import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
 import { AuthService } from '../../../../core/services/auth.service';
-import { TipoCuota } from '../../../cumplientosCuota/cumplimientos.component';
+import { TipoCuota } from '../../../cumplimientos-cuota/cumplimientos.component';
 
 @Component({
   selector: 'app-ventas',
@@ -155,14 +155,6 @@ export class VentasComponent implements OnInit, OnDestroy {
     'Subtotal',
   ];
   readonly clienteProductosColumns = ['producto', 'cantidad', 'precio', 'subtotal'];
-
-  private readonly cuotaLineaMock: Record<string, number> = {
-    confiteria: 2500000,
-    chocolates: 3000000,
-    galleteria: 2200000,
-    snacks: 1800000,
-    bebidas: 2600000,
-  };
 
   readonly lineasColumns = [
     'linea',
@@ -555,14 +547,6 @@ export class VentasComponent implements OnInit, OnDestroy {
     });
   }
 
-  private normalizarLinea(linea: unknown): string {
-    return String(linea ?? '')
-      .trim()
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-  }
-
   private normalizarCodigoVendedor(valor: unknown): string {
     const codigo = String(valor ?? '').trim();
     if (!codigo) return '';
@@ -584,11 +568,28 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private mapearCuotaPorLinea(listado: any[]): any[] {
-    return listado.map((item: any) => {
-      const key = this.normalizarLinea(item?.linea);
-      const cuotaLinea = item?.cuotaLinea ?? this.cuotaLineaMock[key] ?? null;
-      return { ...item, cuotaLinea };
+    return listado.map((item: any) => ({
+      ...item,
+      cuotaLinea: Number(item?.cuotaProveedor ?? item?.cuotaLinea ?? 0),
+    }));
+  }
+
+  private filtrarProveedores(listado: any[], codigoProveedor: string): any[] {
+    const codigo = String(codigoProveedor ?? '').trim();
+    if (!codigo) return listado;
+
+    return listado.filter((item: any) => {
+      const idProveedor = String(item?.idProveedor ?? '').trim();
+      const codigoLinea = String(item?.codigoLinea ?? '').trim();
+      return idProveedor === codigo || codigoLinea === codigo;
     });
+  }
+
+  private quitarProveedorDeFiltros(filtros: DashboardFilters): DashboardFilters {
+    return {
+      ...filtros,
+      proveedor: '',
+    };
   }
 
   private nombreProveedorOrden(item: any): string {
@@ -630,15 +631,36 @@ export class VentasComponent implements OnInit, OnDestroy {
       .slice(0, 12);
   }
 
+  private formatDate(date: Date): string {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  private aplicarFechasPorDefecto(filtros: DashboardFilters): DashboardFilters {
+    const hoy = new Date();
+    const inicioMes = this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+    const finMes = this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0));
+
+    return {
+      ...filtros,
+      fechaInicio: String(filtros?.fechaInicio ?? '').trim() || inicioMes,
+      fechaFin: String(filtros?.fechaFin ?? '').trim() || finMes,
+    };
+  }
+
   cargarVistaActual(): void {
     if (!this._codigoVendedor) return;
 
     this.resetearVista();
 
-    const tieneProveedor = !!this._filtros.proveedor;
-    const codigoProveedor = this._filtros.proveedor;
-    const tieneCiudad = !!(this._filtros.ciudad || this._filtros.ciudadNombre);
-    const codigoCiudad = String(this._filtros.ciudad ?? '').trim();
+    const filtrosConsulta = this.aplicarFechasPorDefecto(this._filtros);
+
+    const tieneProveedor = !!filtrosConsulta.proveedor;
+    const codigoProveedor = filtrosConsulta.proveedor;
+    const tieneCiudad = !!(filtrosConsulta.ciudad || filtrosConsulta.ciudadNombre);
+    const codigoCiudad = String(filtrosConsulta.ciudad ?? '').trim();
 
     switch (this.activeVentasView) {
       case 'ventas':
@@ -646,27 +668,28 @@ export class VentasComponent implements OnInit, OnDestroy {
 
         if (tieneProveedor) {
           this.cumplimientoService
-            .getDetallePorLineaProveedor(this._codigoVendedor, codigoProveedor, this._filtros)
+            .getDetallePorLineaProveedor(this._codigoVendedor, codigoProveedor, filtrosConsulta)
             .pipe(takeUntil(this.destroy$))
             .subscribe((res: any) => {
               const detalle = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
+              const listadoTabla = this.ordenarProveedoresPorAlfabeto(detalle);
               const topProveedores = this.limitarTopProveedores(detalle);
-              this.tableData = topProveedores;
+              this.tableData = listadoTabla;
               this.chartData = topProveedores.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
               this.cdr.markForCheck();
             });
         } else if (tieneCiudad) {
           const ciudades$ = this.esSemanal
-            ? this.semanaService.getCiudadesPorVendedor(this._codigoVendedor, this._filtros)
+            ? this.semanaService.getCiudadesPorVendedor(this._codigoVendedor, filtrosConsulta)
             : codigoCiudad
               ? this.cumplimientoService.getDetallePorCiudad(
                   this._codigoVendedor,
                   codigoCiudad,
-                  this._filtros,
+                  filtrosConsulta,
                 )
               : this.cumplimientoService.getCiudadesPorVendedor(
                   this._codigoVendedor,
-                  this._filtros,
+                  filtrosConsulta,
                 );
 
           ciudades$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
@@ -680,7 +703,7 @@ export class VentasComponent implements OnInit, OnDestroy {
           });
         } else if (this.esSemanal) {
           this.semanaService
-            .getCumplimientoSemanaVendedor(this._filtros)
+            .getCumplimientoSemanaVendedor(filtrosConsulta)
             .pipe(takeUntil(this.destroy$))
             .subscribe((res: any) => {
               const d = (res?.detalle ?? []).find((v: any) => v.codVendedor !== 'TOTALES');
@@ -696,7 +719,7 @@ export class VentasComponent implements OnInit, OnDestroy {
             });
         } else {
           this.cumplimientoService
-            .getCumplimientoPorCodigo(this._codigoVendedor, this._filtros)
+            .getCumplimientoPorCodigo(this._codigoVendedor, filtrosConsulta)
             .pipe(takeUntil(this.destroy$))
             .subscribe((res: any) => {
               if (!res?.totales) return;
@@ -715,37 +738,30 @@ export class VentasComponent implements OnInit, OnDestroy {
       case 'proveedor':
         this.chartType = 'bar';
 
-        if (tieneProveedor) {
-          this.cumplimientoService
-            .getDetallePorLineaProveedor(this._codigoVendedor, codigoProveedor, this._filtros)
-            .pipe(takeUntil(this.destroy$))
-            .subscribe((res: any) => {
-              const detalle = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
-              const topProveedores = this.limitarTopProveedores(detalle);
-              this.tableData = topProveedores;
-              this.chartData = topProveedores.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
-              this.cdr.markForCheck();
-            });
-        } else {
-          const lineas$ = this.esSemanal
-            ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, this._filtros)
-            : this.cumplimientoService.getLineasPorVendedor(this._codigoVendedor, this._filtros);
+        const filtrosSinProveedor = this.quitarProveedorDeFiltros(filtrosConsulta);
+        const lineas$ = this.esSemanal
+          ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor)
+          : this.cumplimientoService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor);
 
-          lineas$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
-            const listado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
-            const topProveedores = this.limitarTopProveedores(listado);
-            this.tableData = topProveedores;
-            this.chartData = topProveedores.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
-            this.cdr.markForCheck();
-          });
-        }
+        lineas$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
+          const listado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
+          const listadoFiltrado = this.filtrarProveedores(listado, codigoProveedor);
+          const listadoTabla = this.ordenarProveedoresPorAlfabeto(listadoFiltrado);
+          const topProveedores = this.limitarTopProveedores(listadoFiltrado);
+          this.tableData = listadoTabla;
+          this.chartData = topProveedores.map((i: any) => ({
+            name: i.linea,
+            value: Number(i.cuotaLinea ?? 0),
+          }));
+          this.cdr.markForCheck();
+        });
         break;
 
       case 'categoria':
         this.chartType = 'bar';
 
         this.cumplimientoService
-          .getCuotaCategoriaPorVendedor(this._codigoVendedor, this._filtros)
+          .getCuotaCategoriaPorVendedor(this._codigoVendedor, filtrosConsulta)
           .pipe(takeUntil(this.destroy$))
           .subscribe((res: any) => {
             const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
@@ -765,22 +781,26 @@ export class VentasComponent implements OnInit, OnDestroy {
         this.chartType = 'pie';
 
         const ciudades$ = this.esSemanal
-          ? this.semanaService.getCiudadesPorVendedor(this._codigoVendedor, this._filtros)
+          ? this.semanaService.getCiudadesPorVendedor(this._codigoVendedor, filtrosConsulta)
           : codigoCiudad
             ? this.cumplimientoService.getDetallePorCiudad(
                 this._codigoVendedor,
                 codigoCiudad,
-                this._filtros,
+                filtrosConsulta,
               )
-            : this.cumplimientoService.getCiudadesPorVendedor(this._codigoVendedor, this._filtros);
+            : this.cumplimientoService.getCiudadesPorVendedor(this._codigoVendedor, filtrosConsulta);
 
         ciudades$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
           const listado = this.filtrarPorCiudadSeleccionada(res?.detallePorCiudad ?? []);
-          this.tableData = listado.map((i: any) => ({
+          const listadoMapeado = listado.map((i: any) => ({
             ...i,
             ciudad: this.repararTextoCiudad(i.ciudad),
           }));
-          this.chartData = listado.map((i: any) => ({
+          const topCiudades = [...listado]
+            .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+            .slice(0, 12);
+          this.tableData = listadoMapeado;
+          this.chartData = topCiudades.map((i: any) => ({
             name: this.repararTextoCiudad(i.ciudad),
             value: i.ventaAcum,
           }));
@@ -792,7 +812,7 @@ export class VentasComponent implements OnInit, OnDestroy {
         this.chartType = 'bar';
 
         this.cumplimientoService
-          .getCumplimientoPorCodigo(this._codigoVendedor, this._filtros)
+          .getCumplimientoPorCodigo(this._codigoVendedor, filtrosConsulta)
           .pipe(takeUntil(this.destroy$))
           .subscribe((res: any) => {
             if (!res?.totales) return;
@@ -808,7 +828,7 @@ export class VentasComponent implements OnInit, OnDestroy {
         this.chartType = 'bar';
 
         this.cumplimientoService
-          .getProductosPorVendedor(this._codigoVendedor, this._filtros)
+          .getProductosPorVendedor(this._codigoVendedor, filtrosConsulta)
           .pipe(takeUntil(this.destroy$))
           .subscribe((res: any) => {
             const listado = res?.data ?? [];
@@ -835,7 +855,7 @@ export class VentasComponent implements OnInit, OnDestroy {
         this.cargandoClientes = true;
 
         this.cumplimientoService
-          .getProductosPorCliente(idVendedor, this._filtros)
+          .getProductosPorCliente(idVendedor, filtrosConsulta)
           .pipe(takeUntil(this.destroy$))
           .pipe(finalize(() => {
             this.cargandoClientes = false;

@@ -14,8 +14,44 @@ import { CardComponent } from '../../../../shared/components/card/card.component
 import { UsuariosService } from '../../../../core/services/usuarios.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
-import { TipoCuota } from '../../../cumplientosCuota/cumplimientos.component';
-import { VendedoresTableComponent } from '../shared/vendedores-table/vendedores-table.component';
+import { TipoCuota } from '../../../cumplimientos-cuota/cumplimientos.component';
+import {
+  VendedorTabla,
+  VendedoresTableComponent,
+} from '../shared/vendedores-table/vendedores-table.component';
+
+interface CuotaDetalle {
+  cuota_mes?: number;
+  cuota_semana?: number;
+  cuota_dia?: number;
+}
+
+interface VendedorApiRow {
+  codigo_vendedor?: string;
+  codVendedor?: string;
+  nombre?: string;
+  proveedor?: string;
+  nomProveedor?: string;
+  nombreProveedor?: string;
+  categoria?: string;
+  nomCategoria?: string;
+  nombreCategoria?: string;
+  ciudad?: string;
+  nomCiudad?: string;
+  nombreCiudad?: string;
+  linea?: string;
+  nomLinea?: string;
+  nombreLinea?: string;
+  cuotaMes?: number | CuotaDetalle;
+  cuotaSemana?: number | CuotaDetalle;
+  cuotaDia?: number | CuotaDetalle;
+  supervisor?: { username?: string; nombre?: string } | null;
+  id_supervisor?: number | string | null;
+  idSupervisor?: number | string | null;
+  ventaAcum?: number;
+  porcCump?: number;
+  proyeccionVenta?: number;
+}
 
 @Component({
   selector: 'app-supervisor-dashboard',
@@ -40,9 +76,9 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     linea: '',
   };
 
-  totales: any = null;
+  totales: { ventaAcum: number; cuotaMes: number; porcCump: number; proyeccionVenta: number } | null = null;
   cargandoVendedores = false;
-  todosLosVendedores: any[] = [];
+  todosLosVendedores: VendedorTabla[] = [];
 
   private idSupervisor = 0;
   private destroy$ = new Subject<void>();
@@ -70,7 +106,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     }
   }
 
-  get campoCuota(): string {
+  get campoCuota(): keyof Pick<VendedorTabla, 'cuotaMes' | 'cuotaSemana' | 'cuotaDiaria'> {
     switch (this.tipoCuota) {
       case 'semanal':
         return 'cuotaSemana';
@@ -115,7 +151,19 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
       .trim();
   }
 
-  private aplicarFiltrosSupervisor(lista: any[]): any[] {
+  private leerCuota(valor: number | CuotaDetalle | null | undefined, clave: keyof CuotaDetalle): number {
+    if (typeof valor === 'number') {
+      return valor;
+    }
+
+    if (valor && typeof valor === 'object') {
+      return Number(valor[clave] ?? 0);
+    }
+
+    return Number(valor ?? 0);
+  }
+
+  private aplicarFiltrosSupervisor(lista: VendedorTabla[]): VendedorTabla[] {
     const filtros = this.filtrosActivos ?? ({} as DashboardFilters);
 
     const codVendedorFiltro = String(filtros.vendedor ?? '').trim();
@@ -124,7 +172,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     const ciudadFiltro = this.normalizarTexto(filtros.ciudadNombre ?? filtros.ciudad ?? '');
     const lineaFiltro = this.normalizarTexto(filtros.linea);
 
-    return lista.filter((v: any) => {
+    return lista.filter((v) => {
       if (codVendedorFiltro) {
         const codigoV = String(v.codVendedor ?? '').trim();
         if (codigoV !== codVendedorFiltro) return false;
@@ -169,15 +217,16 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
       .obtenerVendedoresDelSupervisor(String(this.idSupervisor))
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (vendedores: any[]) => {
-          const lista = vendedores.map((v: any) => ({
+        next: (vendedores: VendedorApiRow[]) => {
+          const lista = vendedores.map((v) => ({
             ...v,
-            codVendedor: v.codigo_vendedor ?? v.codVendedor ?? '',
-            cuotaMes: Number(v?.cuotaMes?.cuota_mes ?? v?.cuotaMes ?? 0),
-            cuotaSemana: Number(v?.cuotaSemana?.cuota_semana ?? v?.cuotaSemana ?? 0),
-            cuotaDiaria: Number(v?.cuotaDia?.cuota_dia ?? v?.cuotaDiaria ?? 0),
+            codigo_vendedor: v.codigo_vendedor ?? v.codVendedor,
+            codVendedor: v.codVendedor ?? v.codigo_vendedor ?? '',
+            cuotaMes: this.leerCuota(v.cuotaMes, 'cuota_mes'),
+            cuotaSemana: this.leerCuota(v.cuotaSemana, 'cuota_semana'),
+            cuotaDiaria: this.leerCuota(v.cuotaDia, 'cuota_dia'),
             nombreSupervisor: v.supervisor?.username ?? v.supervisor?.nombre ?? 'Sin asignar',
-            id_supervisor: v.id_supervisor,
+            id_supervisor: v.id_supervisor ?? v.idSupervisor ?? null,
             ventaAcum: Number(v.ventaAcum ?? 0),
             porcCump: Number(v.porcCump ?? 0),
             proyeccionVenta: Number(v.proyeccionVenta ?? 0),
@@ -188,15 +237,15 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
           this.todosLosVendedores = listaFiltrada;
 
           const ventaAcum = listaFiltrada.reduce(
-            (s: number, v: any) => s + (Number(v.ventaAcum) || 0),
+            (s: number, v) => s + (Number(v.ventaAcum) || 0),
             0,
           );
           const cuota = listaFiltrada.reduce(
-            (s: number, v: any) => s + (Number(v[this.campoCuota]) || 0),
+            (s: number, v) => s + (Number(v[this.campoCuota]) || 0),
             0,
           );
           const proyeccionVenta = listaFiltrada.reduce(
-            (s: number, v: any) => s + (Number(v.proyeccionVenta) || 0),
+            (s: number, v) => s + (Number(v.proyeccionVenta) || 0),
             0,
           );
           const porcCump = cuota > 0 ? (ventaAcum / cuota) * 100 : 0;

@@ -4,6 +4,7 @@ import { Subject, forkJoin, of, takeUntil } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { AuthService } from '../../core/services/auth.service';
 import { Router } from '@angular/router';
+import { SessionUser } from '../../core/services/session.service';
 import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../core/services/ventas/cumplimientoVentasSemana.service';
 import { UsuariosService } from '../../core/services/usuarios.service';
@@ -11,14 +12,69 @@ import {
   FiltersComponent,
   DashboardFilters,
 } from '../../shared/components/filters/filters.component';
+import { FilterOption } from '../../shared/components/filters/filters.component';
 import { SidebarComponent } from '../../shared/components/sidebar/sidebar.component';
 import { VentasComponent } from '../dashboard/components/ventas/ventas.component';
 import {
   CuotasCumplimientoComponent,
   TipoCuota,
-} from '../cumplientosCuota/cumplimientos.component';
+} from '../cumplimientos-cuota/cumplimientos.component';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { DashboardRoleViewsModule } from './views/dashboard-role-views.module';
+
+interface DashboardTotalesVendedor {
+  ventaAcum?: number;
+  cuotaMes?: number;
+  cuotaSemana?: number;
+  porcCump?: number;
+  proyeccionVenta?: number;
+  codVendedor?: string;
+}
+
+interface ApiProveedorRow {
+  nombre?: string;
+  codigo?: string;
+}
+
+interface ApiVendedorRow {
+  codigo_vendedor?: string;
+  codVendedor?: string;
+  codigo?: string;
+  nombre?: string;
+  nom_vendedor?: string;
+}
+
+interface ApiLineaRow {
+  linea?: string;
+  codigoLinea?: string;
+}
+
+interface ApiCiudadesResponse {
+  detallePorCiudad?: ApiCiudadRow[];
+}
+
+interface ApiLineasResponse {
+  detallePorLinea?: ApiLineaRow[];
+}
+
+interface ApiCiudadRow {
+  ciudad?: string;
+  id_ciudad?: string | number;
+  idCiudad?: string | number;
+  codCiudad?: string | number;
+  codigo?: string | number;
+  cod?: string | number;
+}
+
+interface ApiCategoriaRow {
+  categoria?: string;
+  nomCategoria?: string;
+  nombreCategoria?: string;
+}
+
+interface ApiTotalesResponse<TDetalle> {
+  detalle?: TDetalle[];
+}
 
 @Component({
   selector: 'app-dashboard',
@@ -46,13 +102,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   @ViewChild(SidebarComponent) sidebarRef!: SidebarComponent;
 
-  vendedor: any = null;
+  vendedor: SessionUser | null = null;
   isSidebarCollapsed = false;
 
-  proveedoresList: string[] = [];
-  ciudadesList: string[] = [];
-  lineasList: string[] = [];
-  vendedoresList: string[] = [];
+  proveedoresList: FilterOption[] = [];
+  categoriasList: FilterOption[] = [];
+  ciudadesList: FilterOption[] = [];
+  lineasList: FilterOption[] = [];
+  vendedoresList: FilterOption[] = [];
 
   tipoCuota: TipoCuota = 'mensual';
   rolId = 0;
@@ -64,7 +121,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
-  totalesVendedor: any = null;
+  totalesVendedor: DashboardTotalesVendedor | null = null;
 
   filtrosActivos: DashboardFilters = {
     fechaInicio: '',
@@ -80,7 +137,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.vendedor = this.authService.getVendedor();
     if (!this.vendedor) {
-      this.vendedor = { codigo: '990', codVendedor: '990', nombre: 'Vendedor Prueba' };
+      this.vendedor = {
+        codigo: '990',
+        codVendedor: '990',
+        nombre: 'Vendedor Prueba',
+        idRol: 3,
+      };
     }
 
     this.rolId = Number(this.vendedor?.rol?.idRol ?? this.vendedor?.idRol ?? 0);
@@ -187,17 +249,59 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .trim();
   }
 
+  private toFilterOptions(values: string[]): FilterOption[] {
+    return Array.from(new Set(values.filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, 'es'))
+      .map((value) => ({ label: value, value }));
+  }
+
+  private limpiarNombreCategoria(valor: unknown): string {
+    let nombre = String(valor ?? '').trim();
+    if (!nombre) return '';
+
+    // Quita prefijos tipo: "0001 -" y "1000-" para mostrar solo el nombre.
+    nombre = nombre.replace(/^\d+\s*-\s*/u, '');
+    nombre = nombre.replace(/^\d+\s*-\s*/u, '');
+
+    return nombre.trim();
+  }
+
   private repararTextoCiudad(valor: unknown): string {
     const txt = String(valor ?? '').trim();
     if (!txt) return '';
 
-    return txt
-      .replace(/�/g, 'a')
-      .replace(/\s+/g, ' ')
-      .trim();
+    return txt.replace(/�/g, 'a').replace(/\s+/g, ' ').trim();
   }
 
-  private registrarCiudad(nombreCiudad: unknown, codigoCiudad: unknown, setCiudades: Set<string>): void {
+  private normalizarCodVendedor(valor: unknown): string {
+    return this.normalizarCodigoVendedor(valor);
+  }
+
+  private obtenerCodigoRow(vendedor: ApiVendedorRow): string {
+    return this.normalizarCodigoVendedor(
+      vendedor.codigo_vendedor ?? vendedor.codVendedor ?? vendedor.codigo ?? '',
+    );
+  }
+
+  private obtenerCiudadCodigo(item: ApiCiudadRow): string {
+    return String(
+      item.id_ciudad ?? item.idCiudad ?? item.codCiudad ?? item.codigo ?? item.cod ?? '',
+    ).trim();
+  }
+
+  private obtenerNombreCategoria(item: ApiCategoriaRow): string {
+    return String(item.categoria ?? item.nomCategoria ?? item.nombreCategoria ?? '').trim();
+  }
+
+  private obtenerProveedorLabel(item: ApiProveedorRow): string {
+    return String(item.nombre ?? '').trim();
+  }
+
+  private registrarCiudad(
+    nombreCiudad: unknown,
+    codigoCiudad: unknown,
+    setCiudades: Set<string>,
+  ): void {
     const ciudadOriginal = this.repararTextoCiudad(nombreCiudad);
     const ciudadNormalizada = this.normalizarTexto(ciudadOriginal);
     const codigo = String(codigoCiudad ?? '').trim();
@@ -226,11 +330,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.usuariosService
       .obtenerVendedoresDelSupervisor(idSupervisor)
       .pipe(takeUntil(this.destroy$))
-      .subscribe((vendedores: any[]) => {
+      .subscribe((vendedores: ApiVendedorRow[]) => {
         const codigos = vendedores
-          .map((v: any) =>
-            this.normalizarCodigoVendedor(v?.codigo_vendedor ?? v?.codVendedor ?? v?.codigo ?? ''),
-          )
+          .map((v) => this.obtenerCodigoRow(v))
           .filter((c: string) => !!c);
 
         if (!codigos.length) {
@@ -246,37 +348,30 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
         const peticiones = codigos.map((codigo) =>
           forkJoin({
-            ciudades: this.cumplimientoService.getCiudadesPorVendedor(codigo).pipe(
-              catchError(() => of({ detallePorCiudad: [] }))
-            ),
-            lineas: this.cumplimientoService.getLineasPorVendedor(codigo).pipe(
-              catchError(() => of({ detallePorLinea: [] }))
-            ),
-          })
+            ciudades: this.cumplimientoService
+              .getCiudadesPorVendedor(codigo)
+              .pipe(catchError(() => of({ detallePorCiudad: [] } as ApiCiudadesResponse))),
+            lineas: this.cumplimientoService
+              .getLineasPorVendedor(codigo)
+              .pipe(catchError(() => of({ detallePorLinea: [] } as ApiLineasResponse))),
+          }),
         );
 
         forkJoin(peticiones)
           .pipe(takeUntil(this.destroy$))
-          .subscribe((resultados) => {
+          .subscribe((resultados: Array<{ ciudades: ApiCiudadesResponse; lineas: ApiLineasResponse }>) => {
             const ciudadesUnicas = new Set<string>();
             const lineasUnicas = new Set<string>();
 
-            resultados.forEach((resultado: any) => {
+            resultados.forEach((resultado) => {
               const ciudades = resultado?.ciudades?.detallePorCiudad ?? [];
               const lineas = resultado?.lineas?.detallePorLinea ?? [];
 
-              ciudades.forEach((item: any) => {
-                const cod =
-                  item?.id_ciudad ??
-                  item?.idCiudad ??
-                  item?.codCiudad ??
-                  item?.codigo ??
-                  item?.cod ??
-                  '';
-                this.registrarCiudad(item?.ciudad, cod, ciudadesUnicas);
+              ciudades.forEach((item: ApiCiudadRow) => {
+                this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), ciudadesUnicas);
               });
 
-              lineas.forEach((item: any) => {
+              lineas.forEach((item: ApiLineaRow) => {
                 const linea = String(item?.linea ?? '').trim();
                 const cod = String(item?.codigoLinea ?? '').trim();
                 if (!linea) return;
@@ -288,8 +383,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
               });
             });
 
-            this.ciudadesList = Array.from(ciudadesUnicas).sort((a, b) => a.localeCompare(b));
-            this.lineasList = Array.from(lineasUnicas).sort((a, b) => a.localeCompare(b));
+            this.ciudadesList = this.toFilterOptions(Array.from(ciudadesUnicas));
+            this.lineasList = this.toFilterOptions(Array.from(lineasUnicas));
           });
       });
   }
@@ -300,36 +395,39 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   cargarOpcionesFiltros(): void {
+    this.cargarCategoriasFiltros();
+
     this.cumplimientoService
       .getProveedores()
       .pipe(takeUntil(this.destroy$))
-      .subscribe((proveedores) => {
+      .subscribe((proveedores: ApiProveedorRow[]) => {
         this.proveedorMap.clear();
         const unicos = new Set<string>();
 
-        proveedores.forEach((item: any) => {
-          if (item.nombre && item.codigo) {
-            this.proveedorMap.set(item.nombre, item.codigo);
-            unicos.add(item.nombre);
+        proveedores.forEach((item) => {
+          const nombre = this.obtenerProveedorLabel(item);
+          const codigo = String(item.codigo ?? '').trim();
+
+          if (nombre && codigo) {
+            this.proveedorMap.set(nombre, codigo);
+            unicos.add(nombre);
           }
         });
 
-        this.proveedoresList = Array.from(unicos).sort((a, b) => a.localeCompare(b));
+        this.proveedoresList = this.toFilterOptions(Array.from(unicos));
       });
 
     if (this.esAdmin) {
       this.cumplimientoService
         .getVendedores()
         .pipe(takeUntil(this.destroy$))
-        .subscribe((res: any[]) => {
+        .subscribe((res: ApiVendedorRow[]) => {
           this.vendedorMap.clear();
           const etiquetas = new Set<string>();
 
-          res.forEach((item: any) => {
-            const codigo = this.normalizarCodigoVendedor(
-              item?.codigo_vendedor ?? item?.codVendedor ?? item?.codigo ?? '',
-            );
-            const nombre = item?.nombre ?? item?.nom_vendedor ?? '';
+          res.forEach((item) => {
+            const codigo = this.obtenerCodigoRow(item);
+            const nombre = String(item.nombre ?? item.nom_vendedor ?? '').trim();
 
             if (codigo && nombre) {
               const etiqueta = `${String(codigo)} - ${String(nombre)}`;
@@ -338,7 +436,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
             }
           });
 
-          this.vendedoresList = Array.from(etiquetas).sort((a, b) => a.localeCompare(b));
+          this.vendedoresList = this.toFilterOptions(Array.from(etiquetas));
         });
     }
 
@@ -347,11 +445,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
         .getLineasPorVendedor(this.codigoVendedor)
         .pipe(takeUntil(this.destroy$))
         .subscribe((res) => {
-          const listado = res?.detallePorLinea ?? [];
+          const listado: ApiLineaRow[] = res?.detallePorLinea ?? [];
           this.lineaMap.clear();
 
           const unicos = new Set<string>();
-          listado.forEach((item: any) => {
+          listado.forEach((item) => {
             const linea = String(item?.linea ?? '').trim();
             const codigoLinea = String(item?.codigoLinea ?? '').trim();
 
@@ -361,35 +459,66 @@ export class DashboardComponent implements OnInit, OnDestroy {
             }
           });
 
-          this.lineasList = Array.from(unicos).sort((a, b) => a.localeCompare(b));
+          this.lineasList = this.toFilterOptions(Array.from(unicos));
         });
 
       this.cumplimientoService
         .getCiudadesPorVendedor(this.codigoVendedor)
         .pipe(takeUntil(this.destroy$))
         .subscribe((res) => {
-          const listado = res?.detallePorCiudad ?? [];
+          const listado: ApiCiudadRow[] = res?.detallePorCiudad ?? [];
           this.ciudadMap.clear();
 
           const unicos = new Set<string>();
-          listado.forEach((item: any) => {
-            const cod =
-              item?.id_ciudad ??
-              item?.idCiudad ??
-              item?.codCiudad ??
-              item?.codigo ??
-              item?.cod ??
-              '';
-            this.registrarCiudad(item?.ciudad, cod, unicos);
+          listado.forEach((item) => {
+            this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), unicos);
           });
 
-          this.ciudadesList = Array.from(unicos).sort((a, b) => a.localeCompare(b));
+          this.ciudadesList = this.toFilterOptions(Array.from(unicos));
         });
 
       if (this.esSupervisor) {
         this.cargarCiudadesYLineasSupervisor();
       }
     }
+  }
+
+  private cargarCategoriasFiltros(): void {
+    const filtrosBase: DashboardFilters = {
+      ...this.filtrosActivos,
+      categoria: '',
+      ciudad: '',
+      ciudadNombre: '',
+      linea: '',
+    };
+
+    const categorias$ = this.esAdmin
+      ? this.cumplimientoService.getCuotaCategoriasPorVendedores(filtrosBase)
+      : this.codigoVendedor
+        ? this.cumplimientoService.getCuotaCategoriaPorVendedor(this.codigoVendedor, filtrosBase)
+        : of({ detalle: [] });
+
+    categorias$.pipe(takeUntil(this.destroy$)).subscribe((res: ApiTotalesResponse<ApiCategoriaRow>) => {
+      const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+      const unicas = new Map<string, string>();
+
+      detalle.forEach((item) => {
+        const categoriaRaw = this.obtenerNombreCategoria(item);
+
+        if (!categoriaRaw) return;
+
+        const categoriaLimpia = this.limpiarNombreCategoria(categoriaRaw);
+        if (!categoriaLimpia) return;
+
+        if (!unicas.has(categoriaLimpia)) {
+          unicas.set(categoriaLimpia, categoriaRaw);
+        }
+      });
+
+      this.categoriasList = Array.from(unicas.entries())
+        .map(([label, value]) => ({ label, value }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es'));
+    });
   }
 
   onAplicarFiltros(filtros: DashboardFilters): void {
@@ -417,9 +546,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     if (ciudadVisible) {
       filtrosConCodigos.ciudad =
-        this.ciudadMap.get(ciudadVisible) ??
-        this.ciudadMap.get(ciudadNormalizada) ??
-        ciudadVisible;
+        this.ciudadMap.get(ciudadVisible) ?? this.ciudadMap.get(ciudadNormalizada) ?? ciudadVisible;
     }
 
     if (filtros.linea) {
@@ -444,9 +571,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const campo = this.tipoCuota === 'semanal' ? 'cuotaSemana' : 'cuotaMes';
 
     obs$.pipe(takeUntil(this.destroy$)).subscribe({
-      next: (res: any) => {
-        const detalle: any[] = (res?.detalle ?? []).filter((v: any) => v.codVendedor !== 'TOTALES');
-        const d = detalle[0];
+        next: (res: ApiTotalesResponse<DashboardTotalesVendedor>) => {
+          const detalle = (res?.detalle ?? []).filter((v) => v.codVendedor !== 'TOTALES');
+          const d = detalle[0];
 
         if (!d) {
           this.totalesVendedor = null;

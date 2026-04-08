@@ -1,21 +1,29 @@
 :host {
   display: block;
   width: 100%;
+
+  --table-row-bg-odd: #fcfdff;
+  --table-row-bg-hover: #eaf3ff;
 }
 
+/* Scroll container: single source of scrolling behavior for the table. */
 .table-scroll-wrap {
   width: 100%;
+  max-width: 100%;
   overflow: auto;
-  max-height: var(--table-max-height, none);
+  max-height: var(--table-max-height, 58vh);
+  scrollbar-gutter: stable both-edges;
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--c-border);
   border-radius: var(--r-md);
   background: var(--c-surface);
 }
 
+/* Base table layout. */
 table {
-  width: 100%;
-  min-width: 620px;
+  width: max-content;
+  min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   background: transparent;
@@ -25,6 +33,12 @@ table {
 
 thead tr {
   border-bottom: 2px solid var(--c-border);
+}
+
+th,
+td {
+  border-right: 1px solid var(--c-border);
+  white-space: nowrap;
 }
 
 th {
@@ -39,41 +53,69 @@ th {
   position: sticky;
   top: 0;
   z-index: 1;
-  white-space: nowrap;
   box-shadow: 0 1px 0 var(--c-border);
   border-bottom: 1px solid var(--c-border);
-  border-right: 1px solid var(--c-border);
-}
-
-th:last-child {
-  border-right: none;
 }
 
 td {
   padding: 11px 14px;
   border-bottom: 1px solid var(--c-border);
-  border-right: 1px solid var(--c-border);
   font-size: 13px;
   color: var(--c-text);
-  white-space: nowrap;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
+th:last-child,
 td:last-child {
   border-right: none;
 }
 
-tbody tr:hover td {
-  background: #eaf3ff;
-}
-tbody tr.odd td {
-  background: #fcfdff;
-}
-tbody tr.odd:hover td {
-  background: #eaf3ff;
-}
 tbody tr:last-child td {
   border-bottom: none;
+}
+
+/* Sticky first column. */
+th:first-child,
+td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--c-surface);
+  box-shadow: 1px 0 0 var(--c-border);
+}
+
+th:first-child {
+  z-index: 4;
+  background: var(--c-surface-alt);
+}
+
+/* Row states. */
+tbody tr.odd td,
+tbody tr.odd td:first-child {
+  background: var(--table-row-bg-odd);
+}
+
+tbody tr:hover td,
+tbody tr.odd:hover td,
+tbody tr:hover td:first-child,
+tbody tr.odd:hover td:first-child {
+  background: var(--table-row-bg-hover);
+}
+
+/* Numeric columns alignment. */
+td[data-col='cuotaMes'],
+th[data-col='cuotaMes'],
+td[data-col='ventaAcum'],
+th[data-col='ventaAcum'],
+td[data-col='proyeccionVenta'],
+th[data-col='proyeccionVenta'],
+td[data-col='porcCump'],
+th[data-col='porcCump'],
+td[data-col='porcCumProy'],
+th[data-col='porcCumProy'],
+td[data-col='Venta_Unid_Cajas'],
+th[data-col='Venta_Unid_Cajas'] {
+  text-align: right;
 }
 
 td[data-col='cuotaMes'],
@@ -82,28 +124,21 @@ td[data-col='proyeccionVenta'],
 td[data-col='porcCump'],
 td[data-col='porcCumProy'],
 td[data-col='Venta_Unid_Cajas'] {
-  text-align: right;
   font-variant-numeric: tabular-nums;
   font-weight: 500;
 }
 
-th[data-col='cuotaMes'],
-th[data-col='ventaAcum'],
-th[data-col='proyeccionVenta'],
-th[data-col='porcCump'],
-th[data-col='porcCumProy'],
-th[data-col='Venta_Unid_Cajas'] {
-  text-align: right;
-}
-
+/* Semantic color states. */
 td.cell-success {
   color: #16a34a;
   font-weight: 700;
 }
+
 td.cell-warning {
   color: #d97706;
   font-weight: 600;
 }
+
 td.cell-danger {
   color: #dc2626;
   font-weight: 600;
@@ -118,11 +153,13 @@ td.empty {
   overflow: visible;
 }
 
+/* Responsive density. */
 @media (max-width: 768px) {
   th {
     font-size: 10px;
     padding: 9px 10px;
   }
+
   td {
     font-size: 12px;
     padding: 9px 10px;
@@ -133,11 +170,13 @@ td.empty {
   table {
     min-width: 560px;
   }
+
   th {
     font-size: 9px;
     padding: 7px 8px;
     letter-spacing: 0.3px;
   }
+
   td {
     font-size: 11px;
     padding: 7px 8px;

@@ -20,7 +20,7 @@
           <tr [class.odd]="i % 2 === 1">
             <td class="cod">{{ v.codVendedor ?? '—' }}</td>
             <td class="nombre">{{ v.nombre ?? '—' }}</td>
-            <td class="num">$ {{ v[campoCuota] ?? 0 | number: '1.0-0' }}</td>
+            <td class="num">$ {{ montoCuota(v) | number: '1.0-0' }}</td>
             <td class="num">$ {{ v.ventaAcum ?? 0 | number: '1.0-0' }}</td>
             <td class="num porc" [class.verde]="(v.porcCump ?? 0) >= 100" [class.rojo]="(v.porcCump ?? 0) < 80">
               {{ v.porcCump ?? 0 | number: '1.1-1' }} %

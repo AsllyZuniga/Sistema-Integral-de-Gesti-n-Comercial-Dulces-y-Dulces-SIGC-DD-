@@ -2,6 +2,11 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
+export interface FilterOption {
+  label: string;
+  value: string;
+}
+
 export interface DashboardFilters {
   fechaInicio: string;
   fechaFin: string;
@@ -21,11 +26,11 @@ export interface DashboardFilters {
   styleUrls: ['./filters.component.css'],
 })
 export class FiltersComponent {
-  @Input() proveedores: string[] = [];
-  @Input() categorias: string[] = [];
-  @Input() ciudades: string[] = [];
-  @Input() lineas: string[] = [];
-  @Input() vendedores: string[] = [];
+  @Input() proveedores: FilterOption[] = [];
+  @Input() categorias: FilterOption[] = [];
+  @Input() ciudades: FilterOption[] = [];
+  @Input() lineas: FilterOption[] = [];
+  @Input() vendedores: FilterOption[] = [];
 
   @Output() apply = new EventEmitter<DashboardFilters>();
 

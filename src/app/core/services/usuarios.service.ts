@@ -1,12 +1,13 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, map, of } from 'rxjs';
+import { Observable, catchError, map, of, throwError } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root',
 })
 export class UsuariosService {
-  private apiUrl = 'http://localhost:3000';
+  private apiUrl = environment.apiUrl;
 
   constructor(private http: HttpClient) { }
 
@@ -36,7 +37,6 @@ export class UsuariosService {
           // Filtrar solo supervisores (id_rol = 2)
           return usuarios.filter((u: any) => {
             const rol = u?.id_rol ?? u?.rol?.idRol ?? u?.idRol ?? u?.rolId ?? 0;
-            console.log('🔍 Filtrando usuario:', u?.username, 'rol:', rol);
             return Number(rol) === 2;
           });
         }),
@@ -76,13 +76,11 @@ export class UsuariosService {
    */
   obtenerVendedoresDelSupervisor(idSupervisor: string): Observable<any[]> {
     const url = `${this.apiUrl}/vendedor/supervisor/${idSupervisor}`;
-    console.log('🔗 [UsuariosService] Llamando a:', url);
     return this.http
       .get<any[]>(url)
       .pipe(
         map((res) => {
           const vendedores = Array.isArray(res) ? res : [];
-          console.log('📥 [UsuariosService] Respuesta:', vendedores.length, 'vendedores');
           return vendedores;
         }),
         catchError((err) => {
@@ -103,7 +101,7 @@ export class UsuariosService {
     ).pipe(
       catchError((err) => {
         console.error('❌ Error actualizando usuario:', err);
-        throw err;
+        return throwError(() => err);
       }),
     );
   }
@@ -119,7 +117,7 @@ export class UsuariosService {
     ).pipe(
       catchError((err) => {
         console.error('❌ Error desactivando usuario:', err);
-        throw err;
+        return throwError(() => err);
       }),
     );
   }
@@ -139,7 +137,7 @@ export class UsuariosService {
     return this.http.post<any>(`${this.apiUrl}/usuario`, payload).pipe(
       catchError((err) => {
         console.error('❌ Error creando usuario:', err);
-        throw err;
+        return throwError(() => err);
       }),
     );
   }
@@ -159,7 +157,7 @@ export class UsuariosService {
     return this.http.post<any>(`${this.apiUrl}/vendedor`, datos).pipe(
       catchError((err) => {
         console.error('❌ Error creando vendedor:', err);
-        throw err;
+        return throwError(() => err);
       }),
     );
   }
@@ -175,7 +173,7 @@ export class UsuariosService {
     ).pipe(
       catchError((err) => {
         console.error('❌ Error actualizando vendedor:', err);
-        throw err;
+        return throwError(() => err);
       }),
     );
   }

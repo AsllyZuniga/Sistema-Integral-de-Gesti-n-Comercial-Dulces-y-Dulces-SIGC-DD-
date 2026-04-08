@@ -1,0 +1,27 @@
+<div class="layout">
+  <app-sidebar (toggle)="onToggleSidebar($event)"></app-sidebar>
+
+  <div class="main" [class.expanded]="sidebarColapsado">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="mobile-menu-btn" (click)="toggleMenuMovil()">
+          <span class="material-symbols-rounded">menu</span>
+        </button>
+        <h2 class="page-title">Carga de Cuotas</h2>
+      </div>
+    </header>
+
+    <div class="carga-page">
+      <div class="page-header">
+        <p>
+          Administra las cuotas mensuales del sistema desde aquí. Cada sección carga un tipo de
+          cuota distinto y no mezcla datos con ventas.
+        </p>
+      </div>
+
+      <app-cuota-vendedor-upload></app-cuota-vendedor-upload>
+      <app-cuota-proveedor-upload></app-cuota-proveedor-upload>
+      <app-cuota-categoria-upload></app-cuota-categoria-upload>
+    </div>
+  </div>
+</div>
