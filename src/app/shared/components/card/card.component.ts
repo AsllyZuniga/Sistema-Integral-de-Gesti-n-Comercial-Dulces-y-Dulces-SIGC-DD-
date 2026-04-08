@@ -18,7 +18,7 @@ import { CommonModule } from '@angular/common';
     <div class="card" [attr.data-color]="color">
       <span class="card-icon material-symbols-rounded">{{ icon }}</span>
       <p class="title">{{ title }}</p>
-      <h2>{{ formattedValue }}</h2>
+      <h2 [class]="valueSizeClass">{{ formattedValue }}</h2>
     </div>
   `,
   styleUrls: ['./card.component.css'],
@@ -38,6 +38,7 @@ export class CardComponent implements OnInit {
   icon: string = '';
   color: string = 'blue';
   formattedValue: string = '';
+  valueSizeClass = 'value-md';
 
   // ─── Mapa de configuración por título (toLowerCase) ───────────────────────
   // Cubre las 3 variantes de periodo: mes · semana · diaria
@@ -97,7 +98,16 @@ export class CardComponent implements OnInit {
   private updateFormatting(): void {
     this.updateConfig();
     this.formattedValue = this.formatValue(this._value);
+    this.valueSizeClass = this.getValueSizeClass(this.formattedValue);
     this.cdr.markForCheck();
+  }
+
+  private getValueSizeClass(texto: string): string {
+    const len = String(texto ?? '').length;
+    if (len >= 22) return 'value-xs';
+    if (len >= 18) return 'value-sm';
+    if (len >= 14) return 'value-md';
+    return 'value-lg';
   }
 
   private formatValue(val: string | number): string {

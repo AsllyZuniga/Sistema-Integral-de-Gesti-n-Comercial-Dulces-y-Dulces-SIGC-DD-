@@ -1,14 +1,18 @@
 .card {
   border-radius: 16px;
-  padding: 22px 24px;
+  padding: 18px 20px;
   transition: all 0.25s ease;
   width: 100%;
+  min-height: 118px;
   position: relative;
   overflow: hidden;
   cursor: default;
   border: none;
   will-change: transform;
   isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 .card:hover {
   transform: translateY(-3px);
@@ -48,7 +52,7 @@
   position: absolute;
   bottom: -4px;
   right: 10px;
-  font-size: 80px;
+  font-size: 68px;
   line-height: 1;
   opacity: 0.18;
   pointer-events: none;
@@ -69,20 +73,52 @@
 .title {
   margin: 0 0 8px;
   color: rgba(255, 255, 255, 0.75);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.8px;
 }
 h2 {
   margin: 0;
-  font-size: 24px;
   font-weight: 800;
   color: #fff;
-  letter-spacing: -0.5px;
-  line-height: 1.15;
-  padding-right: 60px;
-  word-break: break-word;
+  letter-spacing: -0.35px;
+  line-height: 1.1;
+  padding-right: 0;
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+  max-width: 100%;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+
+h2.value-lg {
+  font-size: clamp(1.75rem, 1.95vw, 2.05rem);
+}
+
+h2.value-md {
+  font-size: clamp(1.5rem, 1.75vw, 1.8rem);
+}
+
+h2.value-sm {
+  font-size: clamp(1.3rem, 1.55vw, 1.55rem);
+}
+
+h2.value-xs {
+  font-size: clamp(1.12rem, 1.32vw, 1.35rem);
+}
+
+@media (max-width: 768px) {
+  .card {
+    padding: 16px 16px;
+    min-height: 110px;
+  }
+
+  .card-icon {
+    font-size: 60px;
+    right: 8px;
+  }
 }
 
 .trend {

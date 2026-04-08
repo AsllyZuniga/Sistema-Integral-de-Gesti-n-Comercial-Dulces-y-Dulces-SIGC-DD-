@@ -11,12 +11,24 @@
 }
 
 .admin-table td.supervisor {
-  min-width: 140px;
+  min-width: 110px;
 }
 
 .admin-table td.supervisor.sin-asignar {
   color: var(--c-text-muted);
   font-style: italic;
+}
+
+.admin-table.supervisor-table th:nth-child(2),
+.admin-table.supervisor-table td:nth-child(2) {
+  width: 180px;
+  max-width: 180px;
+}
+
+.admin-table.supervisor-table td.nombre {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .admin-table td.num {
@@ -70,6 +82,42 @@
 
 .tabla-scroll {
   position: relative;
+}
+
+.tabla-scroll.role-scroll {
+  display: block;
+  overflow: auto !important;
+  max-height: var(--table-max-height, 58vh);
+  touch-action: pan-x pan-y;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.tabla-scroll.role-scroll .admin-table {
+  width: max-content;
+  min-width: max-content;
+}
+
+.tabla-scroll.role-scroll .admin-table th,
+.tabla-scroll.role-scroll .admin-table td {
+  min-width: unset;
+  padding: 9px 10px;
+}
+
+@media (max-width: 768px) {
+  .tabla-scroll.role-scroll {
+    max-height: 62vh;
+  }
+
+  .tabla-scroll.role-scroll .admin-table {
+    min-width: max-content;
+  }
+
+  .tabla-scroll.role-scroll .admin-table th,
+  .tabla-scroll.role-scroll .admin-table td {
+    padding: 8px 9px;
+  }
 }
 
 .tabla-scroll.loading-overlay::before {
