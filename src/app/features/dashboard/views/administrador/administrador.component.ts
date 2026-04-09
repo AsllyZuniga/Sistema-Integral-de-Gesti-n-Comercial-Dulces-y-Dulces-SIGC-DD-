@@ -42,6 +42,18 @@ interface VendedorApiRow {
   codigo_vendedor?: string;
   codVendedor?: string;
   nombre?: string;
+  proveedor?: string;
+  nomProveedor?: string;
+  nombreProveedor?: string;
+  categoria?: string;
+  nomCategoria?: string;
+  nombreCategoria?: string;
+  ciudad?: string;
+  nomCiudad?: string;
+  nombreCiudad?: string;
+  linea?: string;
+  nomLinea?: string;
+  nombreLinea?: string;
   cuotaMes?: number | CuotaDetalle;
   cuotaSemana?: number | CuotaDetalle;
   cuotaDiaria?: number | CuotaDetalle;
@@ -120,6 +132,52 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     return Number(valor ?? 0);
+  }
+
+  private normalizarTexto(valor: unknown): string {
+    return String(valor ?? '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-záéíóúñüA-ZÁÉÍÓÚÑÜ0-9\s.,-]/g, '');
+  }
+
+  private aplicarFiltrosAdministrador(lista: VendedorTabla[]): VendedorTabla[] {
+    const filtros = this.filtrosActivos ?? ({} as DashboardFilters);
+
+    const codVendedorFiltro = String(filtros.vendedor ?? '').trim();
+    const proveedorFiltro = this.normalizarTexto(filtros.proveedor);
+    const categoriaFiltro = this.normalizarTexto(filtros.categoria);
+    const ciudadFiltro = this.normalizarTexto(filtros.ciudadNombre ?? filtros.ciudad ?? '');
+    const lineaFiltro = this.normalizarTexto(filtros.linea);
+
+    return lista.filter((v) => {
+      if (codVendedorFiltro) {
+        const codigoV = String(v.codVendedor ?? '').trim();
+        if (codigoV !== codVendedorFiltro) return false;
+      }
+
+      if (proveedorFiltro) {
+        const proveedorV = this.normalizarTexto(v.proveedor ?? v.nomProveedor ?? v.nombreProveedor);
+        if (!proveedorV.includes(proveedorFiltro)) return false;
+      }
+
+      if (categoriaFiltro) {
+        const categoriaV = this.normalizarTexto(v.categoria ?? v.nomCategoria ?? v.nombreCategoria);
+        if (!categoriaV.includes(categoriaFiltro)) return false;
+      }
+
+      if (ciudadFiltro) {
+        const ciudadV = this.normalizarTexto(v.ciudad ?? v.nomCiudad ?? v.nombreCiudad);
+        if (ciudadV !== ciudadFiltro) return false;
+      }
+
+      if (lineaFiltro) {
+        const lineaV = this.normalizarTexto(v.linea ?? v.nomLinea ?? v.nombreLinea);
+        if (!lineaV.includes(lineaFiltro)) return false;
+      }
+
+      return true;
+    });
   }
 
   get labelCuota(): string {
@@ -262,6 +320,18 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
           codigo_vendedor: v.codigo_vendedor ?? v.codVendedor,
           codVendedor: this.obtenerCodigoVendedor(v),
           nombre: v.nombre ?? '',
+          proveedor: v.proveedor,
+          nomProveedor: v.nomProveedor,
+          nombreProveedor: v.nombreProveedor,
+          categoria: v.categoria,
+          nomCategoria: v.nomCategoria,
+          nombreCategoria: v.nombreCategoria,
+          ciudad: v.ciudad,
+          nomCiudad: v.nomCiudad,
+          nombreCiudad: v.nombreCiudad,
+          linea: v.linea,
+          nomLinea: v.nomLinea,
+          nombreLinea: v.nombreLinea,
           cuotaMes: this.leerCuota(v.cuotaMes, 'cuota_mes'),
           cuotaSemana: this.leerCuota(v.cuotaSemana, 'cuota_semana'),
           cuotaDiaria: this.leerCuota(v.cuotaDiaria, 'cuota_dia'),
@@ -273,9 +343,10 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
           supervisor: v.supervisor,
         }));
 
-        this.todosLosVendedores = this.filtrosActivos.vendedor
+        const listaFiltrada = this.filtrosActivos.vendedor
           ? listaNormalizada.filter((v) => v.codVendedor === this.filtrosActivos.vendedor)
           : listaNormalizada;
+        this.todosLosVendedores = this.aplicarFiltrosAdministrador(listaFiltrada);
         this.aplicarNombresSupervisorEnTabla();
 
         const ventaAcum = this.todosLosVendedores.reduce((s: number, v) => s + (Number(v.ventaAcum) || 0), 0);

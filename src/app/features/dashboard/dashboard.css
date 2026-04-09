@@ -35,7 +35,7 @@
 .logout-btn:hover  { background: rgba(255,255,255,0.22); border-color: rgba(255,255,255,0.5); transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
 .logout-btn:active { transform: translateY(0); }
 
-.kpis   { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 18px; margin-top: 28px; margin-bottom: 26px; }
+.kpis   { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 14px; margin-top: 24px; margin-bottom: 22px; }
 .charts { display: grid; grid-template-columns: 1fr; gap: 22px; width: 100%; min-width: 0; }
 
 /* ===== SELECTOR DE CUOTA ===== */

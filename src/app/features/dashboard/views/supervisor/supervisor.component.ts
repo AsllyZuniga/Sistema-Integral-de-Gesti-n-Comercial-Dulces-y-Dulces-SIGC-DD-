@@ -141,13 +141,13 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     return String(valor ?? '')
       .trim()
       .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
+      .replace(/[^a-záéíóúñüA-ZÁÉÍÓÚÑÜ0-9\s.,-]/g, '');
   }
 
   private repararTexto(valor: unknown): string {
     return String(valor ?? '')
-      .replace(/�/g, 'a')
+      .replace(/◊/g, 'ñ')
+      .replace(/Ø/g, 'Ñ')
       .trim();
   }
 

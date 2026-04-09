@@ -237,7 +237,7 @@ export class VentasComponent implements OnInit, OnDestroy {
       row?.Razon_Social ??
       '';
 
-    return String(nombre).trim();
+    return this.repararTextoCiudad(String(nombre).trim());
   }
 
   private obtenerSucursalCliente(row: any): string {
@@ -252,7 +252,7 @@ export class VentasComponent implements OnInit, OnDestroy {
       row?.Sede ??
       'Sin sucursal';
 
-    return String(sucursal).trim() || 'Sin sucursal';
+    return this.repararTextoCiudad(String(sucursal).trim()) || 'Sin sucursal';
   }
 
   private obtenerCodigoItem(row: any): string {
@@ -308,7 +308,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   private obtenerDescripcionItem(row: any): string {
     const descripcion = row?.Descripcion ?? row?.descripcion ?? row?.producto ?? 'Sin descripción';
-    return String(descripcion).trim() || 'Sin descripción';
+    return this.repararTextoCiudad(String(descripcion).trim()) || 'Sin descripción';
   }
 
   private obtenerCantidadItem(row: any): number {
@@ -522,15 +522,13 @@ export class VentasComponent implements OnInit, OnDestroy {
     const txt = String(valor ?? '').trim();
     if (!txt) return '';
 
-    return txt.replace(/�/g, 'a').replace(/\s+/g, ' ').trim();
+    return txt.replace(/◊/g, 'ñ').replace(/Ø/g, 'Ñ').replace(/\s+/g, ' ').trim();
   }
 
   private normalizarTexto(valor: unknown): string {
     return this.repararTextoCiudad(valor)
       .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9\s.,-]/g, '')
+      .replace(/[^a-záéíóúñüA-ZÁÉÍÓÚÑÜ0-9\s.,-]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
   }
@@ -794,7 +792,9 @@ export class VentasComponent implements OnInit, OnDestroy {
           const listadoFiltrado = this.filtrarProveedores(listado, codigoProveedor);
           const listadoTabla = this.ordenarProveedoresPorAlfabeto(listado);
           const topProveedores = this.limitarTopProveedores(listadoFiltrado);
-          this.tableData = listadoTabla;
+          this.tableData = codigoProveedor
+            ? this.ordenarProveedoresPorAlfabeto(listadoFiltrado)
+            : listadoTabla;
           this.chartData = topProveedores.map((i: any) => ({
             name: i.linea,
             value: Number(i.cuotaLinea ?? 0),

@@ -242,9 +242,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return String(valor ?? '')
       .trim()
       .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9\s.,-]/g, '')
+      .replace(/[^a-záéíóúñüA-ZÁÉÍÓÚÑÜ0-9\s.,-]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
   }
@@ -270,7 +268,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const txt = String(valor ?? '').trim();
     if (!txt) return '';
 
-    return txt.replace(/�/g, 'a').replace(/\s+/g, ' ').trim();
+    return txt.replace(/◊/g, 'ñ').replace(/Ø/g, 'Ñ').replace(/\s+/g, ' ').trim();
   }
 
   private normalizarCodVendedor(valor: unknown): string {
