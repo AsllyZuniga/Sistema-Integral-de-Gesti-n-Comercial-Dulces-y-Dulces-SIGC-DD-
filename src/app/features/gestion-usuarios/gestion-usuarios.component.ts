@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, forkJoin, takeUntil } from 'rxjs';
@@ -25,6 +25,8 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
   private session = inject(SessionService);
   private cdr = inject(ChangeDetectorRef);
   private destroy$ = new Subject<void>();
+
+  @ViewChild(SidebarComponent) sidebarRef?: SidebarComponent;
 
   // Estado del sidebar
   isSidebarCollapsed = false;
@@ -81,7 +83,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
   }
 
   toggleMenuMovil(): void {
-    // Método vacío para compatibilidad si se necesita en el layout
+    this.sidebarRef?.toggleMobile();
   }
 
   logout(): void {

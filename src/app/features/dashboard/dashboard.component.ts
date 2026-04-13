@@ -120,6 +120,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private vendedorMap: Map<string, string> = new Map();
 
   private destroy$ = new Subject<void>();
+  private codigoVendedorDetectado = '';
 
   totalesVendedor: DashboardTotalesVendedor | null = null;
 
@@ -172,8 +173,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   get codigoVendedor(): string {
+    if (this.codigoVendedorDetectado) {
+      return this.codigoVendedorDetectado;
+    }
+
     const codigoRaw =
-      this.vendedor?.codVendedor || this.vendedor?.codigo || this.vendedor?.codigo_vendedor || '';
+      this.vendedor?.codVendedor ??
+      this.vendedor?.codigo ??
+      this.vendedor?.codigo_vendedor ??
+      this.vendedor?.vendedor?.codVendedor ??
+      this.vendedor?.vendedor?.codigo ??
+      this.vendedor?.vendedor?.codigo_vendedor ??
+      '';
     return this.normalizarCodigoVendedor(codigoRaw);
   }
 
@@ -387,6 +398,104 @@ export class DashboardComponent implements OnInit, OnDestroy {
       });
   }
 
+  private cargarOpcionesVendedor(filtros?: DashboardFilters): void {
+    const codigo = this.codigoVendedor;
+    if (!codigo) {
+      this.ciudadesList = [];
+      this.lineasList = [];
+      this.ciudadMap.clear();
+      this.lineaMap.clear();
+      return;
+    }
+
+    const fechaInicio = String(filtros?.fechaInicio ?? '').trim();
+    const fechaFin = String(filtros?.fechaFin ?? '').trim();
+    const rangoActual = this.getDefaultDateRange();
+    const rangoAnterior = {
+      inicio: this.formatDate(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)),
+      fin: this.formatDate(new Date(new Date().getFullYear(), new Date().getMonth(), 0)),
+    };
+
+    const usarFallbackMesAnterior =
+      !!fechaInicio &&
+      !!fechaFin &&
+      fechaInicio === rangoActual.inicio &&
+      fechaFin === rangoActual.fin;
+
+    const cargarLineas = (filtrosLineas?: DashboardFilters): void => {
+      this.cumplimientoService
+        .getLineasPorVendedor(codigo, filtrosLineas)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe((res) => {
+          const listado: ApiLineaRow[] = res?.detallePorLinea ?? [];
+          this.lineaMap.clear();
+
+          const unicos = new Set<string>();
+          listado.forEach((item) => {
+            const linea = String(item?.linea ?? '').trim();
+            const codigoLinea = String(item?.codigoLinea ?? '').trim();
+
+            if (linea) {
+              if (codigoLinea) this.lineaMap.set(linea, codigoLinea);
+              unicos.add(linea);
+            }
+          });
+
+          this.lineasList = this.toFilterOptions(Array.from(unicos));
+        });
+    };
+
+    const cargarCiudades = (filtrosCiudades?: DashboardFilters, reintento = false): void => {
+      this.cumplimientoService
+        .getCiudadesPorVendedor(codigo, filtrosCiudades)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe((res) => {
+          const listado: ApiCiudadRow[] = res?.detallePorCiudad ?? [];
+
+          if (!listado.length && usarFallbackMesAnterior && !reintento) {
+            const filtrosMesAnterior: DashboardFilters = {
+              ...(filtros ?? this.filtrosActivos),
+              fechaInicio: rangoAnterior.inicio,
+              fechaFin: rangoAnterior.fin,
+            };
+            cargarLineas(filtrosMesAnterior);
+            cargarCiudades(filtrosMesAnterior, true);
+            return;
+          }
+
+          this.ciudadMap.clear();
+
+          const unicos = new Set<string>();
+          listado.forEach((item) => {
+            this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), unicos);
+          });
+
+          this.ciudadesList = this.toFilterOptions(Array.from(unicos));
+        });
+    };
+
+    cargarLineas(filtros);
+    cargarCiudades(filtros);
+  }
+
+  private resolverCodigoVendedorDesdeApi(): void {
+    if (this.codigoVendedor) return;
+
+    this.cumplimientoService
+      .getCumplimientoMesVendedor(this.filtrosActivos)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((res: ApiTotalesResponse<DashboardTotalesVendedor>) => {
+        const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+        const fila = detalle.find((item) => String(item?.codVendedor ?? '').trim() !== 'TOTALES');
+        const codigo = this.normalizarCodigoVendedor(fila?.codVendedor ?? '');
+
+        if (!codigo) return;
+
+        this.codigoVendedorDetectado = codigo;
+        this.cargarOpcionesVendedor(this.filtrosActivos);
+      });
+  }
+
   logout(): void {
     this.authService.logout();
     this.router.navigate(['/login'], { replaceUrl: true });
@@ -439,45 +548,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     if (!this.esAdmin && this.codigoVendedor) {
-      this.cumplimientoService
-        .getLineasPorVendedor(this.codigoVendedor)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((res) => {
-          const listado: ApiLineaRow[] = res?.detallePorLinea ?? [];
-          this.lineaMap.clear();
+      this.cargarOpcionesVendedor(this.filtrosActivos);
+    } else if (!this.esAdmin) {
+      this.resolverCodigoVendedorDesdeApi();
+    }
 
-          const unicos = new Set<string>();
-          listado.forEach((item) => {
-            const linea = String(item?.linea ?? '').trim();
-            const codigoLinea = String(item?.codigoLinea ?? '').trim();
-
-            if (linea) {
-              if (codigoLinea) this.lineaMap.set(linea, codigoLinea);
-              unicos.add(linea);
-            }
-          });
-
-          this.lineasList = this.toFilterOptions(Array.from(unicos));
-        });
-
-      this.cumplimientoService
-        .getCiudadesPorVendedor(this.codigoVendedor)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((res) => {
-          const listado: ApiCiudadRow[] = res?.detallePorCiudad ?? [];
-          this.ciudadMap.clear();
-
-          const unicos = new Set<string>();
-          listado.forEach((item) => {
-            this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), unicos);
-          });
-
-          this.ciudadesList = this.toFilterOptions(Array.from(unicos));
-        });
-
-      if (this.esSupervisor) {
-        this.cargarCiudadesYLineasSupervisor();
-      }
+    if (this.esSupervisor) {
+      this.cargarCiudadesYLineasSupervisor();
     }
   }
 
@@ -552,6 +629,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     this.filtrosActivos = { ...filtrosConCodigos };
+
+    if (!this.esAdmin) {
+      this.cargarOpcionesVendedor(this.filtrosActivos);
+    }
 
     if (this.rolId === 3) {
       this.cargarTotalesVendedor();
