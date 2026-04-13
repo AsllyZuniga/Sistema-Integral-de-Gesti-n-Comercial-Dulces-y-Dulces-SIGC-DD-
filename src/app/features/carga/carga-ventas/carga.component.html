@@ -37,7 +37,11 @@
           class="upload-zone"
           [class.has-file]="archivoSeleccionado"
           [class.is-loading]="estaImportando"
+          [class.is-dragover]="isDragOver"
           (click)="onClickZonaCarga()"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onDropArchivo($event)"
         >
           <input
             id="fileInput"
@@ -49,7 +53,7 @@
 
           @if (!archivoSeleccionado) {
             <span class="material-symbols-rounded upload-icon">upload_file</span>
-            <p class="upload-text">Haz clic para seleccionar el archivo</p>
+            <p class="upload-text">Arrastra o selecciona el archivo</p>
             <p class="upload-hint">Formato aceptado: <strong>.txt</strong></p>
           } @else {
             <span class="material-symbols-rounded upload-icon file-ready">task</span>

@@ -35,6 +35,7 @@ export class CargaComponent {
 
   // Sales upload properties
   archivoSeleccionado: File | null = null;
+  isDragOver = false;
   estado: EstadoCarga = 'idle';
   resultado: ImportVentasResponse | null = null;
   mensajeError = '';
@@ -76,14 +77,43 @@ export class CargaComponent {
   ) {}
 
   onArchivoSeleccionado(event: Event): void {
-    // Ignorar si está importando
-    if (this.estaImportando) return;
-
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
 
     const archivo = input.files[0];
     input.value = '';
+
+    this.procesarArchivo(archivo);
+  }
+
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.estaImportando) return;
+    this.isDragOver = true;
+  }
+
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+  }
+
+  onDropArchivo(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+
+    if (this.estaImportando) return;
+
+    const archivo = event.dataTransfer?.files?.[0];
+    if (!archivo) return;
+
+    this.procesarArchivo(archivo);
+  }
+
+  private procesarArchivo(archivo: File): void {
+    if (this.estaImportando) return;
 
     if (!archivo.name.toLowerCase().endsWith('.txt')) {
       this.setError('formato', 'Solo se aceptan archivos .txt exportados desde el ERP.');
@@ -186,6 +216,7 @@ export class CargaComponent {
   limpiar(): void {
     if (this.estaImportando) return;
     this.archivoSeleccionado = null;
+    this.isDragOver = false;
     this.estado = 'idle';
     this.resultado = null;
     this.mensajeError = '';
