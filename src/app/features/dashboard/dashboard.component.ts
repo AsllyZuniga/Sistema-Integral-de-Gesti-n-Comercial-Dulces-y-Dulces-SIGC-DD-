@@ -258,6 +258,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .trim();
   }
 
+  private esCiudadResumen(valor: unknown): boolean {
+    const ciudad = this.normalizarTexto(valor);
+    return ciudad === 'total' || ciudad === 'totales' || ciudad === 'todas' || ciudad === 'todos';
+  }
+
   private toFilterOptions(values: string[]): FilterOption[] {
     return Array.from(new Set(values.filter(Boolean)))
       .sort((a, b) => a.localeCompare(b, 'es'))
@@ -316,6 +321,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const codigo = String(codigoCiudad ?? '').trim();
 
     if (!ciudadOriginal || !ciudadNormalizada) return;
+    if (this.esCiudadResumen(ciudadOriginal)) return;
 
     if (codigo) {
       this.ciudadMap.set(ciudadOriginal, codigo);
@@ -408,13 +414,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const fechaInicio = String(filtros?.fechaInicio ?? '').trim();
-    const fechaFin = String(filtros?.fechaFin ?? '').trim();
+    const filtrosBase: DashboardFilters = { ...(filtros ?? this.filtrosActivos) };
     const rangoActual = this.getDefaultDateRange();
-    const rangoAnterior = {
-      inicio: this.formatDate(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)),
-      fin: this.formatDate(new Date(new Date().getFullYear(), new Date().getMonth(), 0)),
-    };
+
+    if (!String(filtrosBase.fechaInicio ?? '').trim() || !String(filtrosBase.fechaFin ?? '').trim()) {
+      filtrosBase.fechaInicio = rangoActual.inicio;
+      filtrosBase.fechaFin = rangoActual.fin;
+    }
+
+    const fechaInicio = String(filtrosBase.fechaInicio ?? '').trim();
+    const fechaFin = String(filtrosBase.fechaFin ?? '').trim();
 
     const usarFallbackMesAnterior =
       !!fechaInicio &&
@@ -422,7 +431,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
       fechaInicio === rangoActual.inicio &&
       fechaFin === rangoActual.fin;
 
-    const cargarLineas = (filtrosLineas?: DashboardFilters): void => {
+    const construirCandidatosMeses = (): DashboardFilters[] => {
+      const candidatos: DashboardFilters[] = [filtrosBase];
+
+      if (!usarFallbackMesAnterior) {
+        return candidatos;
+      }
+
+      const hoy = new Date();
+      for (let i = 1; i <= 6; i += 1) {
+        candidatos.push({
+          ...filtrosBase,
+          fechaInicio: this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth() - i, 1)),
+          fechaFin: this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth() - i + 1, 0)),
+        });
+      }
+
+      return candidatos;
+    };
+
+    const cargarLineas = (filtrosLineas: DashboardFilters): void => {
       this.cumplimientoService
         .getLineasPorVendedor(codigo, filtrosLineas)
         .pipe(takeUntil(this.destroy$))
@@ -445,21 +473,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
         });
     };
 
-    const cargarCiudades = (filtrosCiudades?: DashboardFilters, reintento = false): void => {
+    const candidatosMeses = construirCandidatosMeses();
+
+    const cargarCiudades = (indiceCandidato = 0): void => {
+      const filtrosCiudades = candidatosMeses[indiceCandidato];
+
       this.cumplimientoService
         .getCiudadesPorVendedor(codigo, filtrosCiudades)
         .pipe(takeUntil(this.destroy$))
         .subscribe((res) => {
           const listado: ApiCiudadRow[] = res?.detallePorCiudad ?? [];
 
-          if (!listado.length && usarFallbackMesAnterior && !reintento) {
-            const filtrosMesAnterior: DashboardFilters = {
-              ...(filtros ?? this.filtrosActivos),
-              fechaInicio: rangoAnterior.inicio,
-              fechaFin: rangoAnterior.fin,
-            };
-            cargarLineas(filtrosMesAnterior);
-            cargarCiudades(filtrosMesAnterior, true);
+          if (!listado.length && indiceCandidato < candidatosMeses.length - 1) {
+            cargarLineas(candidatosMeses[indiceCandidato + 1]);
+            cargarCiudades(indiceCandidato + 1);
             return;
           }
 
@@ -474,8 +501,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         });
     };
 
-    cargarLineas(filtros);
-    cargarCiudades(filtros);
+    cargarLineas(filtrosBase);
+    cargarCiudades(0);
   }
 
   private resolverCodigoVendedorDesdeApi(): void {
@@ -597,12 +624,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   onAplicarFiltros(filtros: DashboardFilters): void {
-    const ciudadVisible = String(filtros.ciudad ?? '').trim();
+    const rangoDefault = this.getDefaultDateRange();
+    const fechaInicio = String(filtros.fechaInicio ?? '').trim() || rangoDefault.inicio;
+    const fechaFin = String(filtros.fechaFin ?? '').trim() || rangoDefault.fin;
+
+    let ciudadVisible = String(filtros.ciudad ?? '').trim();
+    if (this.esCiudadResumen(ciudadVisible)) {
+      ciudadVisible = '';
+    }
+
     const ciudadNormalizada = this.normalizarTexto(ciudadVisible);
 
     const filtrosConCodigos: DashboardFilters = {
-      fechaInicio: filtros.fechaInicio,
-      fechaFin: filtros.fechaFin,
+      fechaInicio,
+      fechaFin,
       vendedor: '',
       proveedor: '',
       categoria: filtros.categoria || '',
@@ -631,7 +666,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.filtrosActivos = { ...filtrosConCodigos };
 
     if (!this.esAdmin) {
-      this.cargarOpcionesVendedor(this.filtrosActivos);
+      // El catálogo de ciudades debe mantenerse completo: no recargarlo filtrado por ciudad seleccionada.
+      this.cargarOpcionesVendedor({ ...this.filtrosActivos, ciudad: '', ciudadNombre: '' });
     }
 
     if (this.rolId === 3) {

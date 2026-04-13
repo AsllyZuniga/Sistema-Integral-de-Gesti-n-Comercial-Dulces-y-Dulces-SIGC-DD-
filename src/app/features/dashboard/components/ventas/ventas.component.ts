@@ -533,13 +533,20 @@ export class VentasComponent implements OnInit, OnDestroy {
       .trim();
   }
 
+  private esCiudadResumen(valor: unknown): boolean {
+    const ciudad = this.normalizarTexto(valor);
+    return ciudad === 'total' || ciudad === 'totales' || ciudad === 'todas' || ciudad === 'todos';
+  }
+
   private filtrarPorCiudadSeleccionada(listado: any[]): any[] {
     const ciudadFiltroRaw = String(this._filtros.ciudadNombre ?? this._filtros.ciudad ?? '').trim();
     const ciudadFiltro = this.normalizarTexto(ciudadFiltroRaw);
 
-    if (!ciudadFiltro) return listado;
+    const ciudadesValidas = listado.filter((item: any) => !this.esCiudadResumen(item?.ciudad));
 
-    return listado.filter((item: any) => {
+    if (!ciudadFiltro || this.esCiudadResumen(ciudadFiltroRaw)) return ciudadesValidas;
+
+    return ciudadesValidas.filter((item: any) => {
       const ciudadItem = this.normalizarTexto(item?.ciudad ?? '');
       return ciudadItem === ciudadFiltro;
     });
@@ -902,7 +909,7 @@ export class VentasComponent implements OnInit, OnDestroy {
                 return;
               }
 
-              const listadoMapeado = listadoCompleto.map((i: any) => ({
+              const listadoMapeado = listadoFiltrado.map((i: any) => ({
                 ...i,
                 ciudad: this.repararTextoCiudad(i.ciudad),
               }));
