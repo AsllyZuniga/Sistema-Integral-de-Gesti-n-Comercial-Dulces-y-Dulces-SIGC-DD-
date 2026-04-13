@@ -668,7 +668,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private vistaUsaUltimoMesPorDefecto(view: string): boolean {
-    return view === 'proveedor' || view === 'ciudad' || view === 'item';
+    return false;
   }
 
   private aplicarUltimoMesCargadoPorDefecto(filtros: DashboardFilters): DashboardFilters {
@@ -689,6 +689,38 @@ export class VentasComponent implements OnInit, OnDestroy {
       fechaInicio,
       fechaFin,
     };
+  }
+
+  private obtenerFiltrosMesAnteriorDesde(
+    filtros: DashboardFilters,
+    mesesAtras: number,
+  ): DashboardFilters {
+    const hoy = new Date();
+    const inicioMes = this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth() - mesesAtras, 1));
+    const finMes = this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth() - mesesAtras + 1, 0));
+
+    return {
+      ...filtros,
+      fechaInicio: inicioMes,
+      fechaFin: finMes,
+    };
+  }
+
+  private debeAplicarFallbackAutomatico(filtros: DashboardFilters): boolean {
+    const fechaInicio = String(filtros?.fechaInicio ?? '').trim();
+    const fechaFin = String(filtros?.fechaFin ?? '').trim();
+    return this.esRangoMesActual(fechaInicio, fechaFin);
+  }
+
+  private construirCandidatosFallback(
+    filtros: DashboardFilters,
+    maxMesesAtras = 6,
+  ): DashboardFilters[] {
+    const candidatos: DashboardFilters[] = [filtros];
+    for (let i = 1; i <= maxMesesAtras; i += 1) {
+      candidatos.push(this.obtenerFiltrosMesAnteriorDesde(filtros, i));
+    }
+    return candidatos;
   }
 
   cargarVistaActual(): void {
@@ -782,25 +814,42 @@ export class VentasComponent implements OnInit, OnDestroy {
       case 'proveedor':
         this.chartType = 'bar';
 
-        const filtrosSinProveedor = this.quitarProveedorDeFiltros(filtrosConsulta);
-        const lineas$ = this.esSemanal
-          ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor)
-          : this.cumplimientoService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor);
+        {
+          const candidatos = this.debeAplicarFallbackAutomatico(filtrosConsulta)
+            ? this.construirCandidatosFallback(filtrosConsulta)
+            : [filtrosConsulta];
 
-        lineas$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
-          const listado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
-          const listadoFiltrado = this.filtrarProveedores(listado, codigoProveedor);
-          const listadoTabla = this.ordenarProveedoresPorAlfabeto(listado);
-          const topProveedores = this.limitarTopProveedores(listadoFiltrado);
-          this.tableData = codigoProveedor
-            ? this.ordenarProveedoresPorAlfabeto(listadoFiltrado)
-            : listadoTabla;
-          this.chartData = topProveedores.map((i: any) => ({
-            name: i.linea,
-            value: Number(i.cuotaLinea ?? 0),
-          }));
-          this.cdr.markForCheck();
-        });
+          const intentarProveedor = (idx: number): void => {
+            const filtrosActivos = candidatos[idx];
+            const filtrosSinProveedor = this.quitarProveedorDeFiltros(filtrosActivos);
+            const lineas$ = this.esSemanal
+              ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor)
+              : this.cumplimientoService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor);
+
+            lineas$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
+              const listado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
+              const listadoFiltrado = this.filtrarProveedores(listado, codigoProveedor);
+
+              if (!listadoFiltrado.length && idx < candidatos.length - 1) {
+                intentarProveedor(idx + 1);
+                return;
+              }
+
+              const listadoTabla = this.ordenarProveedoresPorAlfabeto(listado);
+              const topProveedores = this.limitarTopProveedores(listadoFiltrado);
+              this.tableData = codigoProveedor
+                ? this.ordenarProveedoresPorAlfabeto(listadoFiltrado)
+                : listadoTabla;
+              this.chartData = topProveedores.map((i: any) => ({
+                name: i.linea,
+                value: Number(i.cuotaLinea ?? 0),
+              }));
+              this.cdr.markForCheck();
+            });
+          };
+
+          intentarProveedor(0);
+        }
         break;
 
       case 'categoria':
@@ -826,33 +875,51 @@ export class VentasComponent implements OnInit, OnDestroy {
       case 'ciudad':
         this.chartType = 'pie';
 
-        const ciudades$ = this.esSemanal
-          ? this.semanaService.getCiudadesPorVendedor(this._codigoVendedor, filtrosConsulta)
-          : codigoCiudad
-            ? this.cumplimientoService.getDetallePorCiudad(
-                this._codigoVendedor,
-                codigoCiudad,
-                filtrosConsulta,
-              )
-            : this.cumplimientoService.getCiudadesPorVendedor(this._codigoVendedor, filtrosConsulta);
+        {
+          const candidatos = this.debeAplicarFallbackAutomatico(filtrosConsulta)
+            ? this.construirCandidatosFallback(filtrosConsulta)
+            : [filtrosConsulta];
 
-        ciudades$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
-          const listadoCompleto = res?.detallePorCiudad ?? [];
-          const listadoFiltrado = this.filtrarPorCiudadSeleccionada(listadoCompleto);
-          const listadoMapeado = listadoCompleto.map((i: any) => ({
-            ...i,
-            ciudad: this.repararTextoCiudad(i.ciudad),
-          }));
-          const topCiudades = [...listadoFiltrado]
-            .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
-            .slice(0, 12);
-          this.tableData = listadoMapeado;
-          this.chartData = topCiudades.map((i: any) => ({
-            name: this.repararTextoCiudad(i.ciudad),
-            value: i.ventaAcum,
-          }));
-          this.cdr.markForCheck();
-        });
+          const intentarCiudad = (idx: number): void => {
+            const filtrosActivos = candidatos[idx];
+            const codigoCiudadActivo = String(filtrosActivos.ciudad ?? '').trim();
+            const ciudades$ = this.esSemanal
+              ? this.semanaService.getCiudadesPorVendedor(this._codigoVendedor, filtrosActivos)
+              : codigoCiudadActivo
+                ? this.cumplimientoService.getDetallePorCiudad(
+                    this._codigoVendedor,
+                    codigoCiudadActivo,
+                    filtrosActivos,
+                  )
+                : this.cumplimientoService.getCiudadesPorVendedor(this._codigoVendedor, filtrosActivos);
+
+            ciudades$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
+              const listadoCompleto = res?.detallePorCiudad ?? [];
+              const listadoFiltrado = this.filtrarPorCiudadSeleccionada(listadoCompleto);
+
+              if (!listadoFiltrado.length && idx < candidatos.length - 1) {
+                intentarCiudad(idx + 1);
+                return;
+              }
+
+              const listadoMapeado = listadoCompleto.map((i: any) => ({
+                ...i,
+                ciudad: this.repararTextoCiudad(i.ciudad),
+              }));
+              const topCiudades = [...listadoFiltrado]
+                .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+                .slice(0, 12);
+              this.tableData = listadoMapeado;
+              this.chartData = topCiudades.map((i: any) => ({
+                name: this.repararTextoCiudad(i.ciudad),
+                value: i.ventaAcum,
+              }));
+              this.cdr.markForCheck();
+            });
+          };
+
+          intentarCiudad(0);
+        }
         break;
 
       case 'vendedor':
@@ -874,15 +941,32 @@ export class VentasComponent implements OnInit, OnDestroy {
       case 'item':
         this.chartType = 'bar';
 
-        this.cumplimientoService
-          .getProductosPorVendedor(this._codigoVendedor, filtrosConsulta)
-          .pipe(takeUntil(this.destroy$))
-          .subscribe((res: any) => {
-            const listado = res?.data ?? [];
-            this.allItemData = listado;
-            this.tableData = [...listado];
-            this.recalcularChart();
-          });
+        {
+          const candidatos = this.debeAplicarFallbackAutomatico(filtrosConsulta)
+            ? this.construirCandidatosFallback(filtrosConsulta)
+            : [filtrosConsulta];
+
+          const intentarItem = (idx: number): void => {
+            const filtrosActivos = candidatos[idx];
+            this.cumplimientoService
+              .getProductosPorVendedor(this._codigoVendedor, filtrosActivos)
+              .pipe(takeUntil(this.destroy$))
+              .subscribe((res: any) => {
+                const listado = res?.data ?? [];
+
+                if (!listado.length && idx < candidatos.length - 1) {
+                  intentarItem(idx + 1);
+                  return;
+                }
+
+                this.allItemData = listado;
+                this.tableData = [...listado];
+                this.recalcularChart();
+              });
+          };
+
+          intentarItem(0);
+        }
         break;
 
       case 'cliente':

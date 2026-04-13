@@ -125,10 +125,19 @@
   font-size: 14px;
 }
 .placeholder::before {
-  content: '📈';
-  font-size: 32px;
+  content: 'monitoring';
+  font-family: 'Material Symbols Rounded';
+  font-size: 28px;
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 10px;
+  border-radius: 14px;
+  color: var(--c-primary);
+  background: linear-gradient(135deg, rgba(0, 66, 134, 0.14), rgba(0, 66, 134, 0.06));
+  border: 1px solid rgba(0, 66, 134, 0.2);
   display: block;
-  margin-bottom: 8px;
+  line-height: 56px;
 }
 
 .clientes-listado {
