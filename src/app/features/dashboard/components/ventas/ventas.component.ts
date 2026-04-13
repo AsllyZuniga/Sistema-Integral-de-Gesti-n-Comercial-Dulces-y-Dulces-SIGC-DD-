@@ -288,6 +288,38 @@ export class VentasComponent implements OnInit, OnDestroy {
     return String(fecha).trim();
   }
 
+  private parseFechaOrden(fechaRaw: string): number {
+    const fecha = String(fechaRaw ?? '').trim();
+    if (!fecha) return Number.MAX_SAFE_INTEGER;
+
+    const iso = /^\d{4}-\d{2}-\d{2}$/;
+    if (iso.test(fecha)) {
+      return new Date(`${fecha}T00:00:00`).getTime();
+    }
+
+    const latino = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    const matchLatino = fecha.match(latino);
+    if (matchLatino) {
+      const [, dd, mm, yyyy] = matchLatino;
+      return new Date(`${yyyy}-${mm}-${dd}T00:00:00`).getTime();
+    }
+
+    const intento = new Date(fecha).getTime();
+    return Number.isNaN(intento) ? Number.MAX_SAFE_INTEGER : intento;
+  }
+
+  private ordenarDetalleItemsPorFechaAsc(listado: any[]): any[] {
+    return [...listado].sort((a: any, b: any) => {
+      const fechaA = this.parseFechaOrden(this.obtenerFechaVenta(a));
+      const fechaB = this.parseFechaOrden(this.obtenerFechaVenta(b));
+      if (fechaA !== fechaB) return fechaA - fechaB;
+
+      const proveedorA = String(a?.Proveedor ?? a?.proveedor ?? '').trim();
+      const proveedorB = String(b?.Proveedor ?? b?.proveedor ?? '').trim();
+      return proveedorA.localeCompare(proveedorB, 'es', { sensitivity: 'base' });
+    });
+  }
+
   private formatearFechaCorta(fechaIso: string): string {
     if (!fechaIso) return 'Sin fecha';
     const fecha = new Date(`${fechaIso}T00:00:00`);
@@ -966,8 +998,9 @@ export class VentasComponent implements OnInit, OnDestroy {
                   return;
                 }
 
-                this.allItemData = listado;
-                this.tableData = [...listado];
+                const listadoOrdenado = this.ordenarDetalleItemsPorFechaAsc(listado);
+                this.allItemData = listadoOrdenado;
+                this.tableData = [...listadoOrdenado];
                 this.recalcularChart();
               });
           };
