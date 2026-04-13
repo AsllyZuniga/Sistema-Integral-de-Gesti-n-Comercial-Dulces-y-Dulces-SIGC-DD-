@@ -16,6 +16,7 @@ export class LoginComponent {
   is_error = false;
   is_loading = false;
   errorMessage = 'Código o contraseña no válidos';
+  mostrarPassword = false;
   user = { codigo: '', password: '' };
 
   constructor(
@@ -77,21 +78,56 @@ export class LoginComponent {
     }
   }
 
+  togglePasswordVisibility(): void {
+    this.mostrarPassword = !this.mostrarPassword;
+  }
+
+  private obtenerCodigoSesion(resp: any): string {
+    return String(
+      resp?.vendedor?.codVendedor ??
+        resp?.vendedor?.codigo_vendedor ??
+        resp?.vendedor?.codigo ??
+        resp?.usuario?.codVendedor ??
+        resp?.usuario?.codigo_vendedor ??
+        resp?.usuario?.codigo ??
+        resp?.codVendedor ??
+        resp?.codigo_vendedor ??
+        resp?.codigo ??
+        '',
+    ).trim();
+  }
+
+  private obtenerRolSesion(resp: any): any {
+    return resp?.vendedor?.rol ?? resp?.usuario?.rol ?? { idRol: resp?.usuario?.idRol ?? 1, nombre: 'Admin' };
+  }
+
   private onLoginExitoso(resp: any): void {
     this.is_error = false;
     this.is_loading = false;
+
+    const codigoSesion = this.obtenerCodigoSesion(resp);
+    const rolSesion = this.obtenerRolSesion(resp);
 
     const vendedor = {
       ...(resp.vendedor ?? {
         idVendedor: null,
         idUsuario: resp.usuario?.idUsuario ?? null,
-        codVendedor: '',
-        codigo: '',
+        codVendedor: codigoSesion,
+        codigo: codigoSesion,
+        codigo_vendedor: codigoSesion,
         nombre: resp.usuario?.username ?? 'Usuario',
         username: resp.usuario?.username ?? '',
         estado: true,
-        rol: resp.usuario?.rol ?? { idRol: resp.usuario?.idRol ?? 1, nombre: 'Admin' },
+        rol: rolSesion,
       }),
+      idUsuario: resp.usuario?.idUsuario ?? resp.vendedor?.idUsuario ?? null,
+      id_usuario: resp.usuario?.idUsuario ?? resp.vendedor?.id_usuario ?? null,
+      idVendedor: resp.vendedor?.idVendedor ?? resp.usuario?.idVendedor ?? null,
+      id_vendedor: resp.vendedor?.id_vendedor ?? resp.usuario?.id_vendedor ?? null,
+      codVendedor: codigoSesion,
+      codigo: codigoSesion,
+      codigo_vendedor: codigoSesion,
+      rol: rolSesion,
       jwt: resp.jwt || resp.token,
     };
 

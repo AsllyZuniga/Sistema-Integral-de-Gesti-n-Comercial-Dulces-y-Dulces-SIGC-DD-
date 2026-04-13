@@ -29,16 +29,29 @@
 
       <div class="form-group">
         <label for="password">Contraseña</label>
-        <input
-          id="password"
-          [(ngModel)]="user.password"
-          [ngModelOptions]="{ updateOn: 'change' }"
-          type="password"
-          class="form-input"
-          placeholder="Ingrese su contraseña"
-          (input)="onCredentialInput()"
-          (keyup.enter)="validarUsuario()"
-        />
+        <div class="password-field">
+          <input
+            id="password"
+            [(ngModel)]="user.password"
+            [ngModelOptions]="{ updateOn: 'change' }"
+            [type]="mostrarPassword ? 'text' : 'password'"
+            class="form-input"
+            placeholder="Ingrese su contraseña"
+            (input)="onCredentialInput()"
+            (keyup.enter)="validarUsuario()"
+          />
+          <button
+            type="button"
+            class="password-toggle"
+            (click)="togglePasswordVisibility()"
+            [attr.aria-label]="mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            [attr.title]="mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+          >
+            <span class="material-symbols-rounded">
+              {{ mostrarPassword ? 'visibility_off' : 'visibility' }}
+            </span>
+          </button>
+        </div>
       </div>
 
       <button type="button" class="btn-login" (click)="validarUsuario()" [disabled]="is_loading">
