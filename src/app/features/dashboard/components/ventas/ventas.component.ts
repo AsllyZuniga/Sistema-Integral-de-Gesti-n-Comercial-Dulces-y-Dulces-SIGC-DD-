@@ -146,7 +146,6 @@ export class VentasComponent implements OnInit, OnDestroy {
     'porcentajeCumplimientoProyectado',
   ];
   readonly productosColumns = [
-    'Fecha',
     'Proveedor',
     'Cod_Item',
     'Descripcion',
