@@ -523,6 +523,12 @@ export class VentasComponent implements OnInit, OnDestroy {
     return this.getCantidadItemsCliente(cliente).toLocaleString('es-CO');
   }
 
+  getTotalClienteLabel(cliente: any): string {
+    const total = Number(cliente?.ventaAcum ?? 0);
+    const valor = Number.isFinite(total) ? total : 0;
+    return `$ ${valor.toLocaleString('es-CO')}`;
+  }
+
   tieneMasProductos(cliente: any): boolean {
     const total = cliente?.productos?.length ?? 0;
     return total > this.getLimiteProductosCliente(cliente?.key);
