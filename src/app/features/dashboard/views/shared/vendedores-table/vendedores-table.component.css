@@ -95,8 +95,8 @@
 }
 
 .tabla-scroll.role-scroll .admin-table {
-  width: max-content;
-  min-width: max-content;
+  width: 100% !important;
+  min-width: 100% !important;
 }
 
 .tabla-scroll.role-scroll .admin-table th,
@@ -111,7 +111,7 @@
   }
 
   .tabla-scroll.role-scroll .admin-table {
-    min-width: max-content;
+    min-width: max-content !important;
   }
 
   .tabla-scroll.role-scroll .admin-table th,
