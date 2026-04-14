@@ -9,16 +9,23 @@ import {
   inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Subject, takeUntil } from 'rxjs';
+import { forkJoin, of, Subject, takeUntil } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { UsuariosService } from '../../../../core/services/usuarios.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
 import { TipoCuota } from '../../../cumplimientos-cuota/cumplimientos.component';
+import { CumplimientoService } from '../../../../core/services/ventas/cumplimientoVentasMes.service';
+import { CumplimientoSemanaService } from '../../../../core/services/ventas/cumplimientoVentasSemana.service';
 import {
   VendedorTabla,
   VendedoresTableComponent,
 } from '../shared/vendedores-table/vendedores-table.component';
+
+interface CumplimientoResponse {
+  detalle: any[];
+}
 
 interface CuotaDetalle {
   cuota_mes?: number;
@@ -63,6 +70,8 @@ interface VendedorApiRow {
 export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestroy {
   private usuariosService = inject(UsuariosService);
   private authService = inject(AuthService);
+  private cumplimientoService = inject(CumplimientoService);
+  private semanaService = inject(CumplimientoSemanaService);
   private cdr = inject(ChangeDetectorRef);
 
   @Input() tipoCuota: TipoCuota = 'mensual';
@@ -163,6 +172,50 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     return Number(valor ?? 0);
   }
 
+  private obtenerCodigoVendedor(
+    vendedor: Pick<VendedorTabla, 'codVendedor' | 'codigo_vendedor'> | VendedorApiRow | any,
+  ): string {
+    const codigo =
+      vendedor?.codVendedor ??
+      vendedor?.codigo_vendedor ??
+      vendedor?.codigoVendedor ??
+      vendedor?.cod_vendedor ??
+      vendedor?.codigo ??
+      vendedor?.cod ??
+      '';
+
+    return String(codigo ?? '').trim();
+  }
+
+  private codigoKeys(codigoRaw: unknown): string[] {
+    const codigo = String(codigoRaw ?? '').trim();
+    if (!codigo) return [];
+
+    const keys = new Set<string>([codigo]);
+    const numerico = codigo.replace(/\D/g, '');
+    if (numerico) {
+      keys.add(numerico);
+      keys.add(String(Number(numerico)));
+      keys.add(numerico.padStart(4, '0'));
+    }
+
+    return Array.from(keys).filter(Boolean);
+  }
+
+  private obtenerDetalleCumplimiento() {
+    const obs$ =
+      this.tipoCuota === 'semanal'
+        ? this.semanaService.getCumplimientoSemanaAdmin(this.filtrosActivos)
+        : this.cumplimientoService.getCumplimientoMesAdmin(this.filtrosActivos);
+
+    return obs$.pipe(
+      map((res: any): CumplimientoResponse => ({
+        detalle: Array.isArray(res?.detalle) ? res.detalle : [],
+      })),
+      catchError(() => of<CumplimientoResponse>({ detalle: [] })),
+    );
+  }
+
   private aplicarFiltrosSupervisor(lista: VendedorTabla[]): VendedorTabla[] {
     const filtros = this.filtrosActivos ?? ({} as DashboardFilters);
 
@@ -213,37 +266,53 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
 
     this.cargandoVendedores = true;
 
-    this.usuariosService
-      .obtenerVendedoresDelSupervisor(String(this.idSupervisor))
+    forkJoin({
+      asignados: this.usuariosService.obtenerVendedoresDelSupervisor(String(this.idSupervisor)),
+      cumplimiento: this.obtenerDetalleCumplimiento(),
+    })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (vendedores: VendedorApiRow[]) => {
-          const lista = vendedores.map((v) => ({
-            ...v,
-            codigo_vendedor: v.codigo_vendedor ?? v.codVendedor,
-            codVendedor: v.codVendedor ?? v.codigo_vendedor ?? '',
-            cuotaMes: this.leerCuota(v.cuotaMes, 'cuota_mes'),
-            cuotaSemana: this.leerCuota(v.cuotaSemana, 'cuota_semana'),
-            cuotaDiaria: this.leerCuota(v.cuotaDia, 'cuota_dia'),
-            nombreSupervisor: v.supervisor?.username ?? v.supervisor?.nombre ?? 'Sin asignar',
-            id_supervisor: v.id_supervisor ?? v.idSupervisor ?? null,
-            ventaAcum: Number(v.ventaAcum ?? 0),
-            porcCump: Number(v.porcCump ?? 0),
-            proyeccionVenta: Number(v.proyeccionVenta ?? 0),
-          }));
+        next: ({ asignados, cumplimiento }: { asignados: VendedorApiRow[]; cumplimiento: CumplimientoResponse }) => {
+          const cumplimientoPorCodigo = new Map<string, any>();
+
+          for (const fila of cumplimiento.detalle ?? []) {
+            const codigoFila = this.obtenerCodigoVendedor(fila);
+            for (const key of this.codigoKeys(codigoFila)) {
+              cumplimientoPorCodigo.set(key, fila);
+            }
+          }
+
+          const lista = (Array.isArray(asignados) ? asignados : []).map((v) => {
+            const codVendedor = this.obtenerCodigoVendedor(v);
+            let filaCumplimiento: any = null;
+
+            for (const key of this.codigoKeys(codVendedor)) {
+              if (cumplimientoPorCodigo.has(key)) {
+                filaCumplimiento = cumplimientoPorCodigo.get(key);
+                break;
+              }
+            }
+
+            return {
+              ...v,
+              codigo_vendedor: v.codigo_vendedor ?? v.codVendedor,
+              codVendedor,
+              cuotaMes: this.leerCuota(filaCumplimiento?.cuotaMes ?? v.cuotaMes, 'cuota_mes'),
+              cuotaSemana: this.leerCuota(filaCumplimiento?.cuotaSemana ?? v.cuotaSemana, 'cuota_semana'),
+              cuotaDiaria: this.leerCuota(filaCumplimiento?.cuotaDiaria ?? v.cuotaDia, 'cuota_dia'),
+              nombreSupervisor: v.supervisor?.username ?? v.supervisor?.nombre ?? 'Sin asignar',
+              id_supervisor: v.id_supervisor ?? v.idSupervisor ?? null,
+              ventaAcum: Number(filaCumplimiento?.ventaAcum ?? v.ventaAcum ?? 0),
+              porcCump: Number(filaCumplimiento?.porcCump ?? v.porcCump ?? 0),
+              proyeccionVenta: Number(filaCumplimiento?.proyeccionVenta ?? v.proyeccionVenta ?? 0),
+            } as VendedorTabla;
+          });
 
           const listaFiltrada = this.aplicarFiltrosSupervisor(lista);
-
           this.todosLosVendedores = listaFiltrada;
 
-          const ventaAcum = listaFiltrada.reduce(
-            (s: number, v) => s + (Number(v.ventaAcum) || 0),
-            0,
-          );
-          const cuota = listaFiltrada.reduce(
-            (s: number, v) => s + (Number(v[this.campoCuota]) || 0),
-            0,
-          );
+          const ventaAcum = listaFiltrada.reduce((s: number, v) => s + (Number(v.ventaAcum) || 0), 0);
+          const cuota = listaFiltrada.reduce((s: number, v) => s + (Number(v[this.campoCuota]) || 0), 0);
           const proyeccionVenta = listaFiltrada.reduce(
             (s: number, v) => s + (Number(v.proyeccionVenta) || 0),
             0,
