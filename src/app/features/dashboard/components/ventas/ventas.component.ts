@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Subject, finalize, takeUntil } from 'rxjs';
+import { Subject, takeUntil } from 'rxjs';
 import { CumplimientoService } from '../../../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../../../core/services/ventas/cumplimientoVentasSemana.service';
 import { ChartComponent } from '../../../../shared/components/chart';
@@ -153,7 +153,7 @@ export class VentasComponent implements OnInit, OnDestroy {
     'Cantidad',
     'Subtotal',
   ];
-  readonly clienteProductosColumns = ['producto', 'cantidad', 'precio', 'subtotal'];
+  readonly clienteProductosColumns = ['producto', 'cantidad', 'subtotal'];
 
   readonly lineasColumns = [
     'linea',
@@ -283,28 +283,59 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private obtenerFechaVenta(row: any): string {
-    const fecha = row?.fecha ?? row?.Fecha ?? row?.fecha_venta ?? row?.fechaVenta ?? '';
+    const fecha =
+      row?.ultima_venta ??
+      row?.ultimaVenta ??
+      row?.Ultima_Venta ??
+      row?.primera_venta ??
+      row?.primeraVenta ??
+      row?.Primera_Venta ??
+      row?.fecha ??
+      row?.Fecha ??
+      row?.fecha_venta ??
+      row?.fechaVenta ??
+      row?.fecha_documento ??
+      row?.fechaDocumento ??
+      row?.Fecha_Documento ??
+      row?.Fecha_Doc ??
+      row?.createdAt ??
+      row?.created_at ??
+      '';
     return String(fecha).trim();
   }
 
-  private parseFechaOrden(fechaRaw: string): number {
+  private parseFechaFlexible(fechaRaw: string): Date | null {
     const fecha = String(fechaRaw ?? '').trim();
-    if (!fecha) return Number.MAX_SAFE_INTEGER;
+    if (!fecha) return null;
 
-    const iso = /^\d{4}-\d{2}-\d{2}$/;
-    if (iso.test(fecha)) {
-      return new Date(`${fecha}T00:00:00`).getTime();
+    const soloFechaIso = /^\d{4}-\d{2}-\d{2}$/;
+    if (soloFechaIso.test(fecha)) {
+      const d = new Date(`${fecha}T00:00:00`);
+      return Number.isNaN(d.getTime()) ? null : d;
     }
 
-    const latino = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    const fechaHoraIso = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?/;
+    if (fechaHoraIso.test(fecha)) {
+      const normalizada = fecha.includes('T') ? fecha : fecha.replace(' ', 'T');
+      const d = new Date(normalizada);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    const latino = /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/;
     const matchLatino = fecha.match(latino);
     if (matchLatino) {
-      const [, dd, mm, yyyy] = matchLatino;
-      return new Date(`${yyyy}-${mm}-${dd}T00:00:00`).getTime();
+      const [, dd, mm, yyyy, hh = '00', min = '00', ss = '00'] = matchLatino;
+      const d = new Date(`${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}`);
+      return Number.isNaN(d.getTime()) ? null : d;
     }
 
-    const intento = new Date(fecha).getTime();
-    return Number.isNaN(intento) ? Number.MAX_SAFE_INTEGER : intento;
+    const intento = new Date(fecha);
+    return Number.isNaN(intento.getTime()) ? null : intento;
+  }
+
+  private parseFechaOrden(fechaRaw: string): number {
+    const fecha = this.parseFechaFlexible(fechaRaw);
+    return fecha ? fecha.getTime() : Number.MAX_SAFE_INTEGER;
   }
 
   private ordenarDetalleItemsPorFechaAsc(listado: any[]): any[] {
@@ -321,8 +352,8 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   private formatearFechaCorta(fechaIso: string): string {
     if (!fechaIso) return 'Sin fecha';
-    const fecha = new Date(`${fechaIso}T00:00:00`);
-    if (Number.isNaN(fecha.getTime())) return 'Sin fecha';
+    const fecha = this.parseFechaFlexible(fechaIso);
+    if (!fecha) return 'Sin fecha';
     return fecha.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }).replace('.', '');
   }
 
@@ -899,21 +930,38 @@ export class VentasComponent implements OnInit, OnDestroy {
       case 'categoria':
         this.chartType = 'bar';
 
-        this.cumplimientoService
-          .getCuotaCategoriaPorVendedor(this._codigoVendedor, filtrosConsulta)
-          .pipe(takeUntil(this.destroy$))
-          .subscribe((res: any) => {
-            const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
-            this.tableData = detalle;
-            this.chartData = [...detalle]
-              .sort((a: any, b: any) => Number(b?.acumulado ?? 0) - Number(a?.acumulado ?? 0))
-              .slice(0, 10)
-              .map((i: any) => ({
-                name: i?.categoria ?? 'Sin categoría',
-                value: Number(i?.acumulado ?? 0),
-              }));
-            this.cdr.markForCheck();
-          });
+        {
+          const candidatos = this.debeAplicarFallbackAutomatico(filtrosConsulta)
+            ? this.construirCandidatosFallback(filtrosConsulta)
+            : [filtrosConsulta];
+
+          const intentarCategoria = (idx: number): void => {
+            const filtrosActivos = candidatos[idx];
+            this.cumplimientoService
+              .getCuotaCategoriaPorVendedor(this._codigoVendedor, filtrosActivos)
+              .pipe(takeUntil(this.destroy$))
+              .subscribe((res: any) => {
+                const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+
+                if (!detalle.length && idx < candidatos.length - 1) {
+                  intentarCategoria(idx + 1);
+                  return;
+                }
+
+                this.tableData = detalle;
+                this.chartData = [...detalle]
+                  .sort((a: any, b: any) => Number(b?.acumulado ?? 0) - Number(a?.acumulado ?? 0))
+                  .slice(0, 10)
+                  .map((i: any) => ({
+                    name: i?.categoria ?? 'Sin categoría',
+                    value: Number(i?.acumulado ?? 0),
+                  }));
+                this.cdr.markForCheck();
+              });
+          };
+
+          intentarCategoria(0);
+        }
         break;
 
       case 'ciudad':
@@ -1030,28 +1078,58 @@ export class VentasComponent implements OnInit, OnDestroy {
 
         this.cargandoClientes = true;
 
-        this.cumplimientoService
-          .getProductosPorCliente(idVendedor, filtrosConsulta)
-          .pipe(takeUntil(this.destroy$))
-          .pipe(finalize(() => {
-            this.cargandoClientes = false;
-            this.cdr.markForCheck();
-          }))
-          .subscribe((res: any) => {
-            const listado = res?.data ?? [];
-            const detalleClientes = this.construirDetalleClientes(listado);
-            const topClientes = [...detalleClientes]
-              .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
-              .slice(0, 10);
+        {
+          const candidatos = this.debeAplicarFallbackAutomatico(filtrosConsulta)
+            ? this.construirCandidatosFallback(filtrosConsulta)
+            : [filtrosConsulta];
 
-            this.clientesAgrupados = detalleClientes;
-            this.clientesVisibles = this.clientesPageSize;
-            this.actualizarClientesVista();
-            this.tableData = detalleClientes;
-            this.chartData = topClientes.map((i: any) => ({ name: i.cliente, value: i.ventaAcum }));
+          const intentarCliente = (idx: number): void => {
+            const filtrosActivos = candidatos[idx];
 
-            this.cdr.markForCheck();
-          });
+            this.cumplimientoService
+              .getProductosPorCliente(idVendedor, filtrosActivos)
+              .pipe(takeUntil(this.destroy$))
+              .subscribe({
+                next: (res: any) => {
+                  const listado = Array.isArray(res?.data) ? res.data : [];
+
+                  if (!listado.length && idx < candidatos.length - 1) {
+                    intentarCliente(idx + 1);
+                    return;
+                  }
+
+                  const detalleClientes = this.construirDetalleClientes(listado);
+                  const topClientes = [...detalleClientes]
+                    .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+                    .slice(0, 10);
+
+                  this.clientesAgrupados = detalleClientes;
+                  this.clientesVisibles = this.clientesPageSize;
+                  this.actualizarClientesVista();
+                  this.tableData = detalleClientes;
+                  this.chartData = topClientes.map((i: any) => ({ name: i.cliente, value: i.ventaAcum }));
+                  this.cargandoClientes = false;
+                  this.cdr.markForCheck();
+                },
+                error: () => {
+                  if (idx < candidatos.length - 1) {
+                    intentarCliente(idx + 1);
+                    return;
+                  }
+
+                  this.cargandoClientes = false;
+                  this.clientesAgrupados = [];
+                  this.clientesVista = [];
+                  this.totalClientesFiltrados = 0;
+                  this.tableData = [];
+                  this.chartData = [];
+                  this.cdr.markForCheck();
+                },
+              });
+          };
+
+          intentarCliente(0);
+        }
         break;
     }
   }
