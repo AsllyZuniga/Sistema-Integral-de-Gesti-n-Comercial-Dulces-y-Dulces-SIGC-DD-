@@ -1,7 +1,7 @@
 import { Component, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SidebarComponent } from '../../../shared/components/sidebar/sidebar.component';
-import { SessionService } from '../../../core/services/session.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { CuotaVendedorUploadComponent } from './cuota-vendedor-upload/cuota-vendedor-upload.component';
 import { CuotaProveedorUploadComponent } from './cuota-proveedor-upload/cuota-proveedor-upload.component';
 import { CuotaCategoriaUploadComponent } from './cuota-categoria-upload/cuota-categoria-upload.component';
@@ -26,7 +26,7 @@ export class CargaCuotasComponent {
 
   constructor(
     private cd: ChangeDetectorRef,
-    private session: SessionService,
+    private auth: AuthService,
   ) {}
 
   onToggleSidebar(colapsado: boolean): void {
@@ -39,7 +39,6 @@ export class CargaCuotasComponent {
   }
 
   logout(): void {
-    this.session.clearUser();
-    window.location.href = '/login';
+    this.auth.logout();
   }
 }

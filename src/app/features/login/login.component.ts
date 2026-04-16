@@ -1,5 +1,5 @@
-import { ChangeDetectorRef, Component, NgZone } from '@angular/core';
-import { Router } from '@angular/router';
+import { ChangeDetectorRef, Component, NgZone, OnInit } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { finalize, timeout } from 'rxjs';
@@ -12,29 +12,98 @@ import { AuthService } from '../../core/services/auth.service';
   styleUrls: ['./login.component.css'],
   imports: [FormsModule, CommonModule],
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
+  private static readonly LOCK_KEY = 'auth_login_lock_until';
+  private static readonly ATTEMPTS_KEY = 'auth_login_failed_attempts';
+  private static readonly MAX_ATTEMPTS = 5;
+  private static readonly LOCK_MS = 60_000;
+
   is_error = false;
   is_loading = false;
   errorMessage = 'Código o contraseña no válidos';
   mostrarPassword = false;
   user = { codigo: '', password: '' };
+  private intentosFallidos = 0;
+  private bloqueadoHasta = 0;
 
   constructor(
     private router: Router,
+    private route: ActivatedRoute,
     private authService: AuthService,
     private ngZone: NgZone,
     private cdr: ChangeDetectorRef,
   ) {}
 
+  ngOnInit(): void {
+    this.intentosFallidos = Number(sessionStorage.getItem(LoginComponent.ATTEMPTS_KEY) ?? '0') || 0;
+    this.bloqueadoHasta = Number(sessionStorage.getItem(LoginComponent.LOCK_KEY) ?? '0') || 0;
+  }
+
+  private get estaBloqueado(): boolean {
+    return Date.now() < this.bloqueadoHasta;
+  }
+
+  private persistirControlIntentos(): void {
+    sessionStorage.setItem(LoginComponent.ATTEMPTS_KEY, String(this.intentosFallidos));
+    sessionStorage.setItem(LoginComponent.LOCK_KEY, String(this.bloqueadoHasta));
+  }
+
+  private resetearControlIntentos(): void {
+    this.intentosFallidos = 0;
+    this.bloqueadoHasta = 0;
+    sessionStorage.removeItem(LoginComponent.ATTEMPTS_KEY);
+    sessionStorage.removeItem(LoginComponent.LOCK_KEY);
+  }
+
+  private registrarFalloLogin(): void {
+    this.intentosFallidos += 1;
+
+    if (this.intentosFallidos >= LoginComponent.MAX_ATTEMPTS) {
+      this.bloqueadoHasta = Date.now() + LoginComponent.LOCK_MS;
+      this.errorMessage = 'Demasiados intentos fallidos. Intenta nuevamente en 1 minuto.';
+    } else {
+      this.errorMessage = 'Credenciales inválidas. Verifica e intenta nuevamente.';
+    }
+
+    this.persistirControlIntentos();
+  }
+
+  private returnUrlSeguro(raw: string): string {
+    const value = String(raw ?? '').trim();
+    if (!value.startsWith('/')) return '/dashboard';
+    if (value.startsWith('//')) return '/dashboard';
+    if (value.includes('://')) return '/dashboard';
+    if (value.startsWith('/login')) return '/dashboard';
+    return value;
+  }
+
   validarUsuario(): void {
     if (this.is_loading) return;
+
+    if (this.estaBloqueado) {
+      this.is_error = true;
+      this.errorMessage = 'Demasiados intentos fallidos. Intenta nuevamente en 1 minuto.';
+      return;
+    }
 
     const codigo = this.user.codigo.trim();
     const password = this.user.password;
 
     if (!codigo || !password) {
       this.is_error = true;
-      this.errorMessage = 'Debe ingresar código y contraseña';
+      this.errorMessage = 'Debe ingresar credenciales válidas.';
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9._-]{3,30}$/.test(codigo)) {
+      this.is_error = true;
+      this.errorMessage = 'Formato de código no válido.';
+      return;
+    }
+
+    if (password.length < 4 || password.length > 128) {
+      this.is_error = true;
+      this.errorMessage = 'Formato de contraseña no válido.';
       return;
     }
 
@@ -58,15 +127,12 @@ export class LoginComponent {
           this.ngZone.run(() => {
             this.is_loading = false;
             this.is_error = true;
-            this.errorMessage =
-              err?.name === 'TimeoutError'
-                ? 'El servidor está tardando demasiado. Intente nuevamente.'
-                : err?.status === 401
-                  ? 'Código o contraseña no válidos'
-                  : err?.error?.message || 'No se pudo iniciar sesión. Intente nuevamente.';
+            this.registrarFalloLogin();
+            if (err?.name === 'TimeoutError') {
+              this.errorMessage = 'No fue posible validar tu sesión en este momento. Intenta nuevamente.';
+            }
             this.cdr.detectChanges();
           });
-            console.error('Login fallido:', err);
         },
       });
   }
@@ -132,8 +198,10 @@ export class LoginComponent {
     };
 
     this.authService.guardarSesion(vendedor);
+    this.resetearControlIntentos();
 
     this.authService.iniciarTimerInactividad();
-    this.router.navigate(['/dashboard']);
+    const returnUrl = this.returnUrlSeguro(this.route.snapshot.queryParamMap.get('returnUrl') ?? '/dashboard');
+    this.router.navigateByUrl(returnUrl || '/dashboard', { replaceUrl: true });
   }
 }

@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { Subject, forkJoin, of, takeUntil } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { AuthService } from '../../core/services/auth.service';
-import { Router } from '@angular/router';
 import { SessionUser } from '../../core/services/session.service';
 import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../core/services/ventas/cumplimientoVentasSemana.service';
@@ -94,7 +93,6 @@ interface ApiTotalesResponse<TDetalle> {
 export class DashboardComponent implements OnInit, OnDestroy {
   constructor(
     private authService: AuthService,
-    private router: Router,
     private cumplimientoService: CumplimientoService,
     private semanaService: CumplimientoSemanaService,
     private usuariosService: UsuariosService,
@@ -526,7 +524,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   logout(): void {
     this.authService.logout();
-    this.router.navigate(['/login'], { replaceUrl: true });
   }
 
   cargarOpcionesFiltros(): void {

@@ -2,7 +2,7 @@ import { Component, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { SidebarComponent } from '../../../shared/components/sidebar/sidebar.component';
-import { SessionService } from '../../../core/services/session.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { environment } from '../../../../environments/environment';
 
 type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
@@ -73,7 +73,7 @@ export class CargaComponent {
   constructor(
     private http: HttpClient,
     private cd: ChangeDetectorRef,
-    private session: SessionService,
+    private auth: AuthService,
   ) {}
 
   onArchivoSeleccionado(event: Event): void {
@@ -234,8 +234,7 @@ export class CargaComponent {
   }
 
   logout(): void {
-    this.session.clearUser();
-    window.location.href = '/login';
+    this.auth.logout();
   }
 
   // ─── Helpers privados ────────────────────────────────────────────────────────

@@ -3,8 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, forkJoin, takeUntil } from 'rxjs';
 import { UsuariosService } from '../../core/services/usuarios.service';
+import { AuthService } from '../../core/services/auth.service';
 import { SidebarComponent } from '../../shared/components/sidebar/sidebar.component';
-import { SessionService } from '../../core/services/session.service';
 
 type Seccion =
   | 'list'
@@ -22,7 +22,7 @@ type Seccion =
 })
 export class GestionUsuariosComponent implements OnInit, OnDestroy {
   private usuariosService = inject(UsuariosService);
-  private session = inject(SessionService);
+  private auth = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
   private destroy$ = new Subject<void>();
 
@@ -87,8 +87,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
   }
 
   logout(): void {
-    this.session.clearUser();
-    window.location.href = '/login';
+    this.auth.logout();
   }
 
   private notificar(tipo: 'success' | 'error', mensaje: string): void {
