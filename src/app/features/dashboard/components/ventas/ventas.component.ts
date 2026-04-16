@@ -625,6 +625,31 @@ export class VentasComponent implements OnInit, OnDestroy {
     });
   }
 
+  private limpiarNombreCategoria(valor: unknown): string {
+    let nombre = this.repararTextoCiudad(valor);
+    if (!nombre) return '';
+
+    nombre = nombre.replace(/^\d+\s*-\s*/u, '');
+    return nombre.trim();
+  }
+
+  private normalizarCategoria(valor: unknown): string {
+    return this.normalizarTexto(this.limpiarNombreCategoria(valor));
+  }
+
+  private filtrarCategorias(listado: any[], categoriaFiltroRaw: unknown): any[] {
+    const categoriaFiltro = this.normalizarCategoria(categoriaFiltroRaw);
+    if (!categoriaFiltro) return listado;
+
+    return listado.filter((item: any) => {
+      const categoriaItem = this.normalizarCategoria(
+        item?.categoria ?? item?.nomCategoria ?? item?.nombreCategoria ?? '',
+      );
+
+      return categoriaItem === categoriaFiltro || categoriaItem.includes(categoriaFiltro);
+    });
+  }
+
   private formatearMoneda(valor: unknown): string {
     const numero = Number(valor);
     const seguro = Number.isFinite(numero) ? numero : 0;
@@ -953,14 +978,15 @@ export class VentasComponent implements OnInit, OnDestroy {
               .pipe(takeUntil(this.destroy$))
               .subscribe((res: any) => {
                 const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
-                const detalleOrdenado = [...detalle].sort((a: any, b: any) =>
+                const detalleFiltrado = this.filtrarCategorias(detalle, filtrosActivos.categoria);
+                const detalleOrdenado = [...detalleFiltrado].sort((a: any, b: any) =>
                   String(a?.categoria ?? '').localeCompare(String(b?.categoria ?? ''), 'es', {
                     sensitivity: 'base',
                     numeric: true,
                   }),
                 );
 
-                if (!detalle.length && idx < candidatos.length - 1) {
+                if (!detalleFiltrado.length && idx < candidatos.length - 1) {
                   intentarCategoria(idx + 1);
                   return;
                 }
@@ -970,7 +996,7 @@ export class VentasComponent implements OnInit, OnDestroy {
                   (sum: number, item: any) => sum + (Number(item?.cuota ?? 0) || 0),
                   0,
                 );
-                const topCategorias = [...detalle]
+                const topCategorias = [...detalleFiltrado]
                   .sort((a: any, b: any) => Number(b?.acumulado ?? 0) - Number(a?.acumulado ?? 0))
                   .slice(0, 10)
                   .map((i: any) => ({

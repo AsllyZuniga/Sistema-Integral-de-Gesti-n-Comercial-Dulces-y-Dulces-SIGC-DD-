@@ -520,6 +520,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
         this.codigoVendedorDetectado = codigo;
         this.cargarOpcionesVendedor(this.filtrosActivos);
+        this.cargarCategoriasFiltros();
       });
   }
 
@@ -576,6 +577,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     if (!this.esAdmin && this.codigoVendedor) {
       this.cargarOpcionesVendedor(this.filtrosActivos);
+      this.cargarCategoriasFiltros();
     } else if (!this.esAdmin) {
       this.resolverCodigoVendedorDesdeApi();
     }
@@ -588,39 +590,63 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private cargarCategoriasFiltros(): void {
     const filtrosBase: DashboardFilters = {
       ...this.filtrosActivos,
+      fechaInicio: '',
+      fechaFin: '',
+      proveedor: '',
       categoria: '',
       ciudad: '',
       ciudadNombre: '',
       linea: '',
     };
 
-    const categorias$ = this.esAdmin
-      ? this.cumplimientoService.getCuotaCategoriasPorVendedores(filtrosBase)
-      : this.codigoVendedor
-        ? this.cumplimientoService.getCuotaCategoriaPorVendedor(this.codigoVendedor, filtrosBase)
-        : of({ detalle: [] });
+    const hoy = new Date();
+    const candidatos: DashboardFilters[] = [filtrosBase];
 
-    categorias$.pipe(takeUntil(this.destroy$)).subscribe((res: ApiTotalesResponse<ApiCategoriaRow>) => {
-      const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
-      const unicas = new Map<string, string>();
-
-      detalle.forEach((item) => {
-        const categoriaRaw = this.obtenerNombreCategoria(item);
-
-        if (!categoriaRaw) return;
-
-        const categoriaLimpia = this.limpiarNombreCategoria(categoriaRaw);
-        if (!categoriaLimpia) return;
-
-        if (!unicas.has(categoriaLimpia)) {
-          unicas.set(categoriaLimpia, categoriaRaw);
-        }
+    for (let i = 0; i <= 6; i += 1) {
+      candidatos.push({
+        ...filtrosBase,
+        fechaInicio: this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth() - i, 1)),
+        fechaFin: this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth() - i + 1, 0)),
       });
+    }
 
-      this.categoriasList = Array.from(unicas.entries())
-        .map(([label, value]) => ({ label, value }))
-        .sort((a, b) => a.label.localeCompare(b.label, 'es'));
-    });
+    const intentarCategorias = (idx: number): void => {
+      const filtrosConsulta = candidatos[idx];
+      const categorias$ = this.esAdmin
+        ? this.cumplimientoService.getCuotaCategoriasPorVendedores(filtrosConsulta)
+        : this.codigoVendedor
+          ? this.cumplimientoService.getCuotaCategoriaPorVendedor(this.codigoVendedor, filtrosConsulta)
+          : of({ detalle: [] });
+
+      categorias$.pipe(takeUntil(this.destroy$)).subscribe((res: ApiTotalesResponse<ApiCategoriaRow>) => {
+        const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+        const unicas = new Map<string, string>();
+
+        detalle.forEach((item) => {
+          const categoriaRaw = this.obtenerNombreCategoria(item);
+
+          if (!categoriaRaw) return;
+
+          const categoriaLimpia = this.limpiarNombreCategoria(categoriaRaw);
+          if (!categoriaLimpia) return;
+
+          if (!unicas.has(categoriaLimpia)) {
+            unicas.set(categoriaLimpia, categoriaRaw);
+          }
+        });
+
+        if (unicas.size === 0 && idx < candidatos.length - 1) {
+          intentarCategorias(idx + 1);
+          return;
+        }
+
+        this.categoriasList = Array.from(unicas.entries())
+          .map(([label, value]) => ({ label, value }))
+          .sort((a, b) => a.label.localeCompare(b.label, 'es'));
+      });
+    };
+
+    intentarCategorias(0);
   }
 
   onAplicarFiltros(filtros: DashboardFilters): void {
@@ -664,6 +690,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     this.filtrosActivos = { ...filtrosConCodigos };
+
+    // Refresca catálogo de categorías para el rango/proveedor actual.
+    this.cargarCategoriasFiltros();
 
     if (!this.esAdmin) {
       // El catálogo de ciudades debe mantenerse completo: no recargarlo filtrado por ciudad seleccionada.
