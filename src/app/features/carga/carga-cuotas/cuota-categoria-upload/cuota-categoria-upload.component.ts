@@ -33,7 +33,7 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
         >
           <input
             type="file"
-            accept=".csv,.txt"
+            accept=".csv"
             style="display: none"
             (change)="onArchivoSeleccionado($event)"
             #fileInput
@@ -338,8 +338,8 @@ export class CuotaCategoriaUploadComponent {
   private procesarArchivo(archivo: File): void {
     if (this.estaImportando) return;
 
-    if (!archivo.name.toLowerCase().match(/\.(csv|txt)$/)) {
-      this.setError('Solo se aceptan archivos .csv o .txt');
+    if (!archivo.name.toLowerCase().match(/\.csv$/)) {
+      this.setError('Solo se aceptan archivos .csv');
       return;
     }
 

@@ -49,14 +49,14 @@ export class CuotasUploadService {
 
   /**
    * Carga cuotas por categoría
-   * Endpoint: POST /cuota-categoria/upload (sugerido)
+   * Endpoint: POST /cuota-categoria-import/cargar
    * Formato esperado: Categoría, Cuota
    */
   uploadCuotasCategoria(archivo: File): Observable<CuotasUploadResponse> {
     const formData = new FormData();
     formData.append('archivo', archivo);
     return this.http.post<CuotasUploadResponse>(
-      `${this.apiUrl}/cuota-categoria/upload`,
+      `${this.apiUrl}/cuota-categoria-import/cargar`,
       formData,
     );
   }

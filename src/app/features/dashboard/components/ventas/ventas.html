@@ -64,6 +64,15 @@
 
       @case ('categoria') {
         <div class="stack-layout">
+          @if (tableData.length > 0) {
+            <div class="categoria-totales">
+              <span class="categoria-total-item">
+                <strong>Total Cuota:</strong>
+                {{ totalCuotaCategoriaLabel }}
+              </span>
+            </div>
+          }
+
           <div class="tabla-scroll category-table-scroll">
             @if (tableData.length > 0) {
               <app-table [columns]="categoriasColumns" [data]="tableData" />
@@ -180,12 +189,13 @@
                       <span class="cliente-stats">
                         {{ getCantidadItemsClienteLabel(cliente) }}
                         item{{ getCantidadItemsCliente(cliente) !== 1 ? 's' : '' }}
-                        <span aria-hidden="true">•</span>
-                        Total {{ getTotalClienteLabel(cliente) }}
                       </span>
-                      <span class="cliente-meta">
-                        Última compra: {{ cliente.ultimaCompraLabel }}
-                      </span>
+                      <div class="cliente-meta-row">
+                        <span class="cliente-meta">
+                          Última compra: {{ cliente.ultimaCompraLabel }}
+                        </span>
+                        <span class="cliente-total">Total {{ getTotalClienteLabel(cliente) }}</span>
+                      </div>
                     </div>
 
                     <span class="cliente-toggle" [class.open]="cliente.expandido">›</span>

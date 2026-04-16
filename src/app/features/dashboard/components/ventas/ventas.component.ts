@@ -92,6 +92,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   totalClientesFiltrados = 0;
   clienteBusqueda = '';
   cargandoClientes = false;
+  totalCuotaCategoria = 0;
 
   private readonly clientesPageSize = 30;
   private readonly productosPageSize = 25;
@@ -195,6 +196,7 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.totalClientesFiltrados = 0;
     this.clienteBusqueda = '';
     this.cargandoClientes = false;
+    this.totalCuotaCategoria = 0;
     this.clientesVisibles = this.clientesPageSize;
     this.chartId = 'chart-' + this.activeVentasView + '-' + Date.now();
     this.cdr.markForCheck();
@@ -556,8 +558,11 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   getTotalClienteLabel(cliente: any): string {
     const total = Number(cliente?.ventaAcum ?? 0);
-    const valor = Number.isFinite(total) ? total : 0;
-    return `$ ${valor.toLocaleString('es-CO')}`;
+    return this.formatearMoneda(total);
+  }
+
+  get totalCuotaCategoriaLabel(): string {
+    return this.formatearMoneda(this.totalCuotaCategoria);
   }
 
   tieneMasProductos(cliente: any): boolean {
@@ -618,6 +623,12 @@ export class VentasComponent implements OnInit, OnDestroy {
       const ciudadItem = this.normalizarTexto(item?.ciudad ?? '');
       return ciudadItem === ciudadFiltro;
     });
+  }
+
+  private formatearMoneda(valor: unknown): string {
+    const numero = Number(valor);
+    const seguro = Number.isFinite(numero) ? numero : 0;
+    return `$ ${seguro.toLocaleString('es-CO')}`;
   }
 
   private normalizarCodigoVendedor(valor: unknown): string {
@@ -942,20 +953,37 @@ export class VentasComponent implements OnInit, OnDestroy {
               .pipe(takeUntil(this.destroy$))
               .subscribe((res: any) => {
                 const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+                const detalleOrdenado = [...detalle].sort((a: any, b: any) =>
+                  String(a?.categoria ?? '').localeCompare(String(b?.categoria ?? ''), 'es', {
+                    sensitivity: 'base',
+                    numeric: true,
+                  }),
+                );
 
                 if (!detalle.length && idx < candidatos.length - 1) {
                   intentarCategoria(idx + 1);
                   return;
                 }
 
-                this.tableData = detalle;
-                this.chartData = [...detalle]
+                this.tableData = detalleOrdenado;
+                this.totalCuotaCategoria = detalleOrdenado.reduce(
+                  (sum: number, item: any) => sum + (Number(item?.cuota ?? 0) || 0),
+                  0,
+                );
+                const topCategorias = [...detalle]
                   .sort((a: any, b: any) => Number(b?.acumulado ?? 0) - Number(a?.acumulado ?? 0))
                   .slice(0, 10)
                   .map((i: any) => ({
                     name: i?.categoria ?? 'Sin categoría',
                     value: Number(i?.acumulado ?? 0),
                   }));
+
+                this.chartData = topCategorias.sort((a: any, b: any) =>
+                  String(a?.name ?? '').localeCompare(String(b?.name ?? ''), 'es', {
+                    sensitivity: 'base',
+                    numeric: true,
+                  }),
+                );
                 this.cdr.markForCheck();
               });
           };
