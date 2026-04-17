@@ -10,18 +10,6 @@ export class AuthGuard implements CanActivate {
   ) {}
 
   canActivate(_route: ActivatedRouteSnapshot, state: RouterStateSnapshot): boolean | UrlTree {
-    // Regla de negocio: nunca permitir salto Home -> Dashboard sin pasar por Login.
-    // Esto debe aplicar también cuando el usuario escribe /dashboard manualmente estando en Home.
-    const targetEsDashboard = state.url.startsWith('/dashboard');
-    const currentPath = String(this.router.url ?? '').split('?')[0].trim();
-    const vieneDesdeHome = currentPath === '/';
-
-    if (targetEsDashboard && vieneDesdeHome) {
-      return this.router.createUrlTree(['/login'], {
-        queryParams: { returnUrl: state.url || '/dashboard' },
-      });
-    }
-
     if (this.auth.isLoggedIn()) {
       this.auth.iniciarTimerInactividad();
       return true;

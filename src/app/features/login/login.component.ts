@@ -21,7 +21,7 @@ export class LoginComponent implements OnInit {
 
   is_error = false;
   is_loading = false;
-  errorMessage = 'Código o contraseña no válidos';
+  errorMessage = 'Código, nombre de usuario o contraseña no válidos';
   mostrarPassword = false;
   user = { codigo: '', password: '' };
   private intentosFallidos = 0;
@@ -87,18 +87,18 @@ export class LoginComponent implements OnInit {
       return;
     }
 
-    const codigo = this.user.codigo.trim();
+    const identificador = this.user.codigo.trim();
     const password = this.user.password;
 
-    if (!codigo || !password) {
+    if (!identificador || !password) {
       this.is_error = true;
       this.errorMessage = 'Debe ingresar credenciales válidas.';
       return;
     }
 
-    if (!/^[a-zA-Z0-9._-]{3,30}$/.test(codigo)) {
+    if (!/^[a-zA-ZÀ-ÿ0-9._\-\s]{3,60}$/.test(identificador)) {
       this.is_error = true;
-      this.errorMessage = 'Formato de código no válido.';
+      this.errorMessage = 'Formato de usuario no válido.';
       return;
     }
 
@@ -112,7 +112,7 @@ export class LoginComponent implements OnInit {
     this.is_error = false;
 
     this.authService
-      .login({ codigo, username: codigo, password })
+      .login({ codigo: identificador, username: identificador, nombre: identificador, password })
       .pipe(
         timeout(10000),
         finalize(() => {
@@ -140,7 +140,7 @@ export class LoginComponent implements OnInit {
   onCredentialInput(): void {
     if (this.is_error) {
       this.is_error = false;
-      this.errorMessage = 'Código o contraseña no válidos';
+      this.errorMessage = 'Código, nombre de usuario o contraseña no válidos';
     }
   }
 

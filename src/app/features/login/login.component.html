@@ -24,7 +24,7 @@
       <div class="login-form-head">
         <div>
           <h2>Iniciar sesión</h2>
-          <p>Ingrese su código para acceder.</p>
+          <p>Ingrese su código, nombre o nombre de usuario para acceder.</p>
         </div>
       </div>
 
@@ -34,7 +34,7 @@
 
       <form class="login-form" (ngSubmit)="validarUsuario()">
         <div class="form-group">
-          <label for="codigo">Código del usuario</label>
+          <label for="codigo">Código, nombre o usuario</label>
           <input
             id="codigo"
             name="codigo"
@@ -42,8 +42,8 @@
             [ngModelOptions]="{ updateOn: 'change' }"
             type="text"
             class="form-input"
-            placeholder="Ingrese su código"
-            maxlength="30"
+            placeholder="Ingrese su código, nombre o usuario"
+            maxlength="60"
             minlength="3"
             autocomplete="username"
             autocapitalize="none"

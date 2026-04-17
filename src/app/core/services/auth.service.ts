@@ -41,7 +41,7 @@ export class AuthService {
     this.iniciarSincronizacionPestanas();
   }
 
-  login(data: { codigo?: string; username?: string; password: string }): Observable<any> {
+  login(data: { codigo?: string; username?: string; nombre?: string; password: string }): Observable<any> {
     return this.http.post(`${this.apiUrl}/login`, data);
   }
 
