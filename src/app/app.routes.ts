@@ -1,5 +1,4 @@
 import { Routes } from '@angular/router';
-import { HomeComponent } from './features/home/home.component';
 import { LoginComponent } from './features/login/login.component';
 import { DashboardComponent } from './features/dashboard/dashboard.component';
 import { CargaComponent } from './features/carga/carga.component';
@@ -10,7 +9,7 @@ import { LoginGuard } from './core/guards/login.guard';
 import { RoleGuard } from './core/guards/role.guard';
 
 export const routes: Routes = [
-  { path: '', component: HomeComponent },
+  { path: '', redirectTo: 'login', pathMatch: 'full' },
   {
     path: 'login',
     component: LoginComponent,
@@ -39,5 +38,5 @@ export const routes: Routes = [
     canActivate: [RoleGuard],
     data: { roles: [1] }
   },
-  { path: '**', redirectTo: '' }
+  { path: '**', redirectTo: 'login' }
 ];

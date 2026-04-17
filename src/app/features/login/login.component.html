@@ -1,74 +1,95 @@
-<div class="login-container">
-  <div class="login-wrapper">
-    <div class="login-header">
-      <img src="/logoDulces.png" alt="Logo Dulces y Dulces" class="logo-img" />
-      <h1 class="app-title">Sistema de Control de Ventas</h1>
-      <p class="app-subtitle">Ingrese su código para acceder</p>
-    </div>
+<main class="login-shell">
+  <section class="login-stage" aria-label="Inicio de sesión de Dulces y Dulces">
+    <aside class="login-brand-panel">
+      <div class="brand-overlay"></div>
 
-    <div class="login-card">
-      <h2 class="form-title">Iniciar Sesión</h2>
+      <div class="brand-top">
+        <img
+          ngSrc="/logoDulces.png"
+          width="260"
+          height="110"
+          priority
+          alt="Dulces y Dulces"
+          class="brand-logo"
+        />
+
+        <div class="brand-content">
+          <h1>Bienvenido</h1>
+          <p>Accede al sistema comercial de Dulces y Dulces de forma rápida y segura.</p>
+        </div>
+      </div>
+    </aside>
+
+    <section class="login-form-panel">
+      <div class="login-form-head">
+        <div>
+          <h2>Iniciar sesión</h2>
+          <p>Ingrese su código para acceder.</p>
+        </div>
+      </div>
 
       <div class="alert alert-error" *ngIf="is_error">
         <span>{{ errorMessage }}</span>
       </div>
 
-      <div class="form-group">
-        <label for="codigo">Código del Vendedor</label>
-        <input
-          id="codigo"
-          [(ngModel)]="user.codigo"
-          [ngModelOptions]="{ updateOn: 'change' }"
-          type="text"
-          class="form-input"
-          placeholder="Ingrese su código"
-          maxlength="30"
-          minlength="3"
-          autocomplete="username"
-          autocapitalize="none"
-          autocorrect="off"
-          spellcheck="false"
-          (input)="onCredentialInput()"
-          (keyup.enter)="validarUsuario()"
-        />
-      </div>
-
-      <div class="form-group">
-        <label for="password">Contraseña</label>
-        <div class="password-field">
+      <form class="login-form" (ngSubmit)="validarUsuario()">
+        <div class="form-group">
+          <label for="codigo">Código del usuario</label>
           <input
-            id="password"
-            [(ngModel)]="user.password"
+            id="codigo"
+            name="codigo"
+            [(ngModel)]="user.codigo"
             [ngModelOptions]="{ updateOn: 'change' }"
-            [type]="mostrarPassword ? 'text' : 'password'"
+            type="text"
             class="form-input"
-            placeholder="Ingrese su contraseña"
-            minlength="4"
-            maxlength="128"
-            autocomplete="current-password"
+            placeholder="Ingrese su código"
+            maxlength="30"
+            minlength="3"
+            autocomplete="username"
             autocapitalize="none"
             autocorrect="off"
             spellcheck="false"
             (input)="onCredentialInput()"
-            (keyup.enter)="validarUsuario()"
           />
-          <button
-            type="button"
-            class="password-toggle"
-            (click)="togglePasswordVisibility()"
-            [attr.aria-label]="mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
-            [attr.title]="mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
-          >
-            <span class="material-symbols-rounded">
-              {{ mostrarPassword ? 'visibility_off' : 'visibility' }}
-            </span>
-          </button>
         </div>
-      </div>
 
-      <button type="button" class="btn-login" (click)="validarUsuario()" [disabled]="is_loading">
-        {{ is_loading ? 'Verificando...' : 'Iniciar Sesión' }}
-      </button>
-    </div>
-  </div>
-</div>
+        <div class="form-group">
+          <label for="password">Contraseña</label>
+          <div class="password-field">
+            <input
+              id="password"
+              name="password"
+              [(ngModel)]="user.password"
+              [ngModelOptions]="{ updateOn: 'change' }"
+              [type]="mostrarPassword ? 'text' : 'password'"
+              class="form-input"
+              placeholder="Ingrese su contraseña"
+              minlength="4"
+              maxlength="128"
+              autocomplete="current-password"
+              autocapitalize="none"
+              autocorrect="off"
+              spellcheck="false"
+              (input)="onCredentialInput()"
+            />
+            <button
+              type="button"
+              class="password-toggle"
+              (click)="togglePasswordVisibility()"
+              [attr.aria-label]="mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+              [attr.title]="mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            >
+              <span class="material-symbols-rounded">
+                {{ mostrarPassword ? 'visibility_off' : 'visibility' }}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-login" [disabled]="is_loading">
+          {{ is_loading ? 'Verificando...' : 'Iniciar sesión' }}
+        </button>
+      </form>
+    </section>
+  </section>
+</main>

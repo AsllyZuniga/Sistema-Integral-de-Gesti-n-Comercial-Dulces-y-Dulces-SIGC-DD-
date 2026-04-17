@@ -1,4 +1,5 @@
 import { ChangeDetectorRef, Component, NgZone, OnInit } from '@angular/core';
+import { NgOptimizedImage } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -10,7 +11,7 @@ import { AuthService } from '../../core/services/auth.service';
   standalone: true,
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css'],
-  imports: [FormsModule, CommonModule],
+  imports: [FormsModule, CommonModule, NgOptimizedImage],
 })
 export class LoginComponent implements OnInit {
   private static readonly LOCK_KEY = 'auth_login_lock_until';
@@ -110,7 +111,6 @@ export class LoginComponent implements OnInit {
     this.is_loading = true;
     this.is_error = false;
 
-    // Enviamos ambos campos para compatibilidad con backends que autentican por username o codigo.
     this.authService
       .login({ codigo, username: codigo, password })
       .pipe(
