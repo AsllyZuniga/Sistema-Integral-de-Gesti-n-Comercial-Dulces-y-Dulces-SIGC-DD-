@@ -6,7 +6,6 @@
   box-sizing: border-box;
 }
 
-/* ✅ Layout principal: tabla arriba, gráfica abajo */
 .stack-layout {
   display: flex;
   flex-direction: column;
@@ -118,6 +117,7 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
+/* ── Totales categoría (pills) ── */
 .categoria-totales {
   display: flex;
   align-items: center;
@@ -126,22 +126,26 @@
   flex-wrap: wrap;
 }
 
-.categoria-total-item {
+.categoria-total-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 12px;
+  padding: 7px 16px;
   border-radius: 999px;
   border: 1px solid #cfdae7;
-  background: #eef3f9;
-  font-size: 12px;
-  color: #2f527a;
+  background: #ffffff;
+  font-size: 13px;
+  color: #314457;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(15, 31, 58, 0.08);
 }
 
-.categoria-total-item strong {
+.categoria-total-pill strong {
   font-weight: 700;
+  color: #1959a8;
 }
 
+/* ── Proveedor KPIs ── */
 .proveedor-kpis {
   display: flex;
   margin-bottom: 10px;

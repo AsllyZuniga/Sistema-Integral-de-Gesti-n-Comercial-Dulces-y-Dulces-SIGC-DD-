@@ -96,6 +96,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   cargandoClientes = false;
   totalCuotaCategoria = 0;
   totalAcumuladoCategoria = 0;
+  totalTopCategorias = 0;
   totalTopProveedores = 0;
   totalTopClientes = 0;
   totalTopItemsSubtotal = 0;
@@ -205,6 +206,7 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.cargandoClientes = false;
     this.totalCuotaCategoria = 0;
     this.totalAcumuladoCategoria = 0;
+    this.totalTopCategorias = 0;
     this.totalTopProveedores = 0;
     this.totalTopClientes = 0;
     this.totalTopItemsSubtotal = 0;
@@ -629,6 +631,10 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   get totalAcumuladoCategoriaLabel(): string {
     return this.formatearMoneda(this.totalAcumuladoCategoria);
+  }
+
+  get totalTopCategoriasLabel(): string {
+    return this.formatearMoneda(this.totalTopCategorias);
   }
 
   get totalTopProveedoresLabel(): string {
@@ -1110,28 +1116,33 @@ export class VentasComponent implements OnInit, OnDestroy {
                 }
 
                 this.tableData = detalleOrdenado;
+
                 this.totalCuotaCategoria = detalleOrdenado.reduce(
                   (sum: number, item: any) => sum + (Number(item?.cuota ?? 0) || 0),
                   0,
                 );
+
                 this.totalAcumuladoCategoria = detalleOrdenado.reduce(
-                  (sum: number, item: any) => sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
+                  (sum: number, item: any) =>
+                    sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
                   0,
                 );
+
                 const topCategorias = [...detalleFiltrado]
-                  .sort((a: any, b: any) => Number(b?.acumulado ?? 0) - Number(a?.acumulado ?? 0))
-                  .slice(0, 10)
                   .map((i: any) => ({
                     name: i?.categoria ?? 'Sin categoría',
-                    value: Number(i?.acumulado ?? 0),
-                  }));
+                    value: Number(i?.acumulado ?? i?.ventaAcum ?? 0),
+                  }))
+                  .sort((a: any, b: any) => b.value - a.value)
+                  .slice(0, 15);
 
-                this.chartData = topCategorias.sort((a: any, b: any) =>
-                  String(a?.name ?? '').localeCompare(String(b?.name ?? ''), 'es', {
-                    sensitivity: 'base',
-                    numeric: true,
-                  }),
+                this.totalTopCategorias = topCategorias.reduce(
+                  (sum: number, item: any) => sum + (Number(item?.value ?? 0) || 0),
+                  0,
                 );
+
+                this.chartData = topCategorias;
+                this.chartId = 'chart-categoria-' + Date.now();
                 this.cdr.markForCheck();
               });
           };
