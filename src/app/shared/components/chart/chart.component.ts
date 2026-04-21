@@ -39,6 +39,7 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() data: { name: string; value: number }[] = [];
   @Input() label: string = 'Datos';
   @Input() chartId?: string;
+  @Input() showLegend = true;
 
   private chartInstance: Chart | null = null;
   private viewReady = false;
@@ -97,16 +98,24 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'top' },
+        legend: {
+          display: this.showLegend,
+          position: 'top',
+        },
+        // Si existe chartjs-plugin-datalabels en el proyecto o por carga global,
+        // se fuerza a ocultar los valores encima de las barras.
+        datalabels: {
+          display: false,
+        } as any,
         tooltip: {
           callbacks: {
-            label: (ctx) => {
+            label: (ctx: any) => {
               const val = ctx.parsed?.y ?? ctx.parsed;
-              return ' ' + this.formatNumber(typeof val === 'number' ? val : 0);
+              return ' ' + this.formatFullCurrency(typeof val === 'number' ? val : 0);
             },
           },
         },
-      },
+      } as any,
       ...(isBar || isLine
         ? {
           scales: {
@@ -146,6 +155,10 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (Math.abs(val) >= 1_000_000) return '$ ' + (val / 1_000_000).toFixed(1) + 'M';
     if (Math.abs(val) >= 1_000) return '$ ' + (val / 1_000).toFixed(0) + 'K';
     return val.toLocaleString('es-CO');
+  }
+
+  private formatFullCurrency(val: number): string {
+    return `$ ${Number(val || 0).toLocaleString('es-CO')}`;
   }
 }
 

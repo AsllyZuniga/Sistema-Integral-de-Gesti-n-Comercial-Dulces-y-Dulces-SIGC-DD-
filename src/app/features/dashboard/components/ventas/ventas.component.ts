@@ -93,6 +93,11 @@ export class VentasComponent implements OnInit, OnDestroy {
   clienteBusqueda = '';
   cargandoClientes = false;
   totalCuotaCategoria = 0;
+  totalAcumuladoCategoria = 0;
+  totalTopProveedores = 0;
+  totalTopClientes = 0;
+  totalTopItemsSubtotal = 0;
+  liderVentasProveedor = '—';
 
   private readonly clientesPageSize = 30;
   private readonly productosPageSize = 25;
@@ -197,6 +202,11 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.clienteBusqueda = '';
     this.cargandoClientes = false;
     this.totalCuotaCategoria = 0;
+    this.totalAcumuladoCategoria = 0;
+    this.totalTopProveedores = 0;
+    this.totalTopClientes = 0;
+    this.totalTopItemsSubtotal = 0;
+    this.liderVentasProveedor = '—';
     this.clientesVisibles = this.clientesPageSize;
     this.chartId = 'chart-' + this.activeVentasView + '-' + Date.now();
     this.cdr.markForCheck();
@@ -209,17 +219,25 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private recalcularChart(): void {
-    const agg = new Map<string, number>();
+    const agg = new Map<string, { subtotal: number }>();
 
     for (const row of this.allItemData) {
       const key = row.Descripcion ?? 'SIN DESCRIPCION';
-      agg.set(key, (agg.get(key) ?? 0) + Number(row.Venta_Unid_Cajas ?? 0));
+      const actual = agg.get(key) ?? { subtotal: 0 };
+      actual.subtotal += this.calcularVentaRow(row);
+      agg.set(key, actual);
     }
 
-    this.chartData = Array.from(agg.entries())
-      .map(([name, value]) => ({ name, value }))
+    const topItems = Array.from(agg.entries())
+      .map(([name, value]) => ({ name, value: Number(value?.subtotal ?? 0) }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 10);
+      .slice(0, 15);
+
+    this.totalTopItemsSubtotal = topItems.reduce(
+      (sum: number, item: any) => sum + (Number(item?.value ?? 0) || 0),
+      0,
+    );
+    this.chartData = topItems;
 
     this.chartId = 'chart-item-' + Date.now();
     this.cdr.markForCheck();
@@ -342,13 +360,28 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   private ordenarDetalleItemsPorFechaAsc(listado: any[]): any[] {
     return [...listado].sort((a: any, b: any) => {
-      const fechaA = this.parseFechaOrden(this.obtenerFechaVenta(a));
-      const fechaB = this.parseFechaOrden(this.obtenerFechaVenta(b));
-      if (fechaA !== fechaB) return fechaA - fechaB;
-
       const proveedorA = String(a?.Proveedor ?? a?.proveedor ?? '').trim();
       const proveedorB = String(b?.Proveedor ?? b?.proveedor ?? '').trim();
-      return proveedorA.localeCompare(proveedorB, 'es', { sensitivity: 'base' });
+      const cmpProveedor = proveedorA.localeCompare(proveedorB, 'es', {
+        sensitivity: 'base',
+        numeric: true,
+      });
+      if (cmpProveedor !== 0) return cmpProveedor;
+
+      const descripcionA = this.obtenerDescripcionItem(a);
+      const descripcionB = this.obtenerDescripcionItem(b);
+      const cmpDescripcion = descripcionA.localeCompare(descripcionB, 'es', {
+        sensitivity: 'base',
+        numeric: true,
+      });
+      if (cmpDescripcion !== 0) return cmpDescripcion;
+
+      const codigoA = this.obtenerCodigoItem(a);
+      const codigoB = this.obtenerCodigoItem(b);
+      return codigoA.localeCompare(codigoB, 'es', {
+        sensitivity: 'base',
+        numeric: true,
+      });
     });
   }
 
@@ -565,6 +598,26 @@ export class VentasComponent implements OnInit, OnDestroy {
     return this.formatearMoneda(this.totalCuotaCategoria);
   }
 
+  get totalAcumuladoCategoriaLabel(): string {
+    return this.formatearMoneda(this.totalAcumuladoCategoria);
+  }
+
+  get totalTopProveedoresLabel(): string {
+    return this.formatearMoneda(this.totalTopProveedores);
+  }
+
+  get totalTopClientesLabel(): string {
+    return this.formatearMoneda(this.totalTopClientes);
+  }
+
+  get totalTopItemsSubtotalLabel(): string {
+    return this.formatearMoneda(this.totalTopItemsSubtotal);
+  }
+
+  get totalTopProveedoresCompactoLabel(): string {
+    return this.formatearMonedaCompacta(this.totalTopProveedores);
+  }
+
   tieneMasProductos(cliente: any): boolean {
     const total = cliente?.productos?.length ?? 0;
     return total > this.getLimiteProductosCliente(cliente?.key);
@@ -654,6 +707,25 @@ export class VentasComponent implements OnInit, OnDestroy {
     const numero = Number(valor);
     const seguro = Number.isFinite(numero) ? numero : 0;
     return `$ ${seguro.toLocaleString('es-CO')}`;
+  }
+
+  private formatearMonedaCompacta(valor: unknown): string {
+    const numero = Number(valor);
+    const seguro = Number.isFinite(numero) ? numero : 0;
+    if (Math.abs(seguro) >= 1_000_000) {
+      return `$${(seguro / 1_000_000).toFixed(1)}M`;
+    }
+    if (Math.abs(seguro) >= 1_000) {
+      return `$${(seguro / 1_000).toFixed(0)}K`;
+    }
+    return `$${seguro.toLocaleString('es-CO')}`;
+  }
+
+  private nombreProveedorCard(lineaRaw: unknown): string {
+    const linea = String(lineaRaw ?? '').trim();
+    if (!linea) return '—';
+    const sinCodigo = linea.replace(/^\d+\s*-\s*/u, '').trim();
+    return sinCodigo || linea;
   }
 
   private normalizarCodigoVendedor(valor: unknown): string {
@@ -947,13 +1019,22 @@ export class VentasComponent implements OnInit, OnDestroy {
               }
 
               const listadoTabla = this.ordenarProveedoresPorAlfabeto(listado);
-              const topProveedores = this.limitarTopProveedores(listadoFiltrado);
+              const topProveedores = [...listadoFiltrado]
+                .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+                .slice(0, 12);
+
+              this.totalTopProveedores = topProveedores.reduce(
+                (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+                0,
+              );
+              this.liderVentasProveedor = this.nombreProveedorCard(topProveedores[0]?.linea ?? '—');
+
               this.tableData = codigoProveedor
                 ? this.ordenarProveedoresPorAlfabeto(listadoFiltrado)
                 : listadoTabla;
               this.chartData = topProveedores.map((i: any) => ({
                 name: i.linea,
-                value: Number(i.cuotaLinea ?? 0),
+                value: Number(i.ventaAcum ?? 0),
               }));
               this.cdr.markForCheck();
             });
@@ -994,6 +1075,10 @@ export class VentasComponent implements OnInit, OnDestroy {
                 this.tableData = detalleOrdenado;
                 this.totalCuotaCategoria = detalleOrdenado.reduce(
                   (sum: number, item: any) => sum + (Number(item?.cuota ?? 0) || 0),
+                  0,
+                );
+                this.totalAcumuladoCategoria = detalleOrdenado.reduce(
+                  (sum: number, item: any) => sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
                   0,
                 );
                 const topCategorias = [...detalleFiltrado]
@@ -1155,7 +1240,12 @@ export class VentasComponent implements OnInit, OnDestroy {
                   const detalleClientes = this.construirDetalleClientes(listado);
                   const topClientes = [...detalleClientes]
                     .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
-                    .slice(0, 10);
+                    .slice(0, 15);
+
+                  this.totalTopClientes = topClientes.reduce(
+                    (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+                    0,
+                  );
 
                   this.clientesAgrupados = detalleClientes;
                   this.clientesVisibles = this.clientesPageSize;

@@ -142,6 +142,76 @@
   font-weight: 700;
 }
 
+.proveedor-kpis {
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.proveedor-kpi-card {
+  background: #e8f2ff;
+  border-radius: 0;
+  border: 1px solid #c8dbf7;
+  padding: 10px 12px;
+  min-width: 210px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.proveedor-kpi-label {
+  font-size: 11px;
+  color: #43648f;
+  font-weight: 500;
+}
+
+.proveedor-kpi-value {
+  font-size: 16px;
+  line-height: 1.1;
+  color: #163a67;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+}
+
+.proveedor-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.proveedor-chart-head h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #20201e;
+}
+
+.proveedor-chart-head span {
+  font-size: 13px;
+  color: #4b4b47;
+  white-space: nowrap;
+}
+
+.cliente-top-resumen {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.cliente-top-resumen-label {
+  font-size: 12px;
+  color: #4e6781;
+}
+
+.cliente-top-resumen-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #17304a;
+}
+
 .placeholder {
   text-align: center;
   color: var(--c-text-muted);
@@ -316,6 +386,21 @@
   .filtro-bar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .proveedor-kpis {
+    width: 100%;
+  }
+
+  .proveedor-kpi-card {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .proveedor-chart-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
 
   .categoria-totales {

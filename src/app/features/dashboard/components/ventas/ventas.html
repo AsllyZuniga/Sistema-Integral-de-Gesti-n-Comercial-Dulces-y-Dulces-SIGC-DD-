@@ -51,12 +51,23 @@
 
           @if (chartData.length > 0) {
             <div class="grafica-container">
-              <h4>Cuota por Proveedor</h4>
+              <div class="proveedor-kpis">
+                <article class="proveedor-kpi-card">
+                  <span class="proveedor-kpi-label">Suma top 12</span>
+                  <strong class="proveedor-kpi-value">{{ totalTopProveedoresLabel }}</strong>
+                </article>
+              </div>
+
+              <div class="proveedor-chart-head">
+                <h4>Proveedores por venta acumulada</h4>
+              </div>
+
               <app-chart
                 [chartId]="chartId"
                 [data]="chartData"
                 [type]="chartType"
-                label="Cuota por Proveedor" />
+                [showLegend]="false"
+                label="Ventas acumuladas" />
             </div>
           }
         </div>
@@ -69,6 +80,10 @@
               <span class="categoria-total-item">
                 <strong>Total Cuota:</strong>
                 {{ totalCuotaCategoriaLabel }}
+              </span>
+              <span class="categoria-total-item">
+                <strong>Total Acumulado:</strong>
+                {{ totalAcumuladoCategoriaLabel }}
               </span>
             </div>
           }
@@ -147,12 +162,18 @@
 
           @if (chartData.length > 0) {
             <div class="grafica-container">
-              <h4>Top 10 Items</h4>
+              <div class="proveedor-kpis">
+                <article class="proveedor-kpi-card">
+                  <span class="proveedor-kpi-label">Suma subtotal</span>
+                  <strong class="proveedor-kpi-value">{{ totalTopItemsSubtotalLabel }}</strong>
+                </article>
+              </div>
+              <h4>Top 15 Items</h4>
               <app-chart
                 [chartId]="chartId"
                 [data]="chartData"
                 [type]="chartType"
-                label="Top 10 Items" />
+                label="Top 15 Items" />
             </div>
           }
         </div>
@@ -233,12 +254,18 @@
 
           @if (chartData.length > 0) {
             <div class="grafica-container">
-              <h4>Top 10 Clientes</h4>
+              <div class="proveedor-kpis">
+                <article class="proveedor-kpi-card">
+                  <span class="proveedor-kpi-label">Suma Top 15</span>
+                  <strong class="proveedor-kpi-value">{{ totalTopClientesLabel }}</strong>
+                </article>
+              </div>
+              <h4>Total Acumulado</h4>
               <app-chart
                 [chartId]="chartId"
                 [data]="chartData"
                 [type]="chartType"
-                label="Top 10 Clientes" />
+                label="Top 15 Clientes" />
             </div>
           }
         </div>
