@@ -17,6 +17,7 @@ import { TableComponent } from '../../../../shared/components/table/table.compon
 import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
 import { AuthService } from '../../../../core/services/auth.service';
 import { TipoCuota } from '../../../cumplimientos-cuota/cumplimientos.component';
+import { environment } from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-ventas',
@@ -35,7 +36,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   @Input() set codigoVendedor(value: string) {
     this._codigoVendedor = this.normalizarCodigoVendedor(value);
     if (value && this.iniciado) {
-      this.cargarVistaActual();
+      this.solicitarCargaVista();
     }
   }
   get codigoVendedor(): string {
@@ -48,8 +49,7 @@ export class VentasComponent implements OnInit, OnDestroy {
     this._tipoCuota = value;
 
     if (cambio && this._codigoVendedor && this.iniciado) {
-      this.resetearVista();
-      this.cargarVistaActual();
+      this.solicitarCargaVista(true);
     }
   }
   get tipoCuota(): TipoCuota {
@@ -60,7 +60,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   @Input() set filtros(value: DashboardFilters) {
     this._filtros = value;
     if (this._codigoVendedor && this.iniciado) {
-      this.cargarVistaActual();
+      this.solicitarCargaVista();
     }
   }
   get filtros(): DashboardFilters {
@@ -79,6 +79,8 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
   private iniciado = false;
+  private cargaProgramada = false;
+  private ultimaCargaKey = '';
 
   rolId = 0;
   activeVentasView = 'ventas';
@@ -179,7 +181,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.iniciado = true;
     if (this._codigoVendedor) {
-      this.cargarVistaActual();
+      this.solicitarCargaVista(true);
     }
   }
 
@@ -215,7 +217,34 @@ export class VentasComponent implements OnInit, OnDestroy {
   setVentasView(view: string): void {
     if (this.activeVentasView === view) return;
     this.activeVentasView = view;
-    this.cargarVistaActual();
+    this.solicitarCargaVista(true);
+  }
+
+  private debugLog(contexto: string, detalle: string): void {
+    if (!environment.production) {
+      console.debug(`[${contexto}] ${detalle}`);
+    }
+  }
+
+  private construirCargaKey(): string {
+    return JSON.stringify({
+      view: this.activeVentasView,
+      codigoVendedor: this._codigoVendedor,
+      tipoCuota: this._tipoCuota,
+      filtros: this._filtros,
+    });
+  }
+
+  private solicitarCargaVista(force = false): void {
+    if (!this._codigoVendedor || !this.iniciado) return;
+
+    if (this.cargaProgramada && !force) return;
+    this.cargaProgramada = true;
+
+    queueMicrotask(() => {
+      this.cargaProgramada = false;
+      this.cargarVistaActual(force);
+    });
   }
 
   private recalcularChart(): void {
@@ -906,8 +935,16 @@ export class VentasComponent implements OnInit, OnDestroy {
     return candidatos;
   }
 
-  cargarVistaActual(): void {
+  cargarVistaActual(force = false): void {
     if (!this._codigoVendedor) return;
+
+    const cargaKey = this.construirCargaKey();
+    if (!force && cargaKey === this.ultimaCargaKey) {
+      this.debugLog('VentasComponent.cargarVistaActual', 'Carga omitida por parametros repetidos');
+      return;
+    }
+    this.ultimaCargaKey = cargaKey;
+    this.debugLog('VentasComponent.cargarVistaActual', `Cargando vista ${this.activeVentasView}`);
 
     this.resetearVista();
 
