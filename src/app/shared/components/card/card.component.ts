@@ -1,5 +1,6 @@
 import {
   Component,
+  HostBinding,
   Input,
   OnInit,
   ChangeDetectionStrategy,
@@ -24,6 +25,9 @@ import { CommonModule } from '@angular/common';
   styleUrls: ['./card.component.css'],
 })
 export class CardComponent implements OnInit {
+  // Evita el tooltip nativo del navegador cuando el componente recibe `title="..."`.
+  @HostBinding('attr.title') hostTitle: null = null;
+
   @Input() title!: string;
 
   @Input() set value(val: string | number) {

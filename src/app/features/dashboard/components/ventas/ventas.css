@@ -118,6 +118,100 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
+.categoria-totales {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.categoria-total-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid #cfdae7;
+  background: #eef3f9;
+  font-size: 12px;
+  color: #2f527a;
+}
+
+.categoria-total-item strong {
+  font-weight: 700;
+}
+
+.proveedor-kpis {
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.proveedor-kpi-card {
+  background: #e8f2ff;
+  border-radius: 0;
+  border: 1px solid #c8dbf7;
+  padding: 10px 12px;
+  min-width: 210px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.proveedor-kpi-label {
+  font-size: 11px;
+  color: #43648f;
+  font-weight: 500;
+}
+
+.proveedor-kpi-value {
+  font-size: 16px;
+  line-height: 1.1;
+  color: #163a67;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+}
+
+.proveedor-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.proveedor-chart-head h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #20201e;
+}
+
+.proveedor-chart-head span {
+  font-size: 13px;
+  color: #4b4b47;
+  white-space: nowrap;
+}
+
+.cliente-top-resumen {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.cliente-top-resumen-label {
+  font-size: 12px;
+  color: #4e6781;
+}
+
+.cliente-top-resumen-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #17304a;
+}
+
 .placeholder {
   text-align: center;
   color: var(--c-text-muted);
@@ -125,10 +219,19 @@
   font-size: 14px;
 }
 .placeholder::before {
-  content: '📈';
-  font-size: 32px;
+  content: 'monitoring';
+  font-family: 'Material Symbols Rounded';
+  font-size: 28px;
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 10px;
+  border-radius: 14px;
+  color: var(--c-primary);
+  background: linear-gradient(135deg, rgba(0, 66, 134, 0.14), rgba(0, 66, 134, 0.06));
+  border: 1px solid rgba(0, 66, 134, 0.2);
   display: block;
-  margin-bottom: 8px;
+  line-height: 56px;
 }
 
 .clientes-listado {
@@ -185,55 +288,67 @@
   color: #1f2732;
 }
 
+.cliente-identidad {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.cliente-stats {
+  display: block;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #40566f;
+  letter-spacing: 0;
+}
+
 .cliente-meta {
-  display: inline-block;
+  display: block;
   margin-top: 2px;
   font-size: 11px;
   color: #5f6d7f;
 }
 
-.cliente-resumen {
-  margin-left: auto;
+.cliente-meta-row {
   display: flex;
-  flex-direction: row;
-  align-items: flex-end;
-  gap: 0;
-  min-width: 120px;
-  font-size: 11px;
-  color: #5f6d7f;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.cliente-resumen strong {
+.cliente-total {
+  margin-top: 2px;
+  white-space: nowrap;
   font-size: 11px;
-  line-height: 1;
-  color: #5f6d7f;
-  letter-spacing: 0;
   font-weight: 400;
+  color: #5f6d7f;
 }
 
-.cliente-resumen .items-label {
-  margin-left: 6px;
-  font-size: 11px;
-  line-height: 1;
-  color: #5f6d7f;
+.cliente-resumen {
+  display: none;
 }
 
 .cliente-toggle {
   margin-left: 10px;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  color: #627892;
-  background: #f2f5f8;
-  transition: transform 0.2s ease;
+  font-size: 20px;
+  line-height: 1;
+  color: #6f8298;
+  background: transparent;
+  border: 0;
+  transform: rotate(90deg);
+  transition: color 0.2s ease;
 }
 
 .cliente-toggle.open {
-  transform: rotate(180deg);
+  transform: none;
+  color: #35587f;
 }
 
 .cliente-body {
@@ -273,6 +388,25 @@
     align-items: stretch;
   }
 
+  .proveedor-kpis {
+    width: 100%;
+  }
+
+  .proveedor-kpi-card {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .proveedor-chart-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .categoria-totales {
+    justify-content: flex-start;
+  }
+
   .filtro-bar-clientes {
     padding: 10px;
     border-radius: 14px;
@@ -297,11 +431,12 @@
     font-size: 15px;
   }
 
-  .cliente-resumen strong {
+  .cliente-stats,
+  .cliente-meta {
     font-size: 10px;
   }
 
-  .cliente-resumen .items-label {
+  .cliente-total {
     font-size: 10px;
   }
 }

@@ -7,7 +7,19 @@
         <button class="mobile-menu-btn" (click)="toggleMenuMovil()">
           <span class="material-symbols-rounded">menu</span>
         </button>
-        <h2 class="page-title">Carga de Ventas</h2>
+        <img class="topbar-logo" src="logoDulces.png" alt="Logo" />
+      </div>
+      <div class="topbar-center">
+        <h1>
+          <span class="accent">Carga de Ventas</span>
+        </h1>
+        <span class="welcome">Sistema de Control de Ventas · Dulces y Dulces</span>
+      </div>
+      <div class="topbar-right">
+        <button class="logout-btn" (click)="logout()">
+          <span class="material-symbols-rounded">logout</span>
+          <span class="logout-label">Salir</span>
+        </button>
       </div>
     </header>
 
@@ -25,7 +37,11 @@
           class="upload-zone"
           [class.has-file]="archivoSeleccionado"
           [class.is-loading]="estaImportando"
+          [class.is-dragover]="isDragOver"
           (click)="onClickZonaCarga()"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onDropArchivo($event)"
         >
           <input
             id="fileInput"
@@ -37,7 +53,7 @@
 
           @if (!archivoSeleccionado) {
             <span class="material-symbols-rounded upload-icon">upload_file</span>
-            <p class="upload-text">Haz clic para seleccionar el archivo</p>
+            <p class="upload-text">Arrastra o selecciona el archivo</p>
             <p class="upload-hint">Formato aceptado: <strong>.txt</strong></p>
           } @else {
             <span class="material-symbols-rounded upload-icon file-ready">task</span>

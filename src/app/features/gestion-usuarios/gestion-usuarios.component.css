@@ -226,9 +226,9 @@
 
 .btn-primary:hover,
 .btn-guardar:hover:not(:disabled) {
-  background: var(--c-primary-dark);
+  background: #0a3f82;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 6px 14px rgba(10, 63, 130, 0.35);
 }
 
 .btn-primary:active,

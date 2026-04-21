@@ -25,7 +25,11 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
           class="upload-zone"
           [class.has-file]="archivoSeleccionado"
           [class.is-loading]="estaImportando"
+          [class.is-dragover]="isDragOver"
           (click)="onClickZonaCarga()"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onDropArchivo($event)"
         >
           <input
             type="file"
@@ -37,7 +41,7 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
 
           @if (!archivoSeleccionado) {
             <span class="material-symbols-rounded upload-icon">upload_file</span>
-            <p class="upload-text">Seleccionar archivo CSV</p>
+            <p class="upload-text">Arrastra o selecciona archivo CSV</p>
             <p class="upload-hint">Formato: <strong>Vendedor, Cuota Mes</strong></p>
           } @else {
             <span class="material-symbols-rounded upload-icon file-ready">task</span>
@@ -143,6 +147,11 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
       .upload-zone.has-file {
         border-color: var(--c-success);
         background: rgba(22, 163, 74, 0.02);
+      }
+
+      .upload-zone.is-dragover {
+        border-color: var(--c-primary);
+        background: rgba(37, 99, 235, 0.08);
       }
 
       .upload-zone.is-loading {
@@ -269,6 +278,7 @@ export class CuotaVendedorUploadComponent {
   @ViewChild('fileInput') fileInputRef?: ElementRef<HTMLInputElement>;
 
   archivoSeleccionado: File | null = null;
+  isDragOver = false;
   estado: EstadoCarga = 'idle';
   resultado: CuotasUploadResponse | null = null;
   mensajeError = '';
@@ -295,6 +305,38 @@ export class CuotaVendedorUploadComponent {
 
     const archivo = input.files[0];
     input.value = '';
+
+    this.procesarArchivo(archivo);
+  }
+
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.estaImportando) return;
+    this.isDragOver = true;
+  }
+
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+  }
+
+  onDropArchivo(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+
+    if (this.estaImportando) return;
+
+    const archivo = event.dataTransfer?.files?.[0];
+    if (!archivo) return;
+
+    this.procesarArchivo(archivo);
+  }
+
+  private procesarArchivo(archivo: File): void {
+    if (this.estaImportando) return;
 
     if (!archivo.name.toLowerCase().match(/\.(csv|txt)$/)) {
       this.setError('Solo se aceptan archivos .csv o .txt');

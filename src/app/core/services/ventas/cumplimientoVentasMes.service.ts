@@ -187,12 +187,24 @@ export class CumplimientoService {
                 ? res.detalle
                 : [];
 
-          const idObjetivo = String(id).trim();
-          const dataFiltrada = data.filter((row: any) => {
+          const normalizarIdVendedor = (valor: unknown): string => {
+            const raw = String(valor ?? '').trim();
+            if (!raw) return '';
+            return /^\d+$/.test(raw) ? String(Number(raw)) : raw;
+          };
+
+          const idObjetivo = normalizarIdVendedor(id);
+          const dataConIdVendedor = data.filter((row: any) => {
             const idRow = row?.id_vendedor ?? row?.idVendedor ?? row?.vendedor_id ?? row?.idVendedorAsociado;
-            if (idRow === null || idRow === undefined) return false;
-            return String(idRow).trim() === idObjetivo;
+            return idRow !== null && idRow !== undefined;
           });
+
+          const dataFiltrada = !idObjetivo || dataConIdVendedor.length === 0
+            ? data
+            : dataConIdVendedor.filter((row: any) => {
+                const idRow = row?.id_vendedor ?? row?.idVendedor ?? row?.vendedor_id ?? row?.idVendedorAsociado;
+                return normalizarIdVendedor(idRow) === idObjetivo;
+              });
 
           return { ...(res ?? {}), data: dataFiltrada };
         }),

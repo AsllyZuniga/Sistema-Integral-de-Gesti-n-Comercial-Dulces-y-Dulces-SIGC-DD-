@@ -26,7 +26,7 @@
 
 /* ===== RESET ===== */
 *, *::before, *::after { box-sizing: border-box; }
-body, html { margin: 0; padding: 0; background: var(--c-bg); min-height: 100vh; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; }
+body, html { margin: 0; padding: 0; background: var(--c-bg); min-height: 100vh; width: 100%; overflow-x: hidden; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; }
 
 /* ===== LAYOUT COMPARTIDO ===== */
 .layout      { display: flex; min-height: 100vh; background: var(--c-bg); }
@@ -121,6 +121,7 @@ body, html { margin: 0; padding: 0; background: var(--c-bg); min-height: 100vh; 
   .filtro-bar        { padding: 10px 12px; gap: 8px; }
   .filtro-select-wrap { max-width: 100%; min-width: 0; flex: 1 1 auto; }
   .filtro-badge      { margin-left: 0; }
+  html, body         { overflow-x: hidden; }
 }
 @media (max-width: 480px) {
   .chart-box         { padding: 14px 12px; border-radius: var(--r-lg); }
@@ -237,3 +238,4 @@ app-gestion-usuarios .logout-btn:active { transform: translateY(0); }
   0% { transform: translateX(100%); }
   100% { transform: translateX(-100%); }
 }
+

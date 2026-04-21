@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { CanActivate, ActivatedRouteSnapshot, Router } from '@angular/router';
+import { CanActivate, ActivatedRouteSnapshot, Router, UrlTree } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 
 @Injectable({ providedIn: 'root' })
@@ -9,10 +9,10 @@ export class RoleGuard implements CanActivate {
     private router: Router,
   ) {}
 
-  canActivate(route: ActivatedRouteSnapshot): boolean {
+  canActivate(route: ActivatedRouteSnapshot): boolean | UrlTree {
     if (!this.auth.isLoggedIn()) {
-      this.router.navigate(['/login']);
-      return false;
+      this.auth.forzarReingreso(false);
+      return this.router.parseUrl('/login');
     }
 
     const rolesPermitidos: number[] = route.data['roles'] ?? [];
@@ -22,9 +22,11 @@ export class RoleGuard implements CanActivate {
     const usuario = this.auth.getVendedor();
     const rolId   = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? 0);
 
-    if (rolesPermitidos.includes(rolId)) return true;
+    if (rolesPermitidos.includes(rolId)) {
+      this.auth.iniciarTimerInactividad();
+      return true;
+    }
 
-    this.router.navigate(['/dashboard']);
-    return false;
+    return this.router.parseUrl('/dashboard');
   }
 }

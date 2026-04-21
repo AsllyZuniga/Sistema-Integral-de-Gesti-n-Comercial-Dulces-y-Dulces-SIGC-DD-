@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Subject, finalize, takeUntil } from 'rxjs';
+import { Subject, takeUntil } from 'rxjs';
 import { CumplimientoService } from '../../../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../../../core/services/ventas/cumplimientoVentasSemana.service';
 import { ChartComponent } from '../../../../shared/components/chart';
@@ -92,6 +92,12 @@ export class VentasComponent implements OnInit, OnDestroy {
   totalClientesFiltrados = 0;
   clienteBusqueda = '';
   cargandoClientes = false;
+  totalCuotaCategoria = 0;
+  totalAcumuladoCategoria = 0;
+  totalTopProveedores = 0;
+  totalTopClientes = 0;
+  totalTopItemsSubtotal = 0;
+  liderVentasProveedor = '—';
 
   private readonly clientesPageSize = 30;
   private readonly productosPageSize = 25;
@@ -146,7 +152,6 @@ export class VentasComponent implements OnInit, OnDestroy {
     'porcentajeCumplimientoProyectado',
   ];
   readonly productosColumns = [
-    'Fecha',
     'Proveedor',
     'Cod_Item',
     'Descripcion',
@@ -154,7 +159,7 @@ export class VentasComponent implements OnInit, OnDestroy {
     'Cantidad',
     'Subtotal',
   ];
-  readonly clienteProductosColumns = ['producto', 'cantidad', 'precio', 'subtotal'];
+  readonly clienteProductosColumns = ['producto', 'cantidad', 'subtotal'];
 
   readonly lineasColumns = [
     'linea',
@@ -196,6 +201,12 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.totalClientesFiltrados = 0;
     this.clienteBusqueda = '';
     this.cargandoClientes = false;
+    this.totalCuotaCategoria = 0;
+    this.totalAcumuladoCategoria = 0;
+    this.totalTopProveedores = 0;
+    this.totalTopClientes = 0;
+    this.totalTopItemsSubtotal = 0;
+    this.liderVentasProveedor = '—';
     this.clientesVisibles = this.clientesPageSize;
     this.chartId = 'chart-' + this.activeVentasView + '-' + Date.now();
     this.cdr.markForCheck();
@@ -208,17 +219,25 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private recalcularChart(): void {
-    const agg = new Map<string, number>();
+    const agg = new Map<string, { subtotal: number }>();
 
     for (const row of this.allItemData) {
       const key = row.Descripcion ?? 'SIN DESCRIPCION';
-      agg.set(key, (agg.get(key) ?? 0) + Number(row.Venta_Unid_Cajas ?? 0));
+      const actual = agg.get(key) ?? { subtotal: 0 };
+      actual.subtotal += this.calcularVentaRow(row);
+      agg.set(key, actual);
     }
 
-    this.chartData = Array.from(agg.entries())
-      .map(([name, value]) => ({ name, value }))
+    const topItems = Array.from(agg.entries())
+      .map(([name, value]) => ({ name, value: Number(value?.subtotal ?? 0) }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 10);
+      .slice(0, 15);
+
+    this.totalTopItemsSubtotal = topItems.reduce(
+      (sum: number, item: any) => sum + (Number(item?.value ?? 0) || 0),
+      0,
+    );
+    this.chartData = topItems;
 
     this.chartId = 'chart-item-' + Date.now();
     this.cdr.markForCheck();
@@ -237,7 +256,7 @@ export class VentasComponent implements OnInit, OnDestroy {
       row?.Razon_Social ??
       '';
 
-    return String(nombre).trim();
+    return this.repararTextoCiudad(String(nombre).trim());
   }
 
   private obtenerSucursalCliente(row: any): string {
@@ -252,7 +271,7 @@ export class VentasComponent implements OnInit, OnDestroy {
       row?.Sede ??
       'Sin sucursal';
 
-    return String(sucursal).trim() || 'Sin sucursal';
+    return this.repararTextoCiudad(String(sucursal).trim()) || 'Sin sucursal';
   }
 
   private obtenerCodigoItem(row: any): string {
@@ -284,14 +303,92 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private obtenerFechaVenta(row: any): string {
-    const fecha = row?.fecha ?? row?.Fecha ?? row?.fecha_venta ?? row?.fechaVenta ?? '';
+    const fecha =
+      row?.ultima_venta ??
+      row?.ultimaVenta ??
+      row?.Ultima_Venta ??
+      row?.primera_venta ??
+      row?.primeraVenta ??
+      row?.Primera_Venta ??
+      row?.fecha ??
+      row?.Fecha ??
+      row?.fecha_venta ??
+      row?.fechaVenta ??
+      row?.fecha_documento ??
+      row?.fechaDocumento ??
+      row?.Fecha_Documento ??
+      row?.Fecha_Doc ??
+      row?.createdAt ??
+      row?.created_at ??
+      '';
     return String(fecha).trim();
+  }
+
+  private parseFechaFlexible(fechaRaw: string): Date | null {
+    const fecha = String(fechaRaw ?? '').trim();
+    if (!fecha) return null;
+
+    const soloFechaIso = /^\d{4}-\d{2}-\d{2}$/;
+    if (soloFechaIso.test(fecha)) {
+      const d = new Date(`${fecha}T00:00:00`);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    const fechaHoraIso = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?/;
+    if (fechaHoraIso.test(fecha)) {
+      const normalizada = fecha.includes('T') ? fecha : fecha.replace(' ', 'T');
+      const d = new Date(normalizada);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    const latino = /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/;
+    const matchLatino = fecha.match(latino);
+    if (matchLatino) {
+      const [, dd, mm, yyyy, hh = '00', min = '00', ss = '00'] = matchLatino;
+      const d = new Date(`${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}`);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    const intento = new Date(fecha);
+    return Number.isNaN(intento.getTime()) ? null : intento;
+  }
+
+  private parseFechaOrden(fechaRaw: string): number {
+    const fecha = this.parseFechaFlexible(fechaRaw);
+    return fecha ? fecha.getTime() : Number.MAX_SAFE_INTEGER;
+  }
+
+  private ordenarDetalleItemsPorFechaAsc(listado: any[]): any[] {
+    return [...listado].sort((a: any, b: any) => {
+      const proveedorA = String(a?.Proveedor ?? a?.proveedor ?? '').trim();
+      const proveedorB = String(b?.Proveedor ?? b?.proveedor ?? '').trim();
+      const cmpProveedor = proveedorA.localeCompare(proveedorB, 'es', {
+        sensitivity: 'base',
+        numeric: true,
+      });
+      if (cmpProveedor !== 0) return cmpProveedor;
+
+      const descripcionA = this.obtenerDescripcionItem(a);
+      const descripcionB = this.obtenerDescripcionItem(b);
+      const cmpDescripcion = descripcionA.localeCompare(descripcionB, 'es', {
+        sensitivity: 'base',
+        numeric: true,
+      });
+      if (cmpDescripcion !== 0) return cmpDescripcion;
+
+      const codigoA = this.obtenerCodigoItem(a);
+      const codigoB = this.obtenerCodigoItem(b);
+      return codigoA.localeCompare(codigoB, 'es', {
+        sensitivity: 'base',
+        numeric: true,
+      });
+    });
   }
 
   private formatearFechaCorta(fechaIso: string): string {
     if (!fechaIso) return 'Sin fecha';
-    const fecha = new Date(`${fechaIso}T00:00:00`);
-    if (Number.isNaN(fecha.getTime())) return 'Sin fecha';
+    const fecha = this.parseFechaFlexible(fechaIso);
+    if (!fecha) return 'Sin fecha';
     return fecha.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }).replace('.', '');
   }
 
@@ -308,7 +405,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   private obtenerDescripcionItem(row: any): string {
     const descripcion = row?.Descripcion ?? row?.descripcion ?? row?.producto ?? 'Sin descripción';
-    return String(descripcion).trim() || 'Sin descripción';
+    return this.repararTextoCiudad(String(descripcion).trim()) || 'Sin descripción';
   }
 
   private obtenerCantidadItem(row: any): number {
@@ -492,6 +589,35 @@ export class VentasComponent implements OnInit, OnDestroy {
     return this.getCantidadItemsCliente(cliente).toLocaleString('es-CO');
   }
 
+  getTotalClienteLabel(cliente: any): string {
+    const total = Number(cliente?.ventaAcum ?? 0);
+    return this.formatearMoneda(total);
+  }
+
+  get totalCuotaCategoriaLabel(): string {
+    return this.formatearMoneda(this.totalCuotaCategoria);
+  }
+
+  get totalAcumuladoCategoriaLabel(): string {
+    return this.formatearMoneda(this.totalAcumuladoCategoria);
+  }
+
+  get totalTopProveedoresLabel(): string {
+    return this.formatearMoneda(this.totalTopProveedores);
+  }
+
+  get totalTopClientesLabel(): string {
+    return this.formatearMoneda(this.totalTopClientes);
+  }
+
+  get totalTopItemsSubtotalLabel(): string {
+    return this.formatearMoneda(this.totalTopItemsSubtotal);
+  }
+
+  get totalTopProveedoresCompactoLabel(): string {
+    return this.formatearMonedaCompacta(this.totalTopProveedores);
+  }
+
   tieneMasProductos(cliente: any): boolean {
     const total = cliente?.productos?.length ?? 0;
     return total > this.getLimiteProductosCliente(cliente?.key);
@@ -522,29 +648,84 @@ export class VentasComponent implements OnInit, OnDestroy {
     const txt = String(valor ?? '').trim();
     if (!txt) return '';
 
-    return txt.replace(/�/g, 'a').replace(/\s+/g, ' ').trim();
+    return txt.replace(/◊/g, 'ñ').replace(/Ø/g, 'Ñ').replace(/\s+/g, ' ').trim();
   }
 
   private normalizarTexto(valor: unknown): string {
     return this.repararTextoCiudad(valor)
       .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9\s.,-]/g, '')
+      .replace(/[^a-záéíóúñüA-ZÁÉÍÓÚÑÜ0-9\s.,-]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
+  }
+
+  private esCiudadResumen(valor: unknown): boolean {
+    const ciudad = this.normalizarTexto(valor);
+    return ciudad === 'total' || ciudad === 'totales' || ciudad === 'todas' || ciudad === 'todos';
   }
 
   private filtrarPorCiudadSeleccionada(listado: any[]): any[] {
     const ciudadFiltroRaw = String(this._filtros.ciudadNombre ?? this._filtros.ciudad ?? '').trim();
     const ciudadFiltro = this.normalizarTexto(ciudadFiltroRaw);
 
-    if (!ciudadFiltro) return listado;
+    const ciudadesValidas = listado.filter((item: any) => !this.esCiudadResumen(item?.ciudad));
 
-    return listado.filter((item: any) => {
+    if (!ciudadFiltro || this.esCiudadResumen(ciudadFiltroRaw)) return ciudadesValidas;
+
+    return ciudadesValidas.filter((item: any) => {
       const ciudadItem = this.normalizarTexto(item?.ciudad ?? '');
       return ciudadItem === ciudadFiltro;
     });
+  }
+
+  private limpiarNombreCategoria(valor: unknown): string {
+    let nombre = this.repararTextoCiudad(valor);
+    if (!nombre) return '';
+
+    nombre = nombre.replace(/^\d+\s*-\s*/u, '');
+    return nombre.trim();
+  }
+
+  private normalizarCategoria(valor: unknown): string {
+    return this.normalizarTexto(this.limpiarNombreCategoria(valor));
+  }
+
+  private filtrarCategorias(listado: any[], categoriaFiltroRaw: unknown): any[] {
+    const categoriaFiltro = this.normalizarCategoria(categoriaFiltroRaw);
+    if (!categoriaFiltro) return listado;
+
+    return listado.filter((item: any) => {
+      const categoriaItem = this.normalizarCategoria(
+        item?.categoria ?? item?.nomCategoria ?? item?.nombreCategoria ?? '',
+      );
+
+      return categoriaItem === categoriaFiltro || categoriaItem.includes(categoriaFiltro);
+    });
+  }
+
+  private formatearMoneda(valor: unknown): string {
+    const numero = Number(valor);
+    const seguro = Number.isFinite(numero) ? numero : 0;
+    return `$ ${seguro.toLocaleString('es-CO')}`;
+  }
+
+  private formatearMonedaCompacta(valor: unknown): string {
+    const numero = Number(valor);
+    const seguro = Number.isFinite(numero) ? numero : 0;
+    if (Math.abs(seguro) >= 1_000_000) {
+      return `$${(seguro / 1_000_000).toFixed(1)}M`;
+    }
+    if (Math.abs(seguro) >= 1_000) {
+      return `$${(seguro / 1_000).toFixed(0)}K`;
+    }
+    return `$${seguro.toLocaleString('es-CO')}`;
+  }
+
+  private nombreProveedorCard(lineaRaw: unknown): string {
+    const linea = String(lineaRaw ?? '').trim();
+    if (!linea) return '—';
+    const sinCodigo = linea.replace(/^\d+\s*-\s*/u, '').trim();
+    return sinCodigo || linea;
   }
 
   private normalizarCodigoVendedor(valor: unknown): string {
@@ -670,7 +851,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private vistaUsaUltimoMesPorDefecto(view: string): boolean {
-    return view === 'proveedor' || view === 'ciudad' || view === 'item';
+    return false;
   }
 
   private aplicarUltimoMesCargadoPorDefecto(filtros: DashboardFilters): DashboardFilters {
@@ -691,6 +872,38 @@ export class VentasComponent implements OnInit, OnDestroy {
       fechaInicio,
       fechaFin,
     };
+  }
+
+  private obtenerFiltrosMesAnteriorDesde(
+    filtros: DashboardFilters,
+    mesesAtras: number,
+  ): DashboardFilters {
+    const hoy = new Date();
+    const inicioMes = this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth() - mesesAtras, 1));
+    const finMes = this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth() - mesesAtras + 1, 0));
+
+    return {
+      ...filtros,
+      fechaInicio: inicioMes,
+      fechaFin: finMes,
+    };
+  }
+
+  private debeAplicarFallbackAutomatico(filtros: DashboardFilters): boolean {
+    const fechaInicio = String(filtros?.fechaInicio ?? '').trim();
+    const fechaFin = String(filtros?.fechaFin ?? '').trim();
+    return this.esRangoMesActual(fechaInicio, fechaFin);
+  }
+
+  private construirCandidatosFallback(
+    filtros: DashboardFilters,
+    maxMesesAtras = 6,
+  ): DashboardFilters[] {
+    const candidatos: DashboardFilters[] = [filtros];
+    for (let i = 1; i <= maxMesesAtras; i += 1) {
+      candidatos.push(this.obtenerFiltrosMesAnteriorDesde(filtros, i));
+    }
+    return candidatos;
   }
 
   cargarVistaActual(): void {
@@ -784,75 +997,160 @@ export class VentasComponent implements OnInit, OnDestroy {
       case 'proveedor':
         this.chartType = 'bar';
 
-        const filtrosSinProveedor = this.quitarProveedorDeFiltros(filtrosConsulta);
-        const lineas$ = this.esSemanal
-          ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor)
-          : this.cumplimientoService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor);
+        {
+          const candidatos = this.debeAplicarFallbackAutomatico(filtrosConsulta)
+            ? this.construirCandidatosFallback(filtrosConsulta)
+            : [filtrosConsulta];
 
-        lineas$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
-          const listado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
-          const listadoFiltrado = this.filtrarProveedores(listado, codigoProveedor);
-          const listadoTabla = this.ordenarProveedoresPorAlfabeto(listado);
-          const topProveedores = this.limitarTopProveedores(listadoFiltrado);
-          this.tableData = listadoTabla;
-          this.chartData = topProveedores.map((i: any) => ({
-            name: i.linea,
-            value: Number(i.cuotaLinea ?? 0),
-          }));
-          this.cdr.markForCheck();
-        });
+          const intentarProveedor = (idx: number): void => {
+            const filtrosActivos = candidatos[idx];
+            const filtrosSinProveedor = this.quitarProveedorDeFiltros(filtrosActivos);
+            const lineas$ = this.esSemanal
+              ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor)
+              : this.cumplimientoService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor);
+
+            lineas$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
+              const listado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
+              const listadoFiltrado = this.filtrarProveedores(listado, codigoProveedor);
+
+              if (!listadoFiltrado.length && idx < candidatos.length - 1) {
+                intentarProveedor(idx + 1);
+                return;
+              }
+
+              const listadoTabla = this.ordenarProveedoresPorAlfabeto(listado);
+              const topProveedores = [...listadoFiltrado]
+                .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+                .slice(0, 12);
+
+              this.totalTopProveedores = topProveedores.reduce(
+                (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+                0,
+              );
+              this.liderVentasProveedor = this.nombreProveedorCard(topProveedores[0]?.linea ?? '—');
+
+              this.tableData = codigoProveedor
+                ? this.ordenarProveedoresPorAlfabeto(listadoFiltrado)
+                : listadoTabla;
+              this.chartData = topProveedores.map((i: any) => ({
+                name: i.linea,
+                value: Number(i.ventaAcum ?? 0),
+              }));
+              this.cdr.markForCheck();
+            });
+          };
+
+          intentarProveedor(0);
+        }
         break;
 
       case 'categoria':
         this.chartType = 'bar';
 
-        this.cumplimientoService
-          .getCuotaCategoriaPorVendedor(this._codigoVendedor, filtrosConsulta)
-          .pipe(takeUntil(this.destroy$))
-          .subscribe((res: any) => {
-            const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
-            this.tableData = detalle;
-            this.chartData = [...detalle]
-              .sort((a: any, b: any) => Number(b?.acumulado ?? 0) - Number(a?.acumulado ?? 0))
-              .slice(0, 10)
-              .map((i: any) => ({
-                name: i?.categoria ?? 'Sin categoría',
-                value: Number(i?.acumulado ?? 0),
-              }));
-            this.cdr.markForCheck();
-          });
+        {
+          const candidatos = this.debeAplicarFallbackAutomatico(filtrosConsulta)
+            ? this.construirCandidatosFallback(filtrosConsulta)
+            : [filtrosConsulta];
+
+          const intentarCategoria = (idx: number): void => {
+            const filtrosActivos = candidatos[idx];
+            this.cumplimientoService
+              .getCuotaCategoriaPorVendedor(this._codigoVendedor, filtrosActivos)
+              .pipe(takeUntil(this.destroy$))
+              .subscribe((res: any) => {
+                const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+                const detalleFiltrado = this.filtrarCategorias(detalle, filtrosActivos.categoria);
+                const detalleOrdenado = [...detalleFiltrado].sort((a: any, b: any) =>
+                  String(a?.categoria ?? '').localeCompare(String(b?.categoria ?? ''), 'es', {
+                    sensitivity: 'base',
+                    numeric: true,
+                  }),
+                );
+
+                if (!detalleFiltrado.length && idx < candidatos.length - 1) {
+                  intentarCategoria(idx + 1);
+                  return;
+                }
+
+                this.tableData = detalleOrdenado;
+                this.totalCuotaCategoria = detalleOrdenado.reduce(
+                  (sum: number, item: any) => sum + (Number(item?.cuota ?? 0) || 0),
+                  0,
+                );
+                this.totalAcumuladoCategoria = detalleOrdenado.reduce(
+                  (sum: number, item: any) => sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
+                  0,
+                );
+                const topCategorias = [...detalleFiltrado]
+                  .sort((a: any, b: any) => Number(b?.acumulado ?? 0) - Number(a?.acumulado ?? 0))
+                  .slice(0, 10)
+                  .map((i: any) => ({
+                    name: i?.categoria ?? 'Sin categoría',
+                    value: Number(i?.acumulado ?? 0),
+                  }));
+
+                this.chartData = topCategorias.sort((a: any, b: any) =>
+                  String(a?.name ?? '').localeCompare(String(b?.name ?? ''), 'es', {
+                    sensitivity: 'base',
+                    numeric: true,
+                  }),
+                );
+                this.cdr.markForCheck();
+              });
+          };
+
+          intentarCategoria(0);
+        }
         break;
 
       case 'ciudad':
         this.chartType = 'pie';
 
-        const ciudades$ = this.esSemanal
-          ? this.semanaService.getCiudadesPorVendedor(this._codigoVendedor, filtrosConsulta)
-          : codigoCiudad
-            ? this.cumplimientoService.getDetallePorCiudad(
-                this._codigoVendedor,
-                codigoCiudad,
-                filtrosConsulta,
-              )
-            : this.cumplimientoService.getCiudadesPorVendedor(this._codigoVendedor, filtrosConsulta);
+        {
+          const candidatos = this.debeAplicarFallbackAutomatico(filtrosConsulta)
+            ? this.construirCandidatosFallback(filtrosConsulta)
+            : [filtrosConsulta];
 
-        ciudades$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
-          const listadoCompleto = res?.detallePorCiudad ?? [];
-          const listadoFiltrado = this.filtrarPorCiudadSeleccionada(listadoCompleto);
-          const listadoMapeado = listadoCompleto.map((i: any) => ({
-            ...i,
-            ciudad: this.repararTextoCiudad(i.ciudad),
-          }));
-          const topCiudades = [...listadoFiltrado]
-            .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
-            .slice(0, 12);
-          this.tableData = listadoMapeado;
-          this.chartData = topCiudades.map((i: any) => ({
-            name: this.repararTextoCiudad(i.ciudad),
-            value: i.ventaAcum,
-          }));
-          this.cdr.markForCheck();
-        });
+          const intentarCiudad = (idx: number): void => {
+            const filtrosActivos = candidatos[idx];
+            const codigoCiudadActivo = String(filtrosActivos.ciudad ?? '').trim();
+            const ciudades$ = this.esSemanal
+              ? this.semanaService.getCiudadesPorVendedor(this._codigoVendedor, filtrosActivos)
+              : codigoCiudadActivo
+                ? this.cumplimientoService.getDetallePorCiudad(
+                    this._codigoVendedor,
+                    codigoCiudadActivo,
+                    filtrosActivos,
+                  )
+                : this.cumplimientoService.getCiudadesPorVendedor(this._codigoVendedor, filtrosActivos);
+
+            ciudades$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
+              const listadoCompleto = res?.detallePorCiudad ?? [];
+              const listadoFiltrado = this.filtrarPorCiudadSeleccionada(listadoCompleto);
+
+              if (!listadoFiltrado.length && idx < candidatos.length - 1) {
+                intentarCiudad(idx + 1);
+                return;
+              }
+
+              const listadoMapeado = listadoFiltrado.map((i: any) => ({
+                ...i,
+                ciudad: this.repararTextoCiudad(i.ciudad),
+              }));
+              const topCiudades = [...listadoFiltrado]
+                .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+                .slice(0, 12);
+              this.tableData = listadoMapeado;
+              this.chartData = topCiudades.map((i: any) => ({
+                name: this.repararTextoCiudad(i.ciudad),
+                value: i.ventaAcum,
+              }));
+              this.cdr.markForCheck();
+            });
+          };
+
+          intentarCiudad(0);
+        }
         break;
 
       case 'vendedor':
@@ -874,15 +1172,33 @@ export class VentasComponent implements OnInit, OnDestroy {
       case 'item':
         this.chartType = 'bar';
 
-        this.cumplimientoService
-          .getProductosPorVendedor(this._codigoVendedor, filtrosConsulta)
-          .pipe(takeUntil(this.destroy$))
-          .subscribe((res: any) => {
-            const listado = res?.data ?? [];
-            this.allItemData = listado;
-            this.tableData = [...listado];
-            this.recalcularChart();
-          });
+        {
+          const candidatos = this.debeAplicarFallbackAutomatico(filtrosConsulta)
+            ? this.construirCandidatosFallback(filtrosConsulta)
+            : [filtrosConsulta];
+
+          const intentarItem = (idx: number): void => {
+            const filtrosActivos = candidatos[idx];
+            this.cumplimientoService
+              .getProductosPorVendedor(this._codigoVendedor, filtrosActivos)
+              .pipe(takeUntil(this.destroy$))
+              .subscribe((res: any) => {
+                const listado = res?.data ?? [];
+
+                if (!listado.length && idx < candidatos.length - 1) {
+                  intentarItem(idx + 1);
+                  return;
+                }
+
+                const listadoOrdenado = this.ordenarDetalleItemsPorFechaAsc(listado);
+                this.allItemData = listadoOrdenado;
+                this.tableData = [...listadoOrdenado];
+                this.recalcularChart();
+              });
+          };
+
+          intentarItem(0);
+        }
         break;
 
       case 'cliente':
@@ -901,28 +1217,63 @@ export class VentasComponent implements OnInit, OnDestroy {
 
         this.cargandoClientes = true;
 
-        this.cumplimientoService
-          .getProductosPorCliente(idVendedor, filtrosConsulta)
-          .pipe(takeUntil(this.destroy$))
-          .pipe(finalize(() => {
-            this.cargandoClientes = false;
-            this.cdr.markForCheck();
-          }))
-          .subscribe((res: any) => {
-            const listado = res?.data ?? [];
-            const detalleClientes = this.construirDetalleClientes(listado);
-            const topClientes = [...detalleClientes]
-              .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
-              .slice(0, 10);
+        {
+          const candidatos = this.debeAplicarFallbackAutomatico(filtrosConsulta)
+            ? this.construirCandidatosFallback(filtrosConsulta)
+            : [filtrosConsulta];
 
-            this.clientesAgrupados = detalleClientes;
-            this.clientesVisibles = this.clientesPageSize;
-            this.actualizarClientesVista();
-            this.tableData = detalleClientes;
-            this.chartData = topClientes.map((i: any) => ({ name: i.cliente, value: i.ventaAcum }));
+          const intentarCliente = (idx: number): void => {
+            const filtrosActivos = candidatos[idx];
 
-            this.cdr.markForCheck();
-          });
+            this.cumplimientoService
+              .getProductosPorCliente(idVendedor, filtrosActivos)
+              .pipe(takeUntil(this.destroy$))
+              .subscribe({
+                next: (res: any) => {
+                  const listado = Array.isArray(res?.data) ? res.data : [];
+
+                  if (!listado.length && idx < candidatos.length - 1) {
+                    intentarCliente(idx + 1);
+                    return;
+                  }
+
+                  const detalleClientes = this.construirDetalleClientes(listado);
+                  const topClientes = [...detalleClientes]
+                    .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+                    .slice(0, 15);
+
+                  this.totalTopClientes = topClientes.reduce(
+                    (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+                    0,
+                  );
+
+                  this.clientesAgrupados = detalleClientes;
+                  this.clientesVisibles = this.clientesPageSize;
+                  this.actualizarClientesVista();
+                  this.tableData = detalleClientes;
+                  this.chartData = topClientes.map((i: any) => ({ name: i.cliente, value: i.ventaAcum }));
+                  this.cargandoClientes = false;
+                  this.cdr.markForCheck();
+                },
+                error: () => {
+                  if (idx < candidatos.length - 1) {
+                    intentarCliente(idx + 1);
+                    return;
+                  }
+
+                  this.cargandoClientes = false;
+                  this.clientesAgrupados = [];
+                  this.clientesVista = [];
+                  this.totalClientesFiltrados = 0;
+                  this.tableData = [];
+                  this.chartData = [];
+                  this.cdr.markForCheck();
+                },
+              });
+          };
+
+          intentarCliente(0);
+        }
         break;
     }
   }
