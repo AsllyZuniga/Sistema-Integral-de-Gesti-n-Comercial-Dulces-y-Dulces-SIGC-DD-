@@ -214,6 +214,27 @@ export class CumplimientoService {
       );
   }
 
+  getProductosPorClienteGeneral(filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParams(filtros);
+
+    return this.http
+      .get<any>(`${this.apiUrl}/cliente/productos-por-cliente`, { params })
+      .pipe(
+        map((res) => {
+          const data = Array.isArray(res)
+            ? res
+            : Array.isArray(res?.data)
+              ? res.data
+              : Array.isArray(res?.detalle)
+                ? res.detalle
+                : [];
+
+          return { ...(res ?? {}), data };
+        }),
+        catchError(() => of({ data: [] })),
+      );
+  }
+
   getVendedores(): Observable<any[]> {
     if (!this.vendedoresCache$) {
       this.vendedoresCache$ = this.http
@@ -247,6 +268,20 @@ export class CumplimientoService {
     const params = this.buildParams(filtros);
     return this.http
       .get<any>(`${this.apiUrl}/cuota-categoria/vendedores`, { params })
+      .pipe(
+        map((res) => ({
+          ...(res ?? {}),
+          periodo: res?.periodo ?? {},
+          detalle: Array.isArray(res?.detalle) ? res.detalle : [],
+        })),
+        catchError(() => of({ periodo: {}, detalle: [] })),
+      );
+  }
+
+  getCuotaCategoriaGeneral(filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParams(filtros);
+    return this.http
+      .get<any>(`${this.apiUrl}/cuota-categoria/general`, { params })
       .pipe(
         map((res) => ({
           ...(res ?? {}),

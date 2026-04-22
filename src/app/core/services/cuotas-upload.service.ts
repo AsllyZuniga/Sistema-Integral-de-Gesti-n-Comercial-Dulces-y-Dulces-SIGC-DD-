@@ -20,7 +20,7 @@ export interface CuotasUploadResponse {
 })
 export class CuotasUploadService {
   private apiUrl = environment.apiUrl;
-  private readonly cuotasVendedorUploadPath = '/import/cuotas/upload';
+  private readonly cuotasVendedorUploadUrl = 'http://localhost:3000/import/cuotas/upload';
 
   constructor(private http: HttpClient) {}
 
@@ -31,10 +31,7 @@ export class CuotasUploadService {
   uploadCuotasVendedor(archivo: File): Observable<CuotasUploadResponse> {
     const formData = new FormData();
     formData.append('archivo', archivo);
-    return this.http.post<CuotasUploadResponse>(
-      `${this.apiUrl}${this.cuotasVendedorUploadPath}`,
-      formData,
-    );
+    return this.http.post<CuotasUploadResponse>(this.cuotasVendedorUploadUrl, formData);
   }
 
   /**

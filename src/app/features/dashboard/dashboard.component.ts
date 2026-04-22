@@ -77,6 +77,15 @@ interface ApiTotalesResponse<TDetalle> {
   detalle?: TDetalle[];
 }
 
+interface CumplimientoAdminDetalleRow {
+  ciudad?: string;
+  nomCiudad?: string;
+  nombreCiudad?: string;
+  linea?: string;
+  nomLinea?: string;
+  nombreLinea?: string;
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -513,6 +522,46 @@ export class DashboardComponent implements OnInit, OnDestroy {
     cargarCiudades(0);
   }
 
+  private cargarCiudadesYLineasAdmin(): void {
+    const filtrosBase: DashboardFilters = {
+      ...this.filtrosActivos,
+      vendedor: '',
+      categoria: '',
+      ciudad: '',
+      ciudadNombre: '',
+      linea: '',
+    };
+
+    this.cumplimientoService
+      .getCumplimientoMesAdmin(filtrosBase)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((res: ApiTotalesResponse<CumplimientoAdminDetalleRow>) => {
+        const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+
+        this.ciudadMap.clear();
+        this.lineaMap.clear();
+
+        const ciudades = new Set<string>();
+        const lineas = new Set<string>();
+
+        detalle.forEach((row) => {
+          const ciudad = this.repararTextoCiudad(row?.ciudad ?? row?.nomCiudad ?? row?.nombreCiudad ?? '');
+          const linea = String(row?.linea ?? row?.nomLinea ?? row?.nombreLinea ?? '').trim();
+
+          if (ciudad && !this.esCiudadResumen(ciudad)) {
+            ciudades.add(ciudad);
+          }
+
+          if (linea) {
+            lineas.add(linea);
+          }
+        });
+
+        this.ciudadesList = this.toFilterOptions(Array.from(ciudades));
+        this.lineasList = this.toFilterOptions(Array.from(lineas));
+      });
+  }
+
   private resolverCodigoVendedorDesdeApi(): void {
     if (this.codigoVendedor) return;
 
@@ -580,6 +629,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
           this.vendedoresList = this.toFilterOptions(Array.from(etiquetas));
         });
+
+      this.cargarCiudadesYLineasAdmin();
     }
 
     if (!this.esAdmin && this.codigoVendedor) {
@@ -597,6 +648,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private cargarCategoriasFiltros(): void {
     const filtrosBase: DashboardFilters = {
       ...this.filtrosActivos,
+      vendedor: this.esAdmin ? '' : this.filtrosActivos.vendedor,
       fechaInicio: '',
       fechaFin: '',
       proveedor: '',

@@ -25,6 +25,16 @@
   </div>
 </section>
 
+<section class="charts">
+  <app-ventas
+    [codigoVendedor]="codigoVendedorAnalisis"
+    [filtros]="filtrosActivos"
+    [tipoCuota]="tipoCuota"
+    [modoAdmin]="true"
+  >
+  </app-ventas>
+</section>
+
 @if (modalAsignarVisible && vendedorEnModal) {
   <div class="modal-overlay" (click)="cerrarModalAsignar()">
     <div class="modal-content" (click)="$event.stopPropagation()">

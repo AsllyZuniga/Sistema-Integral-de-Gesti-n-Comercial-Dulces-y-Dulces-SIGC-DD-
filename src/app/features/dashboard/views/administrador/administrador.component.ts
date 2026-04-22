@@ -19,6 +19,7 @@ import { CumplimientoService } from '../../../../core/services/ventas/cumplimien
 import { CumplimientoSemanaService } from '../../../../core/services/ventas/cumplimientoVentasSemana.service';
 import { UsuariosService } from '../../../../core/services/usuarios.service';
 import { TipoCuota } from '../../../cumplimientos-cuota/cumplimientos.component';
+import { VentasComponent } from '../../components/ventas/ventas.component';
 import {
   VendedorTabla,
   VendedoresTableComponent,
@@ -69,7 +70,7 @@ interface VendedorApiRow {
 @Component({
   selector: 'app-administrador-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, CardComponent, VendedoresTableComponent],
+  imports: [CommonModule, FormsModule, CardComponent, VendedoresTableComponent, VentasComponent],
   templateUrl: './administrador.component.html',
   styleUrls: ['./administrador.component.css'],
 })
@@ -211,6 +212,11 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
       default:
         return 'cuotaMes';
     }
+  }
+
+  get codigoVendedorAnalisis(): string {
+    const codigo = String(this.filtrosActivos?.vendedor ?? '').trim();
+    return codigo || 'ALL';
   }
 
   ngOnInit(): void {

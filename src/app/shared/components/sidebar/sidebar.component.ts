@@ -35,6 +35,7 @@ export class SidebarComponent {
   }
 
   private readonly todasLasOpciones = [
+    { icon: 'dashboard', label: 'Dashboard', ruta: '/dashboard', roles: [1, 2] },
     { icon: 'upload_file', label: 'Carga de Ventas', ruta: '/carga',     roles: [1]      },
     { icon: 'request_quote', label: 'Carga de Cuotas', ruta: '/carga-cuotas', roles: [1] },
     { icon: 'group',       label: 'Gestión Usuarios', ruta: '/gestion-usuarios', roles: [1] },
