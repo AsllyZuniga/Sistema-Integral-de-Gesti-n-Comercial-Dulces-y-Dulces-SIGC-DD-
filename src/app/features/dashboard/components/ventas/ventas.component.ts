@@ -725,6 +725,30 @@ export class VentasComponent implements OnInit, OnDestroy {
     return this.normalizarTexto(this.limpiarNombreCategoria(valor));
   }
 
+  private obtenerNombreCategoria(item: any): string {
+    return this.limpiarNombreCategoria(
+      item?.categoria ?? item?.nomCategoria ?? item?.nombreCategoria ?? '',
+    );
+  }
+
+  private ordenarCategoriasPorAlfabeto(listado: any[]): any[] {
+    return [...listado].sort((a, b) => {
+      const nombreA = this.normalizarCategoria(this.obtenerNombreCategoria(a));
+      const nombreB = this.normalizarCategoria(this.obtenerNombreCategoria(b));
+
+      const cmp = nombreA.localeCompare(nombreB, 'es', {
+        sensitivity: 'base',
+        numeric: true,
+      });
+      if (cmp !== 0) return cmp;
+
+      return String(a?.categoria ?? '').localeCompare(String(b?.categoria ?? ''), 'es', {
+        sensitivity: 'base',
+        numeric: true,
+      });
+    });
+  }
+
   private filtrarCategorias(listado: any[], categoriaFiltroRaw: unknown): any[] {
     const categoriaFiltro = this.normalizarCategoria(categoriaFiltroRaw);
     if (!categoriaFiltro) return listado;
@@ -1103,12 +1127,11 @@ export class VentasComponent implements OnInit, OnDestroy {
               .subscribe((res: any) => {
                 const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
                 const detalleFiltrado = this.filtrarCategorias(detalle, filtrosActivos.categoria);
-                const detalleOrdenado = [...detalleFiltrado].sort((a: any, b: any) =>
-                  String(a?.categoria ?? '').localeCompare(String(b?.categoria ?? ''), 'es', {
-                    sensitivity: 'base',
-                    numeric: true,
-                  }),
-                );
+                const detalleConNombre = detalleFiltrado.map((item: any) => ({
+                  ...item,
+                  categoria: this.obtenerNombreCategoria(item) || 'Sin categoría',
+                }));
+                const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleConNombre);
 
                 if (!detalleFiltrado.length && idx < candidatos.length - 1) {
                   intentarCategoria(idx + 1);
@@ -1128,9 +1151,9 @@ export class VentasComponent implements OnInit, OnDestroy {
                   0,
                 );
 
-                const topCategorias = [...detalleFiltrado]
+                const topCategorias = [...detalleConNombre]
                   .map((i: any) => ({
-                    name: i?.categoria ?? 'Sin categoría',
+                    name: this.obtenerNombreCategoria(i) || 'Sin categoría',
                     value: Number(i?.acumulado ?? i?.ventaAcum ?? 0),
                   }))
                   .sort((a: any, b: any) => b.value - a.value)
