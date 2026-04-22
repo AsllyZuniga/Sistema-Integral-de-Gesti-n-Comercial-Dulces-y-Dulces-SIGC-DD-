@@ -74,6 +74,15 @@ nav {
   gap: 2px;
 }
 
+.nav-group-title {
+  margin: 6px 8px 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.75);
+}
+
 nav a {
   display: flex;
   align-items: center;
@@ -137,6 +146,12 @@ nav a:hover .icon {
   width: 0;
   pointer-events: none;
 }
+.sidebar.collapsed .nav-group-title {
+  opacity: 0;
+  height: 0;
+  margin: 0;
+  overflow: hidden;
+}
 .sidebar.collapsed .icon {
   margin: 0;
 }
@@ -197,5 +212,10 @@ nav a:hover .icon {
   }
   .btn-toggle-desktop {
     display: none;
+  }
+
+  .nav-group-title {
+    margin: 8px 8px 6px;
+    color: rgba(255, 255, 255, 0.85);
   }
 }

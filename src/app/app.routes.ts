@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { LoginComponent } from './features/login/login.component';
 import { DashboardComponent } from './features/dashboard/dashboard.component';
+import { ImpactosComponent } from './features/dashboard/components/impactos/impactos.component';
 import { CargaComponent } from './features/carga/carga.component';
 import { CargaCuotasComponent } from './features/carga/carga-cuotas/carga-cuotas.component';
 import { GestionUsuariosComponent } from './features/gestion-usuarios/gestion-usuarios.component';
@@ -18,6 +19,11 @@ export const routes: Routes = [
   {
     path: 'dashboard',
     component: DashboardComponent,
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'impactos',
+    component: ImpactosComponent,
     canActivate: [AuthGuard]
   },
   {

@@ -71,12 +71,16 @@
       </section>
 
       <section class="charts">
-        <app-ventas
-          [codigoVendedor]="codigoVendedor"
-          [filtros]="filtrosActivos"
-          [tipoCuota]="tipoCuota"
-        >
-        </app-ventas>
+        @if (activeAnalisisView === 'impactos') {
+          <app-impactos></app-impactos>
+        } @else {
+          <app-ventas
+            [codigoVendedor]="codigoVendedor"
+            [filtros]="filtrosActivos"
+            [tipoCuota]="tipoCuota"
+          >
+          </app-ventas>
+        }
       </section>
     }
   </div>

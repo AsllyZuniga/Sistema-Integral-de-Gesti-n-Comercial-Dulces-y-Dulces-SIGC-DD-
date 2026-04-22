@@ -2,6 +2,7 @@ import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject, forkJoin, of, takeUntil } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { SessionUser } from '../../core/services/session.service';
 import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
@@ -14,6 +15,7 @@ import {
 import { FilterOption } from '../../shared/components/filters/filters.component';
 import { SidebarComponent } from '../../shared/components/sidebar/sidebar.component';
 import { VentasComponent } from '../dashboard/components/ventas/ventas.component';
+import { ImpactosComponent } from '../dashboard/components/impactos/impactos.component';
 import {
   CuotasCumplimientoComponent,
   TipoCuota,
@@ -84,6 +86,7 @@ interface ApiTotalesResponse<TDetalle> {
     FiltersComponent,
     SidebarComponent,
     VentasComponent,
+    ImpactosComponent,
     CuotasCumplimientoComponent,
     DashboardRoleViewsModule,
   ],
@@ -92,6 +95,7 @@ interface ApiTotalesResponse<TDetalle> {
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   constructor(
+    private route: ActivatedRoute,
     private authService: AuthService,
     private cumplimientoService: CumplimientoService,
     private semanaService: CumplimientoSemanaService,
@@ -111,6 +115,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   tipoCuota: TipoCuota = 'mensual';
   rolId = 0;
+  activeAnalisisView: 'ventas' | 'impactos' = 'ventas';
 
   private proveedorMap: Map<string, string> = new Map();
   private ciudadMap: Map<string, string> = new Map();
@@ -134,6 +139,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   };
 
   ngOnInit(): void {
+    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
+      const vista = String(params.get('vista') ?? 'ventas').toLowerCase();
+      this.activeAnalisisView = vista === 'impactos' ? 'impactos' : 'ventas';
+    });
+
     this.vendedor = this.authService.getVendedor();
     if (!this.vendedor) {
       this.vendedor = {
