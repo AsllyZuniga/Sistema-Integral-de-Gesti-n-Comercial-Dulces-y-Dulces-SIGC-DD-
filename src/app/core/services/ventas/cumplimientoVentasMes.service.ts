@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map, catchError, of } from 'rxjs';
+import { Observable, map, catchError, of, shareReplay } from 'rxjs';
 import { DashboardFilters } from '../../../shared/components/filters/filters.component';
 import { environment } from '../../../../environments/environment';
 
@@ -9,6 +9,8 @@ import { environment } from '../../../../environments/environment';
 })
 export class CumplimientoService {
   private apiUrl = environment.apiUrl;
+  private vendedoresCache$?: Observable<any[]>;
+  private proveedoresCache$?: Observable<any[]>;
 
   constructor(private http: HttpClient) { }
 
@@ -213,21 +215,31 @@ export class CumplimientoService {
   }
 
   getVendedores(): Observable<any[]> {
-    return this.http
-      .get<any[]>(`${this.apiUrl}/vendedor`)
-      .pipe(
-        map((res) => (Array.isArray(res) ? res.filter((v: any) => v.status !== false) : [])),
-        catchError(() => of([])),
-      );
+    if (!this.vendedoresCache$) {
+      this.vendedoresCache$ = this.http
+        .get<any[]>(`${this.apiUrl}/vendedor`)
+        .pipe(
+          map((res) => (Array.isArray(res) ? res.filter((v: any) => v.status !== false) : [])),
+          catchError(() => of([])),
+          shareReplay(1),
+        );
+    }
+
+    return this.vendedoresCache$;
   }
 
   getProveedores(): Observable<any[]> {
-    return this.http
-      .get<any[]>(`${this.apiUrl}/proveedor`)
-      .pipe(
-        map((res) => (Array.isArray(res) ? res : [])),
-        catchError(() => of([])),
-      );
+    if (!this.proveedoresCache$) {
+      this.proveedoresCache$ = this.http
+        .get<any[]>(`${this.apiUrl}/proveedor`)
+        .pipe(
+          map((res) => (Array.isArray(res) ? res : [])),
+          catchError(() => of([])),
+          shareReplay(1),
+        );
+    }
+
+    return this.proveedoresCache$;
   }
 
   /** GET /cuota-categoria/vendedores → categorías de múltiples vendedores con filtros de fecha */

@@ -17,6 +17,7 @@ import { TableComponent } from '../../../../shared/components/table/table.compon
 import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
 import { AuthService } from '../../../../core/services/auth.service';
 import { TipoCuota } from '../../../cumplimientos-cuota/cumplimientos.component';
+import { environment } from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-ventas',
@@ -35,7 +36,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   @Input() set codigoVendedor(value: string) {
     this._codigoVendedor = this.normalizarCodigoVendedor(value);
     if (value && this.iniciado) {
-      this.cargarVistaActual();
+      this.solicitarCargaVista();
     }
   }
   get codigoVendedor(): string {
@@ -48,8 +49,7 @@ export class VentasComponent implements OnInit, OnDestroy {
     this._tipoCuota = value;
 
     if (cambio && this._codigoVendedor && this.iniciado) {
-      this.resetearVista();
-      this.cargarVistaActual();
+      this.solicitarCargaVista(true);
     }
   }
   get tipoCuota(): TipoCuota {
@@ -60,7 +60,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   @Input() set filtros(value: DashboardFilters) {
     this._filtros = value;
     if (this._codigoVendedor && this.iniciado) {
-      this.cargarVistaActual();
+      this.solicitarCargaVista();
     }
   }
   get filtros(): DashboardFilters {
@@ -79,6 +79,8 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
   private iniciado = false;
+  private cargaProgramada = false;
+  private ultimaCargaKey = '';
 
   rolId = 0;
   activeVentasView = 'ventas';
@@ -94,6 +96,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   cargandoClientes = false;
   totalCuotaCategoria = 0;
   totalAcumuladoCategoria = 0;
+  totalTopCategorias = 0;
   totalTopProveedores = 0;
   totalTopClientes = 0;
   totalTopItemsSubtotal = 0;
@@ -179,7 +182,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.iniciado = true;
     if (this._codigoVendedor) {
-      this.cargarVistaActual();
+      this.solicitarCargaVista(true);
     }
   }
 
@@ -203,6 +206,7 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.cargandoClientes = false;
     this.totalCuotaCategoria = 0;
     this.totalAcumuladoCategoria = 0;
+    this.totalTopCategorias = 0;
     this.totalTopProveedores = 0;
     this.totalTopClientes = 0;
     this.totalTopItemsSubtotal = 0;
@@ -215,7 +219,34 @@ export class VentasComponent implements OnInit, OnDestroy {
   setVentasView(view: string): void {
     if (this.activeVentasView === view) return;
     this.activeVentasView = view;
-    this.cargarVistaActual();
+    this.solicitarCargaVista(true);
+  }
+
+  private debugLog(contexto: string, detalle: string): void {
+    if (!environment.production) {
+      console.debug(`[${contexto}] ${detalle}`);
+    }
+  }
+
+  private construirCargaKey(): string {
+    return JSON.stringify({
+      view: this.activeVentasView,
+      codigoVendedor: this._codigoVendedor,
+      tipoCuota: this._tipoCuota,
+      filtros: this._filtros,
+    });
+  }
+
+  private solicitarCargaVista(force = false): void {
+    if (!this._codigoVendedor || !this.iniciado) return;
+
+    if (this.cargaProgramada && !force) return;
+    this.cargaProgramada = true;
+
+    queueMicrotask(() => {
+      this.cargaProgramada = false;
+      this.cargarVistaActual(force);
+    });
   }
 
   private recalcularChart(): void {
@@ -602,6 +633,10 @@ export class VentasComponent implements OnInit, OnDestroy {
     return this.formatearMoneda(this.totalAcumuladoCategoria);
   }
 
+  get totalTopCategoriasLabel(): string {
+    return this.formatearMoneda(this.totalTopCategorias);
+  }
+
   get totalTopProveedoresLabel(): string {
     return this.formatearMoneda(this.totalTopProveedores);
   }
@@ -688,6 +723,30 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   private normalizarCategoria(valor: unknown): string {
     return this.normalizarTexto(this.limpiarNombreCategoria(valor));
+  }
+
+  private obtenerNombreCategoria(item: any): string {
+    return this.limpiarNombreCategoria(
+      item?.categoria ?? item?.nomCategoria ?? item?.nombreCategoria ?? '',
+    );
+  }
+
+  private ordenarCategoriasPorAlfabeto(listado: any[]): any[] {
+    return [...listado].sort((a, b) => {
+      const nombreA = this.normalizarCategoria(this.obtenerNombreCategoria(a));
+      const nombreB = this.normalizarCategoria(this.obtenerNombreCategoria(b));
+
+      const cmp = nombreA.localeCompare(nombreB, 'es', {
+        sensitivity: 'base',
+        numeric: true,
+      });
+      if (cmp !== 0) return cmp;
+
+      return String(a?.categoria ?? '').localeCompare(String(b?.categoria ?? ''), 'es', {
+        sensitivity: 'base',
+        numeric: true,
+      });
+    });
   }
 
   private filtrarCategorias(listado: any[], categoriaFiltroRaw: unknown): any[] {
@@ -906,8 +965,16 @@ export class VentasComponent implements OnInit, OnDestroy {
     return candidatos;
   }
 
-  cargarVistaActual(): void {
+  cargarVistaActual(force = false): void {
     if (!this._codigoVendedor) return;
+
+    const cargaKey = this.construirCargaKey();
+    if (!force && cargaKey === this.ultimaCargaKey) {
+      this.debugLog('VentasComponent.cargarVistaActual', 'Carga omitida por parametros repetidos');
+      return;
+    }
+    this.ultimaCargaKey = cargaKey;
+    this.debugLog('VentasComponent.cargarVistaActual', `Cargando vista ${this.activeVentasView}`);
 
     this.resetearVista();
 
@@ -1060,12 +1127,11 @@ export class VentasComponent implements OnInit, OnDestroy {
               .subscribe((res: any) => {
                 const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
                 const detalleFiltrado = this.filtrarCategorias(detalle, filtrosActivos.categoria);
-                const detalleOrdenado = [...detalleFiltrado].sort((a: any, b: any) =>
-                  String(a?.categoria ?? '').localeCompare(String(b?.categoria ?? ''), 'es', {
-                    sensitivity: 'base',
-                    numeric: true,
-                  }),
-                );
+                const detalleConNombre = detalleFiltrado.map((item: any) => ({
+                  ...item,
+                  categoria: this.obtenerNombreCategoria(item) || 'Sin categoría',
+                }));
+                const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleConNombre);
 
                 if (!detalleFiltrado.length && idx < candidatos.length - 1) {
                   intentarCategoria(idx + 1);
@@ -1073,28 +1139,33 @@ export class VentasComponent implements OnInit, OnDestroy {
                 }
 
                 this.tableData = detalleOrdenado;
+
                 this.totalCuotaCategoria = detalleOrdenado.reduce(
                   (sum: number, item: any) => sum + (Number(item?.cuota ?? 0) || 0),
                   0,
                 );
+
                 this.totalAcumuladoCategoria = detalleOrdenado.reduce(
-                  (sum: number, item: any) => sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
+                  (sum: number, item: any) =>
+                    sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
                   0,
                 );
-                const topCategorias = [...detalleFiltrado]
-                  .sort((a: any, b: any) => Number(b?.acumulado ?? 0) - Number(a?.acumulado ?? 0))
-                  .slice(0, 10)
-                  .map((i: any) => ({
-                    name: i?.categoria ?? 'Sin categoría',
-                    value: Number(i?.acumulado ?? 0),
-                  }));
 
-                this.chartData = topCategorias.sort((a: any, b: any) =>
-                  String(a?.name ?? '').localeCompare(String(b?.name ?? ''), 'es', {
-                    sensitivity: 'base',
-                    numeric: true,
-                  }),
+                const topCategorias = [...detalleConNombre]
+                  .map((i: any) => ({
+                    name: this.obtenerNombreCategoria(i) || 'Sin categoría',
+                    value: Number(i?.acumulado ?? i?.ventaAcum ?? 0),
+                  }))
+                  .sort((a: any, b: any) => b.value - a.value)
+                  .slice(0, 15);
+
+                this.totalTopCategorias = topCategorias.reduce(
+                  (sum: number, item: any) => sum + (Number(item?.value ?? 0) || 0),
+                  0,
                 );
+
+                this.chartData = topCategorias;
+                this.chartId = 'chart-categoria-' + Date.now();
                 this.cdr.markForCheck();
               });
           };

@@ -14,7 +14,6 @@
 
   <div class="dynamic-content">
     @switch (activeVentasView) {
-
       @case ('ventas') {
         <div class="stack-layout">
           @if (tableData.length > 0) {
@@ -25,11 +24,7 @@
 
           @if (chartData.length > 0) {
             <div class="grafica-container">
-              <app-chart
-                [chartId]="chartId"
-                [data]="chartData"
-                [type]="chartType"
-                label="Ventas" />
+              <app-chart [chartId]="chartId" [data]="chartData" [type]="chartType" label="Ventas" />
             </div>
           }
 
@@ -45,7 +40,9 @@
             @if (tableData.length > 0) {
               <app-table [columns]="lineasColumns" [data]="tableData" />
             } @else {
-              <div class="placeholder">No hay datos disponibles para los filtros seleccionados.</div>
+              <div class="placeholder">
+                No hay datos disponibles para los filtros seleccionados.
+              </div>
             }
           </div>
 
@@ -67,7 +64,8 @@
                 [data]="chartData"
                 [type]="chartType"
                 [showLegend]="false"
-                label="Ventas acumuladas" />
+                label="Ventas acumuladas"
+              />
             </div>
           }
         </div>
@@ -77,13 +75,11 @@
         <div class="stack-layout">
           @if (tableData.length > 0) {
             <div class="categoria-totales">
-              <span class="categoria-total-item">
-                <strong>Total Cuota:</strong>
-                {{ totalCuotaCategoriaLabel }}
+              <span class="categoria-total-pill">
+                Total Cuota: <strong>{{ totalCuotaCategoriaLabel }}</strong>
               </span>
-              <span class="categoria-total-item">
-                <strong>Total Acumulado:</strong>
-                {{ totalAcumuladoCategoriaLabel }}
+              <span class="categoria-total-pill">
+                Total Acumulado: <strong>{{ totalAcumuladoCategoriaLabel }}</strong>
               </span>
             </div>
           }
@@ -98,12 +94,24 @@
 
           @if (chartData.length > 0) {
             <div class="grafica-container">
-              <h4>Por Categoría</h4>
+              <div class="proveedor-kpis">
+                <article class="proveedor-kpi-card">
+                  <span class="proveedor-kpi-label">Suma top 15</span>
+                  <strong class="proveedor-kpi-value">{{ totalTopCategoriasLabel }}</strong>
+                </article>
+              </div>
+
+              <div class="proveedor-chart-head">
+                <h4>Top 15 Categorías por Acumulado</h4>
+              </div>
+
               <app-chart
                 [chartId]="chartId"
                 [data]="chartData"
                 [type]="chartType"
-                label="Por Categoría" />
+                [showLegend]="false"
+                label="Top 15 Categorías"
+              />
             </div>
           }
         </div>
@@ -126,7 +134,8 @@
                 [chartId]="chartId"
                 [data]="chartData"
                 [type]="chartType"
-                label="Por Ciudad" />
+                label="Por Ciudad"
+              />
             </div>
           }
         </div>
@@ -164,7 +173,7 @@
             <div class="grafica-container">
               <div class="proveedor-kpis">
                 <article class="proveedor-kpi-card">
-                  <span class="proveedor-kpi-label">Suma subtotal</span>
+                  <span class="proveedor-kpi-label">Suma subtotal top 15</span>
                   <strong class="proveedor-kpi-value">{{ totalTopItemsSubtotalLabel }}</strong>
                 </article>
               </div>
@@ -173,7 +182,8 @@
                 [chartId]="chartId"
                 [data]="chartData"
                 [type]="chartType"
-                label="Top 15 Items" />
+                label="Top 15 Items"
+              />
             </div>
           }
         </div>
@@ -189,7 +199,8 @@
                 type="text"
                 [ngModel]="clienteBusqueda"
                 (ngModelChange)="onBuscarClienteChange($event)"
-                placeholder="Buscar cliente por nombre" />
+                placeholder="Buscar cliente por nombre"
+              />
             </label>
             <span class="filtro-badge">
               {{ totalClientesFiltrados }} cliente{{ totalClientesFiltrados !== 1 ? 's' : '' }}
@@ -226,11 +237,16 @@
                     <div class="cliente-body tabla-scroll">
                       <app-table
                         [columns]="clienteProductosColumns"
-                        [data]="getProductosClienteVisibles(cliente)" />
+                        [data]="getProductosClienteVisibles(cliente)"
+                      />
 
                       @if (tieneMasProductos(cliente)) {
                         <div class="cliente-actions">
-                          <button type="button" class="btn-ver-mas" (click)="verMasProductos(cliente)">
+                          <button
+                            type="button"
+                            class="btn-ver-mas"
+                            (click)="verMasProductos(cliente)"
+                          >
                             Ver más productos
                           </button>
                         </div>
@@ -265,12 +281,12 @@
                 [chartId]="chartId"
                 [data]="chartData"
                 [type]="chartType"
-                label="Top 15 Clientes" />
+                label="Top 15 Clientes"
+              />
             </div>
           }
         </div>
       }
-
     }
   </div>
 </div>
