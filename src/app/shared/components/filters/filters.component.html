@@ -1,5 +1,5 @@
 <div class="filters-container">
-  <button class="btn-toggle" (click)="toggleFiltros()">
+  <button type="button" class="btn-toggle" (click)="toggleFiltros()">
     <span class="material-symbols-rounded">tune</span>
     {{ isFiltrosOpen ? 'Ocultar Filtros' : 'Mostrar Filtros' }}
     <span class="material-symbols-rounded toggle-arrow">expand_more</span>
@@ -59,8 +59,8 @@
     </div>
 
     <div class="filter-actions">
-      <button class="btn-limpiar" (click)="limpiar()">Limpiar</button>
-      <button class="btn-aplicar" (click)="aplicar()">Aplicar Filtros</button>
+      <button type="button" class="btn-limpiar" (click)="limpiar()">Limpiar</button>
+      <button type="button" class="btn-aplicar" (click)="aplicar()">Aplicar Filtros</button>
     </div>
   </div>
 </div>

@@ -91,6 +91,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private iniciado = false;
   private cargaProgramada = false;
+  private cargaForzadaPendiente = false;
   private ultimaCargaKey = '';
 
   rolId = 0;
@@ -251,12 +252,17 @@ export class VentasComponent implements OnInit, OnDestroy {
   private solicitarCargaVista(force = false): void {
     if ((!this._codigoVendedor && !this.esModoAdminTodos()) || !this.iniciado) return;
 
-    if (this.cargaProgramada && !force) return;
+    this.cargaForzadaPendiente = this.cargaForzadaPendiente || force;
+
+    if (this.cargaProgramada) return;
+
     this.cargaProgramada = true;
 
     queueMicrotask(() => {
+      const forceCarga = this.cargaForzadaPendiente;
+      this.cargaForzadaPendiente = false;
       this.cargaProgramada = false;
-      this.cargarVistaActual(force);
+      this.cargarVistaActual(forceCarga);
     });
   }
 

@@ -57,7 +57,11 @@ export class FiltersComponent {
 
   aplicar(): void {
     this.isFiltrosOpen = false;
-    this.apply.emit({ ...this.filtros, ciudadNombre: this.filtros.ciudad || '' });
+
+    // Espera a que el input de fecha termine de propagar ngModel antes de emitir.
+    setTimeout(() => {
+      this.apply.emit({ ...this.filtros, ciudadNombre: this.filtros.ciudad || '' });
+    }, 0);
   }
 
   limpiar(): void {
