@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { forkJoin, of, Subject, takeUntil } from 'rxjs';
+import { forkJoin, merge, of, Subject, takeUntil } from 'rxjs';
 import { CumplimientoService } from '../../../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../../../core/services/ventas/cumplimientoVentasSemana.service';
 import { ChartComponent } from '../../../../shared/components/chart';
@@ -89,6 +89,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   };
 
   private destroy$ = new Subject<void>();
+  private recargarVista$ = new Subject<void>();
   private iniciado = false;
   private cargaProgramada = false;
   private cargaForzadaPendiente = false;
@@ -199,6 +200,8 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.recargarVista$.next();
+    this.recargarVista$.complete();
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -360,7 +363,7 @@ export class VentasComponent implements OnInit, OnDestroy {
         this.chartType = 'bar';
         this.cumplimientoService
           .getCuotaCategoriaGeneral(filtrosConsulta)
-          .pipe(takeUntil(this.destroy$))
+          .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
           .subscribe((res: any) => {
             const pintarCategoria = (detalleRaw: any[]) => {
               const detalleFiltrado = this.filtrarCategorias(detalleRaw, filtrosConsulta.categoria);
@@ -405,7 +408,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
             this.cumplimientoService
               .getCuotaCategoriasPorVendedores(filtrosConsulta)
-              .pipe(takeUntil(this.destroy$))
+              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((fallback: any) => {
                 const detalleFallback = Array.isArray(fallback?.detalle) ? fallback.detalle : [];
                 pintarCategoria(detalleFallback);
@@ -420,7 +423,7 @@ export class VentasComponent implements OnInit, OnDestroy {
         if (this.activeVentasView === 'cliente') {
           this.cumplimientoService
             .getProductosPorClienteGeneral(filtrosConsulta)
-            .pipe(takeUntil(this.destroy$))
+            .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((res: any) => {
               const listadoGeneral = Array.isArray(res?.data) ? res.data : [];
               if (listadoGeneral.length > 0) {
@@ -446,7 +449,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
               this.cumplimientoService
                 .getVendedores()
-                .pipe(takeUntil(this.destroy$))
+                .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
                 .subscribe((vendedores: any[]) => {
                   const codigos = (Array.isArray(vendedores) ? vendedores : [])
                     .map((v: any) =>
@@ -466,7 +469,7 @@ export class VentasComponent implements OnInit, OnDestroy {
                   );
 
                   forkJoin(calls)
-                    .pipe(takeUntil(this.destroy$))
+                    .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
                     .subscribe((responses: any[]) => {
                       const listado = responses.flatMap((r: any) => (Array.isArray(r?.data) ? r.data : []));
                       const detalleClientes = this.construirDetalleClientes(listado);
@@ -495,7 +498,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
         this.cumplimientoService
           .getVendedores()
-          .pipe(takeUntil(this.destroy$))
+          .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
           .subscribe((vendedores: any[]) => {
             const codigos = (Array.isArray(vendedores) ? vendedores : [])
               .map((v: any) =>
@@ -517,7 +520,7 @@ export class VentasComponent implements OnInit, OnDestroy {
             );
 
             forkJoin(calls)
-              .pipe(takeUntil(this.destroy$))
+              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((responses: any[]) => {
                 if (this.activeVentasView === 'item') {
                   const listado = responses.flatMap((r: any) => (Array.isArray(r?.data) ? r.data : []));
@@ -551,7 +554,7 @@ export class VentasComponent implements OnInit, OnDestroy {
         return;
 
       default:
-        admin$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
+        admin$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe((res: any) => {
           const detalle = this.mapearDetalleAdminAVendedores(res?.detalle ?? []);
 
           switch (this.activeVentasView) {
@@ -1350,6 +1353,9 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.ultimaCargaKey = cargaKey;
     this.debugLog('VentasComponent.cargarVistaActual', `Cargando vista ${this.activeVentasView}`);
 
+    // Cancela peticiones previas para que solo pinte la carga mas reciente.
+    this.recargarVista$.next();
+
     this.resetearVista();
 
     const filtrosBase = this.aplicarFechasPorDefecto(this._filtros);
@@ -1374,7 +1380,7 @@ export class VentasComponent implements OnInit, OnDestroy {
         if (tieneProveedor) {
           this.cumplimientoService
             .getDetallePorLineaProveedor(this._codigoVendedor, codigoProveedor, filtrosConsulta)
-            .pipe(takeUntil(this.destroy$))
+            .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((res: any) => {
               const detalle = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
               const listadoTabla = this.ordenarProveedoresPorAlfabeto(detalle);
@@ -1397,7 +1403,7 @@ export class VentasComponent implements OnInit, OnDestroy {
                   filtrosConsulta,
                 );
 
-          ciudades$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
+          ciudades$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe((res: any) => {
             const listado = this.filtrarPorCiudadSeleccionada(res?.detallePorCiudad ?? []);
             this.tableData = listado;
             this.chartData = listado.map((i: any) => ({
@@ -1409,7 +1415,7 @@ export class VentasComponent implements OnInit, OnDestroy {
         } else if (this.esSemanal) {
           this.semanaService
             .getCumplimientoSemanaVendedor(filtrosConsulta)
-            .pipe(takeUntil(this.destroy$))
+            .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((res: any) => {
               const d = (res?.detalle ?? []).find((v: any) => v.codVendedor !== 'TOTALES');
               if (!d) return;
@@ -1425,7 +1431,7 @@ export class VentasComponent implements OnInit, OnDestroy {
         } else {
           this.cumplimientoService
             .getCumplimientoPorCodigo(this._codigoVendedor, filtrosConsulta)
-            .pipe(takeUntil(this.destroy$))
+            .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((res: any) => {
               if (!res?.totales) return;
 
@@ -1455,7 +1461,7 @@ export class VentasComponent implements OnInit, OnDestroy {
               ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor)
               : this.cumplimientoService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor);
 
-            lineas$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
+            lineas$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe((res: any) => {
               const listado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
               const listadoFiltrado = this.filtrarProveedores(listado, codigoProveedor);
 
@@ -1502,7 +1508,7 @@ export class VentasComponent implements OnInit, OnDestroy {
             const filtrosActivos = candidatos[idx];
             this.cumplimientoService
               .getCuotaCategoriaPorVendedor(this._codigoVendedor, filtrosActivos)
-              .pipe(takeUntil(this.destroy$))
+              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((res: any) => {
                 const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
                 const detalleFiltrado = this.filtrarCategorias(detalle, filtrosActivos.categoria);
@@ -1574,7 +1580,7 @@ export class VentasComponent implements OnInit, OnDestroy {
                   )
                 : this.cumplimientoService.getCiudadesPorVendedor(this._codigoVendedor, filtrosActivos);
 
-            ciudades$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
+            ciudades$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe((res: any) => {
               const listadoCompleto = res?.detallePorCiudad ?? [];
               const listadoFiltrado = this.filtrarPorCiudadSeleccionada(listadoCompleto);
 
@@ -1608,7 +1614,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
         this.cumplimientoService
           .getCumplimientoPorCodigo(this._codigoVendedor, filtrosConsulta)
-          .pipe(takeUntil(this.destroy$))
+          .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
           .subscribe((res: any) => {
             if (!res?.totales) return;
 
@@ -1631,7 +1637,7 @@ export class VentasComponent implements OnInit, OnDestroy {
             const filtrosActivos = candidatos[idx];
             this.cumplimientoService
               .getProductosPorVendedor(this._codigoVendedor, filtrosActivos)
-              .pipe(takeUntil(this.destroy$))
+              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((res: any) => {
                 const listado = res?.data ?? [];
 
@@ -1677,7 +1683,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
             this.cumplimientoService
               .getProductosPorCliente(idVendedor, filtrosActivos)
-              .pipe(takeUntil(this.destroy$))
+              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe({
                 next: (res: any) => {
                   const listado = Array.isArray(res?.data) ? res.data : [];
