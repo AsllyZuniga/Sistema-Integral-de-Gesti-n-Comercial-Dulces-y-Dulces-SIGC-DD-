@@ -19,8 +19,6 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const session = inject(SessionService);
   const jwt = session.getToken();
 
-  // El endpoint de carga de cuotas del vendedor funciona como multipart directo.
-  // Evitamos headers extra para prevenir bloqueos por CORS/preflight en navegador.
   if (jwt && esApiConfiable && !isCuotasVendedorUploadRequest) {
     req = req.clone({
       setHeaders: {
