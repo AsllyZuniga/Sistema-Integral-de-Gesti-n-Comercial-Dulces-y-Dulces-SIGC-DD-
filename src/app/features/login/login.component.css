@@ -17,7 +17,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background:
   background: linear-gradient(180deg, #0f3a68 0%, #0a2746 100%);
   overflow: hidden;
   contain: layout style paint;
