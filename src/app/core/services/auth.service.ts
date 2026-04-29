@@ -5,7 +5,7 @@ import { Observable, catchError, finalize, map, of, shareReplay, take, tap } fro
 import { environment } from '../../../environments/environment';
 import { SessionService, SessionUser } from './session.service';
 
-const INACTIVIDAD_MS   = 60 * 60 * 1000;
+const INACTIVIDAD_MS = 60 * 60 * 1000;
 const EVENTOS_ACTIVIDAD = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
 const VALIDACION_SESION_TTL_MS = 60 * 1000;
 
@@ -20,9 +20,9 @@ export class AuthService {
   private validacionSesionInFlight$: Observable<boolean> | null = null;
 
   constructor(
-    private http:    HttpClient,
-    private router:  Router,
-    private ngZone:  NgZone,
+    private http: HttpClient,
+    private router: Router,
+    private ngZone: NgZone,
     private session: SessionService,
   ) {
     this.iniciarSincronizacionPestanas();
@@ -34,7 +34,12 @@ export class AuthService {
     }
   }
 
-  login(data: { codigo?: string; username?: string; nombre?: string; password: string }): Observable<any> {
+  login(data: {
+    codigo?: string;
+    username?: string;
+    nombre?: string;
+    password: string;
+  }): Observable<any> {
     return this.http.post(`${this.apiUrl}/login`, data);
   }
 
@@ -67,8 +72,8 @@ export class AuthService {
     this.detenerTimerInactividad();
     this.reiniciarTimer();
     this.ngZone.runOutsideAngular(() => {
-      EVENTOS_ACTIVIDAD.forEach(evento =>
-        window.addEventListener(evento, this.onActividad, { passive: true })
+      EVENTOS_ACTIVIDAD.forEach((evento) =>
+        window.addEventListener(evento, this.onActividad, { passive: true }),
       );
     });
   }
@@ -78,9 +83,7 @@ export class AuthService {
       clearTimeout(this.timerId);
       this.timerId = null;
     }
-    EVENTOS_ACTIVIDAD.forEach(evento =>
-      window.removeEventListener(evento, this.onActividad)
-    );
+    EVENTOS_ACTIVIDAD.forEach((evento) => window.removeEventListener(evento, this.onActividad));
   }
 
   private onActividad = (): void => {
@@ -169,11 +172,17 @@ export class AuthService {
 
           if (err?.status === 404 || err?.status === 405) {
             this.validacionBackendHabilitada = false;
-            this.debugLog('AuthService.validarSesion', `Endpoint no encontrado (${err?.status}), se desactiva validacion backend`);
+            this.debugLog(
+              'AuthService.validarSesion',
+              `Endpoint no encontrado (${err?.status}), se desactiva validacion backend`,
+            );
             return of(true);
           }
 
-          this.debugLog('AuthService.validarSesion', `Error no bloqueante (${err?.status ?? 'N/A'})`);
+          this.debugLog(
+            'AuthService.validarSesion',
+            `Error no bloqueante (${err?.status ?? 'N/A'})`,
+          );
           return of(true);
         }),
         finalize(() => {
