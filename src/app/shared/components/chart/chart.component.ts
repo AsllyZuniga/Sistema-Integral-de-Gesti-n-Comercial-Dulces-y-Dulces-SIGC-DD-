@@ -19,18 +19,20 @@ import { Chart, ChartOptions } from 'chart.js/auto';
       <canvas #canvas></canvas>
     </div>
   `,
-  styles: [`
-    .chart-wrapper {
-      width: 100%;
-      max-height: 380px;   /* ✅ límite en pantallas grandes */
-      height: clamp(220px, 35vh, 380px); /* ✅ fluido: mínimo 220px, máximo 380px */
-      position: relative;
-    }
-    canvas {
-      width: 100% !important;
-      height: 100% !important;
-    }
-  `],
+  styles: [
+    `
+      .chart-wrapper {
+        width: 100%;
+        max-height: 380px; /* ✅ límite en pantallas grandes */
+        height: clamp(220px, 35vh, 380px); /* ✅ fluido: mínimo 220px, máximo 380px */
+        position: relative;
+      }
+      canvas {
+        width: 100% !important;
+        height: 100% !important;
+      }
+    `,
+  ],
 })
 export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>;
@@ -61,9 +63,18 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private readonly COLORS = [
-    '#2563eb', '#16a34a', '#d97706', '#7c3aed', '#0891b2',
-    '#db2777', '#65a30d', '#ea580c', '#0284c7', '#9333ea',
-    '#15803d', '#b45309',
+    '#2563eb',
+    '#16a34a',
+    '#d97706',
+    '#7c3aed',
+    '#0891b2',
+    '#db2777',
+    '#65a30d',
+    '#ea580c',
+    '#0284c7',
+    '#9333ea',
+    '#15803d',
+    '#b45309',
   ];
 
   private getColors(count: number): string[] {
@@ -118,16 +129,16 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
       } as any,
       ...(isBar || isLine
         ? {
-          scales: {
-            y: {
-              min: yMin,
-              max: yMax,
-              ticks: {
-                callback: (val) => this.formatNumber(val as number),
+            scales: {
+              y: {
+                min: yMin,
+                max: yMax,
+                ticks: {
+                  callback: (val) => this.formatNumber(val as number),
+                },
               },
             },
-          },
-        }
+          }
         : {}),
     };
 
