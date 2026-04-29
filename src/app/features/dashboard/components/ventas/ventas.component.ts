@@ -1378,8 +1378,11 @@ export class VentasComponent implements OnInit, OnDestroy {
         this.chartType = 'line';
 
         if (tieneProveedor) {
-          this.cumplimientoService
-            .getDetallePorLineaProveedor(this._codigoVendedor, codigoProveedor, filtrosConsulta)
+          const detalleProveedor$ = this.esSemanal
+            ? this.semanaService.getDetallePorLineaProveedor(this._codigoVendedor, codigoProveedor, filtrosConsulta)
+            : this.cumplimientoService.getDetallePorLineaProveedor(this._codigoVendedor, codigoProveedor, filtrosConsulta);
+
+          detalleProveedor$
             .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((res: any) => {
               const detalle = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
@@ -1506,8 +1509,11 @@ export class VentasComponent implements OnInit, OnDestroy {
 
           const intentarCategoria = (idx: number): void => {
             const filtrosActivos = candidatos[idx];
-            this.cumplimientoService
-              .getCuotaCategoriaPorVendedor(this._codigoVendedor, filtrosActivos)
+            const categorias$ = this.esSemanal
+              ? this.semanaService.getCuotaCategoriaPorVendedor(this._codigoVendedor, filtrosActivos)
+              : this.cumplimientoService.getCuotaCategoriaPorVendedor(this._codigoVendedor, filtrosActivos);
+
+            categorias$
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((res: any) => {
                 const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
@@ -1612,8 +1618,11 @@ export class VentasComponent implements OnInit, OnDestroy {
       case 'vendedor':
         this.chartType = 'bar';
 
-        this.cumplimientoService
-          .getCumplimientoPorCodigo(this._codigoVendedor, filtrosConsulta)
+        const vendedor$ = this.esSemanal
+          ? this.semanaService.getCumplimientoPorCodigo(this._codigoVendedor, filtrosConsulta)
+          : this.cumplimientoService.getCumplimientoPorCodigo(this._codigoVendedor, filtrosConsulta);
+
+        vendedor$
           .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
           .subscribe((res: any) => {
             if (!res?.totales) return;
@@ -1635,8 +1644,11 @@ export class VentasComponent implements OnInit, OnDestroy {
 
           const intentarItem = (idx: number): void => {
             const filtrosActivos = candidatos[idx];
-            this.cumplimientoService
-              .getProductosPorVendedor(this._codigoVendedor, filtrosActivos)
+            const items$ = this.esSemanal
+              ? this.semanaService.getProductosPorVendedor(this._codigoVendedor, filtrosActivos)
+              : this.cumplimientoService.getProductosPorVendedor(this._codigoVendedor, filtrosActivos);
+
+            items$
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((res: any) => {
                 const listado = res?.data ?? [];
@@ -1732,5 +1744,10 @@ export class VentasComponent implements OnInit, OnDestroy {
         }
         break;
     }
+  }
+
+  // For dashboard parent to force a reload when filters/tipoCuota change
+  public reloadView(force = true): void {
+    this.solicitarCargaVista(!!force);
   }
 }
