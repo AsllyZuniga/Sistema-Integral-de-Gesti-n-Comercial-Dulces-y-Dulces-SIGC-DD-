@@ -26,6 +26,7 @@ import { DashboardRoleViewsModule } from './views/dashboard-role-views.module';
 interface DashboardTotalesVendedor {
   ventaAcum?: number;
   cuotaMes?: number;
+  cuotaDiaria?: number;
   cuotaSemana?: number;
   porcCump?: number;
   proyeccionVenta?: number;
@@ -112,6 +113,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ) {}
 
   @ViewChild(SidebarComponent) sidebarRef!: SidebarComponent;
+  @ViewChild(VentasComponent) ventasRef?: VentasComponent;
 
   vendedor: SessionUser | null = null;
   isSidebarCollapsed = false;
@@ -248,6 +250,38 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return `${y}-${m}-${d}`;
   }
 
+  private getWeekRange(date: Date): { inicio: string; fin: string } {
+    const day = date.getDay(); // 0=Sun, 1=Mon, ...
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const monday = new Date(date);
+    monday.setDate(date.getDate() + diffToMonday);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return { inicio: this.formatDate(monday), fin: this.formatDate(sunday) };
+  }
+
+  private getDayRange(date: Date): { inicio: string; fin: string } {
+    const formattedDate = this.formatDate(date);
+    return { inicio: formattedDate, fin: formattedDate };
+  }
+
+  private getMonthRange(date: Date): { inicio: string; fin: string } {
+    const inicio = new Date(date.getFullYear(), date.getMonth(), 1);
+    const fin = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    return { inicio: this.formatDate(inicio), fin: this.formatDate(fin) };
+  }
+
+  private adjustDateRangeForTipoCuota(tipo: TipoCuota, pivotDateStr: string): { inicio: string; fin: string } {
+    const pivotDate = new Date(pivotDateStr);
+    if (tipo === 'semanal') {
+      return this.getWeekRange(pivotDate);
+    } else if (tipo === 'diaria') {
+      return this.getDayRange(pivotDate);
+    } else {
+      return this.getMonthRange(pivotDate);
+    }
+  }
+
   toggleMenuMovil(): void {
     this.sidebarRef?.toggleMobile();
   }
@@ -257,8 +291,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.tipoCuota = tipo;
 
     if (this.rolId === 3) {
+      // Auto-ajusta fechas según el nuevo tipoCuota
+      const pivotDate = this.filtrosActivos.fechaInicio || this.formatDate(new Date());
+      const newRange = this.adjustDateRangeForTipoCuota(tipo, pivotDate);
+      this.filtrosActivos.fechaInicio = newRange.inicio;
+      this.filtrosActivos.fechaFin = newRange.fin;
+
       this.totalesVendedor = null;
       this.cargarTotalesVendedor();
+      this.ventasRef?.reloadView(true);
     }
   }
 
@@ -758,8 +799,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.cargarOpcionesVendedor({ ...this.filtrosActivos, ciudad: '', ciudadNombre: '' });
     }
 
+    // Auto-ajusta fechas si estamos en modo semanal o diaria
+    if (this.rolId === 3 && this.tipoCuota !== 'mensual') {
+      const newRange = this.adjustDateRangeForTipoCuota(this.tipoCuota, this.filtrosActivos.fechaInicio);
+      this.filtrosActivos.fechaInicio = newRange.inicio;
+      this.filtrosActivos.fechaFin = newRange.fin;
+    }
+
     if (this.rolId === 3) {
       this.cargarTotalesVendedor();
+      this.ventasRef?.reloadView(true);
     }
   }
 
@@ -767,27 +816,43 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const filtros = { ...this.filtrosActivos };
 
     const obs$ =
-      this.tipoCuota === 'semanal'
-        ? this.semanaService.getCumplimientoSemanaVendedor(filtros)
-        : this.cumplimientoService.getCumplimientoMesVendedor(filtros);
+      this.tipoCuota === 'mensual'
+        ? this.cumplimientoService.getCumplimientoMesVendedor(filtros)
+        : this.semanaService.getCumplimientoSemanaVendedor(filtros);
 
-    const campo = this.tipoCuota === 'semanal' ? 'cuotaSemana' : 'cuotaMes';
+    const campo = this.tipoCuota === 'semanal' ? 'cuotaSemana' : this.tipoCuota === 'diaria' ? 'cuotaDiaria' : 'cuotaMes';
 
     obs$.pipe(takeUntil(this.destroy$)).subscribe({
-        next: (res: ApiTotalesResponse<DashboardTotalesVendedor>) => {
-          const detalle = (res?.detalle ?? []).filter((v) => v.codVendedor !== 'TOTALES');
-          const d = detalle[0];
+      next: (res: ApiTotalesResponse<DashboardTotalesVendedor>) => {
+        const detalle = (res?.detalle ?? []).filter((v) => v.codVendedor !== 'TOTALES');
+        const d = detalle[0];
 
         if (!d) {
           this.totalesVendedor = null;
           return;
         }
 
+        const raw = d as Record<string, unknown>;
+        const leerNumero = (...valores: unknown[]): number => {
+          for (const valor of valores) {
+            const numero = Number(valor ?? 0);
+            if (Number.isFinite(numero)) return numero;
+          }
+          return 0;
+        };
+
+        // Normalize possible field names and fill all cuota variants so template bindings work.
+        const cuotaMesVal = leerNumero(raw['cuotaMes'], raw['cuota_mes']);
+        const cuotaSemanaVal = leerNumero(raw['cuotaSemana'], raw['cuota_semana'], this.tipoCuota === 'semanal' ? raw[campo] : undefined);
+        const cuotaDiariaVal = leerNumero(raw['cuotaDiaria'], raw['cuotaDia'], raw['cuota_dia'], this.tipoCuota === 'diaria' ? raw[campo] : undefined);
+
         this.totalesVendedor = {
-          ventaAcum: d.ventaAcum,
-          cuotaMes: d[campo],
-          porcCump: d.porcCump,
-          proyeccionVenta: d.proyeccionVenta,
+          ventaAcum: Number(d.ventaAcum ?? 0) || 0,
+          cuotaMes: cuotaMesVal || (this.tipoCuota === 'mensual' ? Number(d[campo] ?? 0) : cuotaMesVal),
+          cuotaSemana: cuotaSemanaVal || (this.tipoCuota === 'semanal' ? Number(d[campo] ?? 0) : cuotaSemanaVal),
+          cuotaDiaria: cuotaDiariaVal || (this.tipoCuota === 'diaria' ? Number(d[campo] ?? 0) : cuotaDiariaVal),
+          porcCump: Number(d.porcCump ?? 0) || 0,
+          proyeccionVenta: Number(d.proyeccionVenta ?? 0) || 0,
         };
       },
       error: () => {
