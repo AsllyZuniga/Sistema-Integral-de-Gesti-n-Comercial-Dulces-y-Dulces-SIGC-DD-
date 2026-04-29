@@ -47,30 +47,29 @@ export class CardComponent implements OnInit {
   // ─── Mapa de configuración por título (toLowerCase) ───────────────────────
   // Cubre las 3 variantes de periodo: mes · semana · diaria
   private configMap: { [key: string]: { icon: string; color: string } } = {
-
     // ── Venta acumulada ──────────────────────────────────────────────────────
-    'total venta mes':  { icon: 'paid',          color: 'blue'  },
-    'venta mes':        { icon: 'paid',          color: 'blue'  },
-    'venta semana':     { icon: 'paid',          color: 'blue'  },
-    'venta diaria':     { icon: 'paid',          color: 'blue'  },
+    'total venta mes': { icon: 'paid', color: 'blue' },
+    'venta mes': { icon: 'paid', color: 'blue' },
+    'venta semana': { icon: 'paid', color: 'blue' },
+    'venta diaria': { icon: 'paid', color: 'blue' },
 
     // ── Cuota ────────────────────────────────────────────────────────────────
-    'total cuota':      { icon: 'target',        color: 'navy'  },
-    'cuota mes':        { icon: 'target',        color: 'navy'  },
-    'cuota semana':     { icon: 'target',        color: 'navy'  },
-    'cuota diaria':     { icon: 'target',        color: 'navy'  },
+    'total cuota': { icon: 'target', color: 'navy' },
+    'cuota mes': { icon: 'target', color: 'navy' },
+    'cuota semana': { icon: 'target', color: 'navy' },
+    'cuota diaria': { icon: 'target', color: 'navy' },
 
     // ── Cumplimiento ─────────────────────────────────────────────────────────
-    'cumplimiento':     { icon: 'monitoring',    color: 'olive' },
+    cumplimiento: { icon: 'monitoring', color: 'olive' },
 
     // ── Proyección ───────────────────────────────────────────────────────────
-    'proyección':       { icon: 'rocket_launch', color: 'lime'  },
-    'proyeccion':       { icon: 'rocket_launch', color: 'lime'  },
+    proyección: { icon: 'rocket_launch', color: 'lime' },
+    proyeccion: { icon: 'rocket_launch', color: 'lime' },
 
     // ── Otros ────────────────────────────────────────────────────────────────
-    'ventas':           { icon: 'storefront',    color: 'blue'  },
-    'clientes':         { icon: 'groups',        color: 'navy'  },
-    'pedidos':          { icon: 'deployed_code', color: 'olive' },
+    ventas: { icon: 'storefront', color: 'blue' },
+    clientes: { icon: 'groups', color: 'navy' },
+    pedidos: { icon: 'deployed_code', color: 'olive' },
   };
 
   constructor(private cdr: ChangeDetectorRef) {}
@@ -87,15 +86,15 @@ export class CardComponent implements OnInit {
 
     // Si no hay exacta, busca por palabras clave (por si el título tiene texto extra)
     if (!config) {
-      if      (key.includes('venta'))       config = { icon: 'paid',          color: 'blue'  };
-      else if (key.includes('cuota'))       config = { icon: 'target',        color: 'navy'  };
-      else if (key.includes('cumpl'))       config = { icon: 'monitoring',    color: 'olive' };
-      else if (key.includes('proyecc') ||
-               key.includes('proyec'))      config = { icon: 'rocket_launch', color: 'lime'  };
-      else                                  config = { icon: 'dashboard',     color: 'blue'  };
+      if (key.includes('venta')) config = { icon: 'paid', color: 'blue' };
+      else if (key.includes('cuota')) config = { icon: 'target', color: 'navy' };
+      else if (key.includes('cumpl')) config = { icon: 'monitoring', color: 'olive' };
+      else if (key.includes('proyecc') || key.includes('proyec'))
+        config = { icon: 'rocket_launch', color: 'lime' };
+      else config = { icon: 'dashboard', color: 'blue' };
     }
 
-    this.icon  = config.icon;
+    this.icon = config.icon;
     this.color = config.color;
   }
 
