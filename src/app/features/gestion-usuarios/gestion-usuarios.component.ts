@@ -360,7 +360,10 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
               error: (err) => {
                 console.error('Error creando vendedor:', err);
                 this.guardando = false;
-                this.notificar('error', `Error al crear vendedor: ${err?.error?.message || err?.message}`);
+                this.notificar(
+                  'error',
+                  `Error al crear vendedor: ${err?.error?.message || err?.message}`,
+                );
                 this.cdr.detectChanges();
               },
             });
@@ -404,7 +407,10 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
         error: (err) => {
           console.error('Error creando supervisor:', err);
           this.guardando = false;
-          this.notificar('error', `Error al crear supervisor: ${err?.error?.message || err?.message}`);
+          this.notificar(
+            'error',
+            `Error al crear supervisor: ${err?.error?.message || err?.message}`,
+          );
           this.cdr.detectChanges();
         },
       });
