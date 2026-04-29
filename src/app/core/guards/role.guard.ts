@@ -18,9 +18,8 @@ export class RoleGuard implements CanActivate {
     const rolesPermitidos: number[] = route.data['roles'] ?? [];
     if (rolesPermitidos.length === 0) return true;
 
-    // ✅ Lee desde sessionStorage via AuthService
     const usuario = this.auth.getVendedor();
-    const rolId   = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? 0);
+    const rolId = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? 0);
 
     if (rolesPermitidos.includes(rolId)) {
       this.auth.iniciarTimerInactividad();
