@@ -38,10 +38,17 @@ export class CuotasUploadService {
    * Carga cuotas por proveedor/línea
    * Endpoint: POST /vendedor-cuota-proveedor/upload
    * Formato esperado: Línea, Cuota Línea
+   * Requiere: fecha_inicio y fecha_fin en formato YYYY-MM-DD
    */
-  uploadCuotasProveedor(archivo: File): Observable<CuotasUploadResponse> {
+  uploadCuotasProveedor(
+    archivo: File,
+    fechaInicio: string,
+    fechaFin: string,
+  ): Observable<CuotasUploadResponse> {
     const formData = new FormData();
-    formData.append('archivo', archivo);
+    formData.append('file', archivo);
+    formData.append('fecha_inicio', fechaInicio);
+    formData.append('fecha_fin', fechaFin);
     return this.http.post<CuotasUploadResponse>(
       `${this.apiUrl}/vendedor-cuota-proveedor/upload`,
       formData,
