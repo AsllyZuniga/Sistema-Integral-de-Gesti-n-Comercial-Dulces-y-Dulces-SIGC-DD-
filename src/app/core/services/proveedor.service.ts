@@ -23,16 +23,14 @@ export class ProveedorService {
 
   // Obtener todos los proveedores de la BD
   getAllProveedores(): Observable<ProveedorDB[]> {
-    return this.http
-      .get<ProveedorDB[]>(this.apiUrl)
-      .pipe(
-        map((res) => {
-          return Array.isArray(res) ? res : [];
-        }),
-        catchError((err) => {
-          console.error('❌ [ProveedorService] Error cargando proveedores:', err);
-          return of([]);
-        }),
-      );
+    return this.http.get<ProveedorDB[]>(this.apiUrl).pipe(
+      map((res) => {
+        return Array.isArray(res) ? res : [];
+      }),
+      catchError((err) => {
+        console.error('❌ [ProveedorService] Error cargando proveedores:', err);
+        return of([]);
+      }),
+    );
   }
 }
