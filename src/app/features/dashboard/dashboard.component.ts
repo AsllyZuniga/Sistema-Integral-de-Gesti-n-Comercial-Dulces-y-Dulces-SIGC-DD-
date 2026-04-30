@@ -808,7 +808,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     if (this.rolId === 3) {
       this.cargarTotalesVendedor();
-      this.ventasRef?.reloadView(true);
+      // No llamar a ventasRef?.reloadView() aquí - el setter de @Input filtros
+      // dispara automáticamente solicitarCargaVista() cuando filtrosActivos cambia
     }
   }
 

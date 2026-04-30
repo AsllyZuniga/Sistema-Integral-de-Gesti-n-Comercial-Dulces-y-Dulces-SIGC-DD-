@@ -194,7 +194,8 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.iniciado = true;
-    if (this._codigoVendedor) {
+    // Hacer carga inicial si hay codigoVendedor O si estamos en modo admin visualizando "todos"
+    if (this._codigoVendedor || this.esModoAdminTodos()) {
       this.solicitarCargaVista(true);
     }
   }
@@ -586,8 +587,15 @@ export class VentasComponent implements OnInit, OnDestroy {
             case 'proveedor': {
               this.chartType = 'bar';
               const agrupado = this.agruparAdminPorCampo(detalle, 'linea', 'linea');
-              const ordenado = this.ordenarProveedoresPorAlfabeto(agrupado);
-              const topProveedores = [...agrupado]
+              
+              // Aplicar filtro de proveedor si está seleccionado
+              const codigoProveedorFiltro = String(filtrosConsulta.proveedor ?? '').trim();
+              const proveedoresFiltrados = codigoProveedorFiltro
+                ? this.filtrarProveedores(agrupado, codigoProveedorFiltro)
+                : agrupado;
+              
+              const ordenado = this.ordenarProveedoresPorAlfabeto(proveedoresFiltrados);
+              const topProveedores = [...proveedoresFiltrados]
                 .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
                 .slice(0, 12);
 

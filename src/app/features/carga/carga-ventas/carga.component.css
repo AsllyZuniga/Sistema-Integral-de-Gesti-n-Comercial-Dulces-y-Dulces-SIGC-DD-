@@ -389,7 +389,7 @@
   height: 100%;
   transform-origin: left;
   background: linear-gradient(90deg, var(--c-primary-mid), var(--c-primary));
-  animation: progress 2s ease-in-out infinite;
+  transition: width 300ms ease;
 }
 
 @keyframes spin {

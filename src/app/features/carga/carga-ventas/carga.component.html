@@ -88,11 +88,21 @@
         <!-- PROGRESO -->
         @if (estaImportando) {
           <div class="progress-bar">
-            <div class="progress-fill"></div>
+            <div class="progress-fill" [style.width.%]="uploadProgress ?? 0"></div>
           </div>
           <p class="progress-text">
-            Procesando archivo, esto puede tomar varios minutos para archivos grandes...
+            @if (uploadProgress !== null) {
+              Subiendo archivo: {{ uploadProgress }}% · {{ tamanioMB }} MB
+            } @else {
+              Procesando archivo, esto puede tomar varios minutos para archivos grandes...
+            }
           </p>
+          @if (processedLines) {
+            <p class="progress-text">Registros procesados: {{ processedLines }}</p>
+          }
+          @if (totalAcumulado) {
+            <p class="progress-text">Total acumulado (según logs): {{ totalAcumulado }}</p>
+          }
         }
 
         <!-- ÉXITO -->

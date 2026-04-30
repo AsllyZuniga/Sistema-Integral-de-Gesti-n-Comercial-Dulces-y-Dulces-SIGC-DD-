@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, map, of, throwError } from 'rxjs';
+import { Observable, Subject, catchError, map, of, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 @Injectable({
@@ -8,8 +8,19 @@ import { environment } from '../../../environments/environment';
 })
 export class UsuariosService {
   private apiUrl = environment.apiUrl;
+  private supervisorAsignado$ = new Subject<{
+    idVendedor: string;
+    idSupervisor: string;
+  }>();
 
   constructor(private http: HttpClient) {}
+
+  /**
+   * Observable que emite cuando se asigna un supervisor a un vendedor
+   */
+  onSupervisorAsignado() {
+    return this.supervisorAsignado$.asObservable();
+  }
 
   /**
    * GET /usuario
@@ -173,6 +184,19 @@ export class UsuariosService {
     return this.http.put<any>(`${this.apiUrl}/vendedor/${idVendedor}/asignar-supervisor`, {
       idSupervisor: supervisorId,
       id_supervisor: supervisorId,
-    });
+    }).pipe(
+      map((response) => {
+        // Emitir evento de cambio
+        this.supervisorAsignado$.next({
+          idVendedor,
+          idSupervisor,
+        });
+        return response;
+      }),
+      catchError((err) => {
+        console.error('❌ Error asignando supervisor:', err);
+        return throwError(() => err);
+      }),
+    );
   }
 }

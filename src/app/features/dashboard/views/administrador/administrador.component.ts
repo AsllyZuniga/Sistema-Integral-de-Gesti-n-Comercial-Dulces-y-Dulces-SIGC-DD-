@@ -42,6 +42,8 @@ interface CuotaDetalle {
 interface VendedorApiRow {
   codigo_vendedor?: string;
   codVendedor?: string;
+  id_vendedor?: number | string;
+  idVendedor?: number | string;
   nombre?: string;
   proveedor?: string;
   nomProveedor?: string;
@@ -102,6 +104,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
   asignandoSupervisor = false;
 
   private supervisorPorCodigoVendedor: Map<string, string> = new Map();
+  private codigoVendedorAIdMap: Map<string, string | number> = new Map();
   private destroy$ = new Subject<void>();
   private initialized = false;
 
@@ -221,6 +224,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
 
   ngOnInit(): void {
     this.initialized = true;
+    this.cargarVendedoresDetalle();
     this.cargarSupervisores();
   }
 
@@ -235,6 +239,42 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  private cargarVendedoresDetalle(): void {
+    this.usuariosService
+      .listarDetalleVendedores()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res: any[]) => {
+          this.codigoVendedorAIdMap.clear();
+          const vendedores = Array.isArray(res) ? res : [];
+          
+          vendedores.forEach((vendedor: any) => {
+            const codigo = String(
+              vendedor.codigo_vendedor ??
+              vendedor.codVendedor ??
+              vendedor.codigo ??
+              ''
+            ).trim();
+            
+            const idVendedor = vendedor.id_vendedor ?? 
+                               vendedor.idVendedor ?? 
+                               vendedor.id_usuario ?? 
+                               vendedor.idUsuario ?? 
+                               vendedor.id;
+            
+            if (codigo && idVendedor) {
+              this.codigoVendedorAIdMap.set(codigo, idVendedor);
+            }
+          });
+          
+          console.log('✅ Mapa de vendedores cargado:', this.codigoVendedorAIdMap.size, 'vendedores');
+        },
+        error: (err: any) => {
+          console.error('❌ Error cargando vendedores:', err);
+        },
+      });
   }
 
   private cargarSupervisores(): void {
@@ -325,6 +365,8 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
         const listaNormalizada: VendedorTabla[] = detalle.map((v) => ({
           codigo_vendedor: v.codigo_vendedor ?? v.codVendedor,
           codVendedor: this.obtenerCodigoVendedor(v),
+          id_vendedor: v.id_vendedor ?? v.idVendedor,
+          idVendedor: v.id_vendedor ?? v.idVendedor,
           nombre: v.nombre ?? '',
           proveedor: v.proveedor,
           nomProveedor: v.nomProveedor,
@@ -414,16 +456,26 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     this.asignandoSupervisor = true;
 
     const vendedorActual = this.vendedorEnModal;
-    const codVendedor = vendedorActual.codVendedor ?? vendedorActual.codigo_vendedor ?? '';
+    const codigoVendedor = String(vendedorActual.codVendedor ?? vendedorActual.codigo_vendedor ?? '').trim();
+    
+    // Buscar el ID del vendedor en el mapa cargado desde /vendedor
+    let idVendedor = this.codigoVendedorAIdMap.get(codigoVendedor);
+    
+    // Si no lo encuentra en el mapa, intentar usar el id_vendedor del objeto (por si acaso)
+    if (!idVendedor) {
+      idVendedor = vendedorActual.id_vendedor ?? vendedorActual.idVendedor;
+    }
+    
     const idSupervisor = this.supervisorSeleccionado;
 
-    if (!codVendedor) {
+    if (!idVendedor) {
       this.asignandoSupervisor = false;
+      console.error('No se encontró el ID del vendedor con código:', codigoVendedor);
       return;
     }
 
     this.usuariosService
-      .asignarSupervisor(codVendedor.toString(), idSupervisor)
+      .asignarSupervisor(String(idVendedor), idSupervisor)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
@@ -454,7 +506,8 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
           this.cerrarModalAsignar();
           this.recargarSupervisoresPorVendedorAdmin();
         },
-        error: () => {
+        error: (err: any) => {
+          console.error('Error asignando supervisor:', err);
           this.asignandoSupervisor = false;
           this.cdr.detectChanges();
         },
