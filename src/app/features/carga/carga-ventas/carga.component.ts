@@ -193,6 +193,37 @@ export class CargaComponent {
                 return;
               }
 
+              // Fallback: si el texto contiene indicadores de proceso, considerarlo éxito
+              const hayIndicadores = /Lectura completada|Lote confirmado|Detalles insertados|Procesando batch/i.test(
+                textoRespuesta,
+              );
+              if (hayIndicadores) {
+                const cierre = textoRespuesta.trim().split(/\r?\n/).slice(-6).join('\n');
+                const fallback: ImportVentasResponse = {
+                  mensaje: 'Proceso completado (info extraída de logs)\n' + cierre,
+                };
+                // intentar extraer números de lectura/total nuevamente
+                const lectura = /Lectura completada:\s*([0-9,.]+)\s*l[ií]neas procesadas/i.exec(
+                  textoRespuesta,
+                );
+                if (lectura) fallback.registrosExitosos = Number(lectura[1].replace(/[,\.]/g, ''));
+                const totalAc = /Total acumulado:\s*([0-9,.]+)/i.exec(textoRespuesta);
+                if (totalAc) {
+                  const val = Number(totalAc[1].replace(/[,\.]/g, ''));
+                  fallback.registrosExitosos = fallback.registrosExitosos ?? val;
+                  fallback.tiempoTotalSegundos = val;
+                }
+
+                this.estado = 'exito';
+                this.resultado = fallback;
+                this.processedLines = fallback.registrosExitosos ?? null;
+                this.totalAcumulado = typeof fallback.tiempoTotalSegundos === 'number' ? fallback.tiempoTotalSegundos : null;
+                this.uploadProgress = 100;
+                this.tipoError = null;
+                this.cd.detectChanges();
+                return;
+              }
+
               this.setError(
                 'servidor',
                 'El servidor no devolvió una respuesta válida. Intenta nuevamente.',
