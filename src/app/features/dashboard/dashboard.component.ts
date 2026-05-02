@@ -2,6 +2,7 @@ import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject, forkJoin, of, takeUntil } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { SessionUser } from '../../core/services/session.service';
 import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
@@ -14,6 +15,7 @@ import {
 import { FilterOption } from '../../shared/components/filters/filters.component';
 import { SidebarComponent } from '../../shared/components/sidebar/sidebar.component';
 import { VentasComponent } from '../dashboard/components/ventas/ventas.component';
+import { ImpactosComponent } from '../dashboard/components/impactos/impactos.component';
 import {
   CuotasCumplimientoComponent,
   TipoCuota,
@@ -24,6 +26,7 @@ import { DashboardRoleViewsModule } from './views/dashboard-role-views.module';
 interface DashboardTotalesVendedor {
   ventaAcum?: number;
   cuotaMes?: number;
+  cuotaDiaria?: number;
   cuotaSemana?: number;
   porcCump?: number;
   proyeccionVenta?: number;
@@ -75,6 +78,15 @@ interface ApiTotalesResponse<TDetalle> {
   detalle?: TDetalle[];
 }
 
+interface CumplimientoAdminDetalleRow {
+  ciudad?: string;
+  nomCiudad?: string;
+  nombreCiudad?: string;
+  linea?: string;
+  nomLinea?: string;
+  nombreLinea?: string;
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -84,6 +96,7 @@ interface ApiTotalesResponse<TDetalle> {
     FiltersComponent,
     SidebarComponent,
     VentasComponent,
+    ImpactosComponent,
     CuotasCumplimientoComponent,
     DashboardRoleViewsModule,
   ],
@@ -92,6 +105,7 @@ interface ApiTotalesResponse<TDetalle> {
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   constructor(
+    private route: ActivatedRoute,
     private authService: AuthService,
     private cumplimientoService: CumplimientoService,
     private semanaService: CumplimientoSemanaService,
@@ -99,6 +113,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ) {}
 
   @ViewChild(SidebarComponent) sidebarRef!: SidebarComponent;
+  @ViewChild(VentasComponent) ventasRef?: VentasComponent;
 
   vendedor: SessionUser | null = null;
   isSidebarCollapsed = false;
@@ -111,6 +126,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   tipoCuota: TipoCuota = 'mensual';
   rolId = 0;
+  activeAnalisisView: 'ventas' | 'impactos' = 'ventas';
 
   private proveedorMap: Map<string, string> = new Map();
   private ciudadMap: Map<string, string> = new Map();
@@ -134,6 +150,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   };
 
   ngOnInit(): void {
+    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
+      const vista = String(params.get('vista') ?? 'ventas').toLowerCase();
+      this.activeAnalisisView = vista === 'impactos' ? 'impactos' : 'ventas';
+    });
+
     this.vendedor = this.authService.getVendedor();
     if (!this.vendedor) {
       this.vendedor = {
@@ -229,6 +250,38 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return `${y}-${m}-${d}`;
   }
 
+  private getWeekRange(date: Date): { inicio: string; fin: string } {
+    const day = date.getDay(); // 0=Sun, 1=Mon, ...
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const monday = new Date(date);
+    monday.setDate(date.getDate() + diffToMonday);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return { inicio: this.formatDate(monday), fin: this.formatDate(sunday) };
+  }
+
+  private getDayRange(date: Date): { inicio: string; fin: string } {
+    const formattedDate = this.formatDate(date);
+    return { inicio: formattedDate, fin: formattedDate };
+  }
+
+  private getMonthRange(date: Date): { inicio: string; fin: string } {
+    const inicio = new Date(date.getFullYear(), date.getMonth(), 1);
+    const fin = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    return { inicio: this.formatDate(inicio), fin: this.formatDate(fin) };
+  }
+
+  private adjustDateRangeForTipoCuota(tipo: TipoCuota, pivotDateStr: string): { inicio: string; fin: string } {
+    const pivotDate = new Date(pivotDateStr);
+    if (tipo === 'semanal') {
+      return this.getWeekRange(pivotDate);
+    } else if (tipo === 'diaria') {
+      return this.getDayRange(pivotDate);
+    } else {
+      return this.getMonthRange(pivotDate);
+    }
+  }
+
   toggleMenuMovil(): void {
     this.sidebarRef?.toggleMobile();
   }
@@ -238,8 +291,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.tipoCuota = tipo;
 
     if (this.rolId === 3) {
+      // Auto-ajusta fechas según el nuevo tipoCuota
+      const pivotDate = this.filtrosActivos.fechaInicio || this.formatDate(new Date());
+      const newRange = this.adjustDateRangeForTipoCuota(tipo, pivotDate);
+      this.filtrosActivos.fechaInicio = newRange.inicio;
+      this.filtrosActivos.fechaFin = newRange.fin;
+
       this.totalesVendedor = null;
       this.cargarTotalesVendedor();
+      this.ventasRef?.reloadView(true);
     }
   }
 
@@ -503,6 +563,46 @@ export class DashboardComponent implements OnInit, OnDestroy {
     cargarCiudades(0);
   }
 
+  private cargarCiudadesYLineasAdmin(): void {
+    const filtrosBase: DashboardFilters = {
+      ...this.filtrosActivos,
+      vendedor: '',
+      categoria: '',
+      ciudad: '',
+      ciudadNombre: '',
+      linea: '',
+    };
+
+    this.cumplimientoService
+      .getCumplimientoMesAdmin(filtrosBase)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((res: ApiTotalesResponse<CumplimientoAdminDetalleRow>) => {
+        const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+
+        this.ciudadMap.clear();
+        this.lineaMap.clear();
+
+        const ciudades = new Set<string>();
+        const lineas = new Set<string>();
+
+        detalle.forEach((row) => {
+          const ciudad = this.repararTextoCiudad(row?.ciudad ?? row?.nomCiudad ?? row?.nombreCiudad ?? '');
+          const linea = String(row?.linea ?? row?.nomLinea ?? row?.nombreLinea ?? '').trim();
+
+          if (ciudad && !this.esCiudadResumen(ciudad)) {
+            ciudades.add(ciudad);
+          }
+
+          if (linea) {
+            lineas.add(linea);
+          }
+        });
+
+        this.ciudadesList = this.toFilterOptions(Array.from(ciudades));
+        this.lineasList = this.toFilterOptions(Array.from(lineas));
+      });
+  }
+
   private resolverCodigoVendedorDesdeApi(): void {
     if (this.codigoVendedor) return;
 
@@ -570,6 +670,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
           this.vendedoresList = this.toFilterOptions(Array.from(etiquetas));
         });
+
+      this.cargarCiudadesYLineasAdmin();
     }
 
     if (!this.esAdmin && this.codigoVendedor) {
@@ -587,6 +689,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private cargarCategoriasFiltros(): void {
     const filtrosBase: DashboardFilters = {
       ...this.filtrosActivos,
+      vendedor: this.esAdmin ? '' : this.filtrosActivos.vendedor,
       fechaInicio: '',
       fechaFin: '',
       proveedor: '',
@@ -696,8 +799,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.cargarOpcionesVendedor({ ...this.filtrosActivos, ciudad: '', ciudadNombre: '' });
     }
 
+    // Auto-ajusta fechas si estamos en modo semanal o diaria
+    if (this.rolId === 3 && this.tipoCuota !== 'mensual') {
+      const newRange = this.adjustDateRangeForTipoCuota(this.tipoCuota, this.filtrosActivos.fechaInicio);
+      this.filtrosActivos.fechaInicio = newRange.inicio;
+      this.filtrosActivos.fechaFin = newRange.fin;
+    }
+
     if (this.rolId === 3) {
       this.cargarTotalesVendedor();
+      // No llamar a ventasRef?.reloadView() aquí - el setter de @Input filtros
+      // dispara automáticamente solicitarCargaVista() cuando filtrosActivos cambia
     }
   }
 
@@ -705,27 +817,43 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const filtros = { ...this.filtrosActivos };
 
     const obs$ =
-      this.tipoCuota === 'semanal'
-        ? this.semanaService.getCumplimientoSemanaVendedor(filtros)
-        : this.cumplimientoService.getCumplimientoMesVendedor(filtros);
+      this.tipoCuota === 'mensual'
+        ? this.cumplimientoService.getCumplimientoMesVendedor(filtros)
+        : this.semanaService.getCumplimientoSemanaVendedor(filtros);
 
-    const campo = this.tipoCuota === 'semanal' ? 'cuotaSemana' : 'cuotaMes';
+    const campo = this.tipoCuota === 'semanal' ? 'cuotaSemana' : this.tipoCuota === 'diaria' ? 'cuotaDiaria' : 'cuotaMes';
 
     obs$.pipe(takeUntil(this.destroy$)).subscribe({
-        next: (res: ApiTotalesResponse<DashboardTotalesVendedor>) => {
-          const detalle = (res?.detalle ?? []).filter((v) => v.codVendedor !== 'TOTALES');
-          const d = detalle[0];
+      next: (res: ApiTotalesResponse<DashboardTotalesVendedor>) => {
+        const detalle = (res?.detalle ?? []).filter((v) => v.codVendedor !== 'TOTALES');
+        const d = detalle[0];
 
         if (!d) {
           this.totalesVendedor = null;
           return;
         }
 
+        const raw = d as Record<string, unknown>;
+        const leerNumero = (...valores: unknown[]): number => {
+          for (const valor of valores) {
+            const numero = Number(valor ?? 0);
+            if (Number.isFinite(numero)) return numero;
+          }
+          return 0;
+        };
+
+        // Normalize possible field names and fill all cuota variants so template bindings work.
+        const cuotaMesVal = leerNumero(raw['cuotaMes'], raw['cuota_mes']);
+        const cuotaSemanaVal = leerNumero(raw['cuotaSemana'], raw['cuota_semana'], this.tipoCuota === 'semanal' ? raw[campo] : undefined);
+        const cuotaDiariaVal = leerNumero(raw['cuotaDiaria'], raw['cuotaDia'], raw['cuota_dia'], this.tipoCuota === 'diaria' ? raw[campo] : undefined);
+
         this.totalesVendedor = {
-          ventaAcum: d.ventaAcum,
-          cuotaMes: d[campo],
-          porcCump: d.porcCump,
-          proyeccionVenta: d.proyeccionVenta,
+          ventaAcum: Number(d.ventaAcum ?? 0) || 0,
+          cuotaMes: cuotaMesVal || (this.tipoCuota === 'mensual' ? Number(d[campo] ?? 0) : cuotaMesVal),
+          cuotaSemana: cuotaSemanaVal || (this.tipoCuota === 'semanal' ? Number(d[campo] ?? 0) : cuotaSemanaVal),
+          cuotaDiaria: cuotaDiariaVal || (this.tipoCuota === 'diaria' ? Number(d[campo] ?? 0) : cuotaDiariaVal),
+          porcCump: Number(d.porcCump ?? 0) || 0,
+          proyeccionVenta: Number(d.proyeccionVenta ?? 0) || 0,
         };
       },
       error: () => {

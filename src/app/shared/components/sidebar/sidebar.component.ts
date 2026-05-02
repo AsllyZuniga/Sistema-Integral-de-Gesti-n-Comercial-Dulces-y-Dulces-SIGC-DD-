@@ -30,8 +30,12 @@ export class SidebarComponent {
     return 'Vendedor';
   }
 
+  get esVendedor(): boolean {
+    return this.rolId !== 1 && this.rolId !== 2;
+  }
+
   private readonly todasLasOpciones = [
-    { icon: 'dashboard',   label: 'Dashboard',       ruta: '/dashboard', roles: [1, 2, 3] },
+    { icon: 'dashboard', label: 'Dashboard', ruta: '/dashboard', roles: [1, 2] },
     { icon: 'upload_file', label: 'Carga de Ventas', ruta: '/carga',     roles: [1]      },
     { icon: 'request_quote', label: 'Carga de Cuotas', ruta: '/carga-cuotas', roles: [1] },
     { icon: 'group',       label: 'Gestión Usuarios', ruta: '/gestion-usuarios', roles: [1] },
@@ -40,12 +44,22 @@ export class SidebarComponent {
     // { icon: 'inventory_2',       label: 'Detalle',        ruta: '/detalle',      roles: [1, 2, 3] },
     // { icon: 'assignment_return', label: 'Devoluciones',   ruta: '/devoluciones', roles: [1, 2, 3] },
     // { icon: 'history',           label: 'Históricos',     ruta: '/historicos',   roles: [1, 2, 3] },
-    // { icon: 'trending_up',       label: 'Impactos',       ruta: '/impactos',     roles: [1, 2, 3] },
     // { icon: 'verified',          label: 'Nivel Servicio', ruta: '/nivel',        roles: [1, 2, 3] },
   ];
 
   get navItems() {
-    return this.todasLasOpciones.filter(item => item.roles.includes(this.rolId));
+    return this.todasLasOpciones.filter((item) => item.roles.includes(this.rolId));
+  }
+
+  isVendedorVistaActive(vista: 'ventas' | 'impactos'): boolean {
+    const url = this.router.parseUrl(this.router.url);
+    const primary = url.root.children['primary'];
+    const path = '/' + (primary?.segments.map((s) => s.path).join('/') ?? '');
+
+    if (path !== '/dashboard') return false;
+
+    const vistaActual = String(url.queryParams['vista'] ?? 'ventas').toLowerCase();
+    return vista === 'impactos' ? vistaActual === 'impactos' : vistaActual !== 'impactos';
   }
 
   isActive(ruta: string): boolean {

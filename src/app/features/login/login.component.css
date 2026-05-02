@@ -2,7 +2,6 @@
   --c-primary: #0f5fa8;
   --c-primary-mid: #1d78c9;
   --c-dark: #0a2746;
-  --c-dark-soft: #123a63;
   --c-text: #17304a;
   --c-muted: #597089;
   --c-border: #c9d7e6;
@@ -18,29 +17,21 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background:
-    radial-gradient(circle at 12% 14%, rgba(255, 255, 255, 0.08), transparent 18%),
-    radial-gradient(circle at 92% 82%, rgba(255, 255, 255, 0.06), transparent 16%),
-    linear-gradient(180deg, #0f3a68 0%, #0d3158 48%, #0a2746 100%);
+  background: linear-gradient(180deg, #0f3a68 0%, #0a2746 100%);
   overflow: hidden;
-}
-
-.login-shell,
-.login-stage,
-.login-brand-panel,
-.login-form-panel {
-  box-sizing: border-box;
+  contain: layout style paint;
 }
 
 .login-stage {
   width: min(1040px, 100%);
   min-height: min(520px, calc(100dvh - 48px));
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: 1fr 1fr;
   overflow: hidden;
   border-radius: 8px;
   box-shadow: 0 30px 90px rgba(2, 19, 39, 0.38);
   background: #ffffff;
+  contain: content;
 }
 
 .login-brand-panel {
@@ -53,45 +44,22 @@
   color: #ffffff;
   background:
     linear-gradient(135deg, rgba(5, 24, 43, 0.25), rgba(10, 45, 79, 0.35)),
-    url('/infa2.png') center center / cover no-repeat;
+    url('/infa2.png') center/cover no-repeat;
+  contain: layout style;
 }
 
 .login-brand-panel::before {
   content: '';
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(180deg, rgba(7, 27, 49, 0.22) 0%, rgba(8, 32, 57, 0.58) 100%);
+  background: linear-gradient(180deg, rgba(7, 27, 49, 0.22), rgba(8, 32, 57, 0.58));
   z-index: 1;
-}
-
-.login-brand-panel::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at top left, rgba(255, 214, 102, 0.2), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(29, 120, 201, 0.2), transparent 30%);
-  z-index: 2;
   pointer-events: none;
 }
 
-.brand-overlay {
-  position: absolute;
-  inset: 0;
-  backdrop-filter: blur(1px);
-  z-index: 2;
-}
-
-.brand-top,
-.login-form-head,
-.login-form,
-.form-group {
+.brand-top {
   position: relative;
   z-index: 3;
-}
-
-.brand-top {
   display: grid;
   gap: 24px;
   width: 100%;
@@ -105,9 +73,7 @@
   height: auto;
   display: block;
   object-fit: contain;
-  filter:
-    drop-shadow(0 12px 24px rgba(0, 0, 0, 0.28))
-    drop-shadow(0 4px 10px rgba(255, 255, 255, 0.08));
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.28));
 }
 
 .brand-content {
@@ -137,8 +103,8 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 249, 252, 0.98) 100%);
+  background: #ffffff;
+  contain: layout style;
 }
 
 .login-form-head {
@@ -193,7 +159,7 @@
 .form-group label {
   color: #27425f;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
 }
@@ -207,7 +173,10 @@
   color: var(--c-text);
   font-family: inherit;
   font-size: 15px;
-  transition: var(--transition);
+  transition:
+    border-color 0.25s ease,
+    background-color 0.25s ease,
+    box-shadow 0.25s ease;
 }
 
 .form-input::placeholder {
@@ -248,7 +217,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: var(--transition);
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
+  will-change: background-color, color;
 }
 
 .password-toggle:hover {
@@ -267,22 +239,25 @@
   padding: 13px 18px;
   border: 0;
   border-radius: 8px;
-  background: linear-gradient(135deg, var(--c-primary-mid) 0%, var(--c-primary) 100%);
+  background: linear-gradient(135deg, var(--c-primary-mid), var(--c-primary));
   color: #ffffff;
   font-family: inherit;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
-  transition: var(--transition);
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
   box-shadow: var(--shadow-btn);
+  will-change: transform, box-shadow;
 }
 
-.btn-login:hover {
+.btn-login:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: var(--shadow-btn-hv);
 }
 
-.btn-login:active {
+.btn-login:active:not(:disabled) {
   transform: translateY(0);
 }
 
@@ -301,12 +276,10 @@
     grid-template-columns: 1fr;
     min-height: auto;
     width: min(460px, 100%);
-    border-radius: 8px;
   }
 
   .login-brand-panel {
     min-height: 240px;
-    display: flex;
   }
 
   .brand-logo {
@@ -329,14 +302,11 @@
 @media (max-width: 560px) {
   .login-shell {
     padding: 14px;
-    align-items: center;
-    justify-content: center;
   }
 
   .login-stage {
     width: min(420px, 100%);
     min-height: auto;
-    border-radius: 8px;
     box-shadow: 0 20px 48px rgba(2, 19, 39, 0.34);
   }
 

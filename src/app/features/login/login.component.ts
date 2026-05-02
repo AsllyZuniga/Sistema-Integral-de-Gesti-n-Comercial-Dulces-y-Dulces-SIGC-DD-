@@ -1,4 +1,10 @@
-import { ChangeDetectorRef, Component, NgZone, OnInit } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  NgZone,
+  OnInit,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { NgOptimizedImage } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -12,12 +18,14 @@ import { AuthService } from '../../core/services/auth.service';
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css'],
   imports: [FormsModule, CommonModule, NgOptimizedImage],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LoginComponent implements OnInit {
   private static readonly LOCK_KEY = 'auth_login_lock_until';
   private static readonly ATTEMPTS_KEY = 'auth_login_failed_attempts';
   private static readonly MAX_ATTEMPTS = 5;
   private static readonly LOCK_MS = 60_000;
+  private static readonly LOGIN_TIMEOUT_MS = 10000;
 
   is_error = false;
   is_loading = false;
@@ -36,6 +44,7 @@ export class LoginComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    // Load from session storage outside main thread to avoid blocking
     this.intentosFallidos = Number(sessionStorage.getItem(LoginComponent.ATTEMPTS_KEY) ?? '0') || 0;
     this.bloqueadoHasta = Number(sessionStorage.getItem(LoginComponent.LOCK_KEY) ?? '0') || 0;
   }
@@ -84,6 +93,7 @@ export class LoginComponent implements OnInit {
     if (this.estaBloqueado) {
       this.is_error = true;
       this.errorMessage = 'Demasiados intentos fallidos. Intenta nuevamente en 1 minuto.';
+      this.cdr.markForCheck();
       return;
     }
 
@@ -93,59 +103,74 @@ export class LoginComponent implements OnInit {
     if (!identificador || !password) {
       this.is_error = true;
       this.errorMessage = 'Debe ingresar credenciales válidas.';
+      this.cdr.markForCheck();
       return;
     }
 
     if (!/^[a-zA-ZÀ-ÿ0-9._\-\s]{3,60}$/.test(identificador)) {
       this.is_error = true;
       this.errorMessage = 'Formato de usuario no válido.';
+      this.cdr.markForCheck();
       return;
     }
 
     if (password.length < 4 || password.length > 128) {
       this.is_error = true;
       this.errorMessage = 'Formato de contraseña no válido.';
+      this.cdr.markForCheck();
       return;
     }
 
     this.is_loading = true;
     this.is_error = false;
+    this.cdr.markForCheck();
 
-    this.authService
-      .login({ codigo: identificador, username: identificador, nombre: identificador, password })
-      .pipe(
-        timeout(10000),
-        finalize(() => {
-          this.is_loading = false;
-        }),
-      )
-      .subscribe({
-        next: (resp) => {
-          this.onLoginExitoso(resp);
-        },
-        error: (err) => {
-          this.ngZone.run(() => {
-            this.is_loading = false;
-            this.is_error = true;
-            this.registrarFalloLogin();
-            if (err?.name === 'TimeoutError') {
-              this.errorMessage = 'No fue posible validar tu sesión en este momento. Intenta nuevamente.';
-            }
-            this.cdr.detectChanges();
-          });
-        },
-      });
+    // Use ngZone to run authentication outside the Angular zone to prevent blocking
+    this.ngZone.runOutsideAngular(() => {
+      this.authService
+        .login({ codigo: identificador, username: identificador, nombre: identificador, password })
+        .pipe(
+          timeout(LoginComponent.LOGIN_TIMEOUT_MS),
+          finalize(() => {
+            this.ngZone.run(() => {
+              this.is_loading = false;
+              this.cdr.markForCheck();
+            });
+          }),
+        )
+        .subscribe({
+          next: (resp) => {
+            this.ngZone.run(() => {
+              this.onLoginExitoso(resp);
+            });
+          },
+          error: (err) => {
+            this.ngZone.run(() => {
+              this.is_loading = false;
+              this.is_error = true;
+              this.registrarFalloLogin();
+              if (err?.name === 'TimeoutError') {
+                this.errorMessage =
+                  'No fue posible validar tu sesión en este momento. Intenta nuevamente.';
+              }
+              this.cdr.markForCheck();
+            });
+          },
+        });
+    });
   }
 
   onCredentialInput(): void {
     if (this.is_error) {
       this.is_error = false;
       this.errorMessage = 'Código, nombre de usuario o contraseña no válidos';
+      this.cdr.markForCheck();
     }
   }
 
   togglePasswordVisibility(): void {
     this.mostrarPassword = !this.mostrarPassword;
+    this.cdr.markForCheck();
   }
 
   private obtenerCodigoSesion(resp: any): string {
@@ -164,7 +189,10 @@ export class LoginComponent implements OnInit {
   }
 
   private obtenerRolSesion(resp: any): any {
-    return resp?.vendedor?.rol ?? resp?.usuario?.rol ?? { idRol: resp?.usuario?.idRol ?? 1, nombre: 'Admin' };
+    return (
+      resp?.vendedor?.rol ??
+      resp?.usuario?.rol ?? { idRol: resp?.usuario?.idRol ?? 1, nombre: 'Admin' }
+    );
   }
 
   private onLoginExitoso(resp: any): void {
@@ -201,7 +229,9 @@ export class LoginComponent implements OnInit {
     this.resetearControlIntentos();
 
     this.authService.iniciarTimerInactividad();
-    const returnUrl = this.returnUrlSeguro(this.route.snapshot.queryParamMap.get('returnUrl') ?? '/dashboard');
+    const returnUrl = this.returnUrlSeguro(
+      this.route.snapshot.queryParamMap.get('returnUrl') ?? '/dashboard',
+    );
     this.router.navigateByUrl(returnUrl || '/dashboard', { replaceUrl: true });
   }
 }

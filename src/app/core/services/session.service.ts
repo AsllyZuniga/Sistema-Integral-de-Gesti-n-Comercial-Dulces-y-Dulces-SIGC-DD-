@@ -96,7 +96,9 @@ export class SessionService {
     return String(sessionStorage.getItem(SESSION_NONCE_KEY) ?? '').trim();
   }
 
-  leerEventoAuth(raw: string | null): { tipo: AuthEventType; nonce: string; timestamp: number } | null {
+  leerEventoAuth(
+    raw: string | null,
+  ): { tipo: AuthEventType; nonce: string; timestamp: number } | null {
     if (!raw) return null;
 
     try {

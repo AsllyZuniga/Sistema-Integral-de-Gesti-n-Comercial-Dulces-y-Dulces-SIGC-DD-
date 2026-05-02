@@ -1,5 +1,6 @@
 import { Component, ChangeDetectorRef, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   CuotasUploadResponse,
@@ -11,13 +12,30 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
 @Component({
   selector: 'app-cuota-proveedor-upload',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="cuota-section">
       <h3>Cuota por Proveedor / Línea</h3>
       <p class="section-desc">
         Carga el archivo CSV con cuotas por proveedor y línea de producto.
       </p>
+
+      <!-- CAMPOS DE FECHA -->
+      <div class="fecha-inputs">
+        <div class="fecha-grupo">
+          <label for="fechaInicio">Fecha Inicio (YYYY-MM-DD)</label>
+          <input
+            type="date"
+            id="fechaInicio"
+            [(ngModel)]="fechaInicio"
+            [disabled]="estaImportando"
+          />
+        </div>
+        <div class="fecha-grupo">
+          <label for="fechaFin">Fecha Fin (YYYY-MM-DD)</label>
+          <input type="date" id="fechaFin" [(ngModel)]="fechaFin" [disabled]="estaImportando" />
+        </div>
+      </div>
 
       <div class="upload-card">
         <!-- ZONA DE CARGA -->
@@ -117,6 +135,51 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
         margin: 0 0 16px;
         font-size: 13px;
         color: var(--c-text-muted);
+      }
+
+      .fecha-inputs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .fecha-grupo {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .fecha-grupo label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--c-text);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .fecha-grupo input[type='date'] {
+        padding: 8px 12px;
+        border: 1.5px solid var(--c-border);
+        border-radius: 6px;
+        background: var(--c-surface);
+        font-size: 13px;
+        color: var(--c-text);
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .fecha-grupo input[type='date']:focus {
+        border-color: var(--c-primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        outline: none;
+      }
+
+      .fecha-grupo input[type='date']:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        background: var(--c-bg-alt);
       }
 
       .upload-card {
@@ -282,6 +345,8 @@ export class CuotaProveedorUploadComponent {
   estado: EstadoCarga = 'idle';
   resultado: CuotasUploadResponse | null = null;
   mensajeError = '';
+  fechaInicio = this.obtenerFechaHoy();
+  fechaFin = this.obtenerFechaHoy();
 
   get estaImportando(): boolean {
     return this.estado === 'cargando';
@@ -290,6 +355,11 @@ export class CuotaProveedorUploadComponent {
   get tamanioMB(): string {
     if (!this.archivoSeleccionado) return '';
     return (this.archivoSeleccionado.size / 1024 / 1024).toFixed(2);
+  }
+
+  private obtenerFechaHoy(): string {
+    const hoy = new Date();
+    return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
   }
 
   constructor(
@@ -358,28 +428,35 @@ export class CuotaProveedorUploadComponent {
   cargar(): void {
     if (!this.archivoSeleccionado || this.estaImportando) return;
 
+    if (!this.fechaInicio || !this.fechaFin) {
+      this.setError('Debes especificar fecha inicio y fin');
+      return;
+    }
+
     this.estado = 'cargando';
     this.resultado = null;
     this.mensajeError = '';
     this.cd.detectChanges();
 
-    this.cuotasService.uploadCuotasProveedor(this.archivoSeleccionado).subscribe({
-      next: (res: CuotasUploadResponse) => {
-        this.estado = 'exito';
-        this.resultado = res;
-        this.archivoSeleccionado = null;
-        this.cd.detectChanges();
-      },
-      error: (err: HttpErrorResponse) => {
-        const backendMessage =
-          typeof err.error === 'string'
-            ? err.error
-            : (err.error?.message ?? err.error?.error);
-        this.setError(backendMessage || err.message || 'Error al importar cuotas');
-        this.estado = 'error';
-        this.cd.detectChanges();
-      },
-    });
+    this.cuotasService
+      .uploadCuotasProveedor(this.archivoSeleccionado, this.fechaInicio, this.fechaFin)
+      .subscribe({
+        next: (res: CuotasUploadResponse) => {
+          this.estado = 'exito';
+          this.resultado = res;
+          this.archivoSeleccionado = null;
+          this.cd.detectChanges();
+        },
+        error: (err: HttpErrorResponse) => {
+          const backendMessage =
+            typeof err.error === 'string'
+              ? err.error
+              : (err.error?.message ?? err.error?.error);
+          this.setError(backendMessage || err.message || 'Error al importar cuotas');
+          this.estado = 'error';
+          this.cd.detectChanges();
+        },
+      });
   }
 
   limpiar(): void {

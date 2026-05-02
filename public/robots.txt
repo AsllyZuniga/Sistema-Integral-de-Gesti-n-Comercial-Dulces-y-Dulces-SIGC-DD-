@@ -1,0 +1,29 @@
+# SIGC-DD Robots Configuration
+# Allow search engines to crawl the application
+
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /*.pdf$
+Disallow: *.js$
+Disallow: *.css$
+Disallow: *.jpg$
+Disallow: *.jpeg$
+Disallow: *.png$
+Disallow: *.gif$
+Disallow: *.webp$
+
+# Specific bots
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+# Crawl delay
+Crawl-delay: 1
+Request-rate: 1/1s
+
+# Sitemap (when available)
+# Sitemap: https://yourdomain.com/sitemap.xml

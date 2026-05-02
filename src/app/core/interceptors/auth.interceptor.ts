@@ -10,6 +10,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const requestUrl = new URL(req.url, window.location.origin);
   const esApiConfiable = requestUrl.origin === apiOrigin;
   const isAuthLoginRequest = requestUrl.pathname.includes('/api/auth/login');
+  const isCuotasVendedorUploadRequest = requestUrl.pathname.includes('/import/cuotas/upload');
 
   if (isAuthLoginRequest) {
     return next(req);
@@ -18,7 +19,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const session = inject(SessionService);
   const jwt = session.getToken();
 
-  if (jwt && esApiConfiable) {
+  if (jwt && esApiConfiable && !isCuotasVendedorUploadRequest) {
     req = req.clone({
       setHeaders: {
         Authorization: `Bearer ${jwt}`,

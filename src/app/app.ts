@@ -6,7 +6,7 @@ import { Subject, filter, takeUntil } from 'rxjs';
   selector: 'app-root',
   standalone: true,
   imports: [RouterOutlet],
-  template: `<router-outlet></router-outlet>`
+  template: `<router-outlet></router-outlet>`,
 })
 export class App implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();

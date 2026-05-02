@@ -393,6 +393,83 @@
   }
 }
 
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  animation: fadeIn .3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0 }
+}
+
+.modal-content {
+  background: var(--c-surface);
+  border-radius: var(--r-lg);
+  box-shadow: 0 20px 40px rgba(0,0,0,.25);
+  max-width: 500px;
+  width: 100%;
+  animation: slideUp .3s ease;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0 }
+}
+
+.modal-header, .modal-body, .modal-footer { padding: 20px 24px }
+.modal-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--c-divider) }
+.modal-header h2 { margin: 0; font: 700 18px/1 inherit; color: var(--c-text) }
+.modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: 0;
+  border: 0;
+  cursor: pointer;
+  color: var(--c-text-muted);
+  border-radius: var(--r-sm);
+  transition: all .3s ease;
+}
+.modal-close:hover { background: var(--c-background); color: var(--c-text) }
+.modal-body { padding: 20px 24px }
+.modal-footer { display: flex; gap: 12px; border-top: 1px solid var(--c-divider) }
+.info-block { background: var(--c-background); padding: 12px; border-radius: var(--r-sm); margin-bottom: 16px }
+.info-block p { margin: 6px 0; font-size: 12px; color: var(--c-text) }
+.form-select {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--c-text);
+  background: var(--c-background);
+  border: 1px solid var(--c-divider);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all .3s ease;
+}
+.form-select:focus { outline: 0; border-color: var(--c-primary); box-shadow: 0 0 0 3px rgba(59,130,246,.1) }
+.form-select:disabled { background: var(--c-surface); opacity: .6; cursor: not-allowed }
+.supervisor-info { background: rgba(139,92,246,.1); padding: 8px 12px; border-radius: var(--r-sm); margin: 8px 0 }
+.supervisor-info p { margin: 4px 0; font-size: 12px; color: var(--c-text) }
+.supervisor-badge { display: inline-block; padding: 3px 8px; background: #8b5cf6; color: #fff; border-radius: var(--r-xs); font: 600 11px/1 inherit }
+.sin-asignar { color: #999; font-style: italic }
+.vendedores-asignados { background: rgba(59,130,246,.1); padding: 10px 12px; border-radius: var(--r-sm); margin: 8px 0 }
+.vendedor-list { list-style: 0; margin: 0; padding: 0 0 0 16px }
+.vendedor-list li { margin: 4px 0; font-size: 12px; color: var(--c-text-muted) }
+.sin-vendedores { margin: 0; font-size: 11px; color: #999; font-style: italic }
+.btn-asignar { color: #8b5cf6; border-color: #8b5cf6; background: rgba(139,92,246,.05) }
+.btn-asignar:hover:not(:disabled) { background: rgba(139,92,246,.1) }
+
 /* ====== Responsive ====== */
 @media (max-width: 768px) {
   .usuarios-section {

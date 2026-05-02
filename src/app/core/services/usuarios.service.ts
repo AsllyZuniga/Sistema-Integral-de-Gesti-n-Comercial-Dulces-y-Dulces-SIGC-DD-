@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, map, of, throwError } from 'rxjs';
+import { Observable, Subject, catchError, map, of, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 @Injectable({
@@ -8,20 +8,29 @@ import { environment } from '../../../environments/environment';
 })
 export class UsuariosService {
   private apiUrl = environment.apiUrl;
+  private supervisorAsignado$ = new Subject<{
+    idVendedor: string;
+    idSupervisor: string;
+  }>();
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient) {}
+
+  /**
+   * Observable que emite cuando se asigna un supervisor a un vendedor
+   */
+  onSupervisorAsignado() {
+    return this.supervisorAsignado$.asObservable();
+  }
 
   /**
    * GET /usuario
    * Obtiene lista de usuarios (supervisores y vendedores)
    */
   listarUsuarios(): Observable<any[]> {
-    return this.http
-      .get<any>(`${this.apiUrl}/usuario`)
-      .pipe(
-        map((res) => (Array.isArray(res) ? res : res?.data ?? [])),
-        catchError(() => of([])),
-      );
+    return this.http.get<any>(`${this.apiUrl}/usuario`).pipe(
+      map((res) => (Array.isArray(res) ? res : (res?.data ?? []))),
+      catchError(() => of([])),
+    );
   }
 
   /**
@@ -29,19 +38,17 @@ export class UsuariosService {
    * Obtiene lista de supervisores (rolId = 2)
    */
   listarSupervisores(): Observable<any[]> {
-    return this.http
-      .get<any>(`${this.apiUrl}/usuario`)
-      .pipe(
-        map((res) => {
-          const usuarios = Array.isArray(res) ? res : res?.data ?? [];
-          // Filtrar solo supervisores (id_rol = 2)
-          return usuarios.filter((u: any) => {
-            const rol = u?.id_rol ?? u?.rol?.idRol ?? u?.idRol ?? u?.rolId ?? 0;
-            return Number(rol) === 2;
-          });
-        }),
-        catchError(() => of([])),
-      );
+    return this.http.get<any>(`${this.apiUrl}/usuario`).pipe(
+      map((res) => {
+        const usuarios = Array.isArray(res) ? res : (res?.data ?? []);
+        // Filtrar solo supervisores (id_rol = 2)
+        return usuarios.filter((u: any) => {
+          const rol = u?.id_rol ?? u?.rol?.idRol ?? u?.idRol ?? u?.rolId ?? 0;
+          return Number(rol) === 2;
+        });
+      }),
+      catchError(() => of([])),
+    );
   }
 
   /**
@@ -49,12 +56,10 @@ export class UsuariosService {
    * Obtiene lista de vendedores
    */
   listarVendedores(): Observable<any[]> {
-    return this.http
-      .get<any>(`${this.apiUrl}/usuario`)
-      .pipe(
-        map((res) => (Array.isArray(res) ? res : res?.data ?? [])),
-        catchError(() => of([])),
-      );
+    return this.http.get<any>(`${this.apiUrl}/usuario`).pipe(
+      map((res) => (Array.isArray(res) ? res : (res?.data ?? []))),
+      catchError(() => of([])),
+    );
   }
 
   /**
@@ -62,12 +67,10 @@ export class UsuariosService {
    * Obtiene detalle de vendedores con código y nombre
    */
   listarDetalleVendedores(): Observable<any[]> {
-    return this.http
-      .get<any>(`${this.apiUrl}/vendedor`)
-      .pipe(
-        map((res) => (Array.isArray(res) ? res : res?.data ?? [])),
-        catchError(() => of([])),
-      );
+    return this.http.get<any>(`${this.apiUrl}/vendedor`).pipe(
+      map((res) => (Array.isArray(res) ? res : (res?.data ?? []))),
+      catchError(() => of([])),
+    );
   }
 
   /**
@@ -76,18 +79,16 @@ export class UsuariosService {
    */
   obtenerVendedoresDelSupervisor(idSupervisor: string): Observable<any[]> {
     const url = `${this.apiUrl}/vendedor/supervisor/${idSupervisor}`;
-    return this.http
-      .get<any[]>(url)
-      .pipe(
-        map((res) => {
-          const vendedores = Array.isArray(res) ? res : [];
-          return vendedores;
-        }),
-        catchError((err) => {
-          console.error('❌ [UsuariosService] Error cargando vendedores del supervisor:', err);
-          return of([]);
-        }),
-      );
+    return this.http.get<any[]>(url).pipe(
+      map((res) => {
+        const vendedores = Array.isArray(res) ? res : [];
+        return vendedores;
+      }),
+      catchError((err) => {
+        console.error('❌ [UsuariosService] Error cargando vendedores del supervisor:', err);
+        return of([]);
+      }),
+    );
   }
 
   /**
@@ -95,10 +96,7 @@ export class UsuariosService {
    * Actualiza un usuario
    */
   actualizarUsuario(idUsuario: string | number, datos: any): Observable<any> {
-    return this.http.put<any>(
-      `${this.apiUrl}/usuario/${idUsuario}`,
-      datos,
-    ).pipe(
+    return this.http.put<any>(`${this.apiUrl}/usuario/${idUsuario}`, datos).pipe(
       catchError((err) => {
         console.error('❌ Error actualizando usuario:', err);
         return throwError(() => err);
@@ -111,10 +109,7 @@ export class UsuariosService {
    * Desactiva un usuario (cambia estado a false)
    */
   desactivarUsuario(idUsuario: string | number): Observable<any> {
-    return this.http.put<any>(
-      `${this.apiUrl}/usuario/${idUsuario}`,
-      { estado: false },
-    ).pipe(
+    return this.http.put<any>(`${this.apiUrl}/usuario/${idUsuario}`, { estado: false }).pipe(
       catchError((err) => {
         console.error('❌ Error desactivando usuario:', err);
         return throwError(() => err);
@@ -126,7 +121,12 @@ export class UsuariosService {
    * POST /usuario
    * Crea un nuevo usuario
    */
-  crearUsuario(datos: { username: string; password: string; id_rol: number; estado?: boolean }): Observable<any> {
+  crearUsuario(datos: {
+    username: string;
+    password: string;
+    id_rol: number;
+    estado?: boolean;
+  }): Observable<any> {
     const payload = {
       username: datos.username,
       password: datos.password,
@@ -167,10 +167,7 @@ export class UsuariosService {
    * Actualiza un vendedor
    */
   actualizarVendedor(idVendedor: string | number, datos: any): Observable<any> {
-    return this.http.put<any>(
-      `${this.apiUrl}/vendedor/${idVendedor}`,
-      datos,
-    ).pipe(
+    return this.http.put<any>(`${this.apiUrl}/vendedor/${idVendedor}`, datos).pipe(
       catchError((err) => {
         console.error('❌ Error actualizando vendedor:', err);
         return throwError(() => err);
@@ -187,6 +184,19 @@ export class UsuariosService {
     return this.http.put<any>(`${this.apiUrl}/vendedor/${idVendedor}/asignar-supervisor`, {
       idSupervisor: supervisorId,
       id_supervisor: supervisorId,
-    });
+    }).pipe(
+      map((response) => {
+        // Emitir evento de cambio
+        this.supervisorAsignado$.next({
+          idVendedor,
+          idSupervisor,
+        });
+        return response;
+      }),
+      catchError((err) => {
+        console.error('❌ Error asignando supervisor:', err);
+        return throwError(() => err);
+      }),
+    );
   }
 }

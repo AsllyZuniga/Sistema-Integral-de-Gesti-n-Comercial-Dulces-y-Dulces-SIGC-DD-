@@ -4,6 +4,8 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 export interface VendedorTabla {
   codigo_vendedor?: string;
   codVendedor?: string;
+  id_vendedor?: number | string;
+  idVendedor?: number | string;
   nombre?: string;
   proveedor?: string;
   nomProveedor?: string;

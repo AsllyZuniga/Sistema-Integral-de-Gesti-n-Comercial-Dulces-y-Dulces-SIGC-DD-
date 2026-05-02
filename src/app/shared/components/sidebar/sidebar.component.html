@@ -5,14 +5,38 @@
   </div>
 
   <nav>
-    @for (item of navItems; track item.label) {
+    @if (esVendedor) {
+      <div class="nav-group-title">Ventas</div>
+
       <a
-        [routerLink]="item.ruta"
-        [class.active]="isActive(item.ruta)"
-        [attr.data-tooltip]="isCollapsed ? item.label : null">
-        <span class="icon material-symbols-rounded">{{ item.icon }}</span>
-        <span class="label">{{ item.label }}</span>
+        [routerLink]="['/dashboard']"
+        [queryParams]="{ vista: 'ventas' }"
+        [class.active]="isVendedorVistaActive('ventas')"
+        [attr.data-tooltip]="isCollapsed ? 'Análisis de ventas' : null">
+        <span class="icon material-symbols-rounded">analytics</span>
+        <span class="label">Análisis de ventas</span>
       </a>
+
+      <a
+        [routerLink]="['/dashboard']"
+        [queryParams]="{ vista: 'impactos' }"
+        [class.active]="isVendedorVistaActive('impactos')"
+        [attr.data-tooltip]="isCollapsed ? 'Análisis de Impactos' : null">
+        <span class="icon material-symbols-rounded">insights</span>
+        <span class="label">Análisis de Impactos</span>
+      </a>
+    }
+
+    @if (!esVendedor) {
+      @for (item of navItems; track item.label) {
+        <a
+          [routerLink]="item.ruta"
+          [class.active]="isActive(item.ruta)"
+          [attr.data-tooltip]="isCollapsed ? item.label : null">
+          <span class="icon material-symbols-rounded">{{ item.icon }}</span>
+          <span class="label">{{ item.label }}</span>
+        </a>
+      }
     }
   </nav>
 </aside>

@@ -27,7 +27,7 @@
     <!-- Selector de tipo de cuota -->
     <div class="cuota-selector-row">
       <app-cuotas-cumplimiento
-        [(tipoCuota)]="tipoCuota"
+        [tipoCuota]="tipoCuota"
         (tipoCuotaChange)="onCambiarTipoCuota($event)"
       >
       </app-cuotas-cumplimiento>
@@ -65,18 +65,26 @@
       <!-- KPIs vendedor -->
       <section class="kpis">
         <app-card [title]="labelVentaAcum" [value]="totalesVendedor?.ventaAcum ?? 0"> </app-card>
-        <app-card [title]="labelCuota" [value]="totalesVendedor?.cuotaMes ?? 0"> </app-card>
+        <app-card
+          [title]="labelCuota"
+          [value]="tipoCuota === 'diaria' ? (totalesVendedor?.cuotaDiaria ?? totalesVendedor?.cuotaMes ?? 0) : tipoCuota === 'semanal' ? (totalesVendedor?.cuotaSemana ?? totalesVendedor?.cuotaMes ?? 0) : (totalesVendedor?.cuotaMes ?? 0)"
+        ></app-card>
         <app-card title="Cumplimiento" [value]="totalesVendedor?.porcCump ?? 0"> </app-card>
         <app-card title="Proyección" [value]="totalesVendedor?.proyeccionVenta ?? 0"> </app-card>
       </section>
 
       <section class="charts">
-        <app-ventas
-          [codigoVendedor]="codigoVendedor"
-          [filtros]="filtrosActivos"
-          [tipoCuota]="tipoCuota"
-        >
-        </app-ventas>
+        @if (activeAnalisisView === 'impactos') {
+          <app-impactos></app-impactos>
+        } @else {
+          <app-ventas
+            [codigoVendedor]="codigoVendedor"
+            [modoAdmin]="esAdmin"
+            [filtros]="filtrosActivos"
+            [tipoCuota]="tipoCuota"
+          >
+          </app-ventas>
+        }
       </section>
     }
   </div>

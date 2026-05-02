@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Subject, takeUntil } from 'rxjs';
+import { forkJoin, merge, of, Subject, takeUntil } from 'rxjs';
 import { CumplimientoService } from '../../../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../../../core/services/ventas/cumplimientoVentasSemana.service';
 import { ChartComponent } from '../../../../shared/components/chart';
@@ -35,7 +35,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   @Input() set codigoVendedor(value: string) {
     this._codigoVendedor = this.normalizarCodigoVendedor(value);
-    if (value && this.iniciado) {
+    if ((value || this.esModoAdminTodos()) && this.iniciado) {
       this.solicitarCargaVista();
     }
   }
@@ -43,6 +43,17 @@ export class VentasComponent implements OnInit, OnDestroy {
     return this._codigoVendedor;
   }
   private _codigoVendedor = '';
+
+  @Input() set modoAdmin(value: boolean) {
+    this._modoAdmin = value;
+    if (this.iniciado) {
+      this.solicitarCargaVista(true);
+    }
+  }
+  get modoAdmin(): boolean {
+    return this._modoAdmin;
+  }
+  private _modoAdmin = false;
 
   @Input() set tipoCuota(value: TipoCuota) {
     const cambio = this._tipoCuota !== value;
@@ -59,7 +70,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   @Input() set filtros(value: DashboardFilters) {
     this._filtros = value;
-    if (this._codigoVendedor && this.iniciado) {
+    if ((this._codigoVendedor || this.esModoAdminTodos()) && this.iniciado) {
       this.solicitarCargaVista();
     }
   }
@@ -78,8 +89,10 @@ export class VentasComponent implements OnInit, OnDestroy {
   };
 
   private destroy$ = new Subject<void>();
+  private recargarVista$ = new Subject<void>();
   private iniciado = false;
   private cargaProgramada = false;
+  private cargaForzadaPendiente = false;
   private ultimaCargaKey = '';
 
   rolId = 0;
@@ -181,12 +194,15 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.iniciado = true;
-    if (this._codigoVendedor) {
+    // Hacer carga inicial si hay codigoVendedor O si estamos en modo admin visualizando "todos"
+    if (this._codigoVendedor || this.esModoAdminTodos()) {
       this.solicitarCargaVista(true);
     }
   }
 
   ngOnDestroy(): void {
+    this.recargarVista$.next();
+    this.recargarVista$.complete();
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -238,15 +254,384 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private solicitarCargaVista(force = false): void {
-    if (!this._codigoVendedor || !this.iniciado) return;
+    if ((!this._codigoVendedor && !this.esModoAdminTodos()) || !this.iniciado) return;
 
-    if (this.cargaProgramada && !force) return;
+    this.cargaForzadaPendiente = this.cargaForzadaPendiente || force;
+
+    if (this.cargaProgramada) return;
+
     this.cargaProgramada = true;
 
     queueMicrotask(() => {
+      const forceCarga = this.cargaForzadaPendiente;
+      this.cargaForzadaPendiente = false;
       this.cargaProgramada = false;
-      this.cargarVistaActual(force);
+      this.cargarVistaActual(forceCarga);
     });
+  }
+
+  private esModoAdminTodos(): boolean {
+    return this._modoAdmin && (!this._codigoVendedor || this._codigoVendedor === 'ALL');
+  }
+
+  private obtenerCuotaNumero(row: any): number {
+    const valor =
+      row?.[this.cuotaColumn] ??
+      row?.cuotaMes ??
+      row?.cuotaSemana ??
+      row?.cuotaDiaria ??
+      row?.cuota ??
+      row?.cuotaLinea ??
+      0;
+
+    if (typeof valor === 'object' && valor) {
+      const cuotaObj = this.esSemanal
+        ? Number(valor?.cuota_semana ?? 0)
+        : this._tipoCuota === 'diaria'
+          ? Number(valor?.cuota_dia ?? 0)
+          : Number(valor?.cuota_mes ?? 0);
+      return Number.isFinite(cuotaObj) ? cuotaObj : 0;
+    }
+
+    const cuotaNum = Number(valor);
+    return Number.isFinite(cuotaNum) ? cuotaNum : 0;
+  }
+
+  private mapearDetalleAdminAVendedores(detalle: any[]): any[] {
+    return detalle
+      .filter((row: any) => String(row?.codVendedor ?? row?.codigo_vendedor ?? '').trim() !== 'TOTALES')
+      .map((row: any) => ({
+        ...row,
+        codVendedor: String(row?.codVendedor ?? row?.codigo_vendedor ?? '').trim(),
+        nombre: String(row?.nombre ?? ''),
+        [this.cuotaColumn]: this.obtenerCuotaNumero(row),
+        ventaAcum: Number(row?.ventaAcum ?? 0) || 0,
+        porcCump: Number(row?.porcCump ?? 0) || 0,
+        proyeccionVenta: Number(row?.proyeccionVenta ?? 0) || 0,
+        porcCumProy:
+          this.obtenerCuotaNumero(row) > 0
+            ? ((Number(row?.proyeccionVenta ?? 0) || 0) / this.obtenerCuotaNumero(row)) * 100
+            : 0,
+      }));
+  }
+
+  private agruparAdminPorCampo(detalle: any[], campo: string, campoSalida: string): any[] {
+    const agg = new Map<string, any>();
+
+    for (const row of detalle) {
+      const keyRaw = String(row?.[campo] ?? '').trim() || 'Sin dato';
+      const key = this.repararTextoCiudad(keyRaw);
+      const cuota = this.obtenerCuotaNumero(row);
+      const ventaAcum = Number(row?.ventaAcum ?? 0) || 0;
+      const proyeccionVenta = Number(row?.proyeccionVenta ?? 0) || 0;
+
+      const actual = agg.get(key) ?? {
+        [campoSalida]: key,
+        cuotaLinea: 0,
+        cuota: 0,
+        ventaAcum: 0,
+        acumulado: 0,
+        proyeccionVenta: 0,
+      };
+
+      actual.cuotaLinea += cuota;
+      actual.cuota += cuota;
+      actual.ventaAcum += ventaAcum;
+      actual.acumulado += ventaAcum;
+      actual.proyeccionVenta += proyeccionVenta;
+
+      agg.set(key, actual);
+    }
+
+    return Array.from(agg.values()).map((row) => ({
+      ...row,
+      porcCump: row.cuotaLinea > 0 ? (row.ventaAcum / row.cuotaLinea) * 100 : 0,
+      porcentajeCumplimiento: row.cuota > 0 ? (row.acumulado / row.cuota) * 100 : 0,
+      part: 0,
+      proyectado: row.proyeccionVenta,
+      porcCumProy: row.cuotaLinea > 0 ? (row.proyeccionVenta / row.cuotaLinea) * 100 : 0,
+      porcentajeCumplimientoProyectado: row.cuota > 0 ? (row.proyeccionVenta / row.cuota) * 100 : 0,
+    }));
+  }
+
+  private cargarVistaAdminTodos(filtrosConsulta: DashboardFilters): void {
+    const admin$ = this.esSemanal
+      ? this.semanaService.getCumplimientoSemanaAdmin(filtrosConsulta)
+      : this.cumplimientoService.getCumplimientoMesAdmin(filtrosConsulta);
+
+    switch (this.activeVentasView) {
+      case 'categoria':
+        this.chartType = 'bar';
+        this.cumplimientoService
+          .getCuotaCategoriaGeneral(filtrosConsulta)
+          .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+          .subscribe((res: any) => {
+            const pintarCategoria = (detalleRaw: any[]) => {
+              const detalleFiltrado = this.filtrarCategorias(detalleRaw, filtrosConsulta.categoria);
+              const detalleConNombre = detalleFiltrado.map((item: any) => ({
+                ...item,
+                categoria: this.obtenerNombreCategoria(item) || 'Sin categoría',
+              }));
+              const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleConNombre);
+
+              this.tableData = detalleOrdenado;
+              this.totalCuotaCategoria = detalleOrdenado.reduce(
+                (sum: number, item: any) => sum + (Number(item?.cuota ?? 0) || 0),
+                0,
+              );
+              this.totalAcumuladoCategoria = detalleOrdenado.reduce(
+                (sum: number, item: any) => sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
+                0,
+              );
+
+              const topCategorias = [...detalleConNombre]
+                .map((i: any) => ({
+                  name: this.obtenerNombreCategoria(i) || 'Sin categoría',
+                  value: Number(i?.acumulado ?? i?.ventaAcum ?? 0),
+                }))
+                .sort((a: any, b: any) => b.value - a.value)
+                .slice(0, 15);
+
+              this.totalTopCategorias = topCategorias.reduce(
+                (sum: number, item: any) => sum + (Number(item?.value ?? 0) || 0),
+                0,
+              );
+              this.chartData = topCategorias;
+              this.chartId = 'chart-categoria-admin-' + Date.now();
+              this.cdr.markForCheck();
+            };
+
+            const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+            if (detalle.length > 0) {
+              pintarCategoria(detalle);
+              return;
+            }
+
+            this.cumplimientoService
+              .getCuotaCategoriasPorVendedores(filtrosConsulta)
+              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+              .subscribe((fallback: any) => {
+                const detalleFallback = Array.isArray(fallback?.detalle) ? fallback.detalle : [];
+                pintarCategoria(detalleFallback);
+              });
+          });
+        return;
+
+      case 'item':
+      case 'cliente':
+        this.chartType = 'bar';
+
+        if (this.activeVentasView === 'cliente') {
+          this.cumplimientoService
+            .getProductosPorClienteGeneral(filtrosConsulta)
+            .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+            .subscribe((res: any) => {
+              const listadoGeneral = Array.isArray(res?.data) ? res.data : [];
+              if (listadoGeneral.length > 0) {
+                const detalleClientes = this.construirDetalleClientes(listadoGeneral);
+                const topClientes = [...detalleClientes]
+                  .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+                  .slice(0, 15);
+
+                this.totalTopClientes = topClientes.reduce(
+                  (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+                  0,
+                );
+
+                this.clientesAgrupados = detalleClientes;
+                this.clientesVisibles = this.clientesPageSize;
+                this.actualizarClientesVista();
+                this.tableData = detalleClientes;
+                this.chartData = topClientes.map((i: any) => ({ name: i.cliente, value: i.ventaAcum }));
+                this.cargandoClientes = false;
+                this.cdr.markForCheck();
+                return;
+              }
+
+              this.cumplimientoService
+                .getVendedores()
+                .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+                .subscribe((vendedores: any[]) => {
+                  const codigos = (Array.isArray(vendedores) ? vendedores : [])
+                    .map((v: any) =>
+                      String(v?.codigo_vendedor ?? v?.codVendedor ?? v?.codigo ?? '').trim(),
+                    )
+                    .filter(Boolean);
+
+                  if (!codigos.length) {
+                    this.tableData = [];
+                    this.chartData = [];
+                    this.cdr.markForCheck();
+                    return;
+                  }
+
+                  const calls = codigos.map((codigo) =>
+                    this.cumplimientoService.getProductosPorCliente(codigo, filtrosConsulta),
+                  );
+
+                  forkJoin(calls)
+                    .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+                    .subscribe((responses: any[]) => {
+                      const listado = responses.flatMap((r: any) => (Array.isArray(r?.data) ? r.data : []));
+                      const detalleClientes = this.construirDetalleClientes(listado);
+                      const topClientes = [...detalleClientes]
+                        .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+                        .slice(0, 15);
+
+                      this.totalTopClientes = topClientes.reduce(
+                        (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+                        0,
+                      );
+
+                      this.clientesAgrupados = detalleClientes;
+                      this.clientesVisibles = this.clientesPageSize;
+                      this.actualizarClientesVista();
+                      this.tableData = detalleClientes;
+                      this.chartData = topClientes.map((i: any) => ({ name: i.cliente, value: i.ventaAcum }));
+                      this.cargandoClientes = false;
+                      this.cdr.markForCheck();
+                    });
+                });
+            });
+
+          return;
+        }
+
+        this.cumplimientoService
+          .getVendedores()
+          .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+          .subscribe((vendedores: any[]) => {
+            const codigos = (Array.isArray(vendedores) ? vendedores : [])
+              .map((v: any) =>
+                String(v?.codigo_vendedor ?? v?.codVendedor ?? v?.codigo ?? '').trim(),
+              )
+              .filter(Boolean);
+
+            if (!codigos.length) {
+              this.tableData = [];
+              this.chartData = [];
+              this.cdr.markForCheck();
+              return;
+            }
+
+            const calls = codigos.map((codigo) =>
+              this.activeVentasView === 'item'
+                ? this.cumplimientoService.getProductosPorVendedor(codigo, filtrosConsulta)
+                : this.cumplimientoService.getProductosPorCliente(codigo, filtrosConsulta),
+            );
+
+            forkJoin(calls)
+              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+              .subscribe((responses: any[]) => {
+                if (this.activeVentasView === 'item') {
+                  const listado = responses.flatMap((r: any) => (Array.isArray(r?.data) ? r.data : []));
+                  const listadoOrdenado = this.ordenarDetalleItemsPorFechaAsc(listado);
+                  this.allItemData = listadoOrdenado;
+                  this.tableData = [...listadoOrdenado];
+                  this.recalcularChart();
+                  return;
+                }
+
+                const listado = responses.flatMap((r: any) => (Array.isArray(r?.data) ? r.data : []));
+                const detalleClientes = this.construirDetalleClientes(listado);
+                const topClientes = [...detalleClientes]
+                  .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+                  .slice(0, 15);
+
+                this.totalTopClientes = topClientes.reduce(
+                  (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+                  0,
+                );
+
+                this.clientesAgrupados = detalleClientes;
+                this.clientesVisibles = this.clientesPageSize;
+                this.actualizarClientesVista();
+                this.tableData = detalleClientes;
+                this.chartData = topClientes.map((i: any) => ({ name: i.cliente, value: i.ventaAcum }));
+                this.cargandoClientes = false;
+                this.cdr.markForCheck();
+              });
+          });
+        return;
+
+      default:
+        admin$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe((res: any) => {
+          const detalle = this.mapearDetalleAdminAVendedores(res?.detalle ?? []);
+
+          switch (this.activeVentasView) {
+            case 'ventas':
+            case 'vendedor': {
+              this.chartType = this.activeVentasView === 'ventas' ? 'line' : 'bar';
+              this.tableData = detalle;
+              const venta = detalle.reduce((s: number, r: any) => s + (Number(r?.ventaAcum ?? 0) || 0), 0);
+              const cuota = detalle.reduce((s: number, r: any) => s + (Number(r?.[this.cuotaColumn] ?? 0) || 0), 0);
+              const proyeccion = detalle.reduce(
+                (s: number, r: any) => s + (Number(r?.proyeccionVenta ?? 0) || 0),
+                0,
+              );
+
+              this.chartData =
+                this.activeVentasView === 'ventas'
+                  ? [
+                      { name: 'Venta', value: venta },
+                      { name: 'Cuota', value: cuota },
+                      { name: 'Proyección', value: proyeccion },
+                    ]
+                  : detalle.map((v: any) => ({
+                      name: v?.nombre || v?.codVendedor || 'Vendedor',
+                      value: Number(v?.ventaAcum ?? 0),
+                    }));
+              break;
+            }
+
+            case 'proveedor': {
+              this.chartType = 'bar';
+              const agrupado = this.agruparAdminPorCampo(detalle, 'linea', 'linea');
+              
+              // Aplicar filtro de proveedor si está seleccionado
+              const codigoProveedorFiltro = String(filtrosConsulta.proveedor ?? '').trim();
+              const proveedoresFiltrados = codigoProveedorFiltro
+                ? this.filtrarProveedores(agrupado, codigoProveedorFiltro)
+                : agrupado;
+              
+              const ordenado = this.ordenarProveedoresPorAlfabeto(proveedoresFiltrados);
+              const topProveedores = [...proveedoresFiltrados]
+                .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+                .slice(0, 12);
+
+              this.totalTopProveedores = topProveedores.reduce(
+                (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+                0,
+              );
+              this.liderVentasProveedor = this.nombreProveedorCard(topProveedores[0]?.linea ?? '—');
+              this.tableData = ordenado;
+              this.chartData = topProveedores.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
+              break;
+            }
+
+            case 'ciudad': {
+              this.chartType = 'pie';
+              const agrupado = this.agruparAdminPorCampo(detalle, 'ciudad', 'ciudad').map((r: any) => ({
+                ...r,
+                ciudad: this.repararTextoCiudad(r?.ciudad),
+              }));
+              const filtrado = this.filtrarPorCiudadSeleccionada(agrupado);
+              const topCiudades = [...filtrado]
+                .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+                .slice(0, 12);
+
+              this.tableData = filtrado;
+              this.chartData = topCiudades.map((i: any) => ({
+                name: this.repararTextoCiudad(i.ciudad),
+                value: i.ventaAcum,
+              }));
+              break;
+            }
+          }
+
+          this.cdr.markForCheck();
+        });
+    }
   }
 
   private recalcularChart(): void {
@@ -966,7 +1351,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   cargarVistaActual(force = false): void {
-    if (!this._codigoVendedor) return;
+    if (!this._codigoVendedor && !this.esModoAdminTodos()) return;
 
     const cargaKey = this.construirCargaKey();
     if (!force && cargaKey === this.ultimaCargaKey) {
@@ -976,12 +1361,20 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.ultimaCargaKey = cargaKey;
     this.debugLog('VentasComponent.cargarVistaActual', `Cargando vista ${this.activeVentasView}`);
 
+    // Cancela peticiones previas para que solo pinte la carga mas reciente.
+    this.recargarVista$.next();
+
     this.resetearVista();
 
     const filtrosBase = this.aplicarFechasPorDefecto(this._filtros);
     const filtrosConsulta = this.vistaUsaUltimoMesPorDefecto(this.activeVentasView)
       ? this.aplicarUltimoMesCargadoPorDefecto(filtrosBase)
       : filtrosBase;
+
+    if (this.esModoAdminTodos()) {
+      this.cargarVistaAdminTodos(filtrosConsulta);
+      return;
+    }
 
     const tieneProveedor = !!filtrosConsulta.proveedor;
     const codigoProveedor = filtrosConsulta.proveedor;
@@ -993,9 +1386,12 @@ export class VentasComponent implements OnInit, OnDestroy {
         this.chartType = 'line';
 
         if (tieneProveedor) {
-          this.cumplimientoService
-            .getDetallePorLineaProveedor(this._codigoVendedor, codigoProveedor, filtrosConsulta)
-            .pipe(takeUntil(this.destroy$))
+          const detalleProveedor$ = this.esSemanal
+            ? this.semanaService.getDetallePorLineaProveedor(this._codigoVendedor, codigoProveedor, filtrosConsulta)
+            : this.cumplimientoService.getDetallePorLineaProveedor(this._codigoVendedor, codigoProveedor, filtrosConsulta);
+
+          detalleProveedor$
+            .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((res: any) => {
               const detalle = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
               const listadoTabla = this.ordenarProveedoresPorAlfabeto(detalle);
@@ -1018,7 +1414,7 @@ export class VentasComponent implements OnInit, OnDestroy {
                   filtrosConsulta,
                 );
 
-          ciudades$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
+          ciudades$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe((res: any) => {
             const listado = this.filtrarPorCiudadSeleccionada(res?.detallePorCiudad ?? []);
             this.tableData = listado;
             this.chartData = listado.map((i: any) => ({
@@ -1030,7 +1426,7 @@ export class VentasComponent implements OnInit, OnDestroy {
         } else if (this.esSemanal) {
           this.semanaService
             .getCumplimientoSemanaVendedor(filtrosConsulta)
-            .pipe(takeUntil(this.destroy$))
+            .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((res: any) => {
               const d = (res?.detalle ?? []).find((v: any) => v.codVendedor !== 'TOTALES');
               if (!d) return;
@@ -1046,7 +1442,7 @@ export class VentasComponent implements OnInit, OnDestroy {
         } else {
           this.cumplimientoService
             .getCumplimientoPorCodigo(this._codigoVendedor, filtrosConsulta)
-            .pipe(takeUntil(this.destroy$))
+            .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((res: any) => {
               if (!res?.totales) return;
 
@@ -1076,7 +1472,7 @@ export class VentasComponent implements OnInit, OnDestroy {
               ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor)
               : this.cumplimientoService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor);
 
-            lineas$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
+            lineas$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe((res: any) => {
               const listado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
               const listadoFiltrado = this.filtrarProveedores(listado, codigoProveedor);
 
@@ -1121,9 +1517,12 @@ export class VentasComponent implements OnInit, OnDestroy {
 
           const intentarCategoria = (idx: number): void => {
             const filtrosActivos = candidatos[idx];
-            this.cumplimientoService
-              .getCuotaCategoriaPorVendedor(this._codigoVendedor, filtrosActivos)
-              .pipe(takeUntil(this.destroy$))
+            const categorias$ = this.esSemanal
+              ? this.semanaService.getCuotaCategoriaPorVendedor(this._codigoVendedor, filtrosActivos)
+              : this.cumplimientoService.getCuotaCategoriaPorVendedor(this._codigoVendedor, filtrosActivos);
+
+            categorias$
+              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((res: any) => {
                 const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
                 const detalleFiltrado = this.filtrarCategorias(detalle, filtrosActivos.categoria);
@@ -1195,7 +1594,7 @@ export class VentasComponent implements OnInit, OnDestroy {
                   )
                 : this.cumplimientoService.getCiudadesPorVendedor(this._codigoVendedor, filtrosActivos);
 
-            ciudades$.pipe(takeUntil(this.destroy$)).subscribe((res: any) => {
+            ciudades$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe((res: any) => {
               const listadoCompleto = res?.detallePorCiudad ?? [];
               const listadoFiltrado = this.filtrarPorCiudadSeleccionada(listadoCompleto);
 
@@ -1227,9 +1626,12 @@ export class VentasComponent implements OnInit, OnDestroy {
       case 'vendedor':
         this.chartType = 'bar';
 
-        this.cumplimientoService
-          .getCumplimientoPorCodigo(this._codigoVendedor, filtrosConsulta)
-          .pipe(takeUntil(this.destroy$))
+        const vendedor$ = this.esSemanal
+          ? this.semanaService.getCumplimientoPorCodigo(this._codigoVendedor, filtrosConsulta)
+          : this.cumplimientoService.getCumplimientoPorCodigo(this._codigoVendedor, filtrosConsulta);
+
+        vendedor$
+          .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
           .subscribe((res: any) => {
             if (!res?.totales) return;
 
@@ -1250,9 +1652,12 @@ export class VentasComponent implements OnInit, OnDestroy {
 
           const intentarItem = (idx: number): void => {
             const filtrosActivos = candidatos[idx];
-            this.cumplimientoService
-              .getProductosPorVendedor(this._codigoVendedor, filtrosActivos)
-              .pipe(takeUntil(this.destroy$))
+            const items$ = this.esSemanal
+              ? this.semanaService.getProductosPorVendedor(this._codigoVendedor, filtrosActivos)
+              : this.cumplimientoService.getProductosPorVendedor(this._codigoVendedor, filtrosActivos);
+
+            items$
+              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((res: any) => {
                 const listado = res?.data ?? [];
 
@@ -1298,7 +1703,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
             this.cumplimientoService
               .getProductosPorCliente(idVendedor, filtrosActivos)
-              .pipe(takeUntil(this.destroy$))
+              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe({
                 next: (res: any) => {
                   const listado = Array.isArray(res?.data) ? res.data : [];
@@ -1347,5 +1752,10 @@ export class VentasComponent implements OnInit, OnDestroy {
         }
         break;
     }
+  }
+
+  // For dashboard parent to force a reload when filters/tipoCuota change
+  public reloadView(force = true): void {
+    this.solicitarCargaVista(!!force);
   }
 }

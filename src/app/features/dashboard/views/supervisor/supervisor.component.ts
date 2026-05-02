@@ -36,6 +36,8 @@ interface CuotaDetalle {
 interface VendedorApiRow {
   codigo_vendedor?: string;
   codVendedor?: string;
+  id_vendedor?: number | string;
+  idVendedor?: number | string;
   nombre?: string;
   proveedor?: string;
   nomProveedor?: string;
@@ -131,6 +133,15 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     this.idSupervisor = Number(vendedor?.id_usuario ?? vendedor?.idUsuario ?? vendedor?.id ?? 0);
     this.initialized = true;
     this.cargarVendedoresSupervisor();
+
+    // Escuchar cambios en asignaciones de supervisores
+    this.usuariosService
+      .onSupervisorAsignado()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        // Recargar vendedores cuando se asigna un supervisor
+        this.cargarVendedoresSupervisor();
+      });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -297,6 +308,8 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
               ...v,
               codigo_vendedor: v.codigo_vendedor ?? v.codVendedor,
               codVendedor,
+              id_vendedor: v.id_vendedor ?? v.idVendedor,
+              idVendedor: v.id_vendedor ?? v.idVendedor,
               cuotaMes: this.leerCuota(filaCumplimiento?.cuotaMes ?? v.cuotaMes, 'cuota_mes'),
               cuotaSemana: this.leerCuota(filaCumplimiento?.cuotaSemana ?? v.cuotaSemana, 'cuota_semana'),
               cuotaDiaria: this.leerCuota(filaCumplimiento?.cuotaDiaria ?? v.cuotaDia, 'cuota_dia'),

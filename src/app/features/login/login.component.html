@@ -15,7 +15,7 @@
 
         <div class="brand-content">
           <h1>Bienvenido</h1>
-          <p>Distribuidora Comercial Dulces y Dulces </p>
+          <p>Distribuidora Comercial Dulces y Dulces</p>
         </div>
       </div>
     </aside>
@@ -86,7 +86,12 @@
           </div>
         </div>
 
-        <button type="submit" class="btn-login" [disabled]="is_loading">
+        <button
+          type="submit"
+          class="btn-login"
+          [disabled]="is_loading"
+          [attr.aria-label]="is_loading ? 'Verificando credenciales' : 'Iniciar sesión'"
+        >
           {{ is_loading ? 'Verificando...' : 'Iniciar sesión' }}
         </button>
       </form>

@@ -72,11 +72,45 @@
                     </div>
                     <h4>{{ vendedor.nombre ?? vendedor.nom_vendedor ?? vendedor.vendedor?.nombre ?? 'Sin nombre' }}</h4>
                     <p><strong>Código:</strong> {{ vendedor.codigo ?? vendedor.cod_vendedor ?? vendedor.codigo_vendedor ?? vendedor.vendedor?.codigo_vendedor ?? '—' }}</p>
+                    
+                    <!-- Información del supervisor asignado -->
+                    @if (vendedor.id_supervisor) {
+                      <div class="supervisor-info">
+                        <p>
+                          <strong>Supervisor:</strong> 
+                          <span class="supervisor-badge">{{ obtenerNombreSupervisor(vendedor.id_supervisor) }}</span>
+                        </p>
+                      </div>
+                    } @else {
+                      <div class="supervisor-info">
+                        <p><strong>Supervisor:</strong> <span class="sin-asignar">Sin asignar</span></p>
+                      </div>
+                    }
+
                     <div class="usuario-actions">
                       <button class="btn-sm btn-edit" (click)="irAEditarVendedor(vendedor)" [disabled]="eliminando">
                         <span class="material-symbols-rounded">edit</span>
                         Editar
                       </button>
+                      <button 
+                        class="btn-sm btn-asignar" 
+                        (click)="abrirModalAsignar(vendedor)" 
+                        [disabled]="asignandoSupervisor"
+                      >
+                        <span class="material-symbols-rounded">{{ vendedor.id_supervisor ? 'update' : 'person_add' }}</span>
+                        {{ vendedor.id_supervisor ? 'Cambiar' : 'Asignar' }}
+                      </button>
+                      @if (vendedor.id_supervisor) {
+                        <button 
+                          class="btn-sm btn-danger" 
+                          (click)="desasignarSupervisor(vendedor)" 
+                          [disabled]="asignandoSupervisor"
+                          title="Quitar supervisor"
+                        >
+                          <span class="material-symbols-rounded">person_remove</span>
+                          Quitar
+                        </button>
+                      }
                       <button
                         class="btn-sm btn-danger"
                         (click)="desactivarVendedor(vendedor)"
@@ -117,6 +151,21 @@
                     </div>
                     <h4>{{ supervisor.nombre ?? supervisor.nom_supervisor ?? supervisor.username ?? 'Sin nombre' }}</h4>
                     <p><strong>Código:</strong> {{ supervisor.codigo ?? supervisor.cod_supervisor ?? supervisor.codigo_supervisor ?? '—' }}</p>
+                    
+                    <!-- Vendedores asignados -->
+                    <div class="vendedores-asignados">
+                      <p><strong>Vendedores asignados:</strong></p>
+                      @if ((obtenerVendedoresDelSupervisor(supervisor.id_usuario ?? supervisor.id))?.length ?? 0 > 0) {
+                        <ul class="vendedor-list">
+                          @for (vendedor of obtenerVendedoresDelSupervisor(supervisor.id_usuario ?? supervisor.id); track vendedor.id_vendedor || vendedor.id) {
+                            <li>{{ vendedor.nombre ?? vendedor.nom_vendedor ?? 'Sin nombre' }}</li>
+                          }
+                        </ul>
+                      } @else {
+                        <p class="sin-vendedores">Sin vendedores asignados</p>
+                      }
+                    </div>
+
                     <div class="usuario-actions">
                       <button class="btn-sm btn-edit" (click)="irAEditarSupervisor(supervisor)" [disabled]="eliminando">
                         <span class="material-symbols-rounded">edit</span>
@@ -442,6 +491,73 @@
             </div>
           </form>
         </section>
+      }
+
+      <!-- Modal para asignar supervisor -->
+      @if (mostrarModalAsignar) {
+        <div class="modal-overlay" (click)="cerrarModalAsignar()">
+          <div class="modal-content" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+              <h2>{{ vendedorSeleccionado?.id_supervisor ? 'Cambiar Supervisor' : 'Asignar Supervisor' }}</h2>
+              <button class="modal-close" (click)="cerrarModalAsignar()">
+                <span class="material-symbols-rounded">close</span>
+              </button>
+            </div>
+
+            <div class="modal-body">
+              <div class="info-block">
+                <p><strong>Vendedor:</strong> {{ vendedorSeleccionado?.nombre }}</p>
+                @if (vendedorSeleccionado?.id_supervisor) {
+                  <p><strong>Supervisor actual:</strong> {{ obtenerNombreSupervisor(vendedorSeleccionado?.id_supervisor) }}</p>
+                }
+              </div>
+
+              <div class="form-group">
+                <label for="supervisorSelect">Seleccionar Supervisor <span class="required">*</span>:</label>
+                <select 
+                  id="supervisorSelect"
+                  [(ngModel)]="supervisorSeleccionado"
+                  name="supervisor"
+                  [disabled]="asignandoSupervisor"
+                  class="form-select"
+                >
+                  <option [ngValue]="null">-- Selecciona un supervisor --</option>
+                  @for (supervisor of supervisores; track supervisor.id_usuario || supervisor.id) {
+                    @if (supervisor.estado !== false) {
+                      <option [ngValue]="supervisor">
+                        {{ supervisor.nombre }}
+                      </option>
+                    }
+                  }
+                </select>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button 
+                type="button" 
+                class="btn-cancelar" 
+                (click)="cerrarModalAsignar()" 
+                [disabled]="asignandoSupervisor"
+              >
+                Cancelar
+              </button>
+              <button 
+                type="button" 
+                class="btn-guardar" 
+                (click)="asignarSupervisor()" 
+                [disabled]="asignandoSupervisor || !supervisorSeleccionado"
+              >
+                @if (asignandoSupervisor) {
+                  <span class="spinner"></span>
+                  Asignando...
+                } @else {
+                  {{ vendedorSeleccionado?.id_supervisor ? 'Actualizar' : 'Asignar' }}
+                }
+              </button>
+            </div>
+          </div>
+        </div>
       }
     </div>
   </div>

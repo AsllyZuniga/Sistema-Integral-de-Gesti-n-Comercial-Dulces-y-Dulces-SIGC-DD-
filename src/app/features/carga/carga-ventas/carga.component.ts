@@ -1,6 +1,6 @@
 import { Component, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpEventType } from '@angular/common/http';
 import { SidebarComponent } from '../../../shared/components/sidebar/sidebar.component';
 import { AuthService } from '../../../core/services/auth.service';
 import { environment } from '../../../../environments/environment';
@@ -41,6 +41,11 @@ export class CargaComponent {
   mensajeError = '';
   tipoError: TipoError | null = null;
   sidebarColapsado = false;
+  // progreso de subida (upload) en porcentaje 0-100
+  uploadProgress: number | null = null;
+  // datos extraídos desde logs de texto si el backend no devuelve JSON
+  processedLines: number | null = null;
+  totalAcumulado: number | null = null;
 
   get registrosExitosos(): number {
     return this.resultado?.exitosas ?? this.resultado?.registrosExitosos ?? 0;
@@ -145,72 +150,184 @@ export class CargaComponent {
     this.resultado = null;
     this.mensajeError = '';
     this.tipoError = null;
+    this.uploadProgress = 0;
+    this.processedLines = null;
+    this.totalAcumulado = null;
     this.cd.detectChanges();
 
+    // Usamos observe: 'events' para mostrar progreso de subida (upload)
     this.http
       .post(`${this.apiUrl}/import/ventas/upload`, formData, {
         responseType: 'text',
-        observe: 'response',
+        observe: 'events',
+        reportProgress: true,
       })
       .subscribe({
-        next: (response) => {
-          const textoRespuesta = response.body ?? '';
-          const jsons = this.parsearJsonsConcatenados(textoRespuesta);
-
-          if (jsons.length === 0) {
-            this.setError(
-              'servidor',
-              'El servidor no devolvió una respuesta válida. Intenta nuevamente.',
-            );
-            return;
-          }
-
-          const ultimoJson = jsons[jsons.length - 1];
-
-          if (ultimoJson.status === 'error') {
-            const { tipo, mensaje } = this.clasificarError(
-              ultimoJson.mensaje ?? ultimoJson.error ?? '',
-            );
-            this.setError(tipo, mensaje);
-            return;
-          }
-
-          if (
-            ultimoJson.status === 'completado' ||
-            ultimoJson.status === 'exito' ||
-            ultimoJson.exitosas !== undefined
-          ) {
-            this.estado = 'exito';
-            this.resultado = ultimoJson;
-            this.tipoError = null;
+        next: (event: any) => {
+          if (event.type === HttpEventType.UploadProgress) {
+            const percent = event.total ? Math.round((100 * event.loaded) / event.total) : 0;
+            this.uploadProgress = percent;
             this.cd.detectChanges();
             return;
           }
 
-          this.setError('desconocido', ultimoJson.mensaje ?? 'Respuesta inesperada del servidor.');
-        },
-        error: (err: HttpErrorResponse) => {
-          if (typeof err.error === 'string') {
-            const jsons = this.parsearJsonsConcatenados(err.error);
-            if (jsons.length > 0) {
-              const ultimoJson = jsons[jsons.length - 1];
+          if (event.type === HttpEventType.Response) {
+            const textoRespuesta = event.body ?? '';
+            const jsons = this.parsearJsonsConcatenados(textoRespuesta);
+
+            if (jsons.length === 0) {
+              // Intentar extraer información útil desde logs en texto plano
+              const extra = this.parsearDatosDesdeTexto(textoRespuesta);
+              if (extra) {
+                this.estado = 'exito';
+                this.resultado = extra;
+                this.processedLines = extra.registrosExitosos ?? extra.registrosConError ?? null;
+                // Asegurar que totalAcumulado sea number | null
+                const ta = extra.tiempoTotalSegundos !== undefined && extra.tiempoTotalSegundos !== null
+                  ? Number(extra.tiempoTotalSegundos)
+                  : null;
+                this.totalAcumulado = Number.isFinite(ta) ? (ta as number) : null;
+                this.tipoError = null;
+                this.uploadProgress = 100;
+                this.cd.detectChanges();
+                return;
+              }
+
+              // Fallback: si el texto contiene indicadores de proceso, considerarlo éxito
+              const hayIndicadores = /Lectura completada|Lote confirmado|Detalles insertados|Procesando batch/i.test(
+                textoRespuesta,
+              );
+              if (hayIndicadores) {
+                const cierre = textoRespuesta.trim().split(/\r?\n/).slice(-6).join('\n');
+                const fallback: ImportVentasResponse = {
+                  mensaje: 'Proceso completado (info extraída de logs)\n' + cierre,
+                };
+                // intentar extraer números de lectura/total nuevamente
+                const lectura = /Lectura completada:\s*([0-9,.]+)\s*l[ií]neas procesadas/i.exec(
+                  textoRespuesta,
+                );
+                if (lectura) fallback.registrosExitosos = Number(lectura[1].replace(/[,\.]/g, ''));
+                const totalAc = /Total acumulado:\s*([0-9,.]+)/i.exec(textoRespuesta);
+                if (totalAc) {
+                  const val = Number(totalAc[1].replace(/[,\.]/g, ''));
+                  fallback.registrosExitosos = fallback.registrosExitosos ?? val;
+                  fallback.tiempoTotalSegundos = val;
+                }
+
+                this.estado = 'exito';
+                this.resultado = fallback;
+                this.processedLines = fallback.registrosExitosos ?? null;
+                this.totalAcumulado = typeof fallback.tiempoTotalSegundos === 'number' ? fallback.tiempoTotalSegundos : null;
+                this.uploadProgress = 100;
+                this.tipoError = null;
+                this.cd.detectChanges();
+                return;
+              }
+
+              this.setError(
+                'servidor',
+                'El servidor no devolvió una respuesta válida. Intenta nuevamente.',
+              );
+              return;
+            }
+
+            const ultimoJson = jsons[jsons.length - 1];
+
+            if (ultimoJson.status === 'error') {
               const { tipo, mensaje } = this.clasificarError(
                 ultimoJson.mensaje ?? ultimoJson.error ?? '',
               );
               this.setError(tipo, mensaje);
               return;
             }
+
+            if (
+              ultimoJson.status === 'completado' ||
+              ultimoJson.status === 'exito' ||
+              ultimoJson.exitosas !== undefined
+            ) {
+              this.estado = 'exito';
+              this.resultado = ultimoJson;
+              this.tipoError = null;
+              this.uploadProgress = 100;
+              this.cd.detectChanges();
+              return;
+            }
+
+            this.setError('desconocido', ultimoJson.mensaje ?? 'Respuesta inesperada del servidor.');
+          }
+        },
+        error: (err: HttpErrorResponse) => {
+          // Si el backend devuelve logs en texto en err.error, intentar extraer info útil
+          const textoErr = typeof err.error === 'string' ? err.error : '';
+          const jsons = textoErr ? this.parsearJsonsConcatenados(textoErr) : [];
+          if (jsons.length > 0) {
+            const ultimoJson = jsons[jsons.length - 1];
+            const { tipo, mensaje } = this.clasificarError(ultimoJson.mensaje ?? ultimoJson.error ?? '');
+            this.setError(tipo, mensaje);
+            return;
+          }
+
+          const extra = this.parsearDatosDesdeTexto(textoErr || (err.error as any) || '');
+          if (extra) {
+            this.estado = 'exito';
+            this.resultado = extra;
+            // coerción segura del total si existe
+            const taErr = extra.tiempoTotalSegundos !== undefined && extra.tiempoTotalSegundos !== null
+              ? Number(extra.tiempoTotalSegundos)
+              : null;
+            this.totalAcumulado = Number.isFinite(taErr) ? (taErr as number) : null;
+            this.uploadProgress = 100;
+            this.cd.detectChanges();
+            return;
           }
 
           this.setError(
             'servidor',
-            err?.error?.mensaje ??
-              err?.error?.message ??
-              err?.message ??
-              'No se pudo conectar con el servidor.',
+            err?.error?.mensaje ?? err?.error?.message ?? err?.message ?? 'No se pudo conectar con el servidor.',
           );
         },
       });
+  }
+
+  private parsearDatosDesdeTexto(texto: string): ImportVentasResponse | null {
+    if (!texto) return null;
+
+    // Buscar patrones comunes en los logs que contienen totales
+    // Ej: "Lectura completada: 142240 líneas procesadas"
+    const lecturaMatch = /Lectura completada:\s*([0-9,.]+)\s*l[ií]neas procesadas/i.exec(texto);
+    const totalAcumMatch = /Total acumulado:\s*([0-9,.]+)/i.exec(texto);
+    const loteMatch = /Lote confirmado:\s*([0-9,.]+)\s*cabeceras\s*\|\s*([0-9,.]+)\s*detalles\s*\|\s*Total acumulado:\s*([0-9,.]+)/i.exec(texto);
+
+    const resultado: ImportVentasResponse = {};
+
+    if (loteMatch) {
+      const cabeceras = Number(loteMatch[1].replace(/[,\.]/g, ''));
+      const detalles = Number(loteMatch[2].replace(/[,\.]/g, ''));
+      const total = Number(loteMatch[3].replace(/[,\.]/g, ''));
+      resultado.exitosas = cabeceras + detalles;
+      resultado.registrosExitosos = total;
+      resultado.tiempoTotalSegundos = total;
+      resultado.mensaje = 'Proceso completado (información extraída de logs)';
+      return resultado;
+    }
+
+    if (lecturaMatch) {
+      const lines = Number(lecturaMatch[1].replace(/[,\.]/g, ''));
+      resultado.registrosExitosos = lines;
+      resultado.mensaje = 'Lectura completada (extraído de logs)';
+      return resultado;
+    }
+
+    if (totalAcumMatch) {
+      const total = Number(totalAcumMatch[1].replace(/[,\.]/g, ''));
+      resultado.registrosExitosos = total;
+      resultado.tiempoTotalSegundos = total;
+      resultado.mensaje = 'Totales extraídos de logs';
+      return resultado;
+    }
+
+    return null;
   }
 
   limpiar(): void {
