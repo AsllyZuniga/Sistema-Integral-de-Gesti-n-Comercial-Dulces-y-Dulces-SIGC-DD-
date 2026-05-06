@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, inject, ChangeDetectorRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, forkJoin, takeUntil } from 'rxjs';
@@ -20,7 +20,7 @@ type Seccion =
   templateUrl: './gestion-usuarios.component.html',
   styleUrls: ['./gestion-usuarios.component.css'],
 })
-export class GestionUsuariosComponent implements OnInit, OnDestroy, AfterViewInit {
+export class GestionUsuariosComponent implements OnInit, OnDestroy {
   private usuariosService = inject(UsuariosService);
   private auth = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
@@ -51,12 +51,6 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy, AfterViewIni
   usuarioEnEdicion: any = null;
   vendedorEnEdicion: any = null;
 
-  // Para asignación de supervisores
-  mostrarModalAsignar = false;
-  vendedorSeleccionado: any = null;
-  supervisorSeleccionado: any = null;
-  asignandoSupervisor = false;
-
   // Formularios
   formVendedor = {
     nombre: '',
@@ -77,13 +71,6 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy, AfterViewIni
   ngOnInit(): void {
     this.cargarVendedores();
     this.cargarSupervisores();
-  }
-
-  ngAfterViewInit(): void {
-    // Cargar vendedores de cada supervisor
-    this.supervisores.forEach((supervisor) => {
-      this.cargarVendedoresDelSupervisor(supervisor.id_usuario ?? supervisor.id);
-    });
   }
 
   ngOnDestroy(): void {
@@ -226,6 +213,8 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy, AfterViewIni
                 usuario?.nom_vendedor,
                 usuario?.nombre_vendedor,
                 usuario?.vendedor?.nombre,
+                usuario?.username,
+                usuario?.usuario?.username,
               ]
                 .map((v) => String(v ?? '').trim())
                 .find((v) => v.length > 0) ?? '';
@@ -652,100 +641,6 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy, AfterViewIni
       username: '',
       password: '',
     };
-  }
-
-  // ============ ASIGNACIÓN DE SUPERVISORES ============
-  abrirModalAsignar(vendedor: any): void {
-    this.vendedorSeleccionado = vendedor;
-    this.supervisorSeleccionado = null;
-    this.mostrarModalAsignar = true;
-    this.cdr.detectChanges();
-  }
-
-  cerrarModalAsignar(): void {
-    this.mostrarModalAsignar = false;
-    this.vendedorSeleccionado = null;
-    this.supervisorSeleccionado = null;
-    this.cdr.detectChanges();
-  }
-
-  asignarSupervisor(): void {
-    if (!this.vendedorSeleccionado || !this.supervisorSeleccionado) {
-      this.notificar('error', 'Por favor selecciona un supervisor');
-      return;
-    }
-
-    this.asignandoSupervisor = true;
-
-    const idVendedor = this.vendedorSeleccionado.id_vendedor ?? this.vendedorSeleccionado.id;
-    const idSupervisor =
-      this.supervisorSeleccionado.id_usuario ?? this.supervisorSeleccionado.id;
-
-    this.usuariosService
-      .asignarSupervisor(String(idVendedor), String(idSupervisor))
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: () => {
-          this.asignandoSupervisor = false;
-          const nombreSupervisor = this.supervisorSeleccionado?.nombre;
-          const nombreVendedor = this.vendedorSeleccionado?.nombre;
-          this.notificar(
-            'success',
-            `Supervisor "${nombreSupervisor}" asignado a "${nombreVendedor}" exitosamente`,
-          );
-          this.cargarVendedores();
-          this.supervisores.forEach((supervisor) => {
-            this.cargarVendedoresDelSupervisor(supervisor.id_usuario ?? supervisor.id);
-          });
-          this.cerrarModalAsignar();
-          this.cdr.detectChanges();
-        },
-        error: (err) => {
-          console.error('Error asignando supervisor:', err);
-          this.asignandoSupervisor = false;
-          this.notificar(
-            'error',
-            `Error al asignar supervisor: ${err?.error?.message || err?.message}`,
-          );
-          this.cdr.detectChanges();
-        },
-      });
-  }
-
-  desasignarSupervisor(vendedor: any): void {
-    if (!confirm(`¿Desasignar supervisor de ${vendedor?.nombre}?`)) {
-      return;
-    }
-
-    this.asignandoSupervisor = true;
-
-    const idVendedor = vendedor.id_vendedor ?? vendedor.id;
-
-    // Desasignar pasando null como supervisor
-    this.usuariosService
-      .asignarSupervisor(String(idVendedor), '')
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: () => {
-          this.asignandoSupervisor = false;
-          const nombreVendedor = vendedor?.nombre;
-          this.notificar('success', `Supervisor desasignado de "${nombreVendedor}" exitosamente`);
-          this.cargarVendedores();
-          this.supervisores.forEach((supervisor) => {
-            this.cargarVendedoresDelSupervisor(supervisor.id_usuario ?? supervisor.id);
-          });
-          this.cdr.detectChanges();
-        },
-        error: (err) => {
-          console.error('Error desasignando supervisor:', err);
-          this.asignandoSupervisor = false;
-          this.notificar(
-            'error',
-            `Error al desasignar supervisor: ${err?.error?.message || err?.message}`,
-          );
-          this.cdr.detectChanges();
-        },
-      });
   }
 
   obtenerNombreSupervisor(idSupervisor: string | number): string {
