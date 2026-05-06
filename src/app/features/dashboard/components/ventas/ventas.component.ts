@@ -1467,10 +1467,9 @@ export class VentasComponent implements OnInit, OnDestroy {
 
           const intentarProveedor = (idx: number): void => {
             const filtrosActivos = candidatos[idx];
-            const filtrosSinProveedor = this.quitarProveedorDeFiltros(filtrosActivos);
             const lineas$ = this.esSemanal
-              ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor)
-              : this.cumplimientoService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor);
+              ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, filtrosActivos)
+              : this.cumplimientoService.getLineasPorVendedor(this._codigoVendedor, filtrosActivos);
 
             lineas$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe((res: any) => {
               const listado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
