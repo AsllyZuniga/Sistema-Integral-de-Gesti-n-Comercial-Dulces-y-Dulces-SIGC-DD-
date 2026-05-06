@@ -95,6 +95,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
 
   totales: { ventaAcum: number; cuotaMes: number; porcCump: number; proyeccionVenta: number } | null = null;
   cargandoVendedores = false;
+  catalogoVendedores: VendedorTabla[] = [];
   todosLosVendedores: VendedorTabla[] = [];
 
   supervisoresList: SupervisorResumen[] = [];
@@ -249,6 +250,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
         next: (res: any[]) => {
           this.codigoVendedorAIdMap.clear();
           const vendedores = Array.isArray(res) ? res : [];
+          const catalogo: VendedorTabla[] = [];
           
           vendedores.forEach((vendedor: any) => {
             const codigo = String(
@@ -257,6 +259,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
               vendedor.codigo ??
               ''
             ).trim();
+            const nombre = String(vendedor.nombre ?? vendedor.nom_vendedor ?? '').trim();
             
             const idVendedor = vendedor.id_vendedor ?? 
                                vendedor.idVendedor ?? 
@@ -267,7 +270,47 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
             if (codigo && idVendedor) {
               this.codigoVendedorAIdMap.set(codigo, idVendedor);
             }
+
+            if (codigo) {
+              catalogo.push({
+                codigo_vendedor: codigo,
+                codVendedor: codigo,
+                id_vendedor: idVendedor,
+                idVendedor: idVendedor,
+                nombre,
+                proveedor: '',
+                categoria: '',
+                ciudad: '',
+                linea: '',
+                cuotaMes: 0,
+                cuotaSemana: 0,
+                cuotaDiaria: 0,
+                ventaAcum: 0,
+                porcCump: 0,
+                proyeccionVenta: 0,
+                nombreSupervisor: 'Sin asignar',
+                id_supervisor: vendedor.id_supervisor ?? vendedor.idSupervisor ?? null,
+                supervisor: vendedor.supervisor ?? null,
+              });
+            }
           });
+
+          catalogo.sort((a, b) => {
+            const nombreA = String(a.nombre ?? '').trim();
+            const nombreB = String(b.nombre ?? '').trim();
+            const porNombre = nombreA.localeCompare(nombreB, 'es', { sensitivity: 'base' });
+
+            if (porNombre !== 0) {
+              return porNombre;
+            }
+
+            return String(a.codVendedor ?? '').localeCompare(String(b.codVendedor ?? ''), 'es', {
+              sensitivity: 'base',
+            });
+          });
+
+          this.catalogoVendedores = catalogo;
+          this.todosLosVendedores = catalogo;
           
           console.log('✅ Mapa de vendedores cargado:', this.codigoVendedorAIdMap.size, 'vendedores');
         },
@@ -361,40 +404,53 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     obs$.pipe(takeUntil(this.destroy$)).subscribe({
       next: (res) => {
         const detalle = (res?.detalle ?? []).filter((v) => this.obtenerCodigoVendedor(v) !== 'TOTALES');
+        const detallePorCodigo = new Map<string, VendedorApiRow>();
 
-        const listaNormalizada: VendedorTabla[] = detalle.map((v) => ({
-          codigo_vendedor: v.codigo_vendedor ?? v.codVendedor,
-          codVendedor: this.obtenerCodigoVendedor(v),
-          id_vendedor: v.id_vendedor ?? v.idVendedor,
-          idVendedor: v.id_vendedor ?? v.idVendedor,
-          nombre: v.nombre ?? '',
-          proveedor: v.proveedor,
-          nomProveedor: v.nomProveedor,
-          nombreProveedor: v.nombreProveedor,
-          categoria: v.categoria,
-          nomCategoria: v.nomCategoria,
-          nombreCategoria: v.nombreCategoria,
-          ciudad: v.ciudad,
-          nomCiudad: v.nomCiudad,
-          nombreCiudad: v.nombreCiudad,
-          linea: v.linea,
-          nomLinea: v.nomLinea,
-          nombreLinea: v.nombreLinea,
-          cuotaMes: this.leerCuota(v.cuotaMes, 'cuota_mes'),
-          cuotaSemana: this.leerCuota(v.cuotaSemana, 'cuota_semana'),
-          cuotaDiaria: this.leerCuota(v.cuotaDiaria, 'cuota_dia'),
-          ventaAcum: Number(v.ventaAcum ?? 0),
-          porcCump: Number(v.porcCump ?? 0),
-          proyeccionVenta: Number(v.proyeccionVenta ?? 0),
-          nombreSupervisor: this.obtenerNombreSupervisor(v),
-          id_supervisor: v.id_supervisor ?? v.idSupervisor ?? null,
-          supervisor: v.supervisor,
-        }));
+        detalle.forEach((v) => {
+          const codigo = this.obtenerCodigoVendedor(v);
+          if (codigo) {
+            detallePorCodigo.set(codigo, v);
+          }
+        });
 
-        const listaFiltrada = this.filtrosActivos.vendedor
-          ? listaNormalizada.filter((v) => v.codVendedor === this.filtrosActivos.vendedor)
-          : listaNormalizada;
-        this.todosLosVendedores = this.aplicarFiltrosAdministrador(listaFiltrada);
+        const baseCatalogo = this.catalogoVendedores.length > 0 ? this.catalogoVendedores : [];
+        const listaNormalizada: VendedorTabla[] = baseCatalogo.map((base) => {
+          const codigo = String(base.codVendedor ?? base.codigo_vendedor ?? '').trim();
+          const fila = detallePorCodigo.get(codigo);
+
+          return {
+            ...base,
+            codigo_vendedor: base.codigo_vendedor ?? base.codVendedor,
+            codVendedor: codigo,
+            id_vendedor: base.id_vendedor ?? base.idVendedor,
+            idVendedor: base.id_vendedor ?? base.idVendedor,
+            nombre: fila?.nombre ?? base.nombre ?? '',
+            proveedor: fila?.proveedor ?? base.proveedor,
+            nomProveedor: fila?.nomProveedor ?? base.nomProveedor,
+            nombreProveedor: fila?.nombreProveedor ?? base.nombreProveedor,
+            categoria: fila?.categoria ?? base.categoria,
+            nomCategoria: fila?.nomCategoria ?? base.nomCategoria,
+            nombreCategoria: fila?.nombreCategoria ?? base.nombreCategoria,
+            ciudad: fila?.ciudad ?? base.ciudad,
+            nomCiudad: fila?.nomCiudad ?? base.nomCiudad,
+            nombreCiudad: fila?.nombreCiudad ?? base.nombreCiudad,
+            linea: fila?.linea ?? base.linea,
+            nomLinea: fila?.nomLinea ?? base.nomLinea,
+            nombreLinea: fila?.nombreLinea ?? base.nombreLinea,
+            cuotaMes: this.leerCuota(fila?.cuotaMes ?? 0, 'cuota_mes'),
+            cuotaSemana: this.leerCuota(fila?.cuotaSemana ?? 0, 'cuota_semana'),
+            cuotaDiaria: this.leerCuota(fila?.cuotaDiaria ?? 0, 'cuota_dia'),
+            ventaAcum: Number(fila?.ventaAcum ?? 0),
+            porcCump: Number(fila?.porcCump ?? 0),
+            proyeccionVenta: Number(fila?.proyeccionVenta ?? 0),
+            nombreSupervisor: this.obtenerNombreSupervisor(fila ?? base, base.supervisor ? undefined : undefined),
+            id_supervisor: fila?.id_supervisor ?? fila?.idSupervisor ?? base.id_supervisor ?? base.idSupervisor ?? null,
+            supervisor: fila?.supervisor ?? base.supervisor ?? null,
+          };
+        });
+
+        const listaFiltrada = this.aplicarFiltrosAdministrador(listaNormalizada);
+        this.todosLosVendedores = listaFiltrada;
         this.aplicarNombresSupervisorEnTabla();
 
         const ventaAcum = this.todosLosVendedores.reduce((s: number, v) => s + (Number(v.ventaAcum) || 0), 0);
