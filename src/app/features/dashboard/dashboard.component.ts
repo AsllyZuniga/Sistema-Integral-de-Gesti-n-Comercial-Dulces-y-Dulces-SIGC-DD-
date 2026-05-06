@@ -87,6 +87,30 @@ interface CumplimientoAdminDetalleRow {
   nombreLinea?: string;
 }
 
+function createDefaultDashboardFilters(): DashboardFilters {
+  const hoy = new Date();
+  const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  const fin = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+
+  const formatDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  return {
+    fechaInicio: formatDate(inicio),
+    fechaFin: formatDate(fin),
+    vendedor: '',
+    proveedor: '',
+    categoria: '',
+    ciudad: '',
+    ciudadNombre: '',
+    linea: '',
+  };
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -138,16 +162,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   totalesVendedor: DashboardTotalesVendedor | null = null;
 
-  filtrosActivos: DashboardFilters = {
-    fechaInicio: '',
-    fechaFin: '',
-    vendedor: '',
-    proveedor: '',
-    categoria: '',
-    ciudad: '',
-    ciudadNombre: '',
-    linea: '',
-  };
+  filtrosActivos: DashboardFilters = createDefaultDashboardFilters();
 
   ngOnInit(): void {
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
@@ -166,10 +181,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     this.rolId = Number(this.vendedor?.rol?.idRol ?? this.vendedor?.idRol ?? 0);
-
-    const { inicio, fin } = this.getDefaultDateRange();
-    this.filtrosActivos.fechaInicio = inicio;
-    this.filtrosActivos.fechaFin = fin;
 
     this.cargarOpcionesFiltros();
 
