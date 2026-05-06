@@ -44,6 +44,7 @@
           <span class="material-symbols-rounded">close</span>
         </button>
       </div>
+
       <div class="modal-body">
         <p><strong>Vendedor:</strong> {{ vendedorEnModal.nombre }}</p>
         <p>
@@ -64,8 +65,13 @@
           }
         </select>
       </div>
+
       <div class="modal-footer">
-        <button class="btn-cancelar" (click)="cerrarModalAsignar()" [disabled]="asignandoSupervisor">
+        <button
+          class="btn-cancelar"
+          (click)="cerrarModalAsignar()"
+          [disabled]="asignandoSupervisor"
+        >
           Cancelar
         </button>
         <button class="btn-guardar" (click)="asignarSupervisor()" [disabled]="asignandoSupervisor">
