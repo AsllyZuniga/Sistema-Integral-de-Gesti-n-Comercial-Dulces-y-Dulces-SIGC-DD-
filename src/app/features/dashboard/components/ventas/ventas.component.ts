@@ -587,15 +587,9 @@ export class VentasComponent implements OnInit, OnDestroy {
             case 'proveedor': {
               this.chartType = 'bar';
               const agrupado = this.agruparAdminPorCampo(detalle, 'linea', 'linea');
-              
-              // Aplicar filtro de proveedor si está seleccionado
-              const codigoProveedorFiltro = String(filtrosConsulta.proveedor ?? '').trim();
-              const proveedoresFiltrados = codigoProveedorFiltro
-                ? this.filtrarProveedores(agrupado, codigoProveedorFiltro)
-                : agrupado;
-              
-              const ordenado = this.ordenarProveedoresPorAlfabeto(proveedoresFiltrados);
-              const topProveedores = [...proveedoresFiltrados]
+
+              const ordenado = this.ordenarProveedoresPorAlfabeto(agrupado);
+              const topProveedores = [...agrupado]
                 .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
                 .slice(0, 12);
 
@@ -615,12 +609,11 @@ export class VentasComponent implements OnInit, OnDestroy {
                 ...r,
                 ciudad: this.repararTextoCiudad(r?.ciudad),
               }));
-              const filtrado = this.filtrarPorCiudadSeleccionada(agrupado);
-              const topCiudades = [...filtrado]
+              const topCiudades = [...agrupado]
                 .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
                 .slice(0, 12);
 
-              this.tableData = filtrado;
+              this.tableData = agrupado;
               this.chartData = topCiudades.map((i: any) => ({
                 name: this.repararTextoCiudad(i.ciudad),
                 value: i.ventaAcum,
@@ -1473,15 +1466,14 @@ export class VentasComponent implements OnInit, OnDestroy {
 
             lineas$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe((res: any) => {
               const listado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
-              const listadoFiltrado = this.filtrarProveedores(listado, codigoProveedor);
 
-              if (!listadoFiltrado.length && idx < candidatos.length - 1) {
+              if (!listado.length && idx < candidatos.length - 1) {
                 intentarProveedor(idx + 1);
                 return;
               }
 
               const listadoTabla = this.ordenarProveedoresPorAlfabeto(listado);
-              const topProveedores = [...listadoFiltrado]
+              const topProveedores = [...listado]
                 .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
                 .slice(0, 12);
 
@@ -1491,9 +1483,7 @@ export class VentasComponent implements OnInit, OnDestroy {
               );
               this.liderVentasProveedor = this.nombreProveedorCard(topProveedores[0]?.linea ?? '—');
 
-              this.tableData = codigoProveedor
-                ? this.ordenarProveedoresPorAlfabeto(listadoFiltrado)
-                : listadoTabla;
+              this.tableData = listadoTabla;
               this.chartData = topProveedores.map((i: any) => ({
                 name: i.linea,
                 value: Number(i.ventaAcum ?? 0),
@@ -1524,14 +1514,13 @@ export class VentasComponent implements OnInit, OnDestroy {
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((res: any) => {
                 const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
-                const detalleFiltrado = this.filtrarCategorias(detalle, filtrosActivos.categoria);
-                const detalleConNombre = detalleFiltrado.map((item: any) => ({
+                const detalleConNombre = detalle.map((item: any) => ({
                   ...item,
                   categoria: this.obtenerNombreCategoria(item) || 'Sin categoría',
                 }));
                 const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleConNombre);
 
-                if (!detalleFiltrado.length && idx < candidatos.length - 1) {
+                if (!detalle.length && idx < candidatos.length - 1) {
                   intentarCategoria(idx + 1);
                   return;
                 }
@@ -1595,18 +1584,17 @@ export class VentasComponent implements OnInit, OnDestroy {
 
             ciudades$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe((res: any) => {
               const listadoCompleto = res?.detallePorCiudad ?? [];
-              const listadoFiltrado = this.filtrarPorCiudadSeleccionada(listadoCompleto);
 
-              if (!listadoFiltrado.length && idx < candidatos.length - 1) {
+              if (!listadoCompleto.length && idx < candidatos.length - 1) {
                 intentarCiudad(idx + 1);
                 return;
               }
 
-              const listadoMapeado = listadoFiltrado.map((i: any) => ({
+              const listadoMapeado = listadoCompleto.map((i: any) => ({
                 ...i,
                 ciudad: this.repararTextoCiudad(i.ciudad),
               }));
-              const topCiudades = [...listadoFiltrado]
+              const topCiudades = [...listadoCompleto]
                 .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
                 .slice(0, 12);
               this.tableData = listadoMapeado;
