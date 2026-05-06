@@ -126,7 +126,6 @@ export class VentasComponent implements OnInit, OnDestroy {
     { key: 'categoria', label: 'Por Categoría' },
     { key: 'ciudad', label: 'Por Ciudad' },
     { key: 'cliente', label: 'Detalle por Cliente' },
-    { key: 'vendedor', label: 'Por Vendedor' },
     { key: 'item', label: 'Detalle por Item' },
   ];
 
@@ -1817,28 +1816,6 @@ export class VentasComponent implements OnInit, OnDestroy {
 
           intentarCiudad(0);
         }
-        break;
-
-      case 'vendedor':
-        this.chartType = 'bar';
-
-        const vendedor$ = this.esSemanal
-          ? this.semanaService.getCumplimientoPorCodigo(this._codigoVendedor, filtrosConsulta)
-          : this.cumplimientoService.getCumplimientoPorCodigo(
-              this._codigoVendedor,
-              filtrosConsulta,
-            );
-
-        vendedor$
-          .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-          .subscribe((res: any) => {
-            if (!res?.totales) return;
-
-            const vendedor = res.detalle?.[0];
-            this.tableData = res.detalle ?? [];
-            this.chartData = [{ name: vendedor?.nombre || '', value: res.totales.ventaAcum }];
-            this.cdr.markForCheck();
-          });
         break;
 
       case 'item':
