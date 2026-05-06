@@ -724,9 +724,7 @@ export class VentasComponent implements OnInit, OnDestroy {
             case 'proveedor': {
               this.chartType = 'bar';
               const codigos = this.obtenerCodigosVendedoresDesdeDetalle(detalle);
-              const filtrosDetalle = this.quitarProveedorDeFiltros(
-                this.filtrosSinVendedorAdmin(filtrosConsulta),
-              );
+              const filtrosDetalle = this.filtrosSinVendedorAdmin(filtrosConsulta);
 
               if (!codigos.length) {
                 this.pintarProveedorAdminDesdeDetalle(detalle);
@@ -747,17 +745,13 @@ export class VentasComponent implements OnInit, OnDestroy {
                     Array.isArray(r?.detallePorLinea) ? r.detallePorLinea : [],
                   );
                   const detalleNormalizado = this.normalizarDetalleProveedorAdmin(detallePlano);
-                  const detalleFiltrado = this.filtrarProveedores(
-                    detalleNormalizado,
-                    String(filtrosConsulta.proveedor ?? '').trim(),
-                  );
 
-                  if (!detalleFiltrado.length) {
+                  if (!detalleNormalizado.length) {
                     this.pintarProveedorAdminDesdeDetalle(detalle);
                     return;
                   }
 
-                  this.pintarProveedorAdminDesdeDetalle(detalleFiltrado);
+                  this.pintarProveedorAdminDesdeDetalle(detalleNormalizado);
                 });
               break;
             }
@@ -1372,24 +1366,6 @@ export class VentasComponent implements OnInit, OnDestroy {
     }));
   }
 
-  private filtrarProveedores(listado: any[], codigoProveedor: string): any[] {
-    const codigo = String(codigoProveedor ?? '').trim();
-    if (!codigo) return listado;
-
-    return listado.filter((item: any) => {
-      const idProveedor = String(item?.idProveedor ?? '').trim();
-      const codigoLinea = String(item?.codigoLinea ?? '').trim();
-      return idProveedor === codigo || codigoLinea === codigo;
-    });
-  }
-
-  private quitarProveedorDeFiltros(filtros: DashboardFilters): DashboardFilters {
-    return {
-      ...filtros,
-      proveedor: '',
-    };
-  }
-
   private nombreProveedorOrden(item: any): string {
     const linea = String(item?.linea ?? '').trim();
     if (!linea) return '';
@@ -1647,12 +1623,115 @@ export class VentasComponent implements OnInit, OnDestroy {
         this.chartType = 'bar';
 
         {
+          const tieneProveedorSeleccionado = !!String(filtrosConsulta.proveedor ?? '').trim();
+          const codigoProveedorSeleccionado = String(filtrosConsulta.proveedor ?? '').trim();
+
+          const nombreProveedorSeleccionado = this.repararTextoCiudad(
+            (filtrosConsulta as any).proveedorNombre ??
+              (filtrosConsulta as any).nombreProveedor ??
+              (filtrosConsulta as any).nomProveedor ??
+              (filtrosConsulta as any).proveedorLabel ??
+              (filtrosConsulta as any).labelProveedor ??
+              '',
+          );
+
+          const obtenerNombreProveedorParaTabla = (row: any): string => {
+            const nombre = this.repararTextoCiudad(
+              row?.linea ??
+                row?.nomLinea ??
+                row?.nombreLinea ??
+                row?.nombreProveedor ??
+                row?.nomProveedor ??
+                row?.Proveedor ??
+                nombreProveedorSeleccionado ??
+                '',
+            );
+
+            return nombre || `Proveedor ${codigoProveedorSeleccionado}`;
+          };
+
+          const pintarProveedor = (listadoRaw: any[]): void => {
+            const listado = this.mapearCuotaPorLinea(listadoRaw);
+
+            const listadoTabla = this.ordenarProveedoresPorAlfabeto(listado);
+            const topProveedores = [...listado]
+              .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+              .slice(0, 12);
+
+            this.totalTopProveedores = topProveedores.reduce(
+              (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+              0,
+            );
+
+            this.liderVentasProveedor = this.nombreProveedorCard(topProveedores[0]?.linea ?? '—');
+
+            this.tableData = listadoTabla;
+            this.chartData = topProveedores.map((item: any) => ({
+              name: item.linea,
+              value: Number(item.ventaAcum ?? 0),
+            }));
+
+            this.chartId = 'chart-proveedor-' + Date.now();
+            this.cdr.markForCheck();
+          };
+
+          const pintarProveedorDesdeResumenFiltrado = (): void => {
+            const resumen$ = this.esSemanal
+              ? this.semanaService.getCumplimientoSemanaVendedor(filtrosConsulta)
+              : this.cumplimientoService.getCumplimientoPorCodigo(
+                  this._codigoVendedor,
+                  filtrosConsulta,
+                );
+
+            resumen$
+              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+              .subscribe((res: any) => {
+                const detalle = (res?.detalle ?? []).filter(
+                  (row: any) => String(row?.codVendedor ?? '').trim() !== 'TOTALES',
+                );
+
+                const listado = detalle.map((row: any) => {
+                  const cuotaLinea = Number(
+                    row?.cuotaProveedor ??
+                      row?.cuotaLinea ??
+                      row?.cuotaMes ??
+                      row?.cuotaSemana ??
+                      row?.cuotaDiaria ??
+                      0,
+                  );
+
+                  const ventaAcum = Number(row?.ventaAcum ?? 0) || 0;
+                  const proyeccionVenta = Number(row?.proyeccionVenta ?? 0) || 0;
+
+                  return {
+                    ...row,
+                    linea: obtenerNombreProveedorParaTabla(row),
+                    cuotaLinea,
+                    cuota: cuotaLinea,
+                    ventaAcum,
+                    acumulado: ventaAcum,
+                    proyeccionVenta,
+                    porcCump: Number(row?.porcCumpProveedor ?? row?.porcCump ?? 0) || 0,
+                    porcCumProy: Number(row?.porcCumProyProveedor ?? row?.porcCumProy ?? 0) || 0,
+                  };
+                });
+
+                pintarProveedor(listado);
+              });
+          };
+
+          if (tieneProveedorSeleccionado) {
+            pintarProveedorDesdeResumenFiltrado();
+            break;
+          }
+
           const candidatos = this.debeAplicarFallbackAutomatico(filtrosConsulta)
             ? this.construirCandidatosFallback(filtrosConsulta)
             : [filtrosConsulta];
 
           const intentarProveedor = (idx: number): void => {
             const filtrosActivos = candidatos[idx];
+
             const lineas$ = this.esSemanal
               ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, filtrosActivos)
               : this.cumplimientoService.getLineasPorVendedor(this._codigoVendedor, filtrosActivos);
@@ -1667,25 +1746,7 @@ export class VentasComponent implements OnInit, OnDestroy {
                   return;
                 }
 
-                const listadoTabla = this.ordenarProveedoresPorAlfabeto(listado);
-                const topProveedores = [...listado]
-                  .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
-                  .slice(0, 12);
-
-                this.totalTopProveedores = topProveedores.reduce(
-                  (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
-                  0,
-                );
-                this.liderVentasProveedor = this.nombreProveedorCard(
-                  topProveedores[0]?.linea ?? '—',
-                );
-
-                this.tableData = listadoTabla;
-                this.chartData = topProveedores.map((i: any) => ({
-                  name: i.linea,
-                  value: Number(i.ventaAcum ?? 0),
-                }));
-                this.cdr.markForCheck();
+                pintarProveedor(listado);
               });
           };
 
@@ -1697,12 +1758,149 @@ export class VentasComponent implements OnInit, OnDestroy {
         this.chartType = 'bar';
 
         {
+          const tieneCategoriaSeleccionada = !!String(filtrosConsulta.categoria ?? '').trim();
+          const categoriaSeleccionada = String(filtrosConsulta.categoria ?? '').trim();
+
+          const nombreCategoriaSeleccionada = this.repararTextoCiudad(
+            (filtrosConsulta as any).categoriaNombre ??
+              (filtrosConsulta as any).nombreCategoria ??
+              (filtrosConsulta as any).nomCategoria ??
+              (filtrosConsulta as any).categoriaLabel ??
+              (filtrosConsulta as any).labelCategoria ??
+              categoriaSeleccionada,
+          );
+
+          const pintarCategoria = (detalleRaw: any[]): void => {
+            const detalleConNombre = (Array.isArray(detalleRaw) ? detalleRaw : []).map(
+              (item: any) => ({
+                ...item,
+                categoria:
+                  this.obtenerNombreCategoria(item) ||
+                  nombreCategoriaSeleccionada ||
+                  categoriaSeleccionada ||
+                  'Sin categoría',
+                cuota: Number(
+                  item?.cuota ??
+                    item?.cuotaCategoria ??
+                    item?.cuotaMes ??
+                    item?.cuotaSemana ??
+                    item?.cuotaDiaria ??
+                    0,
+                ),
+                acumulado: Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0,
+                proyectado: Number(item?.proyectado ?? item?.proyeccionVenta ?? 0) || 0,
+                porcentajeCumplimiento: Number(
+                  item?.porcentajeCumplimiento ?? item?.porcCumpCategoria ?? item?.porcCump ?? 0,
+                ),
+                porcentajeCumplimientoProyectado: Number(
+                  item?.porcentajeCumplimientoProyectado ??
+                    item?.porcCumProyCategoria ??
+                    item?.porcCumProy ??
+                    0,
+                ),
+                part: Number(item?.part ?? 0),
+              }),
+            );
+
+            const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleConNombre);
+
+            this.tableData = detalleOrdenado;
+
+            this.totalCuotaCategoria = detalleOrdenado.reduce(
+              (sum: number, item: any) => sum + (Number(item?.cuota ?? 0) || 0),
+              0,
+            );
+
+            this.totalAcumuladoCategoria = detalleOrdenado.reduce(
+              (sum: number, item: any) =>
+                sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
+              0,
+            );
+
+            const topCategorias = [...detalleConNombre]
+              .map((item: any) => ({
+                name: item?.categoria || this.obtenerNombreCategoria(item) || 'Sin categoría',
+                value: Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0,
+              }))
+              .sort((a: any, b: any) => b.value - a.value)
+              .slice(0, 15);
+
+            this.totalTopCategorias = topCategorias.reduce(
+              (sum: number, item: any) => sum + (Number(item?.value ?? 0) || 0),
+              0,
+            );
+
+            this.chartData = topCategorias;
+            this.chartId = 'chart-categoria-' + Date.now();
+            this.cdr.markForCheck();
+          };
+
+          const pintarCategoriaDesdeResumenFiltrado = (): void => {
+            const resumen$ = this.esSemanal
+              ? this.semanaService.getCumplimientoSemanaVendedor(filtrosConsulta)
+              : this.cumplimientoService.getCumplimientoPorCodigo(
+                  this._codigoVendedor,
+                  filtrosConsulta,
+                );
+
+            resumen$
+              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+              .subscribe((res: any) => {
+                const detalle = (res?.detalle ?? []).filter(
+                  (row: any) => String(row?.codVendedor ?? '').trim() !== 'TOTALES',
+                );
+
+                const listado = detalle.map((row: any) => {
+                  const cuota = Number(
+                    row?.cuotaCategoria ??
+                      row?.cuotaProveedor ??
+                      row?.cuotaMes ??
+                      row?.cuotaSemana ??
+                      row?.cuotaDiaria ??
+                      0,
+                  );
+
+                  const acumulado = Number(row?.acumulado ?? row?.ventaAcum ?? 0) || 0;
+                  const proyectado = Number(row?.proyectado ?? row?.proyeccionVenta ?? 0) || 0;
+
+                  return {
+                    ...row,
+                    categoria:
+                      row?.categoria ??
+                      row?.nomCategoria ??
+                      row?.nombreCategoria ??
+                      nombreCategoriaSeleccionada ??
+                      categoriaSeleccionada ??
+                      'Sin categoría',
+                    cuota,
+                    acumulado,
+                    ventaAcum: acumulado,
+                    proyectado,
+                    proyeccionVenta: proyectado,
+                    porcentajeCumplimiento:
+                      Number(row?.porcCumpCategoria ?? row?.porcCump ?? 0) || 0,
+                    porcentajeCumplimientoProyectado:
+                      Number(row?.porcCumProyCategoria ?? row?.porcCumProy ?? 0) || 0,
+                    part: Number(row?.part ?? 0) || 0,
+                  };
+                });
+
+                pintarCategoria(listado);
+              });
+          };
+
+          if (tieneCategoriaSeleccionada) {
+            pintarCategoriaDesdeResumenFiltrado();
+            break;
+          }
+
           const candidatos = this.debeAplicarFallbackAutomatico(filtrosConsulta)
             ? this.construirCandidatosFallback(filtrosConsulta)
             : [filtrosConsulta];
 
           const intentarCategoria = (idx: number): void => {
             const filtrosActivos = candidatos[idx];
+
             const categorias$ = this.esSemanal
               ? this.semanaService.getCuotaCategoriaPorVendedor(
                   this._codigoVendedor,
@@ -1717,46 +1915,13 @@ export class VentasComponent implements OnInit, OnDestroy {
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((res: any) => {
                 const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
-                const detalleConNombre = detalle.map((item: any) => ({
-                  ...item,
-                  categoria: this.obtenerNombreCategoria(item) || 'Sin categoría',
-                }));
-                const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleConNombre);
 
                 if (!detalle.length && idx < candidatos.length - 1) {
                   intentarCategoria(idx + 1);
                   return;
                 }
 
-                this.tableData = detalleOrdenado;
-
-                this.totalCuotaCategoria = detalleOrdenado.reduce(
-                  (sum: number, item: any) => sum + (Number(item?.cuota ?? 0) || 0),
-                  0,
-                );
-
-                this.totalAcumuladoCategoria = detalleOrdenado.reduce(
-                  (sum: number, item: any) =>
-                    sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
-                  0,
-                );
-
-                const topCategorias = [...detalleConNombre]
-                  .map((i: any) => ({
-                    name: this.obtenerNombreCategoria(i) || 'Sin categoría',
-                    value: Number(i?.acumulado ?? i?.ventaAcum ?? 0),
-                  }))
-                  .sort((a: any, b: any) => b.value - a.value)
-                  .slice(0, 15);
-
-                this.totalTopCategorias = topCategorias.reduce(
-                  (sum: number, item: any) => sum + (Number(item?.value ?? 0) || 0),
-                  0,
-                );
-
-                this.chartData = topCategorias;
-                this.chartId = 'chart-categoria-' + Date.now();
-                this.cdr.markForCheck();
+                pintarCategoria(detalle);
               });
           };
 
