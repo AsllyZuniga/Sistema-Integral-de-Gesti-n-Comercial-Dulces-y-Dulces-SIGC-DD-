@@ -16,6 +16,7 @@ import { ChartComponent } from '../../../../shared/components/chart';
 import { TableComponent } from '../../../../shared/components/table/table.component';
 import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
 import { AuthService } from '../../../../core/services/auth.service';
+import { ProveedorService } from '../../../../core/services/proveedor.service';
 import { TipoCuota } from '../../../cumplimientos-cuota/cumplimientos.component';
 import { environment } from '../../../../../environments/environment';
 
@@ -31,6 +32,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   private cumplimientoService = inject(CumplimientoService);
   private semanaService = inject(CumplimientoSemanaService);
   private authService = inject(AuthService);
+  private proveedorService = inject(ProveedorService);
   private cdr = inject(ChangeDetectorRef);
 
   @Input() set codigoVendedor(value: string) {
@@ -1314,6 +1316,31 @@ export class VentasComponent implements OnInit, OnDestroy {
     });
   }
 
+  private filtrarCategoriasPorProveedor(listado: any[], categoriasProveedor: string[]): any[] {
+    const categoriasPermitidas = (Array.isArray(categoriasProveedor) ? categoriasProveedor : [])
+      .map((nombre) => this.normalizarCategoria(nombre))
+      .filter(Boolean);
+
+    if (!categoriasPermitidas.length) return listado;
+
+    const setPermitidas = new Set(categoriasPermitidas);
+
+    return listado.filter((item: any) => {
+      const categoriaItem = this.normalizarCategoria(
+        item?.categoria ?? item?.nomCategoria ?? item?.nombreCategoria ?? '',
+      );
+
+      if (!categoriaItem) return false;
+
+      return (
+        setPermitidas.has(categoriaItem) ||
+        Array.from(setPermitidas).some(
+          (permitida) => categoriaItem.includes(permitida) || permitida.includes(categoriaItem),
+        )
+      );
+    });
+  }
+
   private formatearMoneda(valor: unknown): string {
     const numero = Number(valor);
     const seguro = Number.isFinite(numero) ? numero : 0;
@@ -1760,6 +1787,13 @@ export class VentasComponent implements OnInit, OnDestroy {
         {
           const tieneCategoriaSeleccionada = !!String(filtrosConsulta.categoria ?? '').trim();
           const categoriaSeleccionada = String(filtrosConsulta.categoria ?? '').trim();
+          const proveedorSeleccionado = String(filtrosConsulta.proveedor ?? '').trim();
+
+          const categoriasProveedor$ = proveedorSeleccionado
+            ? this.proveedorService
+                .getCategoriasByCodigo(proveedorSeleccionado)
+                .pipe(catchError(() => of([] as string[])))
+            : of([] as string[]);
 
           const nombreCategoriaSeleccionada = this.repararTextoCiudad(
             (filtrosConsulta as any).categoriaNombre ??
@@ -1911,17 +1945,22 @@ export class VentasComponent implements OnInit, OnDestroy {
                   filtrosActivos,
                 );
 
-            categorias$
+            forkJoin({ res: categorias$, categoriasProveedor: categoriasProveedor$ })
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-              .subscribe((res: any) => {
+              .subscribe(({ res, categoriasProveedor }: any) => {
                 const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
 
-                if (!detalle.length && idx < candidatos.length - 1) {
+                const detalleFiltradoPorProveedor = this.filtrarCategoriasPorProveedor(
+                  detalle,
+                  categoriasProveedor,
+                );
+
+                if (!detalleFiltradoPorProveedor.length && idx < candidatos.length - 1) {
                   intentarCategoria(idx + 1);
                   return;
                 }
 
-                pintarCategoria(detalle);
+                pintarCategoria(detalleFiltradoPorProveedor);
               });
           };
 

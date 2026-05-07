@@ -8,6 +8,7 @@ import { SessionUser } from '../../core/services/session.service';
 import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../core/services/ventas/cumplimientoVentasSemana.service';
 import { UsuariosService } from '../../core/services/usuarios.service';
+import { ProveedorService } from '../../core/services/proveedor.service';
 import {
   FiltersComponent,
   DashboardFilters,
@@ -134,6 +135,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private cumplimientoService: CumplimientoService,
     private semanaService: CumplimientoSemanaService,
     private usuariosService: UsuariosService,
+    private proveedorService: ProveedorService,
   ) {}
 
   @ViewChild(SidebarComponent) sidebarRef!: SidebarComponent;
@@ -698,6 +700,44 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   private cargarCategoriasFiltros(): void {
+    const proveedorCodigo = String(this.filtrosActivos?.proveedor ?? '').trim();
+    if (proveedorCodigo) {
+      this.proveedorService
+        .getCategoriasByCodigo(proveedorCodigo)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe((categorias: string[]) => {
+          const unicas = new Map<string, string>();
+
+          categorias.forEach((categoriaRaw) => {
+            if (!categoriaRaw) return;
+            const categoriaLimpia = this.limpiarNombreCategoria(categoriaRaw);
+            if (!categoriaLimpia) return;
+            if (!unicas.has(categoriaLimpia)) {
+              unicas.set(categoriaLimpia, categoriaRaw);
+            }
+          });
+
+          this.categoriasList = Array.from(unicas.entries())
+            .map(([label, value]) => ({ label, value }))
+            .sort((a, b) => a.label.localeCompare(b.label, 'es'));
+
+          const categoriaActual = String(this.filtrosActivos?.categoria ?? '').trim();
+          if (categoriaActual) {
+            const existeCategoriaActual = this.categoriasList.some(
+              (item) => item.value === categoriaActual,
+            );
+
+            if (!existeCategoriaActual) {
+              this.filtrosActivos = {
+                ...this.filtrosActivos,
+                categoria: '',
+              };
+            }
+          }
+        });
+      return;
+    }
+
     const filtrosBase: DashboardFilters = {
       ...this.filtrosActivos,
       vendedor: this.esAdmin ? '' : this.filtrosActivos.vendedor,
@@ -761,6 +801,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   onAplicarFiltros(filtros: DashboardFilters): void {
+    const proveedorAnterior = String(this.filtrosActivos?.proveedor ?? '').trim();
     const rangoDefault = this.getDefaultDateRange();
     const fechaInicio = String(filtros.fechaInicio ?? '').trim() || rangoDefault.inicio;
     const fechaFin = String(filtros.fechaFin ?? '').trim() || rangoDefault.fin;
@@ -789,6 +830,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     if (filtros.proveedor) {
       filtrosConCodigos.proveedor = this.proveedorMap.get(filtros.proveedor) ?? filtros.proveedor;
+    }
+
+    const proveedorNuevo = String(filtrosConCodigos.proveedor ?? '').trim();
+    const proveedorCambio = proveedorAnterior !== proveedorNuevo;
+
+    if (proveedorCambio) {
+      // Evita enviar una categoria de otro proveedor y fuerza recarga coherente de tablas.
+      filtrosConCodigos.categoria = '';
     }
 
     if (ciudadVisible) {
