@@ -85,6 +85,8 @@ export class VentasComponent implements OnInit, OnDestroy {
     vendedor: '',
     proveedor: '',
     categoria: '',
+    categorias: [],
+    categoriaNombres: [],
     ciudad: '',
     ciudadNombre: '',
     linea: '',
@@ -1785,9 +1787,42 @@ export class VentasComponent implements OnInit, OnDestroy {
         this.chartType = 'bar';
 
         {
-          const tieneCategoriaSeleccionada = !!String(filtrosConsulta.categoria ?? '').trim();
-          const categoriaSeleccionada = String(filtrosConsulta.categoria ?? '').trim();
+          const categoriasSeleccionadas = Array.isArray((filtrosConsulta as any).categorias)
+            ? (filtrosConsulta as any).categorias.filter(Boolean)
+            : String(filtrosConsulta.categoria ?? '').trim()
+              ? [String(filtrosConsulta.categoria ?? '').trim()]
+              : [];
+
+          const categoriaNombresSeleccionadas = Array.isArray(
+            (filtrosConsulta as any).categoriaNombres,
+          )
+            ? (filtrosConsulta as any).categoriaNombres.filter(Boolean)
+            : [];
+
+          const tieneProveedorSeleccionado = !!String(filtrosConsulta.proveedor ?? '').trim();
+          const tieneUnaCategoriaSeleccionada = categoriasSeleccionadas.length === 1;
+          const tieneMultiplesCategorias = categoriasSeleccionadas.length > 1;
+          const categoriaSeleccionada = categoriasSeleccionadas[0] ?? '';
           const proveedorSeleccionado = String(filtrosConsulta.proveedor ?? '').trim();
+
+          const normalizarCategoriaComparacion = (valor: unknown): string => {
+            let texto = this.repararTextoCiudad(valor);
+
+            if (!texto) return '';
+
+            // Quita prefijos tipo:
+            // "0150 - 1000-AROMATICAS" -> "AROMATICAS"
+            // "2500-CHUPETAS" -> "CHUPETAS"
+            texto = texto.replace(/^\d+\s*-\s*/u, '').trim();
+            texto = texto.replace(/^\d+\s*-\s*/u, '').trim();
+
+            return texto
+              .toLowerCase()
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/\s+/g, ' ')
+              .trim();
+          };
 
           const categoriasProveedor$ = proveedorSeleccionado
             ? this.proveedorService
@@ -1801,39 +1836,83 @@ export class VentasComponent implements OnInit, OnDestroy {
               (filtrosConsulta as any).nomCategoria ??
               (filtrosConsulta as any).categoriaLabel ??
               (filtrosConsulta as any).labelCategoria ??
+              categoriaNombresSeleccionadas[0] ??
               categoriaSeleccionada,
           );
 
+          const obtenerNombreCategoriaTabla = (item: any): string => {
+            return (
+              this.obtenerNombreCategoria(item) ||
+              this.repararTextoCiudad(
+                item?.categoria ??
+                  item?.nomCategoria ??
+                  item?.nombreCategoria ??
+                  item?.Categoria ??
+                  '',
+              )
+            );
+          };
+
+          const crearCategoriaEnCero = (categoriaRaw: string, idx = 0): any => ({
+            categoria:
+              categoriaNombresSeleccionadas[idx] ||
+              this.limpiarNombreCategoria(categoriaRaw) ||
+              categoriaRaw ||
+              'Sin categoría',
+            cuota: 0,
+            acumulado: 0,
+            ventaAcum: 0,
+            proyectado: 0,
+            proyeccionVenta: 0,
+            porcentajeCumplimiento: 0,
+            porcentajeCumplimientoProyectado: 0,
+            part: 0,
+          });
+
           const pintarCategoria = (detalleRaw: any[]): void => {
             const detalleConNombre = (Array.isArray(detalleRaw) ? detalleRaw : []).map(
-              (item: any) => ({
-                ...item,
-                categoria:
-                  this.obtenerNombreCategoria(item) ||
+              (item: any) => {
+                const categoria =
+                  obtenerNombreCategoriaTabla(item) ||
                   nombreCategoriaSeleccionada ||
                   categoriaSeleccionada ||
-                  'Sin categoría',
-                cuota: Number(
+                  'Sin categoría';
+
+                const cuota = Number(
                   item?.cuota ??
                     item?.cuotaCategoria ??
                     item?.cuotaMes ??
                     item?.cuotaSemana ??
                     item?.cuotaDiaria ??
                     0,
-                ),
-                acumulado: Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0,
-                proyectado: Number(item?.proyectado ?? item?.proyeccionVenta ?? 0) || 0,
-                porcentajeCumplimiento: Number(
-                  item?.porcentajeCumplimiento ?? item?.porcCumpCategoria ?? item?.porcCump ?? 0,
-                ),
-                porcentajeCumplimientoProyectado: Number(
-                  item?.porcentajeCumplimientoProyectado ??
-                    item?.porcCumProyCategoria ??
-                    item?.porcCumProy ??
-                    0,
-                ),
-                part: Number(item?.part ?? 0),
-              }),
+                );
+
+                const acumulado = Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0;
+                const proyectado = Number(item?.proyectado ?? item?.proyeccionVenta ?? 0) || 0;
+
+                return {
+                  ...item,
+                  categoria,
+                  cuota,
+                  acumulado,
+                  ventaAcum: acumulado,
+                  proyectado,
+                  proyeccionVenta: proyectado,
+                  porcentajeCumplimiento: Number(
+                    item?.porcentajeCumplimiento ??
+                      item?.porcCumpCategoria ??
+                      item?.porcCump ??
+                      0,
+                  ),
+                  porcentajeCumplimientoProyectado: Number(
+                    item?.porcentajeCumplimientoProyectado ??
+                      item?.porcCumProyCategoria ??
+                      item?.porcCumProy ??
+                      0,
+                  ),
+                  part: Number(item?.part ?? 0),
+                };
+              },
             );
 
             const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleConNombre);
@@ -1869,12 +1948,29 @@ export class VentasComponent implements OnInit, OnDestroy {
             this.cdr.markForCheck();
           };
 
+          const cargarCategoriasVentas = (filtrosActivos: DashboardFilters) => {
+            return this.esSemanal
+              ? this.semanaService.getCuotaCategoriaPorVendedor(
+                  this._codigoVendedor,
+                  filtrosActivos,
+                )
+              : this.cumplimientoService.getCuotaCategoriaPorVendedor(
+                  this._codigoVendedor,
+                  filtrosActivos,
+                );
+          };
+
           const pintarCategoriaDesdeResumenFiltrado = (): void => {
+            const filtrosResumen = {
+              ...filtrosConsulta,
+              categoria: categoriaSeleccionada,
+            };
+
             const resumen$ = this.esSemanal
-              ? this.semanaService.getCumplimientoSemanaVendedor(filtrosConsulta)
+              ? this.semanaService.getCumplimientoSemanaVendedor(filtrosResumen)
               : this.cumplimientoService.getCumplimientoPorCodigo(
                   this._codigoVendedor,
-                  filtrosConsulta,
+                  filtrosResumen,
                 );
 
             resumen$
@@ -1903,9 +1999,7 @@ export class VentasComponent implements OnInit, OnDestroy {
                       row?.categoria ??
                       row?.nomCategoria ??
                       row?.nombreCategoria ??
-                      nombreCategoriaSeleccionada ??
-                      categoriaSeleccionada ??
-                      'Sin categoría',
+                      (nombreCategoriaSeleccionada || categoriaSeleccionada || 'Sin categoría'),
                     cuota,
                     acumulado,
                     ventaAcum: acumulado,
@@ -1919,11 +2013,50 @@ export class VentasComponent implements OnInit, OnDestroy {
                   };
                 });
 
-                pintarCategoria(listado);
+                pintarCategoria(listado.length ? listado : [crearCategoriaEnCero(categoriaSeleccionada)]);
               });
           };
 
-          if (tieneCategoriaSeleccionada) {
+          if (tieneMultiplesCategorias) {
+            const categoriasPermitidas = new Set(
+              categoriasSeleccionadas
+                .map((categoria: string) => normalizarCategoriaComparacion(categoria))
+                .filter(Boolean),
+            );
+
+            const filtrosSinCategoria = {
+              ...filtrosConsulta,
+              categoria: '',
+            };
+
+            cargarCategoriasVentas(filtrosSinCategoria)
+              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+              .subscribe((res: any) => {
+                const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+
+                const detalleFiltrado = detalle.filter((item: any) => {
+                  const nombreCategoria = obtenerNombreCategoriaTabla(item);
+                  const categoriaNormalizada = normalizarCategoriaComparacion(nombreCategoria);
+
+                  return categoriasPermitidas.has(categoriaNormalizada);
+                });
+
+                if (!detalleFiltrado.length) {
+                  pintarCategoria(
+                    categoriasSeleccionadas.map((categoriaRaw: string, idx: number) =>
+                      crearCategoriaEnCero(categoriaRaw, idx),
+                    ),
+                  );
+                  return;
+                }
+
+                pintarCategoria(detalleFiltrado);
+              });
+
+            break;
+          }
+
+          if (tieneUnaCategoriaSeleccionada) {
             pintarCategoriaDesdeResumenFiltrado();
             break;
           }
@@ -1933,30 +2066,37 @@ export class VentasComponent implements OnInit, OnDestroy {
             : [filtrosConsulta];
 
           const intentarCategoria = (idx: number): void => {
-            const filtrosActivos = candidatos[idx];
+            const filtrosActivos = {
+              ...candidatos[idx],
+              categoria: '',
+            };
 
-            const categorias$ = this.esSemanal
-              ? this.semanaService.getCuotaCategoriaPorVendedor(
-                  this._codigoVendedor,
-                  filtrosActivos,
-                )
-              : this.cumplimientoService.getCuotaCategoriaPorVendedor(
-                  this._codigoVendedor,
-                  filtrosActivos,
-                );
-
-            forkJoin({ res: categorias$, categoriasProveedor: categoriasProveedor$ })
+            forkJoin({
+              res: cargarCategoriasVentas(filtrosActivos).pipe(catchError(() => of({ detalle: [] }))),
+              categoriasProveedor: categoriasProveedor$,
+            })
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe(({ res, categoriasProveedor }: any) => {
                 const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
 
-                const detalleFiltradoPorProveedor = this.filtrarCategoriasPorProveedor(
-                  detalle,
-                  categoriasProveedor,
-                );
+                const detalleFiltradoPorProveedor = tieneProveedorSeleccionado
+                  ? this.filtrarCategoriasPorProveedor(detalle, categoriasProveedor)
+                  : detalle;
 
                 if (!detalleFiltradoPorProveedor.length && idx < candidatos.length - 1) {
                   intentarCategoria(idx + 1);
+                  return;
+                }
+
+                if (!detalleFiltradoPorProveedor.length && tieneProveedorSeleccionado) {
+                  const listadoDesdeProveedor = (Array.isArray(categoriasProveedor)
+                    ? categoriasProveedor
+                    : []
+                  ).map((categoriaRaw: string, idxProveedor: number) =>
+                    crearCategoriaEnCero(categoriaRaw, idxProveedor),
+                  );
+
+                  pintarCategoria(listadoDesdeProveedor);
                   return;
                 }
 

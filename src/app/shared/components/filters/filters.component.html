@@ -9,16 +9,30 @@
     <div class="filter-group span-2">
       <label>Rango de Fechas</label>
       <div class="date-range">
-        <input type="date" [(ngModel)]="filtros.fechaInicio" />
+        <input
+          type="date"
+          [(ngModel)]="filtros.fechaInicio"
+          (focus)="onClickOtroFiltro()"
+          (click)="onClickOtroFiltro()"
+        />
         <span class="sep">—</span>
-        <input type="date" [(ngModel)]="filtros.fechaFin" />
+        <input
+          type="date"
+          [(ngModel)]="filtros.fechaFin"
+          (focus)="onClickOtroFiltro()"
+          (click)="onClickOtroFiltro()"
+        />
       </div>
     </div>
 
     @if (esAdmin) {
       <div class="filter-group">
         <label>Vendedor</label>
-        <select [(ngModel)]="filtros.vendedor">
+        <select
+          [(ngModel)]="filtros.vendedor"
+          (focus)="onClickOtroFiltro()"
+          (click)="onClickOtroFiltro()"
+        >
           <option value="">Todos</option>
           @for (v of vendedores; track v.value) {
             <option [value]="v.value">{{ v.label }}</option>
@@ -29,7 +43,12 @@
 
     <div class="filter-group">
       <label>Proveedor</label>
-      <select [(ngModel)]="filtros.proveedor">
+      <select
+        [(ngModel)]="filtros.proveedor"
+        (ngModelChange)="onProveedorChange($event)"
+        (focus)="onClickOtroFiltro()"
+        (click)="onClickOtroFiltro()"
+      >
         <option value="">Todos</option>
         @for (p of proveedores; track p.value) {
           <option [value]="p.value">{{ p.label }}</option>
@@ -39,17 +58,54 @@
 
     <div class="filter-group">
       <label>Categoría</label>
-      <select [(ngModel)]="filtros.categoria">
-        <option value="">Todas</option>
-        @for (c of categorias; track c.value) {
-          <option [value]="c.value">{{ c.label }}</option>
+
+      <div class="checkbox-dropdown">
+        <button
+          type="button"
+          class="checkbox-dropdown-toggle"
+          (click)="toggleCategoriaDropdown()"
+        >
+          <span class="checkbox-dropdown-text">
+            {{ textoCategoriasSeleccionadas }}
+          </span>
+
+          <span class="material-symbols-rounded dropdown-icon">expand_more</span>
+        </button>
+
+        @if (mostrarCategoriaDropdown) {
+          <div class="checkbox-dropdown-menu">
+            <label class="checkbox-item checkbox-item-all">
+              <input
+                type="checkbox"
+                [checked]="categoriasSeleccionadas.length === 0"
+                (change)="limpiarCategoriasSeleccionadas()"
+              />
+              <span>Todas</span>
+            </label>
+
+            @for (c of categorias; track c.value) {
+              <label class="checkbox-item">
+                <input
+                  type="checkbox"
+                  [value]="c.value"
+                  [checked]="filtros.categorias?.includes(c.value) || false"
+                  (change)="toggleCategoriaCheckbox(c.value)"
+                />
+                <span>{{ c.label }}</span>
+              </label>
+            }
+          </div>
         }
-      </select>
+      </div>
     </div>
 
     <div class="filter-group">
       <label>Ciudad</label>
-      <select [(ngModel)]="filtros.ciudad">
+      <select
+        [(ngModel)]="filtros.ciudad"
+        (focus)="onClickOtroFiltro()"
+        (click)="onClickOtroFiltro()"
+      >
         <option value="">Todas</option>
         @for (ci of ciudadesVista; track ci.value) {
           <option [value]="ci.value">{{ ci.label }}</option>
