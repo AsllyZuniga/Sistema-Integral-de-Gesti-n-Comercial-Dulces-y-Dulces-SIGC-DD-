@@ -6,7 +6,6 @@
   </button>
 
   <div class="filters-grid" [class.hidden-mobile]="!isFiltrosOpen">
-
     <div class="filter-group span-2">
       <label>Rango de Fechas</label>
       <div class="date-range">
@@ -52,7 +51,7 @@
       <label>Ciudad</label>
       <select [(ngModel)]="filtros.ciudad">
         <option value="">Todas</option>
-        @for (ci of ciudades; track ci.value) {
+        @for (ci of ciudadesVista; track ci.value) {
           <option [value]="ci.value">{{ ci.label }}</option>
         }
       </select>

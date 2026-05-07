@@ -1933,6 +1933,146 @@ export class VentasComponent implements OnInit, OnDestroy {
         this.chartType = 'pie';
 
         {
+          const tieneCiudadSeleccionada = !!String(
+            filtrosConsulta.ciudad ?? filtrosConsulta.ciudadNombre ?? '',
+          ).trim();
+
+          const tieneFiltrosCruzados = !!String(
+            filtrosConsulta.proveedor ?? filtrosConsulta.categoria ?? '',
+          ).trim();
+
+          const codigoCiudadSeleccionada = String(filtrosConsulta.ciudad ?? '').trim();
+
+          const nombreCiudadSeleccionada = this.repararTextoCiudad(
+            (filtrosConsulta as any).ciudadNombre ??
+              (filtrosConsulta as any).nombreCiudad ??
+              (filtrosConsulta as any).nomCiudad ??
+              (filtrosConsulta as any).ciudadLabel ??
+              (filtrosConsulta as any).labelCiudad ??
+              '',
+          );
+
+          const pintarCiudad = (listadoRaw: any[]): void => {
+            const listadoMapeado = (Array.isArray(listadoRaw) ? listadoRaw : []).map(
+              (item: any) => {
+                const ciudad = this.repararTextoCiudad(
+                  item?.ciudad ??
+                    item?.nomCiudad ??
+                    item?.nombreCiudad ??
+                    item?.Ciudad ??
+                    nombreCiudadSeleccionada ??
+                    '',
+                );
+
+                const ventaAcum = Number(item?.ventaAcum ?? item?.acumulado ?? 0) || 0;
+                const cuotaLinea = Number(
+                  item?.cuotaLinea ??
+                    item?.cuota ??
+                    item?.cuotaMes ??
+                    item?.cuotaSemana ??
+                    item?.cuotaDiaria ??
+                    0,
+                );
+
+                const proyeccionVenta =
+                  Number(item?.proyeccionVenta ?? item?.proyectado ?? ventaAcum) || 0;
+
+                return {
+                  ...item,
+                  ciudad:
+                    ciudad ||
+                    (codigoCiudadSeleccionada ? `Ciudad ${codigoCiudadSeleccionada}` : 'Todas'),
+                  cuotaLinea,
+                  cuota: cuotaLinea,
+                  ventaAcum,
+                  acumulado: ventaAcum,
+                  proyeccionVenta,
+                  porcCump:
+                    Number(item?.porcCumpCiudad ?? item?.porcCump ?? 0) ||
+                    (cuotaLinea > 0 ? (ventaAcum / cuotaLinea) * 100 : 0),
+                  porcCumProy:
+                    Number(item?.porcCumProyCiudad ?? item?.porcCumProy ?? 0) ||
+                    (cuotaLinea > 0 ? (proyeccionVenta / cuotaLinea) * 100 : 0),
+                };
+              },
+            );
+
+            const topCiudades = [...listadoMapeado]
+              .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+              .slice(0, 12);
+
+            this.tableData = listadoMapeado;
+            this.chartData = topCiudades.map((item: any) => ({
+              name: this.repararTextoCiudad(item.ciudad || 'Todas'),
+              value: Number(item.ventaAcum ?? 0) || 0,
+            }));
+
+            this.chartId = 'chart-ciudad-' + Date.now();
+            this.cdr.markForCheck();
+          };
+
+          const pintarCiudadDesdeResumenFiltrado = (): void => {
+            const resumen$ = this.esSemanal
+              ? this.semanaService.getCumplimientoSemanaVendedor(filtrosConsulta)
+              : this.cumplimientoService.getCumplimientoPorCodigo(
+                  this._codigoVendedor,
+                  filtrosConsulta,
+                );
+
+            resumen$
+              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+              .subscribe((res: any) => {
+                const detalle = (res?.detalle ?? []).filter(
+                  (row: any) => String(row?.codVendedor ?? '').trim() !== 'TOTALES',
+                );
+
+                const listado = detalle.map((row: any) => {
+                  const ventaAcum = Number(row?.ventaAcum ?? 0) || 0;
+
+                  const cuotaLinea = Number(
+                    row?.cuotaCiudad ??
+                      row?.cuotaProveedor ??
+                      row?.cuotaMes ??
+                      row?.cuotaSemana ??
+                      row?.cuotaDiaria ??
+                      0,
+                  );
+
+                  const proyeccionVenta = Number(row?.proyeccionVenta ?? 0) || 0;
+
+                  return {
+                    ...row,
+                    ciudad:
+                      row?.ciudad ??
+                      row?.nomCiudad ??
+                      row?.nombreCiudad ??
+                      (nombreCiudadSeleccionada ||
+                        (codigoCiudadSeleccionada
+                          ? `Ciudad ${codigoCiudadSeleccionada}`
+                          : 'Todas')),
+                    cuotaLinea,
+                    cuota: cuotaLinea,
+                    ventaAcum,
+                    acumulado: ventaAcum,
+                    proyeccionVenta,
+                    porcCump: Number(row?.porcCumpCiudad ?? row?.porcCump ?? 0) || 0,
+                    porcCumProy: Number(row?.porcCumProyCiudad ?? row?.porcCumProy ?? 0) || 0,
+                  };
+                });
+
+                pintarCiudad(listado);
+              });
+          };
+
+          /*
+            Si hay proveedor/categoría aplicados, el endpoint de ciudades puede devolver vacío.
+            En ese caso usamos /front/me para que la vista no desaparezca.
+          */
+          if (tieneCiudadSeleccionada || tieneFiltrosCruzados) {
+            pintarCiudadDesdeResumenFiltrado();
+            break;
+          }
+
           const candidatos = this.debeAplicarFallbackAutomatico(filtrosConsulta)
             ? this.construirCandidatosFallback(filtrosConsulta)
             : [filtrosConsulta];
@@ -1940,6 +2080,7 @@ export class VentasComponent implements OnInit, OnDestroy {
           const intentarCiudad = (idx: number): void => {
             const filtrosActivos = candidatos[idx];
             const codigoCiudadActivo = String(filtrosActivos.ciudad ?? '').trim();
+
             const ciudades$ = this.esSemanal
               ? this.semanaService.getCiudadesPorVendedor(this._codigoVendedor, filtrosActivos)
               : codigoCiudadActivo
@@ -1956,26 +2097,16 @@ export class VentasComponent implements OnInit, OnDestroy {
             ciudades$
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((res: any) => {
-                const listadoCompleto = res?.detallePorCiudad ?? [];
+                const listadoCompleto = Array.isArray(res?.detallePorCiudad)
+                  ? res.detallePorCiudad
+                  : [];
 
                 if (!listadoCompleto.length && idx < candidatos.length - 1) {
                   intentarCiudad(idx + 1);
                   return;
                 }
 
-                const listadoMapeado = listadoCompleto.map((i: any) => ({
-                  ...i,
-                  ciudad: this.repararTextoCiudad(i.ciudad),
-                }));
-                const topCiudades = [...listadoCompleto]
-                  .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
-                  .slice(0, 12);
-                this.tableData = listadoMapeado;
-                this.chartData = topCiudades.map((i: any) => ({
-                  name: this.repararTextoCiudad(i.ciudad),
-                  value: i.ventaAcum,
-                }));
-                this.cdr.markForCheck();
+                pintarCiudad(listadoCompleto);
               });
           };
 
