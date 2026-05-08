@@ -36,6 +36,16 @@
 
       @case ('proveedor') {
         <div class="stack-layout">
+          @if (tableData.length > 0) {
+            <div class="proveedor-totales-above">
+              <span class="categoria-total-pill">
+                Total Cuota: <strong>{{ totalCuotaProveedorLabel }}</strong>
+              </span>
+              <span class="categoria-total-pill" style="margin-left:12px;">
+                Total Acumulado: <strong>{{ totalAcumuladoProveedorLabel }}</strong>
+              </span>
+            </div>
+          }
           <div class="tabla-scroll">
             @if (tableData.length > 0) {
               <app-table [columns]="lineasColumns" [data]="tableData" />
@@ -54,6 +64,8 @@
                   <strong class="proveedor-kpi-value">{{ totalTopProveedoresLabel }}</strong>
                 </article>
               </div>
+
+              
 
               <div class="proveedor-chart-head">
                 <h4>Proveedores por venta acumulada</h4>

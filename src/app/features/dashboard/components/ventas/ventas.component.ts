@@ -115,6 +115,9 @@ export class VentasComponent implements OnInit, OnDestroy {
   totalAcumuladoCategoria = 0;
   totalTopCategorias = 0;
   totalTopProveedores = 0;
+  // Totales para la vista 'Por Proveedor'
+  totalCuotaProveedor = 0;
+  totalAcumuladoProveedor = 0;
   totalTopClientes = 0;
   totalTopItemsSubtotal = 0;
   liderVentasProveedor = '—';
@@ -449,6 +452,16 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.liderVentasProveedor = this.nombreProveedorCard(topProveedores[0]?.linea ?? '—');
     this.tableData = ordenado;
     this.chartData = topProveedores.map((i: any) => ({ name: i.linea, value: i.ventaAcum }));
+    // Totales acumulados para la sección 'Por Proveedor'
+    this.totalAcumuladoProveedor = ordenado.reduce(
+      (sum: number, item: any) => sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
+      0,
+    );
+
+    this.totalCuotaProveedor = ordenado.reduce(
+      (sum: number, item: any) => sum + (Number(item?.cuota ?? item?.cuotaLinea ?? 0) || 0),
+      0,
+    );
     this.chartId = 'chart-proveedor-admin-' + Date.now();
     this.cdr.markForCheck();
   }
@@ -1188,6 +1201,14 @@ export class VentasComponent implements OnInit, OnDestroy {
     return this.formatearMoneda(this.totalAcumuladoCategoria);
   }
 
+  get totalCuotaProveedorLabel(): string {
+    return this.formatearMoneda(this.totalCuotaProveedor);
+  }
+
+  get totalAcumuladoProveedorLabel(): string {
+    return this.formatearMoneda(this.totalAcumuladoProveedor);
+  }
+
   get totalTopCategoriasLabel(): string {
     return this.formatearMoneda(this.totalTopCategorias);
   }
@@ -1734,6 +1755,17 @@ export class VentasComponent implements OnInit, OnDestroy {
               name: item.linea,
               value: Number(item.ventaAcum ?? 0),
             }));
+
+            // Calcular totales para la vista 'Por Proveedor' (modo vendedor)
+            this.totalAcumuladoProveedor = listadoTabla.reduce(
+              (sum: number, item: any) => sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
+              0,
+            );
+
+            this.totalCuotaProveedor = listadoTabla.reduce(
+              (sum: number, item: any) => sum + (Number(item?.cuota ?? item?.cuotaLinea ?? 0) || 0),
+              0,
+            );
 
             this.chartId = 'chart-proveedor-' + Date.now();
             this.cdr.markForCheck();
