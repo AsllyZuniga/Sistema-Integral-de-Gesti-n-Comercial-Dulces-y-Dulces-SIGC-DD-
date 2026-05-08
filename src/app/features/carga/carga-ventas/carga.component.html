@@ -110,7 +110,14 @@
           <div class="resultado exito">
             <span class="material-symbols-rounded resultado-icon">check_circle</span>
             <div class="resultado-info">
-              <h4>Importación completada</h4>
+              <div class="resultado-header">
+                <h4>Importación completada</h4>
+                @if (rawLog) {
+                  <button class="btn-link small" (click)="toggleLogs()">
+                    @if (!showLogs) { Ver logs completos } @else { Ocultar logs }
+                  </button>
+                }
+              </div>
               <div class="stats-grid">
                 <div class="stat">
                   <span class="stat-label">Registros exitosos</span>
@@ -124,19 +131,24 @@
                 </div>
                 <div class="stat">
                   <span class="stat-label">Tiempo total</span>
-                  <span class="stat-value">{{ tiempoTotal }} s</span>
+                  <span class="stat-value">
+                    @if (tiempoTotal !== '—') {
+                      {{ tiempoTotal }} s
+                    } @else {
+                      {{ tiempoTotal }}
+                    }
+                  </span>
                 </div>
-                @if (resultado.mensaje) {
-                  <div class="stat">
-                    <span class="stat-label">Estado</span>
-                    <span class="stat-value" style="font-size: 13px">
-                      {{ resultado.mensaje }}
-                    </span>
-                  </div>
-                }
+                <!-- Estado detallado eliminado para mantener la vista concisa. Use 'Ver logs completos' si necesita más detalles. -->
               </div>
             </div>
           </div>
+          @if (showLogs && rawLog) {
+            <div class="log-raw">
+              <h5>Logs completos</h5>
+              <pre>{{ rawLog }}</pre>
+            </div>
+          }
         }
 
         <!-- ERROR -->

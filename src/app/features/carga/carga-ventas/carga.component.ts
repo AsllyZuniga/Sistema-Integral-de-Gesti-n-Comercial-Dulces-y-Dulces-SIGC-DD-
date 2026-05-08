@@ -1,9 +1,10 @@
-import { Component, ViewChild, ChangeDetectorRef } from '@angular/core';
+import { Component, ViewChild, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpErrorResponse, HttpEventType } from '@angular/common/http';
 import { SidebarComponent } from '../../../shared/components/sidebar/sidebar.component';
 import { AuthService } from '../../../core/services/auth.service';
 import { environment } from '../../../../environments/environment';
+import { timeout } from 'rxjs/operators';
 
 type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
 type TipoError = 'formato' | 'columnas' | 'datos' | 'servidor' | 'desconocido';
@@ -28,7 +29,7 @@ interface ImportVentasResponse {
   templateUrl: './carga.component.html',
   styleUrls: ['./carga.component.css'],
 })
-export class CargaComponent {
+export class CargaComponent implements OnDestroy {
   private readonly apiUrl = environment.apiUrl;
 
   @ViewChild(SidebarComponent) sidebarRef?: SidebarComponent;
@@ -46,6 +47,10 @@ export class CargaComponent {
   // datos extraídos desde logs de texto si el backend no devuelve JSON
   processedLines: number | null = null;
   totalAcumulado: number | null = null;
+  // raw logs recibidos desde el backend (texto plano)
+  rawLog: string | null = null;
+  // mostrar/ocultar logs completos en UI
+  showLogs = false;
 
   get registrosExitosos(): number {
     return this.resultado?.exitosas ?? this.resultado?.registrosExitosos ?? 0;
@@ -162,6 +167,7 @@ export class CargaComponent {
         observe: 'events',
         reportProgress: true,
       })
+      .pipe(timeout(300000)) // 5 minutos de timeout
       .subscribe({
         next: (event: any) => {
           if (event.type === HttpEventType.UploadProgress) {
@@ -173,6 +179,8 @@ export class CargaComponent {
 
           if (event.type === HttpEventType.Response) {
             const textoRespuesta = event.body ?? '';
+            // Guardar log crudo para que el usuario lo pueda revisar si lo desea
+            this.rawLog = typeof textoRespuesta === 'string' ? textoRespuesta : null;
             const jsons = this.parsearJsonsConcatenados(textoRespuesta);
 
             if (jsons.length === 0) {
@@ -181,6 +189,8 @@ export class CargaComponent {
               if (extra) {
                 this.estado = 'exito';
                 this.resultado = extra;
+                // asegurar rawLog esté disponible aunque parseemos éxito
+                this.rawLog = this.rawLog ?? textoRespuesta ?? null;
                 this.processedLines = extra.registrosExitosos ?? extra.registrosConError ?? null;
                 // Asegurar que totalAcumulado sea number | null
                 const ta = extra.tiempoTotalSegundos !== undefined && extra.tiempoTotalSegundos !== null
@@ -198,9 +208,10 @@ export class CargaComponent {
                 textoRespuesta,
               );
               if (hayIndicadores) {
-                const cierre = textoRespuesta.trim().split(/\r?\n/).slice(-6).join('\n');
+                // Construir un resumen conciso en lugar de volcar todo el log
                 const fallback: ImportVentasResponse = {
-                  mensaje: 'Proceso completado (info extraída de logs)\n' + cierre,
+                  mensaje: 'Proceso completado (resumen extraído de logs)',
+                  registrosConError: 0,
                 };
                 // intentar extraer números de lectura/total nuevamente
                 const lectura = /Lectura completada:\s*([0-9,.]+)\s*l[ií]neas procesadas/i.exec(
@@ -216,6 +227,7 @@ export class CargaComponent {
 
                 this.estado = 'exito';
                 this.resultado = fallback;
+                this.rawLog = this.rawLog ?? textoRespuesta ?? null;
                 this.processedLines = fallback.registrosExitosos ?? null;
                 this.totalAcumulado = typeof fallback.tiempoTotalSegundos === 'number' ? fallback.tiempoTotalSegundos : null;
                 this.uploadProgress = 100;
@@ -260,7 +272,10 @@ export class CargaComponent {
         error: (err: HttpErrorResponse) => {
           // Si el backend devuelve logs en texto en err.error, intentar extraer info útil
           const textoErr = typeof err.error === 'string' ? err.error : '';
+          // Guardar log crudo en caso de error para permitir inspección
+          this.rawLog = this.rawLog ?? (typeof err.error === 'string' ? err.error : null);
           const jsons = textoErr ? this.parsearJsonsConcatenados(textoErr) : [];
+          
           if (jsons.length > 0) {
             const ultimoJson = jsons[jsons.length - 1];
             const { tipo, mensaje } = this.clasificarError(ultimoJson.mensaje ?? ultimoJson.error ?? '');
@@ -268,20 +283,24 @@ export class CargaComponent {
             return;
           }
 
+          // Intentar extraer datos desde logs de texto
           const extra = this.parsearDatosDesdeTexto(textoErr || (err.error as any) || '');
           if (extra) {
+            // Si detectamos "Lectura completada" en los logs, es un éxito aunque HTTP sea error
             this.estado = 'exito';
             this.resultado = extra;
-            // coerción segura del total si existe
+            this.rawLog = this.rawLog ?? textoErr ?? null;
             const taErr = extra.tiempoTotalSegundos !== undefined && extra.tiempoTotalSegundos !== null
               ? Number(extra.tiempoTotalSegundos)
               : null;
             this.totalAcumulado = Number.isFinite(taErr) ? (taErr as number) : null;
             this.uploadProgress = 100;
+            this.tipoError = null;
             this.cd.detectChanges();
             return;
           }
 
+          // Si no encontramos éxito en los logs, entonces sí es un error real
           this.setError(
             'servidor',
             err?.error?.mensaje ?? err?.error?.message ?? err?.message ?? 'No se pudo conectar con el servidor.',
@@ -290,40 +309,55 @@ export class CargaComponent {
       });
   }
 
+  toggleLogs(): void {
+    this.showLogs = !this.showLogs;
+    this.cd.detectChanges();
+  }
+
   private parsearDatosDesdeTexto(texto: string): ImportVentasResponse | null {
     if (!texto) return null;
 
-    // Buscar patrones comunes en los logs que contienen totales
-    // Ej: "Lectura completada: 142240 líneas procesadas"
-    const lecturaMatch = /Lectura completada:\s*([0-9,.]+)\s*l[ií]neas procesadas/i.exec(texto);
-    const totalAcumMatch = /Total acumulado:\s*([0-9,.]+)/i.exec(texto);
-    const loteMatch = /Lote confirmado:\s*([0-9,.]+)\s*cabeceras\s*\|\s*([0-9,.]+)\s*detalles\s*\|\s*Total acumulado:\s*([0-9,.]+)/i.exec(texto);
+    // Limpiar caracteres especiales (emojis, timestamps, etc) para parsing
+    const textoLimpio = texto.replace(/[\u0080-\uFFFF]/g, ' '); // Remover emojis y caracteres especiales
 
     const resultado: ImportVentasResponse = {};
 
+    // Patrón 1: "Lote confirmado: 635 cabeceras | 4948 detalles | Total acumulado: 154948"
+    // Hacer el regex más flexible para capturar espacios y diferentes separadores
+    const loteMatch = /Lote\s+confirmado:\s*([0-9]+)\s+cabeceras\s*[|\-]\s*([0-9]+)\s+detalles\s*[|\-]\s*Total\s+acumulado:\s*([0-9]+)/i.exec(textoLimpio);
+    
     if (loteMatch) {
-      const cabeceras = Number(loteMatch[1].replace(/[,\.]/g, ''));
-      const detalles = Number(loteMatch[2].replace(/[,\.]/g, ''));
-      const total = Number(loteMatch[3].replace(/[,\.]/g, ''));
+      const cabeceras = Number(loteMatch[1]);
+      const detalles = Number(loteMatch[2]);
+      const total = Number(loteMatch[3]);
+      resultado.registrosExitosos = total;
       resultado.exitosas = cabeceras + detalles;
-      resultado.registrosExitosos = total;
+      resultado.registrosConError = 0;
       resultado.tiempoTotalSegundos = total;
-      resultado.mensaje = 'Proceso completado (información extraída de logs)';
+      resultado.mensaje = `Lote confirmado: ${cabeceras.toLocaleString()} cabeceras + ${detalles.toLocaleString()} detalles`;
       return resultado;
     }
 
+    // Patrón 2: "Lectura completada: 154948 líneas procesadas"
+    const lecturaMatch = /Lectura\s+completada:\s*([0-9]+)\s+l[ií]neas\s+procesadas/i.exec(textoLimpio);
     if (lecturaMatch) {
-      const lines = Number(lecturaMatch[1].replace(/[,\.]/g, ''));
+      const lines = Number(lecturaMatch[1]);
       resultado.registrosExitosos = lines;
-      resultado.mensaje = 'Lectura completada (extraído de logs)';
+      resultado.exitosas = lines;
+      resultado.registrosConError = 0;
+      resultado.mensaje = `Lectura completada: ${lines.toLocaleString()} líneas procesadas`;
       return resultado;
     }
 
+    // Patrón 3: "Total acumulado: 154948"
+    const totalAcumMatch = /Total\s+acumulado:\s*([0-9]+)/i.exec(textoLimpio);
     if (totalAcumMatch) {
-      const total = Number(totalAcumMatch[1].replace(/[,\.]/g, ''));
+      const total = Number(totalAcumMatch[1]);
       resultado.registrosExitosos = total;
+      resultado.exitosas = total;
       resultado.tiempoTotalSegundos = total;
-      resultado.mensaje = 'Totales extraídos de logs';
+      resultado.registrosConError = 0;
+      resultado.mensaje = `Total acumulado: ${total.toLocaleString()} registros procesados`;
       return resultado;
     }
 
@@ -352,6 +386,10 @@ export class CargaComponent {
 
   logout(): void {
     this.auth.logout();
+  }
+
+  ngOnDestroy(): void {
+    // Cleanup
   }
 
   // ─── Helpers privados ────────────────────────────────────────────────────────

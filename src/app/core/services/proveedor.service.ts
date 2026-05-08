@@ -13,6 +13,15 @@ interface ProveedorDB {
   fecha_fin?: any;
 }
 
+interface ProveedorCategoriasResponse {
+  success?: boolean;
+  categorias?: Array<{
+    id_categoria?: number | string;
+    nombre?: string;
+    cantidad_items?: number;
+  }>;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -32,5 +41,26 @@ export class ProveedorService {
         return of([]);
       }),
     );
+  }
+
+  // Obtener categorias de un proveedor por codigo (ej: /proveedor/535/categorias)
+  getCategoriasByCodigo(codigoProveedor: string): Observable<string[]> {
+    const codigo = String(codigoProveedor ?? '').trim();
+    if (!codigo) return of([]);
+
+    return this.http
+      .get<ProveedorCategoriasResponse>(`${this.apiUrl}/${encodeURIComponent(codigo)}/categorias`)
+      .pipe(
+        map((res) => {
+          const categorias = Array.isArray(res?.categorias) ? res.categorias : [];
+          return categorias
+            .map((item) => String(item?.nombre ?? '').trim())
+            .filter(Boolean);
+        }),
+        catchError((err) => {
+          console.error('❌ [ProveedorService] Error cargando categorias por proveedor:', err);
+          return of([]);
+        }),
+      );
   }
 }

@@ -18,6 +18,7 @@ import { DashboardFilters } from '../../../../shared/components/filters/filters.
 import { TipoCuota } from '../../../cumplimientos-cuota/cumplimientos.component';
 import { CumplimientoService } from '../../../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../../../core/services/ventas/cumplimientoVentasSemana.service';
+import { VentasComponent } from '../../components/ventas/ventas.component';
 import {
   VendedorTabla,
   VendedoresTableComponent,
@@ -65,7 +66,7 @@ interface VendedorApiRow {
 @Component({
   selector: 'app-supervisor-dashboard',
   standalone: true,
-  imports: [CommonModule, CardComponent, VendedoresTableComponent],
+  imports: [CommonModule, CardComponent, VendedoresTableComponent, VentasComponent],
   templateUrl: './supervisor.component.html',
   styleUrls: ['./supervisor.component.css'],
 })
@@ -90,6 +91,16 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
   totales: { ventaAcum: number; cuotaMes: number; porcCump: number; proyeccionVenta: number } | null = null;
   cargandoVendedores = false;
   todosLosVendedores: VendedorTabla[] = [];
+  codigosVendedoresAsignados: string[] = [];
+  filtrosParaAnalisis: DashboardFilters = {
+    fechaInicio: '',
+    fechaFin: '',
+    vendedor: '',
+    proveedor: '',
+    categoria: '',
+    ciudad: '',
+    linea: '',
+  };
 
   private idSupervisor = 0;
   private destroy$ = new Subject<void>();
@@ -128,9 +139,18 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     }
   }
 
+  get codigoVendedorAnalisis(): string {
+    // El supervisor ve el análisis de todos sus vendedores asignados sin filtro específico
+    return 'ALL';
+  }
+
   ngOnInit(): void {
     const vendedor = this.authService.getVendedor();
     this.idSupervisor = Number(vendedor?.id_usuario ?? vendedor?.idUsuario ?? vendedor?.id ?? 0);
+    
+    console.log('👤 Supervisor ID cargado:', this.idSupervisor);
+    console.log('👤 Usuario completo:', vendedor);
+    
     this.initialized = true;
     this.cargarVendedoresSupervisor();
 
@@ -140,12 +160,20 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
         // Recargar vendedores cuando se asigna un supervisor
+        console.log('🔄 Recargando vendedores del supervisor...');
         this.cargarVendedoresSupervisor();
       });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (!this.initialized) return;
+
+    if (changes['filtrosActivos']) {
+      // Actualizar filtros para el análisis cuando cambien los filtros activos
+      this.filtrosParaAnalisis = {
+        ...this.filtrosActivos,
+      };
+    }
 
     if (changes['tipoCuota'] || changes['filtrosActivos']) {
       this.cargarVendedoresSupervisor();
@@ -270,11 +298,13 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
 
   private cargarVendedoresSupervisor(): void {
     if (!this.idSupervisor) {
+      console.warn('⚠️ ID de supervisor no disponible');
       this.todosLosVendedores = [];
       this.totales = null;
       return;
     }
 
+    console.log('🔍 Cargando vendedores para supervisor ID:', this.idSupervisor);
     this.cargandoVendedores = true;
 
     forkJoin({
@@ -284,6 +314,9 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: ({ asignados, cumplimiento }: { asignados: VendedorApiRow[]; cumplimiento: CumplimientoResponse }) => {
+          console.log('✅ Vendedores asignados recibidos:', asignados);
+          console.log('✅ Cumplimiento recibido:', cumplimiento?.detalle?.length, 'filas');
+          
           const cumplimientoPorCodigo = new Map<string, any>();
 
           for (const fila of cumplimiento.detalle ?? []) {
@@ -322,7 +355,23 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
           });
 
           const listaFiltrada = this.aplicarFiltrosSupervisor(lista);
+          console.log('📊 Tabla final con filtros aplicados:', listaFiltrada.length, 'vendedores');
+          
           this.todosLosVendedores = listaFiltrada;
+          
+          // Actualizar códigos de vendedores asignados para el análisis
+          this.codigosVendedoresAsignados = listaFiltrada
+            .map((v) => String(v.codVendedor ?? '').trim())
+            .filter(Boolean);
+          
+          console.log('📋 Códigos de vendedores asignados:', this.codigosVendedoresAsignados);
+          
+          // Preparar filtros para el análisis de ventas (solo vendedores asignados).
+          // VentasComponent usa codigosVendedores para que el supervisor NO vea datos de todos los vendedores.
+          this.filtrosParaAnalisis = {
+            ...this.filtrosActivos,
+            codigosVendedores: this.codigosVendedoresAsignados,
+          } as DashboardFilters & { codigosVendedores: string[] };
 
           const ventaAcum = listaFiltrada.reduce((s: number, v) => s + (Number(v.ventaAcum) || 0), 0);
           const cuota = listaFiltrada.reduce((s: number, v) => s + (Number(v[this.campoCuota]) || 0), 0);
@@ -336,9 +385,12 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
           this.cargandoVendedores = false;
           this.cdr.detectChanges();
         },
-        error: () => {
+        error: (err: any) => {
+          console.error('❌ Error cargando vendedores del supervisor:', err);
           this.cargandoVendedores = false;
           this.totales = null;
+          this.todosLosVendedores = [];
+          this.codigosVendedoresAsignados = [];
           this.cdr.detectChanges();
         },
       });

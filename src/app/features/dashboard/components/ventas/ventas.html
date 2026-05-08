@@ -141,18 +141,6 @@
         </div>
       }
 
-      @case ('vendedor') {
-        <div class="stack-layout">
-          <div class="tabla-scroll">
-            @if (tableData.length > 0) {
-              <app-table [columns]="tableColumns" [data]="tableData" />
-            } @else {
-              <div class="placeholder">Cargando información...</div>
-            }
-          </div>
-        </div>
-      }
-
       @case ('item') {
         <div class="stack-layout">
           <div class="filtro-bar">
