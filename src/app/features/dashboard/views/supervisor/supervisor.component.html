@@ -22,3 +22,13 @@
     ></app-vendedores-table>
   </div>
 </section>
+
+<section class="charts">
+  <app-ventas
+    [codigoVendedor]="codigoVendedorAnalisis"
+    [filtros]="filtrosParaAnalisis"
+    [tipoCuota]="tipoCuota"
+    [modoAdmin]="true"
+  >
+  </app-ventas>
+</section>

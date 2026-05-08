@@ -1277,14 +1277,49 @@ export class VentasComponent implements OnInit, OnDestroy {
     return nombre.trim();
   }
 
+  private extraerNombreCategoria(item: any): string {
+    if (!item || typeof item !== 'object') {
+      return this.limpiarNombreCategoria(item);
+    }
+
+    const candidatos = [
+      item?.categoria,
+      item?.nomCategoria,
+      item?.nombreCategoria,
+      item?.nombre_categoria,
+      item?.nom_categoria,
+      item?.categoriaNombre,
+      item?.categoria_nombre,
+      item?.nombre,
+      item?.label,
+      item?.descripcionCategoria,
+      item?.descCategoria,
+      item?.desc_categoria,
+      item?.categoria?.nombre,
+      item?.categoria?.nomCategoria,
+      item?.categoria?.nombreCategoria,
+      item?.categoria?.nombre_categoria,
+      item?.categoria?.nom_categoria,
+      item?.categoria?.label,
+      item?.categoria?.descripcion,
+    ];
+
+    for (const candidato of candidatos) {
+      const nombre = this.limpiarNombreCategoria(candidato);
+      if (nombre) {
+        return nombre;
+      }
+    }
+
+    return '';
+  }
+
   private normalizarCategoria(valor: unknown): string {
     return this.normalizarTexto(this.limpiarNombreCategoria(valor));
   }
 
   private obtenerNombreCategoria(item: any): string {
-    return this.limpiarNombreCategoria(
-      item?.categoria ?? item?.nomCategoria ?? item?.nombreCategoria ?? '',
-    );
+    return this.extraerNombreCategoria(item);
   }
 
   private ordenarCategoriasPorAlfabeto(listado: any[]): any[] {
@@ -1841,16 +1876,14 @@ export class VentasComponent implements OnInit, OnDestroy {
           );
 
           const obtenerNombreCategoriaTabla = (item: any): string => {
-            return (
-              this.obtenerNombreCategoria(item) ||
+            return this.obtenerNombreCategoria(item) ||
               this.repararTextoCiudad(
                 item?.categoria ??
                   item?.nomCategoria ??
                   item?.nombreCategoria ??
                   item?.Categoria ??
                   '',
-              )
-            );
+              );
           };
 
           const crearCategoriaEnCero = (categoriaRaw: string, idx = 0): any => ({
@@ -1932,7 +1965,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
             const topCategorias = [...detalleConNombre]
               .map((item: any) => ({
-                name: item?.categoria || this.obtenerNombreCategoria(item) || 'Sin categoría',
+                name: this.obtenerNombreCategoria(item) || item?.categoria || 'Sin categoría',
                 value: Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0,
               }))
               .sort((a: any, b: any) => b.value - a.value)

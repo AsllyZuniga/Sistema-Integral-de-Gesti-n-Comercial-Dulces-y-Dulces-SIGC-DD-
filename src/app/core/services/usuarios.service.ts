@@ -79,13 +79,16 @@ export class UsuariosService {
    */
   obtenerVendedoresDelSupervisor(idSupervisor: string): Observable<any[]> {
     const url = `${this.apiUrl}/vendedor/supervisor/${idSupervisor}`;
-    return this.http.get<any[]>(url).pipe(
+    console.log(`📡 Llamando endpoint: ${url}`);
+    
+    return this.http.get<any>(url).pipe(
       map((res) => {
-        const vendedores = Array.isArray(res) ? res : [];
+        const vendedores = Array.isArray(res) ? res : (res?.data ?? []);
+        console.log(`✅ Respuesta del endpoint ${url}:`, vendedores);
         return vendedores;
       }),
       catchError((err) => {
-        console.error('❌ [UsuariosService] Error cargando vendedores del supervisor:', err);
+        console.error(`❌ [UsuariosService] Error cargando vendedores del supervisor ${idSupervisor}:`, err);
         return of([]);
       }),
     );
