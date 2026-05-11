@@ -286,6 +286,7 @@ export class VentasComponent implements OnInit, OnDestroy {
       row?.cuotaMes ??
       row?.cuotaSemana ??
       row?.cuotaDiaria ??
+      row?.cuotaProveedorTotal ??
       row?.cuota ??
       row?.cuotaLinea ??
       0;
@@ -389,25 +390,42 @@ export class VentasComponent implements OnInit, OnDestroy {
     };
   }
 
+  private obtenerEtiquetaProveedorAdmin(row: any): string {
+    const etiqueta =
+      row?.linea ??
+      row?.nomLinea ??
+      row?.nombreLinea ??
+      row?.proveedor ??
+      row?.Proveedor ??
+      row?.nomProveedor ??
+      row?.nombreProveedor ??
+      row?.nombre_proveedor ??
+      row?.proveedorNombre ??
+      row?.Linea ??
+      row?.PROVEEDOR ??
+      row?.PROVEEDOR_NOMBRE ??
+      'Sin dato';
+
+    return this.repararTextoCiudad(String(etiqueta).trim()) || 'Sin dato';
+  }
+
   private normalizarDetalleProveedorAdmin(detalle: any[]): any[] {
     return (Array.isArray(detalle) ? detalle : []).map((row: any) => {
       const cuota = this.obtenerCuotaNumero(row);
       const ventaAcum =
         Number(row?.ventaAcum ?? row?.acumulado ?? row?.Subtotal ?? row?.subtotal ?? 0) || 0;
       const proyeccionVenta = Number(row?.proyeccionVenta ?? row?.proyectado ?? ventaAcum) || 0;
-      const linea =
-        row?.linea ??
-        row?.nomLinea ??
-        row?.nombreLinea ??
-        row?.proveedor ??
-        row?.nomProveedor ??
-        row?.nombreProveedor ??
-        row?.Proveedor ??
-        'Sin dato';
+      const linea = this.obtenerEtiquetaProveedorAdmin(row);
 
       return {
         ...row,
         linea: this.repararTextoCiudad(linea) || 'Sin dato',
+        proveedor:
+          row?.proveedor ?? row?.Proveedor ?? row?.nomProveedor ?? row?.nombreProveedor ?? linea,
+        nomProveedor:
+          row?.nomProveedor ?? row?.nombreProveedor ?? row?.proveedor ?? row?.Proveedor ?? linea,
+        nombreProveedor:
+          row?.nombreProveedor ?? row?.nomProveedor ?? row?.proveedor ?? row?.Proveedor ?? linea,
         cuotaLinea: cuota,
         cuota,
         ventaAcum,
@@ -415,6 +433,42 @@ export class VentasComponent implements OnInit, OnDestroy {
         proyeccionVenta,
       };
     });
+  }
+
+  private cargarProveedorAdminDesdeVendedores(
+    detalle: any[],
+    filtrosConsulta: DashboardFilters,
+  ): void {
+    const codigos = this.obtenerCodigosVendedoresDesdeDetalle(detalle);
+    const filtrosDetalle = this.filtrosSinVendedorAdmin(filtrosConsulta);
+
+    if (!codigos.length) {
+      this.pintarProveedorAdminDesdeDetalle(detalle);
+      return;
+    }
+
+    const calls = codigos.map((codigo: string) =>
+      (this.esSemanal
+        ? this.semanaService.getLineasPorVendedor(codigo, filtrosDetalle)
+        : this.cumplimientoService.getLineasPorVendedor(codigo, filtrosDetalle)
+      ).pipe(catchError(() => of({ detallePorLinea: [] }))),
+    );
+
+    forkJoin(calls)
+      .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+      .subscribe((responses: any[]) => {
+        const detallePlano = responses.flatMap((r: any) =>
+          Array.isArray(r?.detallePorLinea) ? r.detallePorLinea : [],
+        );
+        const detalleNormalizado = this.normalizarDetalleProveedorAdmin(detallePlano);
+
+        if (!detalleNormalizado.length) {
+          this.pintarProveedorAdminDesdeDetalle(detalle);
+          return;
+        }
+
+        this.pintarProveedorAdminDesdeDetalle(detalleNormalizado);
+      });
   }
 
   private normalizarDetalleCiudadAdmin(detalle: any[]): any[] {
@@ -740,36 +794,73 @@ export class VentasComponent implements OnInit, OnDestroy {
 
             case 'proveedor': {
               this.chartType = 'bar';
-              const codigos = this.obtenerCodigosVendedoresDesdeDetalle(detalle);
-              const filtrosDetalle = this.filtrosSinVendedorAdmin(filtrosConsulta);
 
-              if (!codigos.length) {
-                this.pintarProveedorAdminDesdeDetalle(detalle);
+              if (!this.esSemanal) {
+                const proveedorSeleccionado = String(filtrosConsulta?.proveedor ?? '').trim();
+
+                this.cumplimientoService
+                  .getLineasAdmin(filtrosConsulta)
+                  .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+                  .subscribe((res: any) => {
+                    const detallePlano = Array.isArray(res?.detallePorLinea)
+                      ? res.detallePorLinea
+                      : Array.isArray(res?.detalle)
+                        ? res.detalle
+                        : [];
+                    const detalleNormalizado = this.normalizarDetalleProveedorAdmin(detallePlano);
+
+                    if (!detalleNormalizado.length) {
+                      if (proveedorSeleccionado) {
+                        const filtrosSinProveedor: DashboardFilters = {
+                          ...filtrosConsulta,
+                          vendedor: '',
+                          proveedor: '',
+                          categoria: '',
+                          categorias: [],
+                          categoriaNombres: [],
+                          ciudad: '',
+                          ciudadNombre: '',
+                          linea: '',
+                        };
+
+                        this.cumplimientoService
+                          .getLineasAdmin(filtrosSinProveedor)
+                          .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+                          .subscribe((retryRes: any) => {
+                            const retryDetallePlano = Array.isArray(retryRes?.detallePorLinea)
+                              ? retryRes.detallePorLinea
+                              : Array.isArray(retryRes?.detalle)
+                                ? retryRes.detalle
+                                : [];
+                            const retryDetalle =
+                              this.normalizarDetalleProveedorAdmin(retryDetallePlano);
+
+                            if (!retryDetalle.length) {
+                              this.tableData = [];
+                              this.chartData = [];
+                              this.totalTopProveedores = 0;
+                              this.totalAcumuladoProveedor = 0;
+                              this.totalCuotaProveedor = 0;
+                              this.liderVentasProveedor = '—';
+                              this.cdr.markForCheck();
+                              return;
+                            }
+
+                            this.pintarProveedorAdminDesdeDetalle(retryDetalle);
+                          });
+                        return;
+                      }
+
+                      this.cargarProveedorAdminDesdeVendedores(detalle, filtrosConsulta);
+                      return;
+                    }
+
+                    this.pintarProveedorAdminDesdeDetalle(detalleNormalizado);
+                  });
                 break;
               }
 
-              const calls = codigos.map((codigo: string) =>
-                (this.esSemanal
-                  ? this.semanaService.getLineasPorVendedor(codigo, filtrosDetalle)
-                  : this.cumplimientoService.getLineasPorVendedor(codigo, filtrosDetalle)
-                ).pipe(catchError(() => of({ detallePorLinea: [] }))),
-              );
-
-              forkJoin(calls)
-                .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-                .subscribe((responses: any[]) => {
-                  const detallePlano = responses.flatMap((r: any) =>
-                    Array.isArray(r?.detallePorLinea) ? r.detallePorLinea : [],
-                  );
-                  const detalleNormalizado = this.normalizarDetalleProveedorAdmin(detallePlano);
-
-                  if (!detalleNormalizado.length) {
-                    this.pintarProveedorAdminDesdeDetalle(detalle);
-                    return;
-                  }
-
-                  this.pintarProveedorAdminDesdeDetalle(detalleNormalizado);
-                });
+              this.cargarProveedorAdminDesdeVendedores(detalle, filtrosConsulta);
               break;
             }
 
@@ -1758,7 +1849,8 @@ export class VentasComponent implements OnInit, OnDestroy {
 
             // Calcular totales para la vista 'Por Proveedor' (modo vendedor)
             this.totalAcumuladoProveedor = listadoTabla.reduce(
-              (sum: number, item: any) => sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
+              (sum: number, item: any) =>
+                sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
               0,
             );
 
@@ -1908,14 +2000,16 @@ export class VentasComponent implements OnInit, OnDestroy {
           );
 
           const obtenerNombreCategoriaTabla = (item: any): string => {
-            return this.obtenerNombreCategoria(item) ||
+            return (
+              this.obtenerNombreCategoria(item) ||
               this.repararTextoCiudad(
                 item?.categoria ??
                   item?.nomCategoria ??
                   item?.nombreCategoria ??
                   item?.Categoria ??
                   '',
-              );
+              )
+            );
           };
 
           const crearCategoriaEnCero = (categoriaRaw: string, idx = 0): any => ({
@@ -1964,10 +2058,7 @@ export class VentasComponent implements OnInit, OnDestroy {
                   proyectado,
                   proyeccionVenta: proyectado,
                   porcentajeCumplimiento: Number(
-                    item?.porcentajeCumplimiento ??
-                      item?.porcCumpCategoria ??
-                      item?.porcCump ??
-                      0,
+                    item?.porcentajeCumplimiento ?? item?.porcCumpCategoria ?? item?.porcCump ?? 0,
                   ),
                   porcentajeCumplimientoProyectado: Number(
                     item?.porcentajeCumplimientoProyectado ??
@@ -2078,7 +2169,9 @@ export class VentasComponent implements OnInit, OnDestroy {
                   };
                 });
 
-                pintarCategoria(listado.length ? listado : [crearCategoriaEnCero(categoriaSeleccionada)]);
+                pintarCategoria(
+                  listado.length ? listado : [crearCategoriaEnCero(categoriaSeleccionada)],
+                );
               });
           };
 
@@ -2137,7 +2230,9 @@ export class VentasComponent implements OnInit, OnDestroy {
             };
 
             forkJoin({
-              res: cargarCategoriasVentas(filtrosActivos).pipe(catchError(() => of({ detalle: [] }))),
+              res: cargarCategoriasVentas(filtrosActivos).pipe(
+                catchError(() => of({ detalle: [] })),
+              ),
               categoriasProveedor: categoriasProveedor$,
             })
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
@@ -2154,9 +2249,8 @@ export class VentasComponent implements OnInit, OnDestroy {
                 }
 
                 if (!detalleFiltradoPorProveedor.length && tieneProveedorSeleccionado) {
-                  const listadoDesdeProveedor = (Array.isArray(categoriasProveedor)
-                    ? categoriasProveedor
-                    : []
+                  const listadoDesdeProveedor = (
+                    Array.isArray(categoriasProveedor) ? categoriasProveedor : []
                   ).map((categoriaRaw: string, idxProveedor: number) =>
                     crearCategoriaEnCero(categoriaRaw, idxProveedor),
                   );

@@ -18,6 +18,7 @@ import {
 import { CumplimientoService } from '../../../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../../../core/services/ventas/cumplimientoVentasSemana.service';
 import { UsuariosService } from '../../../../core/services/usuarios.service';
+import { ProveedorService } from '../../../../core/services/proveedor.service';
 import { TipoCuota } from '../../../cumplimientos-cuota/cumplimientos.component';
 import { VentasComponent } from '../../components/ventas/ventas.component';
 import {
@@ -81,6 +82,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
   private semanaService = inject(CumplimientoSemanaService);
   private usuariosService = inject(UsuariosService);
   private cdr = inject(ChangeDetectorRef);
+  private proveedorService = inject(ProveedorService);
 
   @Input() tipoCuota: TipoCuota = 'mensual';
   @Input() filtrosActivos: DashboardFilters = {
@@ -92,6 +94,11 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     ciudad: '',
     linea: '',
   };
+
+  // Usa esta copia en el HTML para <app-ventas>.
+  // Siempre se reemplaza por una NUEVA referencia para que el @Input() set filtros
+  // de VentasComponent se dispare al cambiar proveedor/categoria/ciudad/fechas.
+  filtrosAnalisis: DashboardFilters = { ...this.filtrosActivos };
 
   totales: { ventaAcum: number; cuotaMes: number; porcCump: number; proyeccionVenta: number } | null = null;
   cargandoVendedores = false;
@@ -108,6 +115,8 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
   private codigoVendedorAIdMap: Map<string, string | number> = new Map();
   private destroy$ = new Subject<void>();
   private initialized = false;
+  private proveedoresList: any[] = [];
+  private proveedoresMap: Map<string, string> = new Map();
 
   private obtenerCodigoVendedor(vendedor: Pick<VendedorTabla, 'codVendedor' | 'codigo_vendedor'> | VendedorApiRow): string {
     return String(vendedor.codVendedor ?? vendedor.codigo_vendedor ?? '').trim();
@@ -146,39 +155,117 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
       .replace(/[^a-záéíóúñüA-ZÁÉÍÓÚÑÜ0-9\s.,-]/g, '');
   }
 
+  private obtenerValoresProveedorFiltro(valor: unknown): string[] {
+    const raw = String(valor ?? '').trim();
+    if (!raw) return [];
+
+    const normalizado = this.normalizarTexto(raw);
+    const valores = new Set<string>([normalizado]);
+    const codigoMapeado = this.proveedoresMap.get(normalizado);
+
+    if (codigoMapeado) {
+      valores.add(this.normalizarTexto(codigoMapeado));
+    }
+
+    this.proveedoresList.forEach((p) => {
+      const codigo = String(p?.codigo ?? p?.id_proveedor ?? p?.codigoProveedor ?? '').trim();
+      const nombre = String(p?.nombre ?? p?.nomProveedor ?? p?.nombreProveedor ?? '').trim();
+      const codigoNorm = this.normalizarTexto(codigo);
+      const nombreNorm = this.normalizarTexto(nombre);
+
+      if (
+        codigoNorm === normalizado ||
+        nombreNorm === normalizado ||
+        (codigoMapeado && codigoNorm === this.normalizarTexto(codigoMapeado))
+      ) {
+        if (codigoNorm) valores.add(codigoNorm);
+        if (nombreNorm) valores.add(nombreNorm);
+      }
+    });
+
+    return Array.from(valores).filter(Boolean);
+  }
+
   private aplicarFiltrosAdministrador(lista: VendedorTabla[]): VendedorTabla[] {
     const filtros = this.filtrosActivos ?? ({} as DashboardFilters);
 
     const codVendedorFiltro = String(filtros.vendedor ?? '').trim();
-    const proveedorFiltro = this.normalizarTexto(filtros.proveedor);
+    const proveedoresFiltro = this.obtenerValoresProveedorFiltro(filtros.proveedor);
     const categoriaFiltro = this.normalizarTexto(filtros.categoria);
     const ciudadFiltro = this.normalizarTexto(filtros.ciudadNombre ?? filtros.ciudad ?? '');
     const lineaFiltro = this.normalizarTexto(filtros.linea);
 
     return lista.filter((v) => {
       if (codVendedorFiltro) {
-        const codigoV = String(v.codVendedor ?? '').trim();
+        const codigoV = String(v.codVendedor ?? v.codigo_vendedor ?? '').trim();
         if (codigoV !== codVendedorFiltro) return false;
       }
 
-      if (proveedorFiltro) {
-        const proveedorV = this.normalizarTexto(v.proveedor ?? v.nomProveedor ?? v.nombreProveedor);
-        if (!proveedorV.includes(proveedorFiltro)) return false;
+      // IMPORTANTE:
+      // Los filtros proveedor/categoria/ciudad/linea ya se envían al backend.
+      // Si el endpoint devuelve filas resumidas por vendedor, muchas veces NO trae esos campos.
+      // Antes se filtraba localmente contra campos vacíos y por eso la tabla quedaba vacía.
+      // Ahora solo aplicamos el filtro local cuando la fila sí trae valores para comparar.
+      if (proveedoresFiltro.length) {
+        const proveedorValoresFila = [
+          v.proveedor,
+          v.nomProveedor,
+          v.nombreProveedor,
+          (v as any).codigoProveedor,
+          (v as any).codigo_proveedor,
+          (v as any).id_proveedor,
+        ]
+          .map((valor) => this.normalizarTexto(valor))
+          .filter(Boolean);
+
+        if (proveedorValoresFila.length) {
+          const coincideProveedor = proveedorValoresFila.some((valorFila) =>
+            proveedoresFiltro.some(
+              (valorFiltro) => valorFila === valorFiltro || valorFila.includes(valorFiltro),
+            ),
+          );
+
+          if (!coincideProveedor) return false;
+        }
       }
 
       if (categoriaFiltro) {
-        const categoriaV = this.normalizarTexto(v.categoria ?? v.nomCategoria ?? v.nombreCategoria);
-        if (!categoriaV.includes(categoriaFiltro)) return false;
+        const categoriaValoresFila = [v.categoria, v.nomCategoria, v.nombreCategoria]
+          .map((valor) => this.normalizarTexto(valor))
+          .filter(Boolean);
+
+        if (
+          categoriaValoresFila.length &&
+          !categoriaValoresFila.some((valorFila) => valorFila.includes(categoriaFiltro))
+        ) {
+          return false;
+        }
       }
 
       if (ciudadFiltro) {
-        const ciudadV = this.normalizarTexto(v.ciudad ?? v.nomCiudad ?? v.nombreCiudad);
-        if (ciudadV !== ciudadFiltro) return false;
+        const ciudadValoresFila = [v.ciudad, v.nomCiudad, v.nombreCiudad]
+          .map((valor) => this.normalizarTexto(valor))
+          .filter(Boolean);
+
+        if (
+          ciudadValoresFila.length &&
+          !ciudadValoresFila.some((valorFila) => valorFila === ciudadFiltro)
+        ) {
+          return false;
+        }
       }
 
       if (lineaFiltro) {
-        const lineaV = this.normalizarTexto(v.linea ?? v.nomLinea ?? v.nombreLinea);
-        if (!lineaV.includes(lineaFiltro)) return false;
+        const lineaValoresFila = [v.linea, v.nomLinea, v.nombreLinea]
+          .map((valor) => this.normalizarTexto(valor))
+          .filter(Boolean);
+
+        if (
+          lineaValoresFila.length &&
+          !lineaValoresFila.some((valorFila) => valorFila.includes(lineaFiltro))
+        ) {
+          return false;
+        }
       }
 
       return true;
@@ -226,6 +313,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
   ngOnInit(): void {
     this.initialized = true;
     this.cargarVendedoresDetalle();
+    this.cargarProveedores();
     this.cargarSupervisores();
   }
 
@@ -233,8 +321,67 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     if (!this.initialized) return;
 
     if (changes['tipoCuota'] || changes['filtrosActivos']) {
+      this.actualizarFiltrosAnalisis();
       this.cargarTotales();
     }
+  }
+
+  private cargarProveedores(): void {
+    this.proveedorService
+      .getAllProveedores()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res: any[]) => {
+          this.proveedoresList = Array.isArray(res) ? res : [];
+          this.proveedoresMap.clear();
+
+          this.proveedoresList.forEach((p) => {
+            const codigo = String(p?.codigo ?? (p as any)?.id_proveedor ?? '').trim();
+            const nombre = this.normalizarTexto(p?.nombre ?? '');
+
+            if (codigo) {
+              // map by codigo (normalized) to codigo
+              this.proveedoresMap.set(this.normalizarTexto(codigo), codigo);
+            }
+
+            if (nombre && codigo) {
+              // map by normalized name to codigo
+              this.proveedoresMap.set(nombre, codigo);
+            }
+          });
+
+          console.debug('Proveedor map cargado (nombre->codigo):', this.proveedoresMap.size);
+
+          this.actualizarFiltrosAnalisis();
+
+          if (this.initialized && String(this.filtrosActivos?.proveedor ?? '').trim()) {
+            this.cargarTotales();
+          }
+        },
+        error: (err: any) => {
+          console.error('Error cargando proveedores en Administrador:', err);
+        },
+      });
+  }
+
+  private actualizarFiltrosAnalisis(): void {
+    this.filtrosAnalisis = this.obtenerFiltrosParaApi();
+  }
+
+  private obtenerFiltrosParaApi(): DashboardFilters {
+    const filtros = this.filtrosActivos ?? ({} as DashboardFilters);
+    const provRaw = String(filtros.proveedor ?? '').trim();
+
+    if (!provRaw) {
+      return { ...filtros };
+    }
+
+    const codigoProveedor = this.proveedoresMap.get(this.normalizarTexto(provRaw)) ?? provRaw;
+
+    return {
+      ...filtros,
+      proveedor: codigoProveedor,
+    };
   }
 
   ngOnDestroy(): void {
@@ -309,10 +456,16 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
             });
           });
 
-          this.catalogoVendedores = catalogo;
-          this.todosLosVendedores = catalogo;
+          this.catalogoVendedores = [...catalogo];
+          this.todosLosVendedores = [...catalogo];
           
           console.log('✅ Mapa de vendedores cargado:', this.codigoVendedorAIdMap.size, 'vendedores');
+
+          // Si los totales llegaron antes que el catálogo, recargamos para unir
+          // correctamente vendedor + cuota + venta y actualizar la tabla.
+          if (this.initialized) {
+            this.cargarTotales();
+          }
         },
         error: (err: any) => {
           console.error('❌ Error cargando vendedores:', err);
@@ -386,7 +539,8 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   private cargarTotales(): void {
-    const filtros = { ...this.filtrosActivos };
+    const filtros = this.obtenerFiltrosParaApi();
+    this.filtrosAnalisis = { ...filtros };
     const obs$ =
       this.tipoCuota === 'semanal'
         ? this.semanaService.getCumplimientoSemanaAdmin(filtros)
@@ -413,7 +567,31 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
           }
         });
 
-        const baseCatalogo = this.catalogoVendedores.length > 0 ? this.catalogoVendedores : [];
+        const baseCatalogo = this.catalogoVendedores.length > 0
+          ? this.catalogoVendedores
+          : detalle.map((fila) => ({
+              codigo_vendedor: this.obtenerCodigoVendedor(fila),
+              codVendedor: this.obtenerCodigoVendedor(fila),
+              id_vendedor: fila.id_vendedor ?? fila.idVendedor,
+              idVendedor: fila.id_vendedor ?? fila.idVendedor,
+              nombre: fila.nombre ?? '',
+              proveedor: fila.proveedor,
+              nomProveedor: fila.nomProveedor,
+              nombreProveedor: fila.nombreProveedor,
+              categoria: fila.categoria,
+              nomCategoria: fila.nomCategoria,
+              nombreCategoria: fila.nombreCategoria,
+              ciudad: fila.ciudad,
+              nomCiudad: fila.nomCiudad,
+              nombreCiudad: fila.nombreCiudad,
+              linea: fila.linea,
+              nomLinea: fila.nomLinea,
+              nombreLinea: fila.nombreLinea,
+              nombreSupervisor: fila.nombreSupervisor ?? '',
+              id_supervisor: fila.id_supervisor ?? fila.idSupervisor ?? null,
+              supervisor: fila.supervisor ?? null,
+            } as VendedorTabla));
+
         const listaNormalizada: VendedorTabla[] = baseCatalogo.map((base) => {
           const codigo = String(base.codVendedor ?? base.codigo_vendedor ?? '').trim();
           const fila = detallePorCodigo.get(codigo);
@@ -443,13 +621,27 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
             ventaAcum: Number(fila?.ventaAcum ?? 0),
             porcCump: Number(fila?.porcCump ?? 0),
             proyeccionVenta: Number(fila?.proyeccionVenta ?? 0),
-            nombreSupervisor: this.obtenerNombreSupervisor(fila ?? base, base.supervisor ? undefined : undefined),
+            nombreSupervisor: this.obtenerNombreSupervisor(fila ?? base),
             id_supervisor: fila?.id_supervisor ?? fila?.idSupervisor ?? base.id_supervisor ?? base.idSupervisor ?? null,
             supervisor: fila?.supervisor ?? base.supervisor ?? null,
           };
         });
 
-        const listaFiltrada = this.aplicarFiltrosAdministrador(listaNormalizada);
+        const hayFiltrosDeConsulta = !!String(
+          this.filtrosActivos?.proveedor ||
+            this.filtrosActivos?.categoria ||
+            this.filtrosActivos?.ciudad ||
+            this.filtrosActivos?.ciudadNombre ||
+            this.filtrosActivos?.linea ||
+            this.filtrosActivos?.vendedor ||
+            '',
+        ).trim();
+
+        const listaBase = hayFiltrosDeConsulta
+          ? listaNormalizada.filter((v) => detallePorCodigo.has(String(v.codVendedor ?? v.codigo_vendedor ?? '').trim()))
+          : listaNormalizada;
+
+        const listaFiltrada = this.aplicarFiltrosAdministrador(listaBase);
         this.todosLosVendedores = listaFiltrada;
         this.aplicarNombresSupervisorEnTabla();
 

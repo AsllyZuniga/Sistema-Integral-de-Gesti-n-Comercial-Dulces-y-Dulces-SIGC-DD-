@@ -285,6 +285,20 @@ export class CumplimientoService {
     return this.proveedoresCache$;
   }
 
+  /** Admin: GET /mes/cumplimiento/lineas → detallePorLinea (proveedores) */
+  getLineasAdmin(filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParams(filtros);
+    return this.http
+      .get<any>(`${this.apiUrl}/mes/cumplimiento/lineas`, { params })
+      .pipe(
+        map((res) => {
+          if (res?.detallePorLinea) res.detallePorLinea = Array.isArray(res.detallePorLinea) ? res.detallePorLinea : [];
+          return res;
+        }),
+        catchError(() => of({ detallePorLinea: [] })),
+      );
+  }
+
   /** GET /cuota-categoria/vendedores → categorías de múltiples vendedores con filtros de fecha */
   getCuotaCategoriasPorVendedores(filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
