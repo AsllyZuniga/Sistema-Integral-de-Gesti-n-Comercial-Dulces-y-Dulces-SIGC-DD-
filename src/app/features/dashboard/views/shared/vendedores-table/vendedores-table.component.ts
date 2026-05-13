@@ -4,6 +4,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 export interface VendedorTabla {
   codigo_vendedor?: string;
   codVendedor?: string;
+  id_usuario?: number | string;
   id_vendedor?: number | string;
   idVendedor?: number | string;
   nombre?: string;
@@ -41,6 +42,7 @@ export interface VendedorTabla {
 })
 export class VendedoresTableComponent {
   @Input() esAdmin = false;
+  @Input() mostrarMetricas = true;
   @Input() labelCuota = 'Cuota Mes';
   @Input() labelVentaAcum = 'Venta Mes';
   @Input() campoCuota: keyof Pick<VendedorTabla, 'cuotaMes' | 'cuotaSemana' | 'cuotaDiaria'> = 'cuotaMes';
@@ -48,6 +50,8 @@ export class VendedoresTableComponent {
   @Input() todosLosVendedores: VendedorTabla[] = [];
 
   @Output() asignarSupervisor = new EventEmitter<VendedorTabla>();
+  @Output() editar = new EventEmitter<VendedorTabla>();
+  @Output() desactivar = new EventEmitter<VendedorTabla>();
 
   montoCuota(vendedor: VendedorTabla): number {
     return Number(vendedor[this.campoCuota] ?? 0);
@@ -55,5 +59,13 @@ export class VendedoresTableComponent {
 
   onAsignar(vendedor: VendedorTabla): void {
     this.asignarSupervisor.emit(vendedor);
+  }
+
+  onEditar(vendedor: VendedorTabla): void {
+    this.editar.emit(vendedor);
+  }
+
+  onDesactivar(vendedor: VendedorTabla): void {
+    this.desactivar.emit(vendedor);
   }
 }
