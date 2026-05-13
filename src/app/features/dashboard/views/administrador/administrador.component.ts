@@ -23,7 +23,6 @@ import { TipoCuota } from '../../../cumplimientos-cuota/cumplimientos.component'
 import { VentasComponent } from '../../components/ventas/ventas.component';
 import {
   VendedorTabla,
-  VendedoresTableComponent,
 } from '../shared/vendedores-table/vendedores-table.component';
 
 interface SupervisorResumen {
@@ -73,7 +72,7 @@ interface VendedorApiRow {
 @Component({
   selector: 'app-administrador-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, CardComponent, VendedoresTableComponent, VentasComponent],
+  imports: [CommonModule, FormsModule, CardComponent, VentasComponent],
   templateUrl: './administrador.component.html',
   styleUrls: ['./administrador.component.css'],
 })
@@ -120,6 +119,25 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
 
   private obtenerCodigoVendedor(vendedor: Pick<VendedorTabla, 'codVendedor' | 'codigo_vendedor'> | VendedorApiRow): string {
     return String(vendedor.codVendedor ?? vendedor.codigo_vendedor ?? '').trim();
+  }
+
+  private generarClavesCodigo(codigoRaw: unknown): string[] {
+    const codigo = String(codigoRaw ?? '').trim();
+    if (!codigo) return [];
+
+    const claves = new Set<string>();
+    claves.add(codigo);
+
+    const numerico = codigo.replace(/\D/g, '');
+    if (numerico) {
+      claves.add(numerico);
+      claves.add(String(Number(numerico)));
+      claves.add(numerico.padStart(4, '0'));
+      // also add without leading zeros
+      claves.add(numerico.replace(/^0+/, '') || numerico);
+    }
+
+    return Array.from(claves).filter(Boolean);
   }
 
   private obtenerNombreSupervisor(
@@ -186,19 +204,53 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     return Array.from(valores).filter(Boolean);
   }
 
+  private obtenerValoresVendedorFiltro(valor: unknown): string[] {
+    const raw = String(valor ?? '').trim();
+    if (!raw) return [];
+
+    const normalizado = this.normalizarTexto(raw);
+    const valores = new Set<string>([normalizado]);
+
+    const matchCodigo = raw.match(/^(\d+)/);
+    if (matchCodigo?.[1]) {
+      valores.add(this.normalizarTexto(matchCodigo[1]));
+    }
+
+    const matchEtiqueta = raw.match(/^\s*(\d+)\s*[-–]\s*(.+)$/);
+    if (matchEtiqueta?.[1]) {
+      valores.add(this.normalizarTexto(matchEtiqueta[1]));
+      valores.add(this.normalizarTexto(matchEtiqueta[2]));
+    }
+
+    return Array.from(valores).filter(Boolean);
+  }
+
   private aplicarFiltrosAdministrador(lista: VendedorTabla[]): VendedorTabla[] {
     const filtros = this.filtrosActivos ?? ({} as DashboardFilters);
 
-    const codVendedorFiltro = String(filtros.vendedor ?? '').trim();
+    const vendedorFiltro = this.obtenerValoresVendedorFiltro(filtros.vendedor);
     const proveedoresFiltro = this.obtenerValoresProveedorFiltro(filtros.proveedor);
     const categoriaFiltro = this.normalizarTexto(filtros.categoria);
     const ciudadFiltro = this.normalizarTexto(filtros.ciudadNombre ?? filtros.ciudad ?? '');
     const lineaFiltro = this.normalizarTexto(filtros.linea);
 
     return lista.filter((v) => {
-      if (codVendedorFiltro) {
-        const codigoV = String(v.codVendedor ?? v.codigo_vendedor ?? '').trim();
-        if (codigoV !== codVendedorFiltro) return false;
+      if (vendedorFiltro.length) {
+        const vendedorValoresFila = [
+          v.codVendedor,
+          v.codigo_vendedor,
+          v.nombre,
+          (v as any).codigoVendedor,
+          (v as any).codigo_vendedor,
+        ]
+          .map((valor) => this.normalizarTexto(valor))
+          .filter(Boolean);
+
+        const coincideVendedor = vendedorValoresFila.some((valorFila) =>
+          vendedorFiltro.some((valorFiltro) => valorFila === valorFiltro || valorFila.includes(valorFiltro)),
+        );
+
+        if (!coincideVendedor) return false;
       }
 
       // IMPORTANTE:
@@ -528,7 +580,9 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
               const nombreSupervisor = this.obtenerNombreSupervisor(v, supervisor);
 
               if (codigo && nombreSupervisor) {
-                mapaTemporal.set(codigo, nombreSupervisor);
+                // map multiple variants of the code to improve matching
+                const claves = this.generarClavesCodigo(codigo);
+                claves.forEach((clave) => mapaTemporal.set(clave, nombreSupervisor));
               }
             });
           },
@@ -670,12 +724,20 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
 
     this.todosLosVendedores = this.todosLosVendedores.map((v) => {
       const codigo = this.obtenerCodigoVendedor(v);
-      const nombreSupervisor =
-        this.supervisorPorCodigoVendedor.get(codigo) ??
-        v.supervisor?.username ??
-        v.supervisor?.nombre ??
-        v?.nombreSupervisor ??
-        '';
+      let nombreSupervisor = '';
+
+      // Try multiple key variants when looking up supervisor name
+      const claves = this.generarClavesCodigo(codigo);
+      for (const clave of claves) {
+        const encontrado = this.supervisorPorCodigoVendedor.get(clave);
+        if (encontrado) {
+          nombreSupervisor = encontrado;
+          break;
+        }
+      }
+
+      nombreSupervisor =
+        nombreSupervisor || v.supervisor?.username || v.supervisor?.nombre || v?.nombreSupervisor || '';
 
       return { ...v, nombreSupervisor };
     });
