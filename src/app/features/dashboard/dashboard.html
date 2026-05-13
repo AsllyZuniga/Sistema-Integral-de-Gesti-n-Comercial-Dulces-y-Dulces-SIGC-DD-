@@ -35,12 +35,12 @@
     </div>
 
     <section class="filters">
-      <app-filters
+        <app-filters
         [proveedores]="proveedoresList"
         [categorias]="categoriasList"
         [ciudades]="ciudadesList"
         [lineas]="lineasList"
-        [vendedores]="esAdmin ? vendedoresList : []"
+        [vendedores]="vendedoresList"
         (apply)="onAplicarFiltros($event)"
         (proveedorChange)="onProveedorFiltroChange($event)"
       >
