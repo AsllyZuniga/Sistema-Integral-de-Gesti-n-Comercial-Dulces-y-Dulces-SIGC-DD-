@@ -1,7 +1,12 @@
 import { Component, OnInit, OnDestroy, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Subject, forkJoin, takeUntil } from 'rxjs';
+import { Subject, forkJoin, takeUntil, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
+import {
+  VendedoresTableComponent,
+  VendedorTabla,
+} from '../dashboard/views/shared/vendedores-table/vendedores-table.component';
 import { UsuariosService } from '../../core/services/usuarios.service';
 import { AuthService } from '../../core/services/auth.service';
 import { SidebarComponent } from '../../shared/components/sidebar/sidebar.component';
@@ -16,7 +21,7 @@ type Seccion =
 @Component({
   selector: 'app-gestion-usuarios',
   standalone: true,
-  imports: [CommonModule, FormsModule, SidebarComponent],
+  imports: [CommonModule, FormsModule, SidebarComponent, VendedoresTableComponent],
   templateUrl: './gestion-usuarios.component.html',
   styleUrls: ['./gestion-usuarios.component.css'],
 })
@@ -39,6 +44,28 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
   supervisores: any[] = [];
   vendedoresDelSupervisor: Map<string | number, any[]> = new Map();
 
+  // Modal para asignar supervisor desde el botón azul de la tabla
+  showAsignarSupervisorModal = false;
+  vendedorAsignacion: any = null;
+  supervisorSeleccionado = '';
+  asignandoSupervisor = false;
+
+  // Vista en forma de tabla para gestión
+  get vendedoresTabla(): VendedorTabla[] {
+    return (this.vendedores ?? []).map((v: any) => ({
+      codigo_vendedor:
+        v?.codigo_vendedor ?? v?.codigo ?? v?.codVendedor ?? v?.codigo_vendedor ?? v?.codigo,
+      codVendedor: v?.codigo ?? v?.codVendedor ?? v?.codigo_vendedor ?? v?.codigo,
+      id_usuario: v?.id_usuario ?? v?.idUsuario ?? v?.usuario?.id_usuario ?? v?.usuario?.id ?? null,
+      id_vendedor: v?.id_vendedor ?? v?.idVendedor ?? v?.id ?? null,
+      nombre: v?.nombre ?? v?.nom_vendedor ?? v?.username ?? '',
+      nombreSupervisor:
+        v?.nombreSupervisor ?? v?.supervisor?.nombre ?? v?.supervisor?.username ?? '',
+      id_supervisor: v?.id_supervisor ?? v?.idSupervisor ?? v?.supervisor?.id ?? null,
+      estado: v?.estado ?? true,
+    }));
+  }
+
   // Estados de carga
   cargandoVendedores = false;
   cargandoSupervisores = false;
@@ -51,6 +78,9 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
   usuarioEnEdicion: any = null;
   vendedorEnEdicion: any = null;
 
+  // Para expandir/contraer vendedores por supervisor
+  supervisoresExpandidos: Set<string | number> = new Set();
+
   // Formularios
   formVendedor = {
     nombre: '',
@@ -59,6 +89,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
     ciudad: '',
     username: '',
     password: '',
+    id_supervisor: '',
   };
 
   formSupervisor = {
@@ -97,9 +128,93 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
+  private normalizarTexto(value: any): string {
+    return String(value ?? '').trim();
+  }
+
+  private normalizarCodigo(value: any): string {
+    return String(value ?? '').trim();
+  }
+
+  private codigoSinCeros(value: any): string {
+    const codigo = this.normalizarCodigo(value);
+    if (!codigo) return '';
+    const sinCeros = codigo.replace(/^0+/, '');
+    return sinCeros || '0';
+  }
+
+  private getIdSupervisor(supervisor: any): string | number | null {
+    return supervisor?.id_usuario ?? supervisor?.id ?? supervisor?.idSupervisor ?? null;
+  }
+
+  private getNombreSupervisor(supervisor: any): string {
+    return (
+      [
+        supervisor?.nombre,
+        supervisor?.nom_supervisor,
+        supervisor?.usuario?.nombre,
+        supervisor?.username,
+      ]
+        .map((v) => String(v ?? '').trim())
+        .find((v) => v.length > 0) ?? ''
+    );
+  }
+
+  private getIdVendedor(vendedor: any): string | number | null {
+    return vendedor?.id_vendedor ?? vendedor?.idVendedor ?? vendedor?.id ?? null;
+  }
+
+  private getCodigoVendedor(vendedor: any): string {
+    return this.normalizarCodigo(
+      vendedor?.codigo ??
+        vendedor?.codigo_vendedor ??
+        vendedor?.codVendedor ??
+        vendedor?.username ??
+        vendedor?.usuario?.username ??
+        '',
+    );
+  }
+
+  private getNombreVendedor(vendedor: any): string {
+    return (
+      [
+        vendedor?.nombre,
+        vendedor?.nom_vendedor,
+        vendedor?.nombre_vendedor,
+        vendedor?.vendedor?.nombre,
+        vendedor?.usuario?.nombre,
+        vendedor?.username,
+      ]
+        .map((v) => String(v ?? '').trim())
+        .find((v) => v.length > 0) ?? ''
+    );
+  }
+
+  private sonMismoVendedor(a: any, b: any): boolean {
+    const idA = this.getIdVendedor(a);
+    const idB = this.getIdVendedor(b);
+
+    if (idA != null && idB != null && String(idA) === String(idB)) {
+      return true;
+    }
+
+    const codigoA = this.getCodigoVendedor(a);
+    const codigoB = this.getCodigoVendedor(b);
+
+    if (codigoA && codigoB && codigoA === codigoB) {
+      return true;
+    }
+
+    const codigoA2 = this.codigoSinCeros(codigoA);
+    const codigoB2 = this.codigoSinCeros(codigoB);
+
+    return !!codigoA2 && !!codigoB2 && codigoA2 === codigoB2;
+  }
+
   // ============ CARGA DE DATOS ============
   private cargarVendedores(): void {
     this.cargandoVendedores = true;
+
     forkJoin({
       usuarios: this.usuariosService.listarVendedores(),
       detalleVendedores: this.usuariosService.listarDetalleVendedores(),
@@ -114,17 +229,6 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
               })
             : [];
 
-          const normalizarCodigo = (value: any): string => {
-            return String(value ?? '').trim();
-          };
-
-          const codigoSinCeros = (value: any): string => {
-            const codigo = normalizarCodigo(value);
-            if (!codigo) return '';
-            const sinCeros = codigo.replace(/^0+/, '');
-            return sinCeros || '0';
-          };
-
           const obtenerNombre = (item: any): string => {
             return String(
               item?.nombre ??
@@ -137,7 +241,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
           };
 
           const obtenerCodigo = (item: any): string => {
-            return normalizarCodigo(
+            return this.normalizarCodigo(
               item?.codigo_vendedor ??
                 item?.codVendedor ??
                 item?.codigo ??
@@ -161,15 +265,18 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
                 detalle?.usuario?.id ??
                 '',
             ).trim();
+
             const codigo = obtenerCodigo(detalle);
-            const codigoNormalizado = codigoSinCeros(codigo);
+            const codigoNormalizado = this.codigoSinCeros(codigo);
 
             if (idUsuario) {
               detallePorIdUsuario.set(idUsuario, detalle);
             }
+
             if (codigo) {
               detallePorCodigo.set(codigo, detalle);
             }
+
             if (codigoNormalizado) {
               detallePorCodigo.set(codigoNormalizado, detalle);
             }
@@ -177,6 +284,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
 
           this.vendedores = usuariosVendedores.map((usuario: any) => {
             const idUsuario = String(usuario?.id_usuario ?? usuario?.id ?? '').trim();
+
             const codigoUsuario = String(
               usuario?.codigo ??
                 usuario?.codigo_vendedor ??
@@ -184,7 +292,8 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
                 usuario?.username ??
                 '',
             ).trim();
-            const codigoUsuarioNormalizado = codigoSinCeros(codigoUsuario);
+
+            const codigoUsuarioNormalizado = this.codigoSinCeros(codigoUsuario);
 
             const detalleAsociado =
               (idUsuario ? detallePorIdUsuario.get(idUsuario) : null) ??
@@ -193,6 +302,26 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
 
             const idVendedorAsociado =
               detalleAsociado?.id_vendedor ?? detalleAsociado?.idVendedor ?? null;
+
+            const idSupervisorAsociado =
+              detalleAsociado?.id_supervisor ??
+              detalleAsociado?.idSupervisor ??
+              detalleAsociado?.supervisor?.id_usuario ??
+              detalleAsociado?.supervisor?.id ??
+              usuario?.id_supervisor ??
+              usuario?.idSupervisor ??
+              usuario?.supervisor?.id_usuario ??
+              usuario?.supervisor?.id ??
+              null;
+
+            const nombreSupervisorAsociado =
+              detalleAsociado?.nombreSupervisor ??
+              detalleAsociado?.supervisor?.nombre ??
+              detalleAsociado?.supervisor?.username ??
+              usuario?.nombreSupervisor ??
+              usuario?.supervisor?.nombre ??
+              usuario?.supervisor?.username ??
+              '';
 
             const codigoAsociado =
               [
@@ -221,14 +350,18 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
 
             return {
               ...usuario,
+                id_usuario: usuario?.id_usuario ?? usuario?.id ?? null,
               nombre: nombreAsociado,
               codigo: String(codigoAsociado).trim(),
               codigo_vendedor: String(codigoAsociado).trim(),
               id_vendedor: idVendedorAsociado,
+              id_supervisor: idSupervisorAsociado,
+              nombreSupervisor: nombreSupervisorAsociado,
             };
           });
 
           this.cargandoVendedores = false;
+          this.sincronizarVendedoresConMapaSupervisores();
           this.cdr.detectChanges();
         },
         error: (err) => {
@@ -242,6 +375,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
 
   private cargarSupervisores(): void {
     this.cargandoSupervisores = true;
+
     this.usuariosService
       .listarSupervisores()
       .pipe(takeUntil(this.destroy$))
@@ -249,15 +383,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
         next: (res: any[]) => {
           this.supervisores = Array.isArray(res)
             ? res.map((supervisor: any) => {
-                const nombreAsociado =
-                  [
-                    supervisor?.nombre,
-                    supervisor?.nom_supervisor,
-                    supervisor?.usuario?.nombre,
-                    supervisor?.username,
-                  ]
-                    .map((v) => String(v ?? '').trim())
-                    .find((v) => v.length > 0) ?? '';
+                const nombreAsociado = this.getNombreSupervisor(supervisor);
 
                 return {
                   ...supervisor,
@@ -265,12 +391,76 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
                 };
               })
             : [];
-          this.cargandoSupervisores = false;
-          // Cargar vendedores de cada supervisor
-          this.supervisores.forEach((supervisor) => {
-            this.cargarVendedoresDelSupervisor(supervisor.id_usuario ?? supervisor.id);
-          });
-          this.cdr.detectChanges();
+
+          const supervisorList = this.supervisores;
+
+          if (supervisorList.length === 0) {
+            this.vendedoresDelSupervisor.clear();
+            this.cargandoSupervisores = false;
+            this.cdr.detectChanges();
+            return;
+          }
+
+          const calls = supervisorList.map((supervisor) =>
+            this.usuariosService
+              .obtenerVendedoresDelSupervisor(String(supervisor.id_usuario ?? supervisor.id))
+              .pipe(catchError(() => of([]))),
+          );
+
+          forkJoin(calls)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+              next: (results: any[]) => {
+                this.vendedoresDelSupervisor.clear();
+
+                results.forEach((vendedores: any[], idx: number) => {
+                  const supervisor = supervisorList[idx];
+                  const idSupervisor = supervisor?.id_usuario ?? supervisor?.id;
+
+                  this.vendedoresDelSupervisor.set(idSupervisor, vendedores ?? []);
+
+                  (vendedores ?? []).forEach((v: any) => {
+                    const codigo = String(
+                      v?.codigo_vendedor ??
+                        v?.codVendedor ??
+                        v?.codigo ??
+                        v?.username ??
+                        v?.usuario?.username ??
+                        '',
+                    ).trim();
+
+                    const codigoNormalizado = this.codigoSinCeros(codigo);
+
+                    const encontrado = this.vendedores.find((vv: any) => {
+                      const codigoV = String(
+                        vv?.codigo ?? vv?.codigo_vendedor ?? vv?.codVendedor ?? vv?.username ?? '',
+                      ).trim();
+
+                      return (
+                        codigoV === codigo || this.codigoSinCeros(codigoV) === codigoNormalizado
+                      );
+                    });
+
+                    if (encontrado) {
+                      encontrado.nombreSupervisor =
+                        supervisor?.nombre ??
+                        supervisor?.nom_supervisor ??
+                        supervisor?.username ??
+                        '';
+                      encontrado.id_supervisor = idSupervisor;
+                    }
+                  });
+                });
+
+                this.cargandoSupervisores = false;
+                this.cdr.detectChanges();
+              },
+              error: (err) => {
+                console.error('Error cargando vendedores de supervisores:', err);
+                this.cargandoSupervisores = false;
+                this.cdr.detectChanges();
+              },
+            });
         },
         error: (err) => {
           console.error('Error al cargar supervisores:', err);
@@ -298,6 +488,67 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
       });
   }
 
+  private recargarGestionUsuarios(): void {
+    this.cargarVendedores();
+    this.cargarSupervisores();
+  }
+
+  private sincronizarVendedoresConMapaSupervisores(): void {
+    this.vendedoresDelSupervisor.forEach((vendedores, idSupervisor) => {
+      const supervisor = this.supervisores.find(
+        (s) => String(this.getIdSupervisor(s)) === String(idSupervisor),
+      );
+
+      const nombreSupervisor = this.getNombreSupervisor(supervisor);
+
+      (vendedores ?? []).forEach((vendedorAsignado: any) => {
+        const vendedorLocal = this.vendedores.find((v: any) =>
+          this.sonMismoVendedor(v, vendedorAsignado),
+        );
+
+        if (vendedorLocal) {
+          vendedorLocal.id_supervisor = idSupervisor;
+          vendedorLocal.nombreSupervisor = nombreSupervisor;
+        }
+      });
+    });
+  }
+
+  private actualizarAsignacionLocal(vendedor: any, idSupervisorNuevo: string | number): void {
+    const supervisorNuevo = this.supervisores.find(
+      (s: any) => String(this.getIdSupervisor(s)) === String(idSupervisorNuevo),
+    );
+
+    const nombreSupervisorNuevo = this.getNombreSupervisor(supervisorNuevo);
+
+    const vendedorActualizado = {
+      ...vendedor,
+      id_supervisor: idSupervisorNuevo,
+      idSupervisor: idSupervisorNuevo,
+      nombreSupervisor: nombreSupervisorNuevo,
+    };
+
+    const vendedorEnLista = this.vendedores.find((v: any) => this.sonMismoVendedor(v, vendedor));
+
+    if (vendedorEnLista) {
+      vendedorEnLista.id_supervisor = idSupervisorNuevo;
+      vendedorEnLista.idSupervisor = idSupervisorNuevo;
+      vendedorEnLista.nombreSupervisor = nombreSupervisorNuevo;
+    }
+
+    this.vendedoresDelSupervisor.forEach((lista, idSupervisor) => {
+      const filtrada = (lista ?? []).filter((v: any) => !this.sonMismoVendedor(v, vendedor));
+      this.vendedoresDelSupervisor.set(idSupervisor, filtrada);
+    });
+
+    const listaDestino = this.vendedoresDelSupervisor.get(idSupervisorNuevo) ?? [];
+    const yaExiste = listaDestino.some((v: any) => this.sonMismoVendedor(v, vendedorActualizado));
+
+    if (!yaExiste) {
+      this.vendedoresDelSupervisor.set(idSupervisorNuevo, [...listaDestino, vendedorActualizado]);
+    }
+  }
+
   // ============ NAVEGACIÓN ============
   irACrearVendedor(): void {
     this.seccionActiva = 'crear-vendedor';
@@ -311,16 +562,128 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
 
   irAEditarVendedor(vendedor: any): void {
     this.vendedorEnEdicion = vendedor;
-    this.usuarioEnEdicion = vendedor; // El usuario es el mismo objeto
+    this.usuarioEnEdicion = vendedor;
+
     this.formVendedor = {
       nombre: vendedor?.nombre ?? '',
       email: vendedor?.email ?? vendedor?.username ?? '',
-      codigo: vendedor?.codigo ?? vendedor?.codigo_vendedor ?? '',
+      codigo: vendedor?.codigo ?? vendedor?.codigo_vendedor ?? vendedor?.codVendedor ?? '',
       ciudad: vendedor?.ciudad ?? '',
-      username: vendedor?.username ?? '',
-      password: '', // No enviamos password en edición
+      username: vendedor?.username ?? vendedor?.codigo ?? vendedor?.codigo_vendedor ?? vendedor?.codVendedor ?? '',
+      password: '',
+      id_supervisor: String(
+        vendedor?.id_supervisor ??
+          vendedor?.idSupervisor ??
+          vendedor?.supervisor?.id_usuario ??
+          vendedor?.supervisor?.id ??
+          '',
+      ),
     };
+
     this.seccionActiva = 'editar-vendedor';
+    this.cdr.detectChanges();
+  }
+
+  onAsignarSupervisorDesdeTabla(vendedor: VendedorTabla): void {
+    const codigoTabla = String(vendedor.codVendedor ?? vendedor.codigo_vendedor ?? '').trim();
+    const codigoTablaSinCeros = this.codigoSinCeros(codigoTabla);
+
+    const encontrado = this.vendedores.find((v: any) => {
+      const codigoVendedor = String(v?.codigo ?? v?.codigo_vendedor ?? v?.codVendedor ?? '').trim();
+
+      return (
+        codigoVendedor === codigoTabla ||
+        this.codigoSinCeros(codigoVendedor) === codigoTablaSinCeros
+      );
+    });
+
+    this.vendedorAsignacion = encontrado ?? {
+      nombre: vendedor.nombre,
+      codigo: vendedor.codVendedor ?? vendedor.codigo_vendedor,
+      codigo_vendedor: vendedor.codigo_vendedor ?? vendedor.codVendedor,
+      id_vendedor: vendedor.id_vendedor,
+      id_supervisor: vendedor.id_supervisor ?? '',
+      nombreSupervisor: vendedor.nombreSupervisor ?? '',
+    };
+
+    this.supervisorSeleccionado = String(
+      this.vendedorAsignacion?.id_supervisor ??
+        this.vendedorAsignacion?.idSupervisor ??
+        this.vendedorAsignacion?.supervisor?.id_usuario ??
+        this.vendedorAsignacion?.supervisor?.id ??
+        '',
+    );
+
+    this.showAsignarSupervisorModal = true;
+    this.cdr.detectChanges();
+  }
+
+  cerrarAsignarSupervisor(): void {
+    if (this.asignandoSupervisor) return;
+
+    this.showAsignarSupervisorModal = false;
+    this.vendedorAsignacion = null;
+    this.supervisorSeleccionado = '';
+    this.cdr.detectChanges();
+  }
+
+  guardarAsignacionSupervisor(): void {
+    if (!this.vendedorAsignacion) {
+      this.notificar('error', 'No se encontró el vendedor seleccionado');
+      return;
+    }
+
+    if (!this.supervisorSeleccionado) {
+      this.notificar('error', 'Seleccione un supervisor');
+      return;
+    }
+
+    const idVendedor = this.getIdVendedor(this.vendedorAsignacion);
+
+    if (!idVendedor) {
+      this.notificar('error', 'No se encontró el ID del vendedor. No se puede asignar supervisor.');
+      return;
+    }
+
+    this.asignandoSupervisor = true;
+    this.cdr.detectChanges();
+
+    this.usuariosService
+      .asignarSupervisor(String(idVendedor), String(this.supervisorSeleccionado))
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          const idSupervisorNuevo = Number(this.supervisorSeleccionado);
+          const vendedorActual = this.vendedorAsignacion;
+
+          this.actualizarAsignacionLocal(vendedorActual, idSupervisorNuevo);
+
+          this.asignandoSupervisor = false;
+          this.showAsignarSupervisorModal = false;
+          this.vendedorAsignacion = null;
+          this.supervisorSeleccionado = '';
+
+          this.notificar('success', 'Supervisor asignado correctamente');
+
+          // Recarga real desde backend para que el vendedor también aparezca
+          // en la lista del supervisor seleccionado.
+          this.recargarGestionUsuarios();
+
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          console.error('Error asignando supervisor:', err);
+          this.asignandoSupervisor = false;
+          this.notificar(
+            'error',
+            err?.error?.message ??
+              err?.error?.mensaje ??
+              err?.message ??
+              'Error al asignar supervisor',
+          );
+          this.cdr.detectChanges();
+        },
+      });
   }
 
   irAEditarSupervisor(supervisor: any): void {
@@ -340,6 +703,22 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
     this.vendedorEnEdicion = null;
   }
 
+  // ============ EXPANDIR/CONTRAER VENDEDORES POR SUPERVISOR ============
+  toggleSupervisorVendedores(idSupervisor: string | number): void {
+    if (this.supervisoresExpandidos.has(idSupervisor)) {
+      this.supervisoresExpandidos.delete(idSupervisor);
+    } else {
+      this.supervisoresExpandidos.add(idSupervisor);
+      this.cargarVendedoresDelSupervisor(idSupervisor);
+    }
+
+    this.cdr.detectChanges();
+  }
+
+  esSupervisorExpandido(idSupervisor: string | number): boolean {
+    return this.supervisoresExpandidos.has(idSupervisor);
+  }
+
   // ============ CREAR VENDEDOR ============
   crearVendedor(): void {
     if (!this.validarFormVendedor()) {
@@ -351,7 +730,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
     const datosUsuario = {
       username: this.formVendedor.username.trim(),
       password: this.formVendedor.password.trim(),
-      id_rol: 3, // Vendedor
+      id_rol: 3,
       estado: true,
     };
 
@@ -360,14 +739,17 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (usuarioCreado: any) => {
-          // Ahora crear el registro de vendedor
           const idUsuario = usuarioCreado?.id_usuario ?? usuarioCreado?.id;
 
-          const datosVendedor = {
+          const datosVendedor: any = {
             codigo_vendedor: this.formVendedor.codigo.trim(),
             nombre: this.formVendedor.nombre.trim(),
             id_usuario: idUsuario,
           };
+
+          if (this.formVendedor.id_supervisor) {
+            datosVendedor.id_supervisor = Number(this.formVendedor.id_supervisor);
+          }
 
           this.usuariosService
             .crearVendedor(datosVendedor)
@@ -376,7 +758,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
               next: () => {
                 this.guardando = false;
                 this.limpiarFormVendedor();
-                this.cargarVendedores();
+                this.recargarGestionUsuarios();
                 this.cdr.detectChanges();
                 this.notificar('success', 'Vendedor creado exitosamente');
                 this.volverALista();
@@ -412,7 +794,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
     const payload = {
       username: this.formSupervisor.username.trim(),
       password: this.formSupervisor.password.trim(),
-      id_rol: 2, // Supervisor
+      id_rol: 2,
       estado: true,
     };
 
@@ -448,11 +830,26 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
 
     this.guardando = true;
 
-    const idUsuario = this.usuarioEnEdicion?.id_usuario ?? this.usuarioEnEdicion?.id;
+    const idUsuario =
+      this.usuarioEnEdicion?.id_usuario ??
+      this.usuarioEnEdicion?.idUsuario ??
+      this.vendedorEnEdicion?.id_usuario ??
+      this.vendedorEnEdicion?.idUsuario ??
+      this.usuarioEnEdicion?.id;
+    const idVendedor = this.getIdVendedor(this.vendedorEnEdicion ?? this.usuarioEnEdicion);
 
-    // Actualizar usuario
+    if (!idUsuario) {
+      this.guardando = false;
+      this.notificar('error', 'No se encontró el ID del usuario. No se puede actualizar.');
+      this.cdr.detectChanges();
+      return;
+    }
+
     const datosUsuario: any = {
-      username: this.formVendedor.username.trim(),
+      username:
+        this.formVendedor.username.trim() ||
+        this.formVendedor.codigo.trim() ||
+        this.getCodigoVendedor(this.vendedorEnEdicion ?? this.usuarioEnEdicion),
     };
 
     if (this.formVendedor.password.trim()) {
@@ -464,22 +861,31 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
-          // Actualizar vendedor si tiene id_vendedor real
-          if (this.vendedorEnEdicion?.id_vendedor) {
-            const idVendedor = this.vendedorEnEdicion.id_vendedor;
-
-            const datosVendedor = {
+          if (idVendedor) {
+            const datosVendedor: any = {
               codigo_vendedor: this.formVendedor.codigo.trim(),
               nombre: this.formVendedor.nombre.trim(),
             };
 
+            if (String(this.formVendedor.id_supervisor ?? '').trim()) {
+              datosVendedor.id_supervisor = Number(this.formVendedor.id_supervisor);
+            }
+
             this.usuariosService
-              .actualizarVendedor(idVendedor, datosVendedor)
+              .actualizarVendedor(String(idVendedor), datosVendedor)
               .pipe(takeUntil(this.destroy$))
               .subscribe({
                 next: () => {
                   this.guardando = false;
-                  this.cargarVendedores();
+
+                  if (String(this.formVendedor.id_supervisor ?? '').trim()) {
+                    this.actualizarAsignacionLocal(
+                      this.vendedorEnEdicion,
+                      Number(this.formVendedor.id_supervisor),
+                    );
+                  }
+
+                  this.recargarGestionUsuarios();
                   this.cdr.detectChanges();
                   this.notificar('success', 'Vendedor actualizado exitosamente');
                   this.volverALista();
@@ -487,13 +893,16 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
                 error: (err) => {
                   console.error('Error actualizando vendedor:', err);
                   this.guardando = false;
-                  this.notificar('error', 'Error al actualizar vendedor');
+                  this.notificar(
+                    'error',
+                    err?.error?.message ?? err?.error?.mensaje ?? err?.message ?? 'Error al actualizar vendedor',
+                  );
                   this.cdr.detectChanges();
                 },
               });
           } else {
             this.guardando = false;
-            this.cargarVendedores();
+            this.recargarGestionUsuarios();
             this.cdr.detectChanges();
             this.notificar('success', 'Vendedor actualizado exitosamente');
             this.volverALista();
@@ -606,19 +1015,38 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
   // ============ VALIDACIONES ============
   private validarFormVendedor(): boolean {
     const { nombre, codigo, username, password } = this.formVendedor;
-    if (!nombre.trim() || !codigo.trim() || !username.trim() || !password.trim()) {
-      this.notificar('error', 'Por favor completa todos los campos obligatorios');
+
+    if (!nombre.trim()) {
+      this.notificar('error', 'Por favor completa el nombre');
       return false;
     }
+
+    if (this.seccionActiva === 'crear-vendedor' && (!codigo.trim() || !username.trim())) {
+      this.notificar('error', 'Por favor completa código y usuario');
+      return false;
+    }
+
+    if (this.seccionActiva === 'crear-vendedor' && !password.trim()) {
+      this.notificar('error', 'La contraseña es obligatoria para crear vendedor');
+      return false;
+    }
+
     return true;
   }
 
   private validarFormSupervisor(): boolean {
     const { nombre, username, password } = this.formSupervisor;
-    if (!nombre.trim() || !username.trim() || !password.trim()) {
-      this.notificar('error', 'Por favor completa todos los campos obligatorios');
+
+    if (!nombre.trim() || !username.trim()) {
+      this.notificar('error', 'Por favor completa nombre y usuario');
       return false;
     }
+
+    if (this.seccionActiva === 'crear-supervisor' && !password.trim()) {
+      this.notificar('error', 'La contraseña es obligatoria para crear supervisor');
+      return false;
+    }
+
     return true;
   }
 
@@ -631,6 +1059,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
       ciudad: '',
       username: '',
       password: '',
+      id_supervisor: '',
     };
   }
 
@@ -644,9 +1073,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
   }
 
   obtenerNombreSupervisor(idSupervisor: string | number): string {
-    const supervisor = this.supervisores.find(
-      (s) => (s.id_usuario ?? s.id) == idSupervisor,
-    );
+    const supervisor = this.supervisores.find((s) => (s.id_usuario ?? s.id) == idSupervisor);
     return supervisor?.nombre ?? 'Sin asignar';
   }
 
