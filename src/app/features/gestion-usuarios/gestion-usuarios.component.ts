@@ -357,6 +357,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
               id_vendedor: idVendedorAsociado,
               id_supervisor: idSupervisorAsociado,
               nombreSupervisor: nombreSupervisorAsociado,
+              estado: usuario?.estado ?? detalleAsociado?.estado ?? true,
             };
           });
 
@@ -956,8 +957,13 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
   }
 
   // ============ DESACTIVAR USUARIO ============
-  desactivarVendedor(vendedor: any): void {
-    if (!confirm(`¿Desactivar vendedor ${vendedor?.nombre}?`)) {
+  toggleEstadoVendedor(vendedor: any): void {
+    const estaInactivo = vendedor?.estado === false;
+    const nuevoEstado = estaInactivo;
+    const accion = estaInactivo ? 'activar' : 'desactivar';
+    const etiqueta = estaInactivo ? 'activar' : 'desactivar';
+
+    if (!confirm(`¿Seguro que deseas ${accion} al vendedor ${vendedor?.nombre}?`)) {
       return;
     }
 
@@ -966,26 +972,36 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
     const idUsuario = vendedor?.id_usuario ?? vendedor?.id;
 
     this.usuariosService
-      .desactivarUsuario(idUsuario)
+      .actualizarUsuario(idUsuario, { estado: nuevoEstado })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
           this.eliminando = false;
-          this.cargarVendedores();
+
+          const vendedorLocal = this.vendedores.find((v: any) => this.sonMismoVendedor(v, vendedor));
+          if (vendedorLocal) {
+            vendedorLocal.estado = nuevoEstado;
+          }
+
           this.cdr.detectChanges();
-          this.notificar('success', 'Vendedor desactivado exitosamente');
+          this.notificar('success', `Vendedor ${etiqueta === 'activar' ? 'activado' : 'desactivado'} correctamente`);
         },
         error: (err) => {
-          console.error('Error desactivando vendedor:', err);
+          console.error('Error actualizando estado del vendedor:', err);
           this.eliminando = false;
-          this.notificar('error', 'Error al desactivar vendedor');
+          this.notificar('error', `Error al ${accion} vendedor`);
           this.cdr.detectChanges();
         },
       });
   }
 
-  desactivarSupervisor(supervisor: any): void {
-    if (!confirm(`¿Desactivar supervisor ${supervisor?.nombre}?`)) {
+  toggleEstadoSupervisor(supervisor: any): void {
+    const estaInactivo = supervisor?.estado === false;
+    const nuevoEstado = !estaInactivo;
+    const accion = estaInactivo ? 'activar' : 'desactivar';
+    const etiqueta = estaInactivo ? 'activado' : 'desactivado';
+
+    if (!confirm(`¿Seguro que deseas ${accion} al supervisor ${supervisor?.nombre}?`)) {
       return;
     }
 
@@ -994,19 +1010,27 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
     const idUsuario = supervisor?.id_usuario ?? supervisor?.id;
 
     this.usuariosService
-      .desactivarUsuario(idUsuario)
+      .actualizarUsuario(idUsuario, { estado: nuevoEstado })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
           this.eliminando = false;
-          this.cargarSupervisores();
+
+          const supervisorLocal = this.supervisores.find(
+            (s: any) => String(this.getIdSupervisor(s)) === String(idUsuario),
+          );
+
+          if (supervisorLocal) {
+            supervisorLocal.estado = nuevoEstado;
+          }
+
           this.cdr.detectChanges();
-          this.notificar('success', 'Supervisor desactivado exitosamente');
+          this.notificar('success', `Supervisor ${etiqueta} correctamente`);
         },
         error: (err) => {
-          console.error('Error desactivando supervisor:', err);
+          console.error('Error actualizando estado del supervisor:', err);
           this.eliminando = false;
-          this.notificar('error', 'Error al desactivar supervisor');
+          this.notificar('error', `Error al ${accion} supervisor`);
           this.cdr.detectChanges();
         },
       });

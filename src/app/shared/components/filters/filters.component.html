@@ -25,19 +25,22 @@
       </div>
     </div>
 
-    <div class="filter-group">
-      <label>Vendedor</label>
-      <select
-        [(ngModel)]="filtros.vendedor"
-        (focus)="onClickOtroFiltro()"
-        (click)="onClickOtroFiltro()"
-      >
-        <option value="">Todos</option>
-        @for (v of vendedores; track v.value) {
-          <option [value]="v.value">{{ v.label }}</option>
-        }
-      </select>
-    </div>
+    @if (mostrarFiltroVendedor) {
+      <div class="filter-group">
+        <label>Vendedor</label>
+        <select
+          [(ngModel)]="filtros.vendedor"
+          (ngModelChange)="onVendedorChange($event)"
+          (focus)="onClickOtroFiltro()"
+          (click)="onClickOtroFiltro()"
+        >
+          <option value="">Todos</option>
+          @for (v of vendedores; track v.value) {
+            <option [value]="v.value">{{ v.label }}</option>
+          }
+        </select>
+      </div>
+    }
 
     <div class="filter-group">
       <label>Proveedor</label>

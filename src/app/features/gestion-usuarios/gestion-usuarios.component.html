@@ -75,7 +75,7 @@
                   [todosLosVendedores]="vendedoresTabla"
                   (asignarSupervisor)="onAsignarSupervisorDesdeTabla($event)"
                   (editar)="irAEditarVendedor($event)"
-                  (desactivar)="desactivarVendedor($event)"
+                  (desactivar)="toggleEstadoVendedor($event)"
                 ></app-vendedores-table>
               </div>
             }
@@ -170,15 +170,17 @@
                       </button>
 
                       <button
-                        class="btn-sm btn-danger"
-                        (click)="desactivarSupervisor(supervisor)"
+                        class="btn-sm"
+                        [class.btn-danger]="supervisor.estado !== false"
+                        [class.btn-activate]="supervisor.estado === false"
+                        (click)="toggleEstadoSupervisor(supervisor)"
                         [disabled]="eliminando"
-                        [title]="supervisor.estado === false ? 'Ya está inactivo' : 'Desactivar supervisor'"
+                        [title]="supervisor.estado === false ? 'Activar supervisor' : 'Desactivar supervisor'"
                       >
                         <span class="material-symbols-rounded">
                           {{ supervisor.estado === false ? 'check_circle' : 'block' }}
                         </span>
-                        {{ supervisor.estado === false ? 'Inactivo' : 'Desactivar' }}
+                        {{ supervisor.estado === false ? 'Activar' : 'Desactivar' }}
                       </button>
                     </div>
                   </div>
