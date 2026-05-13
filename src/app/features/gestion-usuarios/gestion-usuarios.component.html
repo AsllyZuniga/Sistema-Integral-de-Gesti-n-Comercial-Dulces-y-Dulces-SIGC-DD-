@@ -9,12 +9,14 @@
         </button>
         <img class="topbar-logo" src="logoDulces.png" alt="Logo" />
       </div>
+
       <div class="topbar-center">
         <h1>
           <span class="accent">Gestión de Usuarios</span>
         </h1>
         <span class="welcome">Sistema de Control de Ventas · Dulces y Dulces</span>
       </div>
+
       <div class="topbar-right">
         <button class="logout-btn" (click)="logout()">
           <span class="material-symbols-rounded">logout</span>
@@ -25,7 +27,11 @@
 
     <div class="content-wrapper">
       @if (mensajeOperacion) {
-        <div class="message-banner" [class.success]="tipoOperacion === 'success'" [class.error]="tipoOperacion === 'error'">
+        <div
+          class="message-banner"
+          [class.success]="tipoOperacion === 'success'"
+          [class.error]="tipoOperacion === 'error'"
+        >
           {{ mensajeOperacion }}
         </div>
       }
@@ -42,6 +48,7 @@
               <span class="material-symbols-rounded">person_add</span>
               Crear Vendedor
             </button>
+
             <button class="btn-primary" (click)="irACrearSupervisor()">
               <span class="material-symbols-rounded">person_add</span>
               Crear Supervisor
@@ -51,45 +58,25 @@
           <!-- Vendedores -->
           <div class="usuarios-list">
             <h3>Vendedores ({{ vendedores.length }})</h3>
+
             @if (cargandoVendedores) {
               <p class="loading">Cargando vendedores...</p>
             } @else if (vendedores.length === 0) {
               <p class="empty-state">No hay vendedores registrados</p>
             } @else {
-              <div class="usuarios-grid">
-                @for (vendedor of vendedores; track vendedor.id_usuario || vendedor.id) {
-                  <div class="usuario-card" [class.inactivo]="vendedor.estado === false">
-                    <div class="usuario-header">
-                      <span class="material-symbols-rounded">person</span>
-                      <div class="badges">
-                        <span class="rol-badge">Vendedor</span>
-                        @if (vendedor.estado === false) {
-                          <span class="estado-badge inactivo">Inactivo</span>
-                        } @else {
-                          <span class="estado-badge">Activo</span>
-                        }
-                      </div>
-                    </div>
-                    <h4>{{ vendedor.nombre ?? vendedor.nom_vendedor ?? vendedor.nombre_vendedor ?? vendedor.vendedor?.nombre ?? vendedor.username ?? vendedor.usuario?.username ?? 'Sin nombre' }}</h4>
-                    <p><strong>Código:</strong> {{ vendedor.codigo ?? vendedor.cod_vendedor ?? vendedor.codigo_vendedor ?? vendedor.vendedor?.codigo_vendedor ?? '—' }}</p>
-
-                    <div class="usuario-actions">
-                      <button class="btn-sm btn-edit" (click)="irAEditarVendedor(vendedor)" [disabled]="eliminando">
-                        <span class="material-symbols-rounded">edit</span>
-                        Editar
-                      </button>
-                      <button
-                        class="btn-sm btn-danger"
-                        (click)="desactivarVendedor(vendedor)"
-                        [disabled]="eliminando"
-                        [title]="vendedor.estado === false ? 'Ya está inactivo' : 'Desactivar vendedor'"
-                      >
-                        <span class="material-symbols-rounded">{{ vendedor.estado === false ? 'check_circle' : 'block' }}</span>
-                        {{ vendedor.estado === false ? 'Inactivo' : 'Desactivar' }}
-                      </button>
-                    </div>
-                  </div>
-                }
+              <div class="tabla-scroll">
+                <app-vendedores-table
+                  [esAdmin]="true"
+                  [mostrarMetricas]="false"
+                  [labelCuota]="'Cuota Mes'"
+                  [labelVentaAcum]="'Venta Mes'"
+                  [campoCuota]="'cuotaMes'"
+                  [cargandoVendedores]="cargandoVendedores"
+                  [todosLosVendedores]="vendedoresTabla"
+                  (asignarSupervisor)="onAsignarSupervisorDesdeTabla($event)"
+                  (editar)="irAEditarVendedor($event)"
+                  (desactivar)="desactivarVendedor($event)"
+                ></app-vendedores-table>
               </div>
             }
           </div>
@@ -97,6 +84,7 @@
           <!-- Supervisores -->
           <div class="usuarios-list">
             <h3>Supervisores ({{ supervisores.length }})</h3>
+
             @if (cargandoSupervisores) {
               <p class="loading">Cargando supervisores...</p>
             } @else if (supervisores.length === 0) {
@@ -107,8 +95,10 @@
                   <div class="usuario-card" [class.inactivo]="supervisor.estado === false">
                     <div class="usuario-header">
                       <span class="material-symbols-rounded">supervisor_account</span>
+
                       <div class="badges">
                         <span class="rol-badge supervisor">Supervisor</span>
+
                         @if (supervisor.estado === false) {
                           <span class="estado-badge inactivo">Inactivo</span>
                         } @else {
@@ -116,35 +106,78 @@
                         }
                       </div>
                     </div>
-                    <h4>{{ supervisor.nombre ?? supervisor.nom_supervisor ?? supervisor.username ?? 'Sin nombre' }}</h4>
-                    <p><strong>Código:</strong> {{ supervisor.codigo ?? supervisor.cod_supervisor ?? supervisor.codigo_supervisor ?? '—' }}</p>
-                    
-                    <!-- Vendedores asignados -->
+
+                    <h4>
+                      {{
+                        supervisor.nombre ??
+                          supervisor.nom_supervisor ??
+                          supervisor.username ??
+                          'Sin nombre'
+                      }}
+                    </h4>
+
+                    <p>
+                      <strong>Código:</strong>
+                      {{ supervisor.codigo ?? supervisor.cod_supervisor ?? supervisor.codigo_supervisor ?? '—' }}
+                    </p>
+
                     <div class="vendedores-asignados">
-                      <p><strong>Vendedores asignados:</strong></p>
-                      @if ((obtenerVendedoresDelSupervisor(supervisor.id_usuario ?? supervisor.id))?.length ?? 0 > 0) {
-                        <ul class="vendedor-list">
-                          @for (vendedor of obtenerVendedoresDelSupervisor(supervisor.id_usuario ?? supervisor.id); track vendedor.id_vendedor || vendedor.id) {
-                            <li>{{ vendedor.nombre ?? vendedor.nom_vendedor ?? 'Sin nombre' }}</li>
-                          }
-                        </ul>
-                      } @else {
-                        <p class="sin-vendedores">Sin vendedores asignados</p>
+                      <button
+                        class="btn-expand box"
+                        (click)="toggleSupervisorVendedores(supervisor.id_usuario ?? supervisor.id)"
+                        [attr.aria-expanded]="esSupervisorExpandido(supervisor.id_usuario ?? supervisor.id)"
+                      >
+                        <span class="material-symbols-rounded">
+                          {{
+                            esSupervisorExpandido(supervisor.id_usuario ?? supervisor.id)
+                              ? 'expand_less'
+                              : 'expand_more'
+                          }}
+                        </span>
+
+                        <span class="expand-label">
+                          Vendedores asignados
+                          ({{ obtenerVendedoresDelSupervisor(supervisor.id_usuario ?? supervisor.id).length }})
+                        </span>
+                      </button>
+
+                      @if (esSupervisorExpandido(supervisor.id_usuario ?? supervisor.id)) {
+                        @if (obtenerVendedoresDelSupervisor(supervisor.id_usuario ?? supervisor.id).length > 0) {
+                          <ul class="vendedor-list">
+                            @for (
+                              vendedor of obtenerVendedoresDelSupervisor(supervisor.id_usuario ?? supervisor.id);
+                              track vendedor.id_vendedor || vendedor.id || vendedor.codigo_vendedor
+                            ) {
+                              <li>
+                                {{ vendedor.nombre ?? vendedor.nom_vendedor ?? vendedor.username ?? 'Sin nombre' }}
+                              </li>
+                            }
+                          </ul>
+                        } @else {
+                          <p class="sin-vendedores">Sin vendedores asignados</p>
+                        }
                       }
                     </div>
 
                     <div class="usuario-actions">
-                      <button class="btn-sm btn-edit" (click)="irAEditarSupervisor(supervisor)" [disabled]="eliminando">
+                      <button
+                        class="btn-sm btn-edit"
+                        (click)="irAEditarSupervisor(supervisor)"
+                        [disabled]="eliminando"
+                      >
                         <span class="material-symbols-rounded">edit</span>
                         Editar
                       </button>
+
                       <button
                         class="btn-sm btn-danger"
                         (click)="desactivarSupervisor(supervisor)"
                         [disabled]="eliminando"
                         [title]="supervisor.estado === false ? 'Ya está inactivo' : 'Desactivar supervisor'"
                       >
-                        <span class="material-symbols-rounded">{{ supervisor.estado === false ? 'check_circle' : 'block' }}</span>
+                        <span class="material-symbols-rounded">
+                          {{ supervisor.estado === false ? 'check_circle' : 'block' }}
+                        </span>
                         {{ supervisor.estado === false ? 'Inactivo' : 'Desactivar' }}
                       </button>
                     </div>
@@ -161,6 +194,7 @@
         <section class="form-section">
           <div class="form-header">
             <h2>Crear Vendedor</h2>
+
             <button class="btn-back" (click)="volverALista()">
               <span class="material-symbols-rounded">arrow_back</span>
               Volver
@@ -169,9 +203,9 @@
 
           <form class="form-container">
             <div class="form-group">
-              <label for="nombre">Nombre Completo <span class="required">*</span>:</label>
+              <label for="nombreVendedor">Nombre Completo <span class="required">*</span>:</label>
               <input
-                id="nombre"
+                id="nombreVendedor"
                 type="text"
                 [(ngModel)]="formVendedor.nombre"
                 name="nombre"
@@ -181,9 +215,9 @@
             </div>
 
             <div class="form-group">
-              <label for="codigo">Código Vendedor <span class="required">*</span>:</label>
+              <label for="codigoVendedor">Código Vendedor <span class="required">*</span>:</label>
               <input
-                id="codigo"
+                id="codigoVendedor"
                 type="text"
                 [(ngModel)]="formVendedor.codigo"
                 name="codigo"
@@ -193,9 +227,27 @@
             </div>
 
             <div class="form-group">
-              <label for="username">Usuario <span class="required">*</span>:</label>
+              <label for="supervisorCrearVendedor">Supervisor asignado:</label>
+              <select
+                id="supervisorCrearVendedor"
+                [(ngModel)]="formVendedor.id_supervisor"
+                name="id_supervisor"
+                [disabled]="guardando || cargandoSupervisores"
+              >
+                <option value="">Sin supervisor asignado</option>
+
+                @for (supervisor of supervisores; track supervisor.id_usuario || supervisor.id) {
+                  <option [value]="supervisor.id_usuario ?? supervisor.id">
+                    {{ supervisor.nombre ?? supervisor.nom_supervisor ?? supervisor.username }}
+                  </option>
+                }
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="usernameVendedor">Usuario <span class="required">*</span>:</label>
               <input
-                id="username"
+                id="usernameVendedor"
                 type="text"
                 [(ngModel)]="formVendedor.username"
                 name="username"
@@ -205,9 +257,9 @@
             </div>
 
             <div class="form-group">
-              <label for="password">Contraseña <span class="required">*</span>:</label>
+              <label for="passwordVendedor">Contraseña <span class="required">*</span>:</label>
               <input
-                id="password"
+                id="passwordVendedor"
                 type="password"
                 [(ngModel)]="formVendedor.password"
                 name="password"
@@ -217,9 +269,15 @@
             </div>
 
             <div class="form-actions">
-              <button type="button" class="btn-cancelar" (click)="volverALista()" [disabled]="guardando">
+              <button
+                type="button"
+                class="btn-cancelar"
+                (click)="volverALista()"
+                [disabled]="guardando"
+              >
                 Cancelar
               </button>
+
               <button
                 type="button"
                 class="btn-guardar"
@@ -243,6 +301,7 @@
         <section class="form-section">
           <div class="form-header">
             <h2>Crear Supervisor</h2>
+
             <button class="btn-back" (click)="volverALista()">
               <span class="material-symbols-rounded">arrow_back</span>
               Volver
@@ -251,9 +310,9 @@
 
           <form class="form-container">
             <div class="form-group">
-              <label for="nombre">Nombre Completo <span class="required">*</span>:</label>
+              <label for="nombreSupervisor">Nombre Completo <span class="required">*</span>:</label>
               <input
-                id="nombre"
+                id="nombreSupervisor"
                 type="text"
                 [(ngModel)]="formSupervisor.nombre"
                 name="nombre"
@@ -263,9 +322,9 @@
             </div>
 
             <div class="form-group">
-              <label for="username">Usuario <span class="required">*</span>:</label>
+              <label for="usernameSupervisor">Usuario <span class="required">*</span>:</label>
               <input
-                id="username"
+                id="usernameSupervisor"
                 type="text"
                 [(ngModel)]="formSupervisor.username"
                 name="username"
@@ -275,9 +334,9 @@
             </div>
 
             <div class="form-group">
-              <label for="password">Contraseña <span class="required">*</span>:</label>
+              <label for="passwordSupervisor">Contraseña <span class="required">*</span>:</label>
               <input
-                id="password"
+                id="passwordSupervisor"
                 type="password"
                 [(ngModel)]="formSupervisor.password"
                 name="password"
@@ -287,9 +346,15 @@
             </div>
 
             <div class="form-actions">
-              <button type="button" class="btn-cancelar" (click)="volverALista()" [disabled]="guardando">
+              <button
+                type="button"
+                class="btn-cancelar"
+                (click)="volverALista()"
+                [disabled]="guardando"
+              >
                 Cancelar
               </button>
+
               <button
                 type="button"
                 class="btn-guardar"
@@ -313,6 +378,7 @@
         <section class="form-section">
           <div class="form-header">
             <h2>Editar Vendedor</h2>
+
             <button class="btn-back" (click)="volverALista()">
               <span class="material-symbols-rounded">arrow_back</span>
               Volver
@@ -321,9 +387,11 @@
 
           <form class="form-container">
             <div class="form-group">
-              <label for="nombre">Nombre Completo <span class="required">*</span>:</label>
+              <label for="editarNombreVendedor">
+                Nombre Completo <span class="required">*</span>:
+              </label>
               <input
-                id="nombre"
+                id="editarNombreVendedor"
                 type="text"
                 [(ngModel)]="formVendedor.nombre"
                 name="nombre"
@@ -333,33 +401,31 @@
             </div>
 
             <div class="form-group">
-              <label for="codigo">Código Vendedor <span class="required">*</span>:</label>
-              <input
-                id="codigo"
-                type="text"
-                [(ngModel)]="formVendedor.codigo"
-                name="codigo"
-                placeholder="Ej: VEN001"
-                [disabled]="guardando"
-              />
+              <label for="editarSupervisorVendedor">Supervisor asignado:</label>
+              <select
+                id="editarSupervisorVendedor"
+                [(ngModel)]="formVendedor.id_supervisor"
+                name="id_supervisor"
+                [disabled]="guardando || cargandoSupervisores"
+              >
+                <option value="">Sin supervisor asignado</option>
+
+                @for (supervisor of supervisores; track supervisor.id_usuario || supervisor.id) {
+                  <option [value]="supervisor.id_usuario ?? supervisor.id">
+                    {{ supervisor.nombre ?? supervisor.nom_supervisor ?? supervisor.username }}
+                  </option>
+                }
+              </select>
+
+              <small class="form-help">
+                También puedes cambiarlo desde el botón azul de asignación en la tabla.
+              </small>
             </div>
 
             <div class="form-group">
-              <label for="username">Usuario <span class="required">*</span>:</label>
+              <label for="editarPasswordVendedor">Contraseña (opcional):</label>
               <input
-                id="username"
-                type="text"
-                [(ngModel)]="formVendedor.username"
-                name="username"
-                placeholder="Ej: jgarcia"
-                [disabled]="guardando"
-              />
-            </div>
-
-            <div class="form-group">
-              <label for="password">Contraseña (opcional):</label>
-              <input
-                id="password"
+                id="editarPasswordVendedor"
                 type="password"
                 [(ngModel)]="formVendedor.password"
                 name="password"
@@ -369,9 +435,15 @@
             </div>
 
             <div class="form-actions">
-              <button type="button" class="btn-cancelar" (click)="volverALista()" [disabled]="guardando">
+              <button
+                type="button"
+                class="btn-cancelar"
+                (click)="volverALista()"
+                [disabled]="guardando"
+              >
                 Cancelar
               </button>
+
               <button
                 type="button"
                 class="btn-guardar"
@@ -395,6 +467,7 @@
         <section class="form-section">
           <div class="form-header">
             <h2>Editar Supervisor</h2>
+
             <button class="btn-back" (click)="volverALista()">
               <span class="material-symbols-rounded">arrow_back</span>
               Volver
@@ -403,9 +476,11 @@
 
           <form class="form-container">
             <div class="form-group">
-              <label for="nombre">Nombre Completo <span class="required">*</span>:</label>
+              <label for="editarNombreSupervisor">
+                Nombre Completo <span class="required">*</span>:
+              </label>
               <input
-                id="nombre"
+                id="editarNombreSupervisor"
                 type="text"
                 [(ngModel)]="formSupervisor.nombre"
                 name="nombre"
@@ -415,9 +490,9 @@
             </div>
 
             <div class="form-group">
-              <label for="username">Usuario <span class="required">*</span>:</label>
+              <label for="editarUsernameSupervisor">Usuario <span class="required">*</span>:</label>
               <input
-                id="username"
+                id="editarUsernameSupervisor"
                 type="text"
                 [(ngModel)]="formSupervisor.username"
                 name="username"
@@ -427,9 +502,9 @@
             </div>
 
             <div class="form-group">
-              <label for="password">Contraseña (opcional):</label>
+              <label for="editarPasswordSupervisor">Contraseña (opcional):</label>
               <input
-                id="password"
+                id="editarPasswordSupervisor"
                 type="password"
                 [(ngModel)]="formSupervisor.password"
                 name="password"
@@ -439,9 +514,15 @@
             </div>
 
             <div class="form-actions">
-              <button type="button" class="btn-cancelar" (click)="volverALista()" [disabled]="guardando">
+              <button
+                type="button"
+                class="btn-cancelar"
+                (click)="volverALista()"
+                [disabled]="guardando"
+              >
                 Cancelar
               </button>
+
               <button
                 type="button"
                 class="btn-guardar"
@@ -460,6 +541,98 @@
         </section>
       }
 
+      <!-- Modal asignar supervisor desde botón azul -->
+      @if (showAsignarSupervisorModal) {
+        <div class="modal-backdrop">
+          <div class="asignar-supervisor-modal">
+            <div class="modal-header">
+              <div>
+                <h3>Asignar supervisor</h3>
+                <p>Seleccione el supervisor para este vendedor.</p>
+              </div>
+
+              <button
+                type="button"
+                class="btn-close-modal"
+                (click)="cerrarAsignarSupervisor()"
+                [disabled]="asignandoSupervisor"
+              >
+                <span class="material-symbols-rounded">close</span>
+              </button>
+            </div>
+
+            <div class="modal-body">
+              <div class="vendedor-modal-info">
+                <span class="info-label">Vendedor</span>
+                <strong>
+                  {{
+                    vendedorAsignacion?.nombre ??
+                      vendedorAsignacion?.nom_vendedor ??
+                      vendedorAsignacion?.username ??
+                      'Sin nombre'
+                  }}
+                </strong>
+                <span>
+                  Código:
+                  {{
+                    vendedorAsignacion?.codigo ??
+                      vendedorAsignacion?.codigo_vendedor ??
+                      vendedorAsignacion?.codVendedor ??
+                      '—'
+                  }}
+                </span>
+              </div>
+
+              <div class="form-group">
+                <label for="supervisorAsignacion">
+                  Supervisor <span class="required">*</span>:
+                </label>
+
+                <select
+                  id="supervisorAsignacion"
+                  [(ngModel)]="supervisorSeleccionado"
+                  name="supervisorAsignacion"
+                  [disabled]="asignandoSupervisor || cargandoSupervisores"
+                >
+                  <option value="">Seleccione un supervisor</option>
+
+                  @for (supervisor of supervisores; track supervisor.id_usuario || supervisor.id) {
+                    <option [value]="supervisor.id_usuario ?? supervisor.id">
+                      {{ supervisor.nombre ?? supervisor.nom_supervisor ?? supervisor.username }}
+                    </option>
+                  }
+                </select>
+              </div>
+            </div>
+
+            <div class="modal-actions">
+              <button
+                type="button"
+                class="btn-cancelar-modal"
+                (click)="cerrarAsignarSupervisor()"
+                [disabled]="asignandoSupervisor"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                class="btn-guardar-modal"
+                (click)="guardarAsignacionSupervisor()"
+                [disabled]="asignandoSupervisor || !supervisorSeleccionado"
+              >
+                @if (asignandoSupervisor) {
+                  <span class="spinner"></span>
+                  Guardando...
+                } @else {
+                  <span class="material-symbols-rounded">save</span>
+                  Guardar asignación
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   </div>
 </div>
