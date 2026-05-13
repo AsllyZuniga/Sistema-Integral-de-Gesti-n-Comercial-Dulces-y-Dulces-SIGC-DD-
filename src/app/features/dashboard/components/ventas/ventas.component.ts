@@ -14,6 +14,7 @@ import { CumplimientoService } from '../../../../core/services/ventas/cumplimien
 import { CumplimientoSemanaService } from '../../../../core/services/ventas/cumplimientoVentasSemana.service';
 import { ChartComponent } from '../../../../shared/components/chart';
 import { TableComponent } from '../../../../shared/components/table/table.component';
+import { Output, EventEmitter } from '@angular/core';
 import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ProveedorService } from '../../../../core/services/proveedor.service';
@@ -70,6 +71,32 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
   private _tipoCuota: TipoCuota = 'mensual';
 
+  get labelCuota(): string {
+    switch (this.tipoCuota) {
+      case 'semanal':
+        return 'Cuota Semana';
+      case 'diaria':
+        return 'Cuota Diaria';
+      default:
+        return 'Cuota Mes';
+    }
+  }
+
+  get labelVentaAcum(): string {
+    switch (this.tipoCuota) {
+      case 'semanal':
+        return 'Venta Semana';
+      case 'diaria':
+        return 'Venta Diaria';
+      default:
+        return 'Venta Mes';
+    }
+  }
+
+  get campoCuota(): 'cuotaMes' | 'cuotaSemana' | 'cuotaDiaria' {
+    return this.cuotaColumn as 'cuotaMes' | 'cuotaSemana' | 'cuotaDiaria';
+  }
+
   @Input() set filtros(value: DashboardFilters) {
     this._filtros = value;
     if ((this._codigoVendedor || this.esModoAdminTodos()) && this.iniciado) {
@@ -105,6 +132,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   chartType: 'line' | 'bar' | 'pie' = 'line';
   tableData: any[] = [];
   chartData: any[] = [];
+  @Output() asignarSupervisor = new EventEmitter<any>();
   private allItemData: any[] = [];
   clientesAgrupados: any[] = [];
   clientesVista: any[] = [];
@@ -120,6 +148,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   totalAcumuladoProveedor = 0;
   totalTopClientes = 0;
   totalTopItemsSubtotal = 0;
+  totalTopVendedores = 0;
   liderVentasProveedor = '—';
 
   private readonly clientesPageSize = 30;
@@ -128,7 +157,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   private readonly productosVisiblesPorCliente: Record<string, number> = {};
 
   private readonly todasLasVistas = [
-    { key: 'ventas', label: 'Ventas' },
+    { key: 'vendedor', label: 'Por Vendedor' },
     { key: 'proveedor', label: 'Por Proveedor' },
     { key: 'categoria', label: 'Por Categoría' },
     { key: 'ciudad', label: 'Por Ciudad' },
@@ -195,11 +224,14 @@ export class VentasComponent implements OnInit, OnDestroy {
   constructor() {
     const usuario = this.authService.getVendedor();
     this.rolId = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? 0);
-    this.activeVentasView = this.rolId === 3 ? 'proveedor' : 'ventas';
+    this.activeVentasView = this.rolId === 3 ? 'proveedor' : 'vendedor';
   }
 
   ngOnInit(): void {
     this.iniciado = true;
+    if (this.esModoAdminTodos()) {
+      this.activeVentasView = 'vendedor';
+    }
     // Hacer carga inicial si hay codigoVendedor O si estamos en modo admin visualizando "todos"
     if (this._codigoVendedor || this.esModoAdminTodos()) {
       this.solicitarCargaVista(true);
@@ -786,9 +818,22 @@ export class VentasComponent implements OnInit, OnDestroy {
                       { name: 'Proyección', value: proyeccion },
                     ]
                   : detalle.map((v: any) => ({
-                      name: v?.nombre || v?.codVendedor || 'Vendedor',
-                      value: Number(v?.ventaAcum ?? 0),
+                          // build top 15 vendedores for the chart and total
+                          // sort by ventaAcum desc and take top 15
+                          // chart will show top 15 and we compute the sum into totalTopVendedores
+                          name: v?.nombre || v?.codVendedor || 'Vendedor',
+                          value: Number(v?.ventaAcum ?? 0),
                     }));
+                  // Replace chartData with top 15 and compute total
+                  if (this.activeVentasView === 'vendedor') {
+                    const listado = detalle
+                      .map((d: any) => ({ name: d?.nombre || d?.codVendedor || 'Vendedor', value: Number(d?.ventaAcum ?? 0) }))
+                      .sort((a: any, b: any) => Number(b.value) - Number(a.value));
+
+                    const top15 = listado.slice(0, 15);
+                    this.totalTopVendedores = top15.reduce((s: number, it: any) => s + (Number(it.value) || 0), 0);
+                    this.chartData = top15;
+                  }
               break;
             }
 
@@ -1316,6 +1361,10 @@ export class VentasComponent implements OnInit, OnDestroy {
     return this.formatearMoneda(this.totalTopItemsSubtotal);
   }
 
+  get totalTopVendedoresLabel(): string {
+    return this.formatearMoneda(this.totalTopVendedores);
+  }
+
   get totalTopProveedoresCompactoLabel(): string {
     return this.formatearMonedaCompacta(this.totalTopProveedores);
   }
@@ -1536,10 +1585,23 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private mapearCuotaPorLinea(listado: any[]): any[] {
-    return listado.map((item: any) => ({
-      ...item,
-      cuotaLinea: Number(item?.cuotaProveedor ?? item?.cuotaLinea ?? 0),
-    }));
+    return listado.map((item: any) => {
+      const cuotaLinea = Number(item?.cuotaProveedor ?? item?.cuotaLinea ?? 0) || 0;
+      const ventaAcum = Number(item?.ventaAcum ?? 0) || 0;
+      const proyeccionVenta = Number(item?.proyeccionVenta ?? 0) || 0;
+
+      return {
+        ...item,
+        cuotaLinea,
+        cuota: cuotaLinea,
+        ventaAcum,
+        acumulado: ventaAcum,
+        proyeccionVenta,
+        porcCump: cuotaLinea > 0 ? (ventaAcum / cuotaLinea) * 100 : Number(item?.porcCump ?? 0) || 0,
+        porcCumProy:
+          cuotaLinea > 0 ? (proyeccionVenta / cuotaLinea) * 100 : Number(item?.porcCumProy ?? 0) || 0,
+      };
+    });
   }
 
   private nombreProveedorOrden(item: any): string {
@@ -1620,7 +1682,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private vistaUsaUltimoMesPorDefecto(view: string): boolean {
-    return false;
+    return view === 'vendedor';
   }
 
   private aplicarUltimoMesCargadoPorDefecto(filtros: DashboardFilters): DashboardFilters {
