@@ -677,28 +677,29 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.proveedoresList = this.toFilterOptions(Array.from(unicos));
       });
 
-    if (this.esAdmin) {
-      this.cumplimientoService
-        .getVendedores()
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((res: ApiVendedorRow[]) => {
-          this.vendedorMap.clear();
-          const etiquetas = new Set<string>();
+    // Cargar lista completa de vendedores para el filtro en todos los modos.
+    this.cumplimientoService
+      .getVendedores()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((res: ApiVendedorRow[]) => {
+        this.vendedorMap.clear();
+        const etiquetas = new Set<string>();
 
-          res.forEach((item) => {
-            const codigo = this.obtenerCodigoRow(item);
-            const nombre = String(item.nombre ?? item.nom_vendedor ?? '').trim();
+        res.forEach((item) => {
+          const codigo = this.obtenerCodigoRow(item);
+          const nombre = String(item.nombre ?? item.nom_vendedor ?? '').trim();
 
-            if (codigo && nombre) {
-              const etiqueta = `${String(codigo)} - ${String(nombre)}`;
-              this.vendedorMap.set(etiqueta, String(codigo));
-              etiquetas.add(etiqueta);
-            }
-          });
-
-          this.vendedoresList = this.toFilterOptions(Array.from(etiquetas));
+          if (codigo && nombre) {
+            const etiqueta = `${String(codigo)} - ${String(nombre)}`;
+            this.vendedorMap.set(etiqueta, String(codigo));
+            etiquetas.add(etiqueta);
+          }
         });
 
+        this.vendedoresList = this.toFilterOptions(Array.from(etiquetas));
+      });
+
+    if (this.esAdmin) {
       this.cargarCiudadesYLineasAdmin();
     }
 
