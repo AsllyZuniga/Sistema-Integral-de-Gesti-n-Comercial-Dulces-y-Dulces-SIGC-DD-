@@ -41,6 +41,7 @@
         [ciudades]="ciudadesList"
         [lineas]="lineasList"
         [vendedores]="vendedoresList"
+        [mostrarFiltroVendedor]="rolId !== 3"
         (apply)="onAplicarFiltros($event)"
         (proveedorChange)="onProveedorFiltroChange($event)"
       >
@@ -58,6 +59,7 @@
       <app-supervisor-dashboard
         [tipoCuota]="tipoCuota"
         [filtrosActivos]="filtrosActivos"
+        [vista]="activeSupervisorView"
       ></app-supervisor-dashboard>
     }
 

@@ -10,6 +10,28 @@
   font-weight: 600;
 }
 
+.admin-table tr.inactivo {
+  opacity: 0.9;
+  background: #f8fafc;
+}
+
+.estado-inline {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.estado-inline.inactivo {
+  color: #475569;
+  background: #e2e8f0;
+}
+
 .admin-table td.supervisor {
   min-width: 110px;
 }
@@ -210,8 +232,17 @@
   color: #fff;
 }
 
+.btn-activate {
+  background: linear-gradient(135deg, #9ce28e, #4caf50);
+  color: #fff;
+}
+
 .btn-danger:hover {
   box-shadow: 0 6px 18px rgba(255,77,77,0.18);
+}
+
+.btn-activate:hover {
+  box-shadow: 0 6px 18px rgba(76, 175, 80, 0.18);
 }
 
 .btn-asignar {

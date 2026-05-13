@@ -156,6 +156,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   tipoCuota: TipoCuota = 'mensual';
   rolId = 0;
   activeAnalisisView: 'ventas' | 'impactos' = 'ventas';
+  activeSupervisorView: 'asignados' | 'analisis' = 'asignados';
 
   private proveedorMap: Map<string, string> = new Map();
   private ciudadMap: Map<string, string> = new Map();
@@ -173,6 +174,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       const vista = String(params.get('vista') ?? 'ventas').toLowerCase();
       this.activeAnalisisView = vista === 'impactos' ? 'impactos' : 'ventas';
+
+      const seccion = String(params.get('seccion') ?? 'asignados').toLowerCase();
+      this.activeSupervisorView = seccion === 'analisis' ? 'analisis' : 'asignados';
     });
 
     this.vendedor = this.authService.getVendedor();
@@ -696,7 +700,24 @@ export class DashboardComponent implements OnInit, OnDestroy {
           }
         });
 
-        this.vendedoresList = this.toFilterOptions(Array.from(etiquetas));
+        // Si la API de cumplimiento no devolvió vendedores, intentar fallback desde UsuariosService
+        if (etiquetas.size === 0) {
+          this.usuariosService.listarDetalleVendedores().pipe(takeUntil(this.destroy$)).subscribe((rows) => {
+            const fallback = new Set<string>();
+            rows.forEach((r: any) => {
+              const codigo = this.obtenerCodigoRow(r as ApiVendedorRow);
+              const nombre = String(r.nombre ?? r.nom_vendedor ?? r.nomVendedor ?? '').trim();
+              if (codigo && nombre) {
+                const etiqueta = `${String(codigo)} - ${String(nombre)}`;
+                this.vendedorMap.set(etiqueta, String(codigo));
+                fallback.add(etiqueta);
+              }
+            });
+            this.vendedoresList = this.toFilterOptions(Array.from(fallback));
+          });
+        } else {
+          this.vendedoresList = this.toFilterOptions(Array.from(etiquetas));
+        }
       });
 
     if (this.esAdmin) {
