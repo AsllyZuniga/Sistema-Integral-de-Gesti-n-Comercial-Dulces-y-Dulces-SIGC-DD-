@@ -29,7 +29,7 @@ export class CuotasUploadService {
    */
   uploadCuotasVendedor(archivo: File): Observable<CuotasUploadResponse> {
     const formData = new FormData();
-    formData.append('file', archivo);
+    formData.append('archivo', archivo);
     return this.http.post<CuotasUploadResponse>(
       `${this.apiUrl}/import/cuotas/upload`,
       formData,
@@ -48,7 +48,7 @@ export class CuotasUploadService {
     fechaFin: string,
   ): Observable<CuotasUploadResponse> {
     const formData = new FormData();
-    formData.append('file', archivo);
+    formData.append('archivo', archivo);
     formData.append('fecha_inicio', fechaInicio);
     formData.append('fecha_fin', fechaFin);
     return this.http.post<CuotasUploadResponse>(
