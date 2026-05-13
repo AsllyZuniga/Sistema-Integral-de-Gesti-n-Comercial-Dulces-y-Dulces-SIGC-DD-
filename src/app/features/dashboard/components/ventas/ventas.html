@@ -34,6 +34,37 @@
         </div>
       }
 
+      @case ('vendedor') {
+        <div class="stack-layout">
+          @if (tableData.length > 0) {
+            <div class="tabla-scroll">
+              <app-table [columns]="tableColumns" [data]="tableData" />
+            </div>
+          }
+
+          @if (chartData.length > 0) {
+            <div class="grafica-container">
+              <div class="proveedor-kpis">
+                <article class="proveedor-kpi-card">
+                  <span class="proveedor-kpi-label">Total Top 15</span>
+                  <strong class="proveedor-kpi-value">{{ totalTopVendedoresLabel }}</strong>
+                </article>
+              </div>
+
+              <div class="proveedor-chart-head">
+                <h4>Top 15 Vendedores por venta acumulada</h4>
+              </div>
+
+              <app-chart [chartId]="chartId" [data]="chartData" [type]="chartType" label="Ventas" />
+            </div>
+          }
+
+          @if (tableData.length === 0 && chartData.length === 0) {
+            <div class="placeholder">Cargando información...</div>
+          }
+        </div>
+      }
+
       @case ('proveedor') {
         <div class="stack-layout">
           @if (tableData.length > 0) {
