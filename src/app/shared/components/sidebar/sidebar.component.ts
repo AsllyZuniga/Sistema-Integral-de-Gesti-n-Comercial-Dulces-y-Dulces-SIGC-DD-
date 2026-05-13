@@ -34,6 +34,14 @@ export class SidebarComponent {
     return this.rolId !== 1 && this.rolId !== 2;
   }
 
+  get esAdmin(): boolean {
+    return this.rolId === 1;
+  }
+
+  get esSupervisor(): boolean {
+    return this.rolId === 2;
+  }
+
   private readonly todasLasOpciones = [
     { icon: 'dashboard', label: 'Dashboard', ruta: '/dashboard', roles: [1, 2] },
     { icon: 'upload_file', label: 'Gestión de ventas', ruta: '/carga',     roles: [1]      },
@@ -49,6 +57,17 @@ export class SidebarComponent {
 
   get navItems() {
     return this.todasLasOpciones.filter((item) => item.roles.includes(this.rolId));
+  }
+
+  isSupervisorVistaActive(seccion: 'asignados' | 'analisis'): boolean {
+    const url = this.router.parseUrl(this.router.url);
+    const primary = url.root.children['primary'];
+    const path = '/' + (primary?.segments.map((s) => s.path).join('/') ?? '');
+
+    if (path !== '/dashboard') return false;
+
+    const seccionActual = String(url.queryParams['seccion'] ?? 'asignados').toLowerCase();
+    return seccionActual === seccion;
   }
 
   isVendedorVistaActive(vista: 'ventas' | 'impactos'): boolean {

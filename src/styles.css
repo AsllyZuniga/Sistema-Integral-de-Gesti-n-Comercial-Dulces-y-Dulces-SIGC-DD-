@@ -578,7 +578,7 @@ app-carga .topbar-right {
 }
 
 app-carga .mobile-menu-btn {
-  display: none;
+  display: none !important;
   background: rgba(255, 255, 255, 0.15);
   border: 1.5px solid rgba(255, 255, 255, 0.25);
   color: #fff;
@@ -933,9 +933,17 @@ app-carga .advertencia {
     padding: 18px 16px 24px;
   }
 
+  app-carga .main.expanded {
+    margin-left: 0;
+  }
+
   app-carga .topbar {
     display: flex;
     padding: 14px 18px;
+  }
+
+  app-carga .mobile-menu-btn {
+    display: inline-flex !important;
   }
 
   app-carga .upload-card,
