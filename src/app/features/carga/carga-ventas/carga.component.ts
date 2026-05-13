@@ -1,11 +1,9 @@
-import { Component, ViewChild, ChangeDetectorRef, OnDestroy, OnInit } from '@angular/core';
+import { Component, ViewChild, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpErrorResponse, HttpEventType } from '@angular/common/http';
-import { Router } from '@angular/router';
 import { SidebarComponent } from '../../../shared/components/sidebar/sidebar.component';
 import { AuthService } from '../../../core/services/auth.service';
-import { SessionUser } from '../../../core/services/session.service';
 import { environment } from '../../../../environments/environment';
 import { timeout } from 'rxjs/operators';
 
@@ -32,21 +30,20 @@ interface ImportVentasResponse {
   templateUrl: './carga.component.html',
   styleUrls: ['./carga.component.css'],
 })
-export class CargaComponent implements OnInit, OnDestroy {
+export class CargaComponent implements OnDestroy {
   private readonly apiUrl = environment.apiUrl;
 
   @ViewChild(SidebarComponent) sidebarRef?: SidebarComponent;
 
-  vendedor: SessionUser | null = null;
-  sidebarColapsado = false;
+  // Sales upload properties
+  archivoSeleccionado: File | null = null;
   isDragOver = false;
   estado: EstadoCarga = 'idle';
   resultado: ImportVentasResponse | null = null;
   mensajeError = '';
   tipoError: TipoError | null = null;
   sidebarColapsado = false;
-  // Sales upload properties
-  archivoSeleccionado: File | null = null;
+  // progreso de subida (upload) en porcentaje 0-100
   uploadProgress: number | null = null;
   // datos extraídos desde logs de texto si el backend no devuelve JSON
   processedLines: number | null = null;
@@ -266,21 +263,7 @@ export class CargaComponent implements OnInit, OnDestroy {
     private http: HttpClient,
     private cd: ChangeDetectorRef,
     private auth: AuthService,
-    private router: Router,
   ) {}
-
-  ngOnInit(): void {
-    this.vendedor = this.auth.getVendedor();
-  }
-
-  logout(): void {
-    this.auth.logout();
-    this.router.navigate(['/login']);
-  }
-
-  toggleMenuMovil(): void {
-    this.sidebarRef?.toggle();
-  }
 
   onArchivoSeleccionado(event: Event): void {
     const input = event.target as HTMLInputElement;
