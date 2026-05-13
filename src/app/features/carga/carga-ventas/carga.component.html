@@ -11,7 +11,8 @@
       </div>
       <div class="topbar-center">
         <h1>
-          <span class="accent">Carga de Ventas</span>
+          <span class="accent">Bienvenido,</span>
+          {{ vendedor?.nombre || 'Gestión de Ventas' }}
         </h1>
         <span class="welcome">Sistema de Control de Ventas · Dulces y Dulces</span>
       </div>
@@ -114,7 +115,11 @@
                 <h4>Importación completada</h4>
                 @if (rawLog) {
                   <button class="btn-link small" (click)="toggleLogs()">
-                    @if (!showLogs) { Ver logs completos } @else { Ocultar logs }
+                    @if (!showLogs) {
+                      Ver logs completos
+                    } @else {
+                      Ocultar logs
+                    }
                   </button>
                 }
               </div>
@@ -209,6 +214,156 @@
           la ventana mientras se procesa.
         </div>
       </div>
+
+      <!-- Eliminar ventas por rango -->
+      <div class="delete-range-card">
+        <div class="delete-header">
+          <div class="delete-title">
+            <div class="delete-icon-box">
+              <span class="material-symbols-rounded">delete_outline</span>
+            </div>
+
+            <div>
+              <h3>Eliminar ventas</h3>
+              <p>Seleccione el período a eliminar</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="delete-body">
+          <div class="delete-form-row">
+            <div class="delete-date-group">
+              <label>
+                <span class="material-symbols-rounded">calendar_month</span>
+                Fecha inicio
+              </label>
+
+              <div class="delete-date-input">
+                <input
+                  type="date"
+                  [(ngModel)]="fechaInicio"
+                  (ngModelChange)="onCambiarFechaEliminar()"
+                />
+              </div>
+            </div>
+
+            <div class="delete-date-group">
+              <label>
+                <span class="material-symbols-rounded">calendar_month</span>
+                Fecha fin
+              </label>
+
+              <div class="delete-date-input">
+                <input
+                  type="date"
+                  [(ngModel)]="fechaFin"
+                  (ngModelChange)="onCambiarFechaEliminar()"
+                />
+              </div>
+            </div>
+
+            <!-- No se deshabilita por fechas para que valide al hacer clic -->
+            <button
+              type="button"
+              class="btn-delete-range"
+              (click)="openConfirmEliminar()"
+              [disabled]="eliminando"
+            >
+              @if (eliminando) {
+                <span class="spinner delete-spinner"></span>
+              } @else {
+                <span class="material-symbols-rounded">delete</span>
+              }
+              Eliminar
+            </button>
+          </div>
+
+          @if (mensajeOperacion) {
+            <div
+              class="delete-message"
+              [class.success]="tipoOperacion === 'success'"
+              [class.error]="tipoOperacion === 'error'"
+            >
+              <span class="material-symbols-rounded">
+                {{ tipoOperacion === 'success' ? 'check_circle' : 'error_outline' }}
+              </span>
+              {{ mensajeOperacion }}
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Modal de confirmación eliminar ventas -->
+      @if (showConfirmModal) {
+        <div class="modal-backdrop">
+          <div class="delete-confirm-modal">
+            <div class="confirm-header">
+              <div class="confirm-icon">
+                <span class="material-symbols-rounded">warning</span>
+              </div>
+
+              <div>
+                <h3>Confirmar eliminación</h3>
+                <p>Esta acción no se puede deshacer.</p>
+              </div>
+            </div>
+
+            <div class="confirm-body">
+              <p>
+                ¿Está seguro de eliminar las ventas del
+                <strong>{{ periodoSeleccionado }}</strong
+                >?
+              </p>
+
+              <div class="confirm-range">
+                <span>
+                  <strong>Inicio:</strong>
+                  {{ fechaInicio }}
+                </span>
+                <span>
+                  <strong>Fin:</strong>
+                  {{ fechaFin }}
+                </span>
+              </div>
+
+              <p class="confirm-warning">Para confirmar, escriba <strong>ELIMINAR</strong>.</p>
+
+              <input
+                type="text"
+                [(ngModel)]="confirmInput"
+                placeholder="ELIMINAR"
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="confirm-actions">
+              <button
+                type="button"
+                class="btn-cancel-delete"
+                (click)="closeConfirm()"
+                [disabled]="eliminando"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                class="btn-confirm-delete"
+                (click)="finalDelete()"
+                [disabled]="confirmInput !== 'ELIMINAR' || eliminando"
+              >
+                @if (eliminando) {
+                  <span class="spinner"></span>
+                  Eliminando...
+                } @else {
+                  <span class="material-symbols-rounded">delete</span>
+                  Confirmar eliminación
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   </div>
 </div>
