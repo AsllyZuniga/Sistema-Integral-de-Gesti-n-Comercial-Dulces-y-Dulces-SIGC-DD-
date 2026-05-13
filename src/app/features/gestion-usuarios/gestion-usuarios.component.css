@@ -96,7 +96,15 @@
   border-radius: var(--r-md);
 }
 .usuario-card.inactivo {
-  opacity: 0.6;
+  opacity: 0.92;
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.usuario-card.inactivo h4,
+.usuario-card.inactivo p,
+.usuario-card.inactivo strong {
+  color: #475569;
 }
 .usuario-card h4 {
   margin: 8px 0;
@@ -146,7 +154,8 @@
   background: #16a34a;
 }
 .estado-badge.inactivo {
-  background: #dc2626;
+  color: #334155;
+  background: #e2e8f0;
 }
 .btn-primary,
 .btn-back,
@@ -210,6 +219,12 @@
   color: #dc2626;
   border-color: #dc2626;
   background: rgba(220, 38, 38, 0.05);
+}
+
+.btn-activate {
+  color: #166534;
+  border-color: #16a34a;
+  background: rgba(22, 163, 74, 0.08);
 }
 .btn-cancelar,
 .btn-guardar {

@@ -23,9 +23,14 @@
       </thead>
       <tbody>
         @for (v of todosLosVendedores; track v.codVendedor; let i = $index) {
-          <tr [class.odd]="i % 2 === 1">
+          <tr [class.odd]="i % 2 === 1" [class.inactivo]="v.estado === false">
             <td class="cod">{{ v.codVendedor ?? '—' }}</td>
-            <td class="nombre">{{ v.nombre ?? '—' }}</td>
+            <td class="nombre">
+              <span>{{ v.nombre ?? '—' }}</span>
+              @if (v.estado === false) {
+                <span class="estado-inline inactivo">Inactivo</span>
+              }
+            </td>
             @if (mostrarMetricas) {
               <td class="num">$ {{ montoCuota(v) | number: '1.0-0' }}</td>
               <td class="num">$ {{ v.ventaAcum ?? 0 | number: '1.0-0' }}</td>
@@ -48,8 +53,16 @@
                     <span class="material-symbols-rounded">edit</span>
                   </button>
 
-                  <button class="btn-icon btn-danger" (click)="onDesactivar(v)" title="Desactivar vendedor" aria-label="Desactivar vendedor">
-                    <span class="material-symbols-rounded">block</span>
+                  <button
+                    class="btn-icon"
+                    [class.btn-danger]="v.estado !== false"
+                    [class.btn-activate]="v.estado === false"
+                    (click)="onDesactivar(v)"
+                    [title]="v.estado === false ? 'Activar vendedor' : 'Desactivar vendedor'"
+                    [attr.aria-label]="v.estado === false ? 'Activar vendedor' : 'Desactivar vendedor'">
+                    <span class="material-symbols-rounded">
+                      {{ v.estado === false ? 'check_circle' : 'block' }}
+                    </span>
                   </button>
                 </div>
               </td>

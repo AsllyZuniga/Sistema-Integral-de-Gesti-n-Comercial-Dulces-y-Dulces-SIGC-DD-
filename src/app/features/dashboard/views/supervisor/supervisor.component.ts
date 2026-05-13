@@ -78,6 +78,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
   private cdr = inject(ChangeDetectorRef);
 
   @Input() tipoCuota: TipoCuota = 'mensual';
+  @Input() vista: 'asignados' | 'analisis' = 'asignados';
   @Input() filtrosActivos: DashboardFilters = {
     fechaInicio: '',
     fechaFin: '',
