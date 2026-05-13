@@ -21,6 +21,45 @@
   gap: 14px;
 }
 
+/* Logo pill on the left to match header design */
+.logo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(1,70,146,0.06);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.logo-pill .mobile-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #fff;
+  padding: 8px;
+  border-radius: 10px;
+}
+
+.topbar-center h1 {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0;
+  color: #fff;
+  letter-spacing: -0.3px;
+}
+
+.topbar-center h1 .accent { color: #d4ce2e; }
+
+.topbar-right .logout-btn {
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
 .delete-icon-box {
   width: 40px;
   height: 40px;
