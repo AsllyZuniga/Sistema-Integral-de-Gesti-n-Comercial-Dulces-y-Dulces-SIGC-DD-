@@ -498,6 +498,486 @@ html {
   }
 }
 
+/* ===== CARGA DE VENTAS ===== */
+app-carga .topbar,
+app-carga .topbar-left,
+app-carga .topbar-center,
+app-carga .topbar-right,
+app-carga .carga-page,
+app-carga .upload-card,
+app-carga .upload-zone,
+app-carga .upload-actions,
+app-carga .resultado,
+app-carga .instrucciones-card h3,
+app-carga .advertencia {
+  display: flex;
+}
+
+app-carga .topbar {
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  margin-bottom: 28px;
+  background: linear-gradient(135deg, #014692 0%, #1a6bba 60%, #436788 100%);
+  border-radius: var(--r-xl);
+  box-shadow: 0 8px 32px rgba(1, 70, 146, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+app-carga .topbar::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+}
+
+app-carga .topbar::after {
+  content: '';
+  position: absolute;
+  bottom: -60px;
+  right: 120px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+  pointer-events: none;
+}
+
+app-carga .topbar-left {
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+app-carga .topbar-center {
+  flex: 1;
+  min-width: 0;
+  padding: 0 20px;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  flex-direction: column;
+  gap: 2px;
+}
+
+app-carga .topbar-right {
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+app-carga .mobile-menu-btn {
+  display: none;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: var(--r-sm);
+  line-height: 0;
+  flex-shrink: 0;
+  transition: var(--transition);
+  backdrop-filter: blur(4px);
+}
+
+app-carga .mobile-menu-btn .material-symbols-rounded {
+  font-size: 20px;
+}
+
+app-carga .mobile-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+app-carga .topbar-logo {
+  height: 42px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.15));
+}
+
+app-carga .topbar-center h1 {
+  font-size: 17px;
+  font-weight: 800;
+  margin: 0;
+  color: #fff;
+  letter-spacing: -0.3px;
+  line-height: 1.1;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+app-carga .topbar-center h1 .accent {
+  color: #d4ce2e;
+}
+
+app-carga .welcome {
+  display: block;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 3px;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+app-carga .logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: var(--r-md);
+  transition: var(--transition);
+  backdrop-filter: blur(4px);
+}
+
+app-carga .logout-btn:hover {
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+}
+
+app-carga .logout-btn .material-symbols-rounded {
+  font-size: 18px;
+}
+
+app-carga .logout-label {
+  display: inline;
+}
+
+app-carga .carga-page {
+  flex-direction: column;
+  gap: 24px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+app-carga .page-header p,
+app-carga .upload-hint,
+app-carga .progress-text,
+app-carga .resultado-info p,
+app-carga .instrucciones-card li {
+  margin: 0;
+  color: var(--c-text-muted);
+}
+
+app-carga .page-header p {
+  font-size: 14px;
+}
+
+app-carga .upload-card,
+app-carga .instrucciones-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-md);
+}
+
+app-carga .upload-card {
+  flex-direction: column;
+  gap: 20px;
+  padding: 28px;
+}
+
+app-carga .instrucciones-card {
+  padding: 24px 28px;
+}
+
+app-carga .upload-zone {
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 24px;
+  text-align: center;
+  cursor: pointer;
+  border: 2px dashed var(--c-border);
+  border-radius: var(--r-lg);
+  background: var(--c-surface-alt);
+  transition: var(--transition);
+}
+
+app-carga .upload-zone:hover {
+  border-color: var(--c-primary-mid);
+  background: var(--c-primary-pale);
+}
+
+app-carga .upload-zone.has-file {
+  border-color: #16a34a;
+  background: #f0fdf4;
+}
+
+app-carga .upload-zone.is-loading {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+app-carga .upload-icon,
+app-carga .resultado-icon,
+app-carga .advertencia .material-symbols-rounded {
+  flex-shrink: 0;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0;
+}
+
+app-carga .upload-icon {
+  font-size: 48px;
+  color: var(--c-text-muted);
+  font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 48;
+}
+
+app-carga .upload-icon.file-ready {
+  color: #16a34a;
+}
+
+app-carga .upload-text {
+  margin: 0;
+  color: var(--c-text);
+  font-size: 15px;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+app-carga .upload-hint,
+app-carga .progress-text {
+  font-size: 12px;
+}
+
+app-carga .upload-actions {
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+app-carga .btn-limpiar,
+app-carga .btn-cargar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--r-md);
+  font: inherit;
+}
+
+app-carga .btn-limpiar {
+  padding: 10px 18px;
+  color: var(--c-text-muted);
+  background: var(--c-surface-alt);
+  border: 1.5px solid var(--c-border);
+}
+
+app-carga .btn-limpiar:hover {
+  color: var(--c-primary);
+  background: var(--c-primary-pale);
+  border-color: var(--c-primary-soft);
+}
+
+app-carga .btn-cargar {
+  padding: 10px 22px;
+  color: #fff;
+  background: var(--c-primary);
+  border: none;
+}
+
+app-carga .btn-cargar:hover:not(:disabled) {
+  background: var(--c-primary-mid);
+}
+
+app-carga .btn-cargar:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+app-carga .progress-bar {
+  height: 8px;
+  overflow: hidden;
+  background: var(--c-surface-alt);
+  border-radius: 999px;
+}
+
+app-carga .progress-fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--c-primary) 0%, var(--c-primary-mid) 100%);
+  border-radius: inherit;
+  animation: progress 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes progress {
+  0% {
+    transform: translateX(-40%);
+  }
+
+  100% {
+    transform: translateX(40%);
+  }
+}
+
+app-carga .progress-text {
+  text-align: center;
+  font-style: italic;
+}
+
+app-carga .resultado {
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--r-lg);
+}
+
+app-carga .resultado.exito {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+app-carga .resultado.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+app-carga .resultado-info {
+  flex: 1;
+}
+
+app-carga .resultado-info h4 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--c-text);
+}
+
+app-carga .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+app-carga .stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: var(--r-md);
+}
+
+app-carga .stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--c-text-muted);
+}
+
+app-carga .stat-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--c-text);
+}
+
+app-carga .stat-value.success {
+  color: #16a34a;
+}
+
+app-carga .stat-value.danger {
+  color: #dc2626;
+}
+
+app-carga .instrucciones-card h3 {
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  color: var(--c-text);
+  font-size: 16px;
+}
+
+app-carga .instrucciones-card ol {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 10px;
+  color: var(--c-text-muted);
+  font-size: 13px;
+}
+
+app-carga .advertencia {
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--r-md);
+  font-size: 13px;
+}
+
+@media (max-width: 992px) {
+  app-carga .main {
+    margin-left: 0;
+    padding: 18px 16px 24px;
+  }
+
+  app-carga .topbar {
+    display: flex;
+    padding: 14px 18px;
+  }
+
+  app-carga .upload-card,
+  app-carga .instrucciones-card {
+    padding: 20px;
+  }
+
+  app-carga .topbar-center {
+    padding: 0 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  app-carga .upload-actions {
+    flex-direction: column;
+  }
+
+  app-carga .btn-cargar,
+  app-carga .btn-limpiar {
+    width: 100%;
+    justify-content: center;
+  }
+
+  app-carga .topbar {
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  app-carga .topbar-center h1 {
+    font-size: 15px;
+    white-space: normal;
+  }
+
+  app-carga .welcome {
+    white-space: normal;
+  }
+
+  app-carga .logout-label {
+    display: none;
+  }
+}
+
 /* ===== TOPBAR GESTIÓN USUARIOS (mismo estilo dashboard) ===== */
 app-gestion-usuarios .topbar {
   display: flex;
