@@ -12,18 +12,14 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Observable, Subject, takeUntil } from 'rxjs';
 import { CardComponent } from '../../../../shared/components/card/card.component';
-import {
-  DashboardFilters,
-} from '../../../../shared/components/filters/filters.component';
+import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
 import { CumplimientoService } from '../../../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../../../core/services/ventas/cumplimientoVentasSemana.service';
 import { UsuariosService } from '../../../../core/services/usuarios.service';
 import { ProveedorService } from '../../../../core/services/proveedor.service';
 import { TipoCuota } from '../../../cumplimientos-cuota/cumplimientos.component';
 import { VentasComponent } from '../../components/ventas/ventas.component';
-import {
-  VendedorTabla,
-} from '../shared/vendedores-table/vendedores-table.component';
+import { VendedorTabla } from '../shared/vendedores-table/vendedores-table.component';
 
 interface SupervisorResumen {
   id_usuario?: number | string;
@@ -42,12 +38,21 @@ interface CuotaDetalle {
 interface VendedorApiRow {
   codigo_vendedor?: string;
   codVendedor?: string;
+  codigo?: string;
+  codigoVendedor?: string;
   id_vendedor?: number | string;
   idVendedor?: number | string;
+  id_usuario?: number | string;
+  idUsuario?: number | string;
+  id?: number | string;
   nombre?: string;
+  nom_vendedor?: string;
   proveedor?: string;
   nomProveedor?: string;
   nombreProveedor?: string;
+  codigoProveedor?: string;
+  codigo_proveedor?: string;
+  id_proveedor?: string | number;
   categoria?: string;
   nomCategoria?: string;
   nombreCategoria?: string;
@@ -67,6 +72,7 @@ interface VendedorApiRow {
   id_supervisor?: number | string | null;
   idSupervisor?: number | string | null;
   supervisor?: { username?: string; nombre?: string } | null;
+  estado?: boolean;
 }
 
 @Component({
@@ -91,15 +97,18 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     proveedor: '',
     categoria: '',
     ciudad: '',
+    ciudadNombre: '',
     linea: '',
   };
 
-  // Usa esta copia en el HTML para <app-ventas>.
-  // Siempre se reemplaza por una NUEVA referencia para que el @Input() set filtros
-  // de VentasComponent se dispare al cambiar proveedor/categoria/ciudad/fechas.
   filtrosAnalisis: DashboardFilters = { ...this.filtrosActivos };
 
-  totales: { ventaAcum: number; cuotaMes: number; porcCump: number; proyeccionVenta: number } | null = null;
+  totales: {
+    ventaAcum: number;
+    cuotaMes: number;
+    porcCump: number;
+    proyeccionVenta: number;
+  } | null = null;
   cargandoVendedores = false;
   catalogoVendedores: VendedorTabla[] = [];
   todosLosVendedores: VendedorTabla[] = [];
@@ -110,218 +119,17 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
   supervisorSeleccionado = '';
   asignandoSupervisor = false;
 
-  private supervisorPorCodigoVendedor: Map<string, string> = new Map();
-  private codigoVendedorAIdMap: Map<string, string | number> = new Map();
+  private supervisorPorCodigoVendedor = new Map<string, string>();
+  private codigoVendedorAIdMap = new Map<string, string | number>();
   private destroy$ = new Subject<void>();
   private initialized = false;
   private proveedoresList: any[] = [];
-  private proveedoresMap: Map<string, string> = new Map();
+  private proveedoresMap = new Map<string, string>();
 
-  private obtenerCodigoVendedor(vendedor: Pick<VendedorTabla, 'codVendedor' | 'codigo_vendedor'> | VendedorApiRow): string {
-    return String(vendedor.codVendedor ?? vendedor.codigo_vendedor ?? '').trim();
-  }
-
-  private generarClavesCodigo(codigoRaw: unknown): string[] {
-    const codigo = String(codigoRaw ?? '').trim();
-    if (!codigo) return [];
-
-    const claves = new Set<string>();
-    claves.add(codigo);
-
-    const numerico = codigo.replace(/\D/g, '');
-    if (numerico) {
-      claves.add(numerico);
-      claves.add(String(Number(numerico)));
-      claves.add(numerico.padStart(4, '0'));
-      // also add without leading zeros
-      claves.add(numerico.replace(/^0+/, '') || numerico);
-    }
-
-    return Array.from(claves).filter(Boolean);
-  }
-
-  private obtenerNombreSupervisor(
-    vendedor: VendedorApiRow | VendedorTabla,
-    supervisor?: SupervisorResumen,
-  ): string {
-    return (
-      vendedor.supervisor?.username ??
-      vendedor.supervisor?.nombre ??
-      supervisor?.username ??
-      supervisor?.nombre ??
-      vendedor.nombreSupervisor ??
-      ''
-    );
-  }
-
-  private leerCuota(valor: number | CuotaDetalle | null | undefined, clave: keyof CuotaDetalle): number {
-    if (typeof valor === 'number') {
-      return valor;
-    }
-
-    if (valor && typeof valor === 'object') {
-      return Number(valor[clave] ?? 0);
-    }
-
-    return Number(valor ?? 0);
-  }
-
-  private normalizarTexto(valor: unknown): string {
-    return String(valor ?? '')
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-záéíóúñüA-ZÁÉÍÓÚÑÜ0-9\s.,-]/g, '');
-  }
-
-  private obtenerValoresProveedorFiltro(valor: unknown): string[] {
-    const raw = String(valor ?? '').trim();
-    if (!raw) return [];
-
-    const normalizado = this.normalizarTexto(raw);
-    const valores = new Set<string>([normalizado]);
-    const codigoMapeado = this.proveedoresMap.get(normalizado);
-
-    if (codigoMapeado) {
-      valores.add(this.normalizarTexto(codigoMapeado));
-    }
-
-    this.proveedoresList.forEach((p) => {
-      const codigo = String(p?.codigo ?? p?.id_proveedor ?? p?.codigoProveedor ?? '').trim();
-      const nombre = String(p?.nombre ?? p?.nomProveedor ?? p?.nombreProveedor ?? '').trim();
-      const codigoNorm = this.normalizarTexto(codigo);
-      const nombreNorm = this.normalizarTexto(nombre);
-
-      if (
-        codigoNorm === normalizado ||
-        nombreNorm === normalizado ||
-        (codigoMapeado && codigoNorm === this.normalizarTexto(codigoMapeado))
-      ) {
-        if (codigoNorm) valores.add(codigoNorm);
-        if (nombreNorm) valores.add(nombreNorm);
-      }
-    });
-
-    return Array.from(valores).filter(Boolean);
-  }
-
-  private obtenerValoresVendedorFiltro(valor: unknown): string[] {
-    const raw = String(valor ?? '').trim();
-    if (!raw) return [];
-
-    const normalizado = this.normalizarTexto(raw);
-    const valores = new Set<string>([normalizado]);
-
-    const matchCodigo = raw.match(/^(\d+)/);
-    if (matchCodigo?.[1]) {
-      valores.add(this.normalizarTexto(matchCodigo[1]));
-    }
-
-    const matchEtiqueta = raw.match(/^\s*(\d+)\s*[-–]\s*(.+)$/);
-    if (matchEtiqueta?.[1]) {
-      valores.add(this.normalizarTexto(matchEtiqueta[1]));
-      valores.add(this.normalizarTexto(matchEtiqueta[2]));
-    }
-
-    return Array.from(valores).filter(Boolean);
-  }
-
-  private aplicarFiltrosAdministrador(lista: VendedorTabla[]): VendedorTabla[] {
-    const filtros = this.filtrosActivos ?? ({} as DashboardFilters);
-
-    const vendedorFiltro = this.obtenerValoresVendedorFiltro(filtros.vendedor);
-    const proveedoresFiltro = this.obtenerValoresProveedorFiltro(filtros.proveedor);
-    const categoriaFiltro = this.normalizarTexto(filtros.categoria);
-    const ciudadFiltro = this.normalizarTexto(filtros.ciudadNombre ?? filtros.ciudad ?? '');
-    const lineaFiltro = this.normalizarTexto(filtros.linea);
-
-    return lista.filter((v) => {
-      if (vendedorFiltro.length) {
-        const vendedorValoresFila = [
-          v.codVendedor,
-          v.codigo_vendedor,
-          v.nombre,
-          (v as any).codigoVendedor,
-          (v as any).codigo_vendedor,
-        ]
-          .map((valor) => this.normalizarTexto(valor))
-          .filter(Boolean);
-
-        const coincideVendedor = vendedorValoresFila.some((valorFila) =>
-          vendedorFiltro.some((valorFiltro) => valorFila === valorFiltro || valorFila.includes(valorFiltro)),
-        );
-
-        if (!coincideVendedor) return false;
-      }
-
-      // IMPORTANTE:
-      // Los filtros proveedor/categoria/ciudad/linea ya se envían al backend.
-      // Si el endpoint devuelve filas resumidas por vendedor, muchas veces NO trae esos campos.
-      // Antes se filtraba localmente contra campos vacíos y por eso la tabla quedaba vacía.
-      // Ahora solo aplicamos el filtro local cuando la fila sí trae valores para comparar.
-      if (proveedoresFiltro.length) {
-        const proveedorValoresFila = [
-          v.proveedor,
-          v.nomProveedor,
-          v.nombreProveedor,
-          (v as any).codigoProveedor,
-          (v as any).codigo_proveedor,
-          (v as any).id_proveedor,
-        ]
-          .map((valor) => this.normalizarTexto(valor))
-          .filter(Boolean);
-
-        if (proveedorValoresFila.length) {
-          const coincideProveedor = proveedorValoresFila.some((valorFila) =>
-            proveedoresFiltro.some(
-              (valorFiltro) => valorFila === valorFiltro || valorFila.includes(valorFiltro),
-            ),
-          );
-
-          if (!coincideProveedor) return false;
-        }
-      }
-
-      if (categoriaFiltro) {
-        const categoriaValoresFila = [v.categoria, v.nomCategoria, v.nombreCategoria]
-          .map((valor) => this.normalizarTexto(valor))
-          .filter(Boolean);
-
-        if (
-          categoriaValoresFila.length &&
-          !categoriaValoresFila.some((valorFila) => valorFila.includes(categoriaFiltro))
-        ) {
-          return false;
-        }
-      }
-
-      if (ciudadFiltro) {
-        const ciudadValoresFila = [v.ciudad, v.nomCiudad, v.nombreCiudad]
-          .map((valor) => this.normalizarTexto(valor))
-          .filter(Boolean);
-
-        if (
-          ciudadValoresFila.length &&
-          !ciudadValoresFila.some((valorFila) => valorFila === ciudadFiltro)
-        ) {
-          return false;
-        }
-      }
-
-      if (lineaFiltro) {
-        const lineaValoresFila = [v.linea, v.nomLinea, v.nombreLinea]
-          .map((valor) => this.normalizarTexto(valor))
-          .filter(Boolean);
-
-        if (
-          lineaValoresFila.length &&
-          !lineaValoresFila.some((valorFila) => valorFila.includes(lineaFiltro))
-        ) {
-          return false;
-        }
-      }
-
-      return true;
-    });
+  get codigoVendedorAnalisis(): string {
+    // En administrador siempre se envía ALL a app-ventas.
+    // El vendedor filtrado viaja en filtrosAnalisis.vendedor.
+    return 'ALL';
   }
 
   get labelCuota(): string {
@@ -357,25 +165,223 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  get codigoVendedorAnalisis(): string {
-    const codigo = String(this.filtrosActivos?.vendedor ?? '').trim();
-    return codigo || 'ALL';
-  }
-
   ngOnInit(): void {
     this.initialized = true;
+    this.actualizarFiltrosAnalisis();
     this.cargarVendedoresDetalle();
     this.cargarProveedores();
     this.cargarSupervisores();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    this.actualizarFiltrosAnalisis();
+
     if (!this.initialized) return;
 
     if (changes['tipoCuota'] || changes['filtrosActivos']) {
-      this.actualizarFiltrosAnalisis();
       this.cargarTotales();
     }
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private extraerCodigoDesdeFiltro(valor: unknown): string {
+    const raw = String(valor ?? '').trim();
+    if (!raw) return '';
+
+    // Soporta valores como "0002" o "0002 - MENESES GUERRERO VICTOR HUGO".
+    const match = raw.match(/^\s*(\d+)/);
+    if (match?.[1]) {
+      return match[1].padStart(4, '0');
+    }
+
+    return raw;
+  }
+
+  private actualizarFiltrosAnalisis(): void {
+    this.filtrosAnalisis = { ...this.obtenerFiltrosParaApi() };
+  }
+
+  private normalizarTexto(valor: unknown): string {
+    return String(valor ?? '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-záéíóúñüA-ZÁÉÍÓÚÑÜ0-9\s.,-]/g, '')
+      .replace(/\s+/g, ' ');
+  }
+
+  private obtenerCodigoVendedor(
+    vendedor: Pick<VendedorTabla, 'codVendedor' | 'codigo_vendedor'> | VendedorApiRow | any,
+  ): string {
+    return String(
+      vendedor?.codVendedor ??
+        vendedor?.codigo_vendedor ??
+        vendedor?.codigoVendedor ??
+        vendedor?.codigo ??
+        '',
+    ).trim();
+  }
+
+  private generarClavesCodigo(codigoRaw: unknown): string[] {
+    const codigo = String(codigoRaw ?? '').trim();
+    if (!codigo) return [];
+
+    const claves = new Set<string>([codigo]);
+    const numerico = codigo.replace(/\D/g, '');
+
+    if (numerico) {
+      claves.add(numerico);
+      claves.add(String(Number(numerico)));
+      claves.add(numerico.padStart(4, '0'));
+      claves.add(numerico.replace(/^0+/, '') || numerico);
+    }
+
+    return Array.from(claves).filter(Boolean);
+  }
+
+  private leerCuota(
+    valor: number | CuotaDetalle | null | undefined,
+    clave: keyof CuotaDetalle,
+  ): number {
+    if (typeof valor === 'number') return valor;
+    if (valor && typeof valor === 'object') return Number(valor[clave] ?? 0);
+    return Number(valor ?? 0);
+  }
+
+  private obtenerNombreSupervisor(
+    vendedor: VendedorApiRow | VendedorTabla | any,
+    supervisor?: SupervisorResumen,
+  ): string {
+    return (
+      vendedor?.supervisor?.username ??
+      vendedor?.supervisor?.nombre ??
+      supervisor?.username ??
+      supervisor?.nombre ??
+      vendedor?.nombreSupervisor ??
+      ''
+    );
+  }
+
+  private obtenerValoresVendedorFiltro(valor: unknown): string[] {
+    const raw = String(valor ?? '').trim();
+    if (!raw) return [];
+
+    const valores = new Set<string>([this.normalizarTexto(raw)]);
+    const matchCodigo = raw.match(/^(\d+)/);
+    if (matchCodigo?.[1]) valores.add(this.normalizarTexto(matchCodigo[1]));
+
+    const matchEtiqueta = raw.match(/^\s*(\d+)\s*[-–]\s*(.+)$/);
+    if (matchEtiqueta?.[1]) {
+      valores.add(this.normalizarTexto(matchEtiqueta[1]));
+      valores.add(this.normalizarTexto(matchEtiqueta[2]));
+    }
+
+    return Array.from(valores).filter(Boolean);
+  }
+
+  private obtenerValoresProveedorFiltro(valor: unknown): string[] {
+    const raw = String(valor ?? '').trim();
+    if (!raw) return [];
+
+    const normalizado = this.normalizarTexto(raw);
+    const valores = new Set<string>([normalizado]);
+    const codigoMapeado = this.proveedoresMap.get(normalizado);
+
+    if (codigoMapeado) valores.add(this.normalizarTexto(codigoMapeado));
+
+    this.proveedoresList.forEach((p) => {
+      const codigo = String(p?.codigo ?? p?.id_proveedor ?? p?.codigoProveedor ?? '').trim();
+      const nombre = String(p?.nombre ?? p?.nomProveedor ?? p?.nombreProveedor ?? '').trim();
+      const codigoNorm = this.normalizarTexto(codigo);
+      const nombreNorm = this.normalizarTexto(nombre);
+
+      if (codigoNorm === normalizado || nombreNorm === normalizado) {
+        if (codigoNorm) valores.add(codigoNorm);
+        if (nombreNorm) valores.add(nombreNorm);
+      }
+    });
+
+    return Array.from(valores).filter(Boolean);
+  }
+
+  private aplicarFiltrosAdministrador(lista: VendedorTabla[]): VendedorTabla[] {
+    const filtros = this.filtrosActivos ?? ({} as DashboardFilters);
+
+    const vendedorFiltro = this.obtenerValoresVendedorFiltro(filtros.vendedor);
+    const proveedoresFiltro = this.obtenerValoresProveedorFiltro(filtros.proveedor);
+    const categoriaFiltro = this.normalizarTexto(filtros.categoria);
+    const ciudadFiltro = this.normalizarTexto(filtros.ciudadNombre ?? filtros.ciudad ?? '');
+    const lineaFiltro = this.normalizarTexto(filtros.linea);
+
+    return lista.filter((v) => {
+      if (vendedorFiltro.length) {
+        const valoresFila = [v.codVendedor, v.codigo_vendedor, v.nombre, (v as any).codigoVendedor]
+          .map((item) => this.normalizarTexto(item))
+          .filter(Boolean);
+
+        const coincide = valoresFila.some((valorFila) =>
+          vendedorFiltro.some(
+            (valorFiltro) => valorFila === valorFiltro || valorFila.includes(valorFiltro),
+          ),
+        );
+
+        if (!coincide) return false;
+      }
+
+      if (proveedoresFiltro.length) {
+        const valoresFila = [
+          v.proveedor,
+          v.nomProveedor,
+          v.nombreProveedor,
+          (v as any).codigoProveedor,
+          (v as any).codigo_proveedor,
+          (v as any).id_proveedor,
+        ]
+          .map((item) => this.normalizarTexto(item))
+          .filter(Boolean);
+
+        if (valoresFila.length) {
+          const coincide = valoresFila.some((valorFila) =>
+            proveedoresFiltro.some(
+              (valorFiltro) => valorFila === valorFiltro || valorFila.includes(valorFiltro),
+            ),
+          );
+          if (!coincide) return false;
+        }
+      }
+
+      if (categoriaFiltro) {
+        const valoresFila = [v.categoria, v.nomCategoria, v.nombreCategoria]
+          .map((item) => this.normalizarTexto(item))
+          .filter(Boolean);
+        if (
+          valoresFila.length &&
+          !valoresFila.some((valorFila) => valorFila.includes(categoriaFiltro))
+        )
+          return false;
+      }
+
+      if (ciudadFiltro) {
+        const valoresFila = [v.ciudad, v.nomCiudad, v.nombreCiudad]
+          .map((item) => this.normalizarTexto(item))
+          .filter(Boolean);
+        if (valoresFila.length && !valoresFila.some((valorFila) => valorFila === ciudadFiltro))
+          return false;
+      }
+
+      if (lineaFiltro) {
+        const valoresFila = [v.linea, v.nomLinea, v.nombreLinea]
+          .map((item) => this.normalizarTexto(item))
+          .filter(Boolean);
+        if (valoresFila.length && !valoresFila.some((valorFila) => valorFila.includes(lineaFiltro)))
+          return false;
+      }
+
+      return true;
+    });
   }
 
   private cargarProveedores(): void {
@@ -388,57 +394,35 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
           this.proveedoresMap.clear();
 
           this.proveedoresList.forEach((p) => {
-            const codigo = String(p?.codigo ?? (p as any)?.id_proveedor ?? '').trim();
+            const codigo = String(p?.codigo ?? p?.id_proveedor ?? '').trim();
             const nombre = this.normalizarTexto(p?.nombre ?? '');
 
-            if (codigo) {
-              // map by codigo (normalized) to codigo
-              this.proveedoresMap.set(this.normalizarTexto(codigo), codigo);
-            }
-
-            if (nombre && codigo) {
-              // map by normalized name to codigo
-              this.proveedoresMap.set(nombre, codigo);
-            }
+            if (codigo) this.proveedoresMap.set(this.normalizarTexto(codigo), codigo);
+            if (nombre && codigo) this.proveedoresMap.set(nombre, codigo);
           });
-
-          console.debug('Proveedor map cargado (nombre->codigo):', this.proveedoresMap.size);
 
           this.actualizarFiltrosAnalisis();
 
-          if (this.initialized && String(this.filtrosActivos?.proveedor ?? '').trim()) {
-            this.cargarTotales();
-          }
+          if (this.initialized) this.cargarTotales();
         },
-        error: (err: any) => {
-          console.error('Error cargando proveedores en Administrador:', err);
-        },
+        error: (err: any) => console.error('Error cargando proveedores en Administrador:', err),
       });
-  }
-
-  private actualizarFiltrosAnalisis(): void {
-    this.filtrosAnalisis = this.obtenerFiltrosParaApi();
   }
 
   private obtenerFiltrosParaApi(): DashboardFilters {
     const filtros = this.filtrosActivos ?? ({} as DashboardFilters);
     const provRaw = String(filtros.proveedor ?? '').trim();
+    const vendedorRaw = String(filtros.vendedor ?? '').trim();
 
-    if (!provRaw) {
-      return { ...filtros };
-    }
-
-    const codigoProveedor = this.proveedoresMap.get(this.normalizarTexto(provRaw)) ?? provRaw;
+    const codigoProveedor = provRaw
+      ? (this.proveedoresMap.get(this.normalizarTexto(provRaw)) ?? provRaw)
+      : '';
 
     return {
       ...filtros,
       proveedor: codigoProveedor,
+      vendedor: this.extraerCodigoDesdeFiltro(vendedorRaw),
     };
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 
   private cargarVendedoresDetalle(): void {
@@ -450,32 +434,25 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
           this.codigoVendedorAIdMap.clear();
           const vendedores = Array.isArray(res) ? res : [];
           const catalogo: VendedorTabla[] = [];
-          
+
           vendedores.forEach((vendedor: any) => {
-            const codigo = String(
-              vendedor.codigo_vendedor ??
-              vendedor.codVendedor ??
-              vendedor.codigo ??
-              ''
-            ).trim();
+            const codigo = this.obtenerCodigoVendedor(vendedor);
             const nombre = String(vendedor.nombre ?? vendedor.nom_vendedor ?? '').trim();
-            
-            const idVendedor = vendedor.id_vendedor ?? 
-                               vendedor.idVendedor ?? 
-                               vendedor.id_usuario ?? 
-                               vendedor.idUsuario ?? 
-                               vendedor.id;
-            
-            if (codigo && idVendedor) {
-              this.codigoVendedorAIdMap.set(codigo, idVendedor);
-            }
+            const idVendedor =
+              vendedor.id_vendedor ??
+              vendedor.idVendedor ??
+              vendedor.id_usuario ??
+              vendedor.idUsuario ??
+              vendedor.id;
+
+            if (codigo && idVendedor) this.codigoVendedorAIdMap.set(codigo, idVendedor);
 
             if (codigo) {
               catalogo.push({
                 codigo_vendedor: codigo,
                 codVendedor: codigo,
                 id_vendedor: idVendedor,
-                idVendedor: idVendedor,
+                idVendedor,
                 nombre,
                 proveedor: '',
                 categoria: '',
@@ -490,38 +467,23 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
                 nombreSupervisor: 'Sin asignar',
                 id_supervisor: vendedor.id_supervisor ?? vendedor.idSupervisor ?? null,
                 supervisor: vendedor.supervisor ?? null,
+                estado: vendedor.estado,
               });
             }
           });
 
-          catalogo.sort((a, b) => {
-            const nombreA = String(a.nombre ?? '').trim();
-            const nombreB = String(b.nombre ?? '').trim();
-            const porNombre = nombreA.localeCompare(nombreB, 'es', { sensitivity: 'base' });
-
-            if (porNombre !== 0) {
-              return porNombre;
-            }
-
-            return String(a.codVendedor ?? '').localeCompare(String(b.codVendedor ?? ''), 'es', {
+          catalogo.sort((a, b) =>
+            String(a.nombre ?? '').localeCompare(String(b.nombre ?? ''), 'es', {
               sensitivity: 'base',
-            });
-          });
+            }),
+          );
 
           this.catalogoVendedores = [...catalogo];
           this.todosLosVendedores = [...catalogo];
-          
-          console.log('✅ Mapa de vendedores cargado:', this.codigoVendedorAIdMap.size, 'vendedores');
 
-          // Si los totales llegaron antes que el catálogo, recargamos para unir
-          // correctamente vendedor + cuota + venta y actualizar la tabla.
-          if (this.initialized) {
-            this.cargarTotales();
-          }
+          if (this.initialized) this.cargarTotales();
         },
-        error: (err: any) => {
-          console.error('❌ Error cargando vendedores:', err);
-        },
+        error: (err: any) => console.error('Error cargando vendedores:', err),
       });
   }
 
@@ -575,14 +537,14 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: (vendedores: VendedorApiRow[]) => {
-            vendedores.forEach((v) => {
+            (Array.isArray(vendedores) ? vendedores : []).forEach((v) => {
               const codigo = this.obtenerCodigoVendedor(v);
               const nombreSupervisor = this.obtenerNombreSupervisor(v, supervisor);
 
               if (codigo && nombreSupervisor) {
-                // map multiple variants of the code to improve matching
-                const claves = this.generarClavesCodigo(codigo);
-                claves.forEach((clave) => mapaTemporal.set(clave, nombreSupervisor));
+                this.generarClavesCodigo(codigo).forEach((clave) =>
+                  mapaTemporal.set(clave, nombreSupervisor),
+                );
               }
             });
           },
@@ -595,6 +557,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
   private cargarTotales(): void {
     const filtros = this.obtenerFiltrosParaApi();
     this.filtrosAnalisis = { ...filtros };
+
     const obs$ =
       this.tipoCuota === 'semanal'
         ? this.semanaService.getCumplimientoSemanaAdmin(filtros)
@@ -611,44 +574,40 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
 
     obs$.pipe(takeUntil(this.destroy$)).subscribe({
       next: (res) => {
-        const detalle = (res?.detalle ?? []).filter((v) => this.obtenerCodigoVendedor(v) !== 'TOTALES');
+        const detalle = (res?.detalle ?? []).filter(
+          (v) => this.obtenerCodigoVendedor(v) !== 'TOTALES',
+        );
         const detallePorCodigo = new Map<string, VendedorApiRow>();
 
-        detalle.forEach((v) => {
-          const codigo = this.obtenerCodigoVendedor(v);
+        detalle.forEach((fila) => {
+          const codigo = this.obtenerCodigoVendedor(fila);
           if (codigo) {
-            detallePorCodigo.set(codigo, v);
+            this.generarClavesCodigo(codigo).forEach((clave) => detallePorCodigo.set(clave, fila));
           }
         });
 
-        const baseCatalogo = this.catalogoVendedores.length > 0
-          ? this.catalogoVendedores
-          : detalle.map((fila) => ({
-              codigo_vendedor: this.obtenerCodigoVendedor(fila),
-              codVendedor: this.obtenerCodigoVendedor(fila),
-              id_vendedor: fila.id_vendedor ?? fila.idVendedor,
-              idVendedor: fila.id_vendedor ?? fila.idVendedor,
-              nombre: fila.nombre ?? '',
-              proveedor: fila.proveedor,
-              nomProveedor: fila.nomProveedor,
-              nombreProveedor: fila.nombreProveedor,
-              categoria: fila.categoria,
-              nomCategoria: fila.nomCategoria,
-              nombreCategoria: fila.nombreCategoria,
-              ciudad: fila.ciudad,
-              nomCiudad: fila.nomCiudad,
-              nombreCiudad: fila.nombreCiudad,
-              linea: fila.linea,
-              nomLinea: fila.nomLinea,
-              nombreLinea: fila.nombreLinea,
-              nombreSupervisor: fila.nombreSupervisor ?? '',
-              id_supervisor: fila.id_supervisor ?? fila.idSupervisor ?? null,
-              supervisor: fila.supervisor ?? null,
-            } as VendedorTabla));
+        const baseCatalogo =
+          this.catalogoVendedores.length > 0
+            ? this.catalogoVendedores
+            : detalle.map(
+                (fila) =>
+                  ({
+                    codigo_vendedor: this.obtenerCodigoVendedor(fila),
+                    codVendedor: this.obtenerCodigoVendedor(fila),
+                    id_vendedor: fila.id_vendedor ?? fila.idVendedor,
+                    idVendedor: fila.id_vendedor ?? fila.idVendedor,
+                    nombre: fila.nombre ?? fila.nom_vendedor ?? '',
+                  }) as VendedorTabla,
+              );
 
         const listaNormalizada: VendedorTabla[] = baseCatalogo.map((base) => {
-          const codigo = String(base.codVendedor ?? base.codigo_vendedor ?? '').trim();
-          const fila = detallePorCodigo.get(codigo);
+          const codigo = this.obtenerCodigoVendedor(base);
+          let fila: VendedorApiRow | undefined;
+
+          for (const clave of this.generarClavesCodigo(codigo)) {
+            fila = detallePorCodigo.get(clave);
+            if (fila) break;
+          }
 
           return {
             ...base,
@@ -676,12 +635,18 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
             porcCump: Number(fila?.porcCump ?? 0),
             proyeccionVenta: Number(fila?.proyeccionVenta ?? 0),
             nombreSupervisor: this.obtenerNombreSupervisor(fila ?? base),
-            id_supervisor: fila?.id_supervisor ?? fila?.idSupervisor ?? base.id_supervisor ?? base.idSupervisor ?? null,
+            id_supervisor:
+              fila?.id_supervisor ??
+              fila?.idSupervisor ??
+              base.id_supervisor ??
+              base.idSupervisor ??
+              null,
             supervisor: fila?.supervisor ?? base.supervisor ?? null,
+            estado: fila?.estado ?? base.estado,
           };
         });
 
-        const hayFiltrosDeConsulta = !!String(
+        const hayFiltros = !!String(
           this.filtrosActivos?.proveedor ||
             this.filtrosActivos?.categoria ||
             this.filtrosActivos?.ciudad ||
@@ -691,18 +656,23 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
             '',
         ).trim();
 
-        const listaBase = hayFiltrosDeConsulta
-          ? listaNormalizada.filter((v) => detallePorCodigo.has(String(v.codVendedor ?? v.codigo_vendedor ?? '').trim()))
+        const listaBase = hayFiltros
+          ? listaNormalizada.filter((v) => {
+              const codigo = this.obtenerCodigoVendedor(v);
+              return this.generarClavesCodigo(codigo).some((clave) => detallePorCodigo.has(clave));
+            })
           : listaNormalizada;
 
-        const listaFiltrada = this.aplicarFiltrosAdministrador(listaBase);
-        this.todosLosVendedores = listaFiltrada;
+        this.todosLosVendedores = this.aplicarFiltrosAdministrador(listaBase);
         this.aplicarNombresSupervisorEnTabla();
 
-        const ventaAcum = this.todosLosVendedores.reduce((s: number, v) => s + (Number(v.ventaAcum) || 0), 0);
-        const cuota = this.todosLosVendedores.reduce((s: number, v) => s + (Number(v[campoCuota]) || 0), 0);
+        const ventaAcum = this.todosLosVendedores.reduce(
+          (s, v) => s + (Number(v.ventaAcum) || 0),
+          0,
+        );
+        const cuota = this.todosLosVendedores.reduce((s, v) => s + (Number(v[campoCuota]) || 0), 0);
         const proyeccionVenta = this.todosLosVendedores.reduce(
-          (s: number, v) => s + (Number(v.proyeccionVenta) || 0),
+          (s, v) => s + (Number(v.proyeccionVenta) || 0),
           0,
         );
         const porcCump = cuota > 0 ? (ventaAcum / cuota) * 100 : 0;
@@ -711,8 +681,10 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
         this.cargandoVendedores = false;
         this.cdr.detectChanges();
       },
-      error: () => {
+      error: (err: any) => {
+        console.error('Error cargando totales administrador:', err);
         this.totales = null;
+        this.todosLosVendedores = [];
         this.cargandoVendedores = false;
         this.cdr.detectChanges();
       },
@@ -726,9 +698,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
       const codigo = this.obtenerCodigoVendedor(v);
       let nombreSupervisor = '';
 
-      // Try multiple key variants when looking up supervisor name
-      const claves = this.generarClavesCodigo(codigo);
-      for (const clave of claves) {
+      for (const clave of this.generarClavesCodigo(codigo)) {
         const encontrado = this.supervisorPorCodigoVendedor.get(clave);
         if (encontrado) {
           nombreSupervisor = encontrado;
@@ -737,8 +707,11 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
       }
 
       nombreSupervisor =
-        nombreSupervisor || v.supervisor?.username || v.supervisor?.nombre || v?.nombreSupervisor || '';
-
+        nombreSupervisor ||
+        v.supervisor?.username ||
+        v.supervisor?.nombre ||
+        v.nombreSupervisor ||
+        '';
       return { ...v, nombreSupervisor };
     });
   }
@@ -759,24 +732,15 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   asignarSupervisor(): void {
-    if (!this.vendedorEnModal || !this.supervisorSeleccionado) {
-      return;
-    }
+    if (!this.vendedorEnModal || !this.supervisorSeleccionado) return;
 
     this.asignandoSupervisor = true;
 
     const vendedorActual = this.vendedorEnModal;
-    const codigoVendedor = String(vendedorActual.codVendedor ?? vendedorActual.codigo_vendedor ?? '').trim();
-    
-    // Buscar el ID del vendedor en el mapa cargado desde /vendedor
+    const codigoVendedor = this.obtenerCodigoVendedor(vendedorActual);
     let idVendedor = this.codigoVendedorAIdMap.get(codigoVendedor);
-    
-    // Si no lo encuentra en el mapa, intentar usar el id_vendedor del objeto (por si acaso)
-    if (!idVendedor) {
-      idVendedor = vendedorActual.id_vendedor ?? vendedorActual.idVendedor;
-    }
-    
-    const idSupervisor = this.supervisorSeleccionado;
+
+    if (!idVendedor) idVendedor = vendedorActual.id_vendedor ?? vendedorActual.idVendedor;
 
     if (!idVendedor) {
       this.asignandoSupervisor = false;
@@ -785,32 +749,28 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.usuariosService
-      .asignarSupervisor(String(idVendedor), idSupervisor)
+      .asignarSupervisor(String(idVendedor), this.supervisorSeleccionado)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
-          const idx = this.todosLosVendedores.findIndex(
-            (v) => v.codVendedor === vendedorActual.codVendedor,
+          const idSupervisorNum = Number(this.supervisorSeleccionado);
+          const supervisorAsignado = this.supervisoresList.find(
+            (s) => Number(s.id_usuario ?? s.idUsuario ?? s.id ?? 0) === idSupervisorNum,
+          );
+          const nombreSupervisor =
+            supervisorAsignado?.username ??
+            supervisorAsignado?.nombre ??
+            `Supervisor #${idSupervisorNum}`;
+
+          this.todosLosVendedores = this.todosLosVendedores.map((v) =>
+            this.obtenerCodigoVendedor(v) === codigoVendedor
+              ? { ...v, id_supervisor: idSupervisorNum, nombreSupervisor }
+              : v,
           );
 
-          if (idx >= 0) {
-            const idSupervisorNum = Number(idSupervisor);
-            const supervisorAsignado = this.supervisoresList.find(
-              (s) => Number(s.id_usuario ?? s.idUsuario ?? s.id ?? 0) === idSupervisorNum,
-            );
-            const nombreSupervisor =
-              supervisorAsignado?.username ??
-              supervisorAsignado?.nombre ??
-              `Supervisor #${idSupervisorNum}`;
-
-            this.todosLosVendedores[idx].id_supervisor = idSupervisorNum;
-            this.todosLosVendedores[idx].nombreSupervisor = nombreSupervisor;
-            this.supervisorPorCodigoVendedor.set(
-              String(this.todosLosVendedores[idx].codVendedor ?? ''),
-              nombreSupervisor,
-            );
-            this.aplicarNombresSupervisorEnTabla();
-          }
+          this.generarClavesCodigo(codigoVendedor).forEach((clave) =>
+            this.supervisorPorCodigoVendedor.set(clave, nombreSupervisor),
+          );
 
           this.asignandoSupervisor = false;
           this.cerrarModalAsignar();
@@ -822,5 +782,13 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
           this.cdr.detectChanges();
         },
       });
+  }
+
+  editarVendedor(vendedor: VendedorTabla): void {
+    console.log('Editar vendedor:', vendedor);
+  }
+
+  desactivarVendedor(vendedor: VendedorTabla): void {
+    console.log('Activar/desactivar vendedor:', vendedor);
   }
 }

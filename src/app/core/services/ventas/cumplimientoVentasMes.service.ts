@@ -27,6 +27,20 @@ export class CumplimientoService {
     return params;
   }
 
+  /** Params for /me endpoints - excludes vendedor param since /me already knows the authenticated vendor */
+  private buildParamsForMe(filtros?: DashboardFilters): HttpParams {
+    let params = new HttpParams();
+    if (!filtros) return params;
+    if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
+    if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
+    // DO NOT include vendedor - /me endpoint already knows who the authenticated user is
+    if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
+    if (filtros?.categoria) params = params.set('categoria', filtros.categoria);
+    if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
+    if (filtros?.linea) params = params.set('linea', filtros.linea);
+    return params;
+  }
+
   // ─── NUEVOS: usados por DashboardComponent ───────────────────────────────────
 
   /** Admin: GET /mes/cumplimiento/front → { periodo, detalle: [...vendedores, TOTALES] } */
@@ -39,7 +53,7 @@ export class CumplimientoService {
 
   /** Vendedor: GET /mes/cumplimiento/front/me → { periodo, detalle: [vendedor, TOTALES] } */
   getCumplimientoMesVendedor(filtros?: DashboardFilters): Observable<any> {
-    const params = this.buildParams(filtros);
+    const params = this.buildParamsForMe(filtros);
     return this.http
       .get<any>(`${this.apiUrl}/mes/cumplimiento/front/me`, { params })
       .pipe(catchError(() => of({ detalle: [] })));
@@ -56,7 +70,7 @@ export class CumplimientoService {
   }
 
   getCumplimientoPorCodigo(codigo: string, filtros?: DashboardFilters): Observable<any> {
-    const params = this.buildParams(filtros);
+    const params = this.buildParamsForMe(filtros);
     return this.http
       .get<any>(`${this.apiUrl}/mes/cumplimiento/front/me`, { params })
       .pipe(catchError(() => of(null)));

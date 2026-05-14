@@ -141,8 +141,8 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
   }
 
   get codigoVendedorAnalisis(): string {
-    // El supervisor ve el análisis de todos sus vendedores asignados sin filtro específico
-    return 'ALL';
+    const codigo = String(this.filtrosActivos?.vendedor ?? '').trim();
+    return codigo || 'ALL';
   }
 
   ngOnInit(): void {
@@ -173,7 +173,8 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
       // Actualizar filtros para el análisis cuando cambien los filtros activos
       this.filtrosParaAnalisis = {
         ...this.filtrosActivos,
-      };
+        codigosVendedores: this.codigosVendedoresAsignados,
+      } as DashboardFilters & { codigosVendedores: string[] };
     }
 
     if (changes['tipoCuota'] || changes['filtrosActivos']) {
@@ -259,7 +260,14 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
   private aplicarFiltrosSupervisor(lista: VendedorTabla[]): VendedorTabla[] {
     const filtros = this.filtrosActivos ?? ({} as DashboardFilters);
 
-    const codVendedorFiltro = String(filtros.vendedor ?? '').trim();
+    let codVendedorFiltro = String(filtros.vendedor ?? '').trim();
+    
+    // Si el filtro viene como "123 - John", extraer solo el código
+    if (codVendedorFiltro.includes(' - ')) {
+      const partes = codVendedorFiltro.split(' - ');
+      codVendedorFiltro = String(partes[0] ?? '').trim();
+    }
+    
     const proveedorFiltro = this.normalizarTexto(filtros.proveedor);
     const categoriaFiltro = this.normalizarTexto(filtros.categoria);
     const ciudadFiltro = this.normalizarTexto(filtros.ciudadNombre ?? filtros.ciudad ?? '');
@@ -267,8 +275,11 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
 
     return lista.filter((v) => {
       if (codVendedorFiltro) {
-        const codigoV = String(v.codVendedor ?? '').trim();
-        if (codigoV !== codVendedorFiltro) return false;
+        const codigoV = String(v.codVendedor ?? v.codigo_vendedor ?? '').trim();
+        // Permitir coincidencia flexible: igualdad o inclusión
+        if (codigoV !== codVendedorFiltro && !codigoV.includes(codVendedorFiltro)) {
+          return false;
+        }
       }
 
       if (proveedorFiltro) {

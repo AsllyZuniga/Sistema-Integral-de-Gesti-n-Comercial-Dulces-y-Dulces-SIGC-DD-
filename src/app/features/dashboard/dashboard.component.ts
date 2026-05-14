@@ -8,7 +8,6 @@ import { SessionUser } from '../../core/services/session.service';
 import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../core/services/ventas/cumplimientoVentasSemana.service';
 import { UsuariosService } from '../../core/services/usuarios.service';
-import { ProveedorService } from '../../core/services/proveedor.service';
 import {
   FiltersComponent,
   DashboardFilters,
@@ -88,33 +87,6 @@ interface CumplimientoAdminDetalleRow {
   nombreLinea?: string;
 }
 
-function createDefaultDashboardFilters(): DashboardFilters {
-  const hoy = new Date();
-  const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-  const fin = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
-
-  const formatDate = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  return {
-    fechaInicio: formatDate(inicio),
-    fechaFin: formatDate(fin),
-    vendedor: '',
-    proveedor: '',
-    categoria: '',
-    categoriaNombre: '',
-    categorias: [],
-    categoriaNombres: [],
-    ciudad: '',
-    ciudadNombre: '',
-    linea: '',
-  };
-}
-
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -138,7 +110,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private cumplimientoService: CumplimientoService,
     private semanaService: CumplimientoSemanaService,
     private usuariosService: UsuariosService,
-    private proveedorService: ProveedorService,
   ) {}
 
   @ViewChild(SidebarComponent) sidebarRef!: SidebarComponent;
@@ -156,7 +127,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   tipoCuota: TipoCuota = 'mensual';
   rolId = 0;
   activeAnalisisView: 'ventas' | 'impactos' = 'ventas';
-  activeSupervisorView: 'asignados' | 'analisis' = 'asignados';
 
   private proveedorMap: Map<string, string> = new Map();
   private ciudadMap: Map<string, string> = new Map();
@@ -168,15 +138,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   totalesVendedor: DashboardTotalesVendedor | null = null;
 
-  filtrosActivos: DashboardFilters = createDefaultDashboardFilters();
+  filtrosActivos: DashboardFilters = {
+    fechaInicio: '',
+    fechaFin: '',
+    vendedor: '',
+    proveedor: '',
+    categoria: '',
+    ciudad: '',
+    ciudadNombre: '',
+    linea: '',
+  };
 
   ngOnInit(): void {
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       const vista = String(params.get('vista') ?? 'ventas').toLowerCase();
       this.activeAnalisisView = vista === 'impactos' ? 'impactos' : 'ventas';
-
-      const seccion = String(params.get('seccion') ?? 'asignados').toLowerCase();
-      this.activeSupervisorView = seccion === 'analisis' ? 'analisis' : 'asignados';
     });
 
     this.vendedor = this.authService.getVendedor();
@@ -190,6 +166,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     this.rolId = Number(this.vendedor?.rol?.idRol ?? this.vendedor?.idRol ?? 0);
+
+    const { inicio, fin } = this.getDefaultDateRange();
+    this.filtrosActivos.fechaInicio = inicio;
+    this.filtrosActivos.fechaFin = fin;
 
     this.cargarOpcionesFiltros();
 
@@ -681,46 +661,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.proveedoresList = this.toFilterOptions(Array.from(unicos));
       });
 
-    // Cargar lista completa de vendedores para el filtro en todos los modos.
-    this.cumplimientoService
-      .getVendedores()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((res: ApiVendedorRow[]) => {
-        this.vendedorMap.clear();
-        const etiquetas = new Set<string>();
+    if (this.esAdmin) {
+      this.cumplimientoService
+        .getVendedores()
+        .pipe(takeUntil(this.destroy$))
+        .subscribe((res: ApiVendedorRow[]) => {
+          this.vendedorMap.clear();
+          const etiquetas = new Set<string>();
 
-        res.forEach((item) => {
-          const codigo = this.obtenerCodigoRow(item);
-          const nombre = String(item.nombre ?? item.nom_vendedor ?? '').trim();
+          res.forEach((item) => {
+            const codigo = this.obtenerCodigoRow(item);
+            const nombre = String(item.nombre ?? item.nom_vendedor ?? '').trim();
 
-          if (codigo && nombre) {
-            const etiqueta = `${String(codigo)} - ${String(nombre)}`;
-            this.vendedorMap.set(etiqueta, String(codigo));
-            etiquetas.add(etiqueta);
-          }
+            if (codigo && nombre) {
+              const etiqueta = `${String(codigo)} - ${String(nombre)}`;
+              this.vendedorMap.set(etiqueta, String(codigo));
+              etiquetas.add(etiqueta);
+            }
+          });
+
+          this.vendedoresList = this.toFilterOptions(Array.from(etiquetas));
         });
 
-        // Si la API de cumplimiento no devolvió vendedores, intentar fallback desde UsuariosService
-        if (etiquetas.size === 0) {
-          this.usuariosService.listarDetalleVendedores().pipe(takeUntil(this.destroy$)).subscribe((rows) => {
-            const fallback = new Set<string>();
-            rows.forEach((r: any) => {
-              const codigo = this.obtenerCodigoRow(r as ApiVendedorRow);
-              const nombre = String(r.nombre ?? r.nom_vendedor ?? r.nomVendedor ?? '').trim();
-              if (codigo && nombre) {
-                const etiqueta = `${String(codigo)} - ${String(nombre)}`;
-                this.vendedorMap.set(etiqueta, String(codigo));
-                fallback.add(etiqueta);
-              }
-            });
-            this.vendedoresList = this.toFilterOptions(Array.from(fallback));
-          });
-        } else {
-          this.vendedoresList = this.toFilterOptions(Array.from(etiquetas));
-        }
-      });
-
-    if (this.esAdmin) {
       this.cargarCiudadesYLineasAdmin();
     }
 
@@ -733,64 +695,51 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     if (this.esSupervisor) {
       this.cargarCiudadesYLineasSupervisor();
+      this.cargarVendedoresSupervisor();
     }
   }
 
-  private cargarCategoriasFiltros(): void {
-    const proveedorCodigo = String(this.filtrosActivos?.proveedor ?? '').trim();
-    if (proveedorCodigo) {
-      this.proveedorService
-        .getCategoriasByCodigo(proveedorCodigo)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((categorias: string[]) => {
-          const unicas = new Map<string, string>();
+  private cargarVendedoresSupervisor(): void {
+    const idSupervisor = String(
+      this.vendedor?.id_usuario ?? this.vendedor?.idUsuario ?? this.vendedor?.id ?? '',
+    );
 
-          categorias.forEach((categoriaRaw) => {
-            if (!categoriaRaw) return;
-            const categoriaLimpia = this.limpiarNombreCategoria(categoriaRaw);
-            if (!categoriaLimpia) return;
-            if (!unicas.has(categoriaLimpia)) {
-              unicas.set(categoriaLimpia, categoriaRaw);
-            }
-          });
-
-          this.categoriasList = Array.from(unicas.entries())
-            .map(([label, value]) => ({ label, value }))
-            .sort((a, b) => a.label.localeCompare(b.label, 'es'));
-
-          const categoriasActuales = Array.isArray(this.filtrosActivos?.categorias)
-            ? this.filtrosActivos.categorias.filter(Boolean)
-            : String(this.filtrosActivos?.categoria ?? '').trim()
-              ? [String(this.filtrosActivos.categoria).trim()]
-              : [];
-
-          if (categoriasActuales.length) {
-            const valoresPermitidos = new Set(this.categoriasList.map((item) => item.value));
-            const categoriasValidas = categoriasActuales.filter((categoria) =>
-              valoresPermitidos.has(categoria),
-            );
-
-            if (categoriasValidas.length !== categoriasActuales.length) {
-              this.filtrosActivos = {
-                ...this.filtrosActivos,
-                categoria: categoriasValidas.length === 1 ? categoriasValidas[0] : '',
-                categorias: categoriasValidas,
-              };
-            }
-          }
-        });
+    if (!idSupervisor) {
+      this.vendedoresList = [];
       return;
     }
 
+    this.usuariosService
+      .obtenerVendedoresDelSupervisor(idSupervisor)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((vendedores: ApiVendedorRow[]) => {
+        this.vendedorMap.clear();
+        const etiquetas = new Set<string>();
+
+        vendedores.forEach((item) => {
+          const codigo = this.obtenerCodigoRow(item);
+          const nombre = String(item.nombre ?? item.nom_vendedor ?? '').trim();
+
+          if (codigo && nombre) {
+            const etiqueta = `${String(codigo)} - ${String(nombre)}`;
+            this.vendedorMap.set(etiqueta, String(codigo));
+            etiquetas.add(etiqueta);
+          }
+        });
+
+        this.vendedoresList = this.toFilterOptions(Array.from(etiquetas));
+      });
+  }
+
+  private cargarCategoriasFiltros(): void {
     const filtrosBase: DashboardFilters = {
       ...this.filtrosActivos,
       vendedor: this.esAdmin ? '' : this.filtrosActivos.vendedor,
       fechaInicio: '',
       fechaFin: '',
-      proveedor: '',
       categoria: '',
-      ciudad: '',
-      ciudadNombre: '',
+      categoriaNombre: '',
+      categorias: [],
       linea: '',
     };
 
@@ -849,129 +798,34 @@ export class DashboardComponent implements OnInit, OnDestroy {
     intentarCategorias(0);
   }
 
-  onProveedorFiltroChange(proveedorSeleccionado: string): void {
-    const proveedorRaw = String(proveedorSeleccionado ?? '').trim();
+  onVendedorChange(vendedor: string): void {
+    const filtros: DashboardFilters = {
+      ...this.filtrosActivos,
+      vendedor: String(vendedor ?? '').trim(),
+    };
 
-    if (!proveedorRaw) {
-      this.cargarCategoriasTodasSinAplicarFiltros();
-      return;
-    }
-
-    const proveedorCodigo = this.proveedorMap.get(proveedorRaw) ?? proveedorRaw;
-
-    this.proveedorService
-      .getCategoriasByCodigo(proveedorCodigo)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((categorias: string[]) => {
-        const unicas = new Map<string, string>();
-
-        categorias.forEach((categoriaRaw) => {
-          if (!categoriaRaw) return;
-
-          const categoriaLimpia = this.limpiarNombreCategoria(categoriaRaw);
-          if (!categoriaLimpia) return;
-
-          if (!unicas.has(categoriaLimpia)) {
-            unicas.set(categoriaLimpia, categoriaRaw);
-          }
-        });
-
-        this.categoriasList = Array.from(unicas.entries())
-          .map(([label, value]) => ({ label, value }))
-          .sort((a, b) => a.label.localeCompare(b.label, 'es'));
-      });
+    this.onAplicarFiltros(filtros);
   }
 
-  private cargarCategoriasTodasSinAplicarFiltros(): void {
-    const filtrosBase: DashboardFilters = {
+  onProveedorChange(proveedor: string): void {
+    const filtros: DashboardFilters = {
       ...this.filtrosActivos,
-      vendedor: this.esAdmin ? '' : this.filtrosActivos.vendedor,
-      fechaInicio: '',
-      fechaFin: '',
-      proveedor: '',
+      proveedor: String(proveedor ?? '').trim(),
       categoria: '',
       categoriaNombre: '',
       categorias: [],
       categoriaNombres: [],
-      ciudad: '',
-      ciudadNombre: '',
-      linea: '',
     };
 
-    const hoy = new Date();
-    const candidatos: DashboardFilters[] = [filtrosBase];
-
-    for (let i = 0; i <= 6; i += 1) {
-      candidatos.push({
-        ...filtrosBase,
-        fechaInicio: this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth() - i, 1)),
-        fechaFin: this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth() - i + 1, 0)),
-      });
-    }
-
-    const intentarCategorias = (idx: number): void => {
-      const filtrosConsulta = candidatos[idx];
-
-      const categorias$ = this.esAdmin
-        ? this.cumplimientoService.getCuotaCategoriasPorVendedores(filtrosConsulta)
-        : this.codigoVendedor
-          ? this.cumplimientoService.getCuotaCategoriaPorVendedor(
-              this.codigoVendedor,
-              filtrosConsulta,
-            )
-          : of({ detalle: [] });
-
-      categorias$
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((res: ApiTotalesResponse<ApiCategoriaRow>) => {
-          const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
-          const unicas = new Map<string, string>();
-
-          detalle.forEach((item) => {
-            const categoriaRaw = this.obtenerNombreCategoria(item);
-
-            if (!categoriaRaw) return;
-
-            const categoriaLimpia = this.limpiarNombreCategoria(categoriaRaw);
-            if (!categoriaLimpia) return;
-
-            if (!unicas.has(categoriaLimpia)) {
-              unicas.set(categoriaLimpia, categoriaRaw);
-            }
-          });
-
-          if (unicas.size === 0 && idx < candidatos.length - 1) {
-            intentarCategorias(idx + 1);
-            return;
-          }
-
-          this.categoriasList = Array.from(unicas.entries())
-            .map(([label, value]) => ({ label, value }))
-            .sort((a, b) => a.label.localeCompare(b.label, 'es'));
-        });
-    };
-
-    intentarCategorias(0);
+    this.onAplicarFiltros(filtros);
   }
 
   onAplicarFiltros(filtros: DashboardFilters): void {
     const rangoDefault = this.getDefaultDateRange();
-
     const fechaInicio = String(filtros.fechaInicio ?? '').trim() || rangoDefault.inicio;
     const fechaFin = String(filtros.fechaFin ?? '').trim() || rangoDefault.fin;
 
-    const proveedorRaw = String(filtros.proveedor ?? '').trim();
-    const ciudadRaw = String(filtros.ciudad ?? '').trim();
-    const lineaRaw = String(filtros.linea ?? '').trim();
-
-    const categoriasSeleccionadas = Array.isArray(filtros.categorias)
-      ? filtros.categorias.filter(Boolean)
-      : String(filtros.categoria ?? '').trim()
-        ? [String(filtros.categoria ?? '').trim()]
-        : [];
-
-    let ciudadVisible = ciudadRaw;
-
+    let ciudadVisible = String(filtros.ciudad ?? '').trim();
     if (this.esCiudadResumen(ciudadVisible)) {
       ciudadVisible = '';
     }
@@ -982,30 +836,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
       fechaInicio,
       fechaFin,
       vendedor: '',
-
       proveedor: '',
-      proveedorNombre: filtros.proveedorNombre ?? '',
-
-      // Si hay varias categorías, NO se manda categoria única.
-      // VentasComponent usará categorias[] para filtrar la tabla Por Categoría.
-      categoria: categoriasSeleccionadas.length === 1 ? categoriasSeleccionadas[0] : '',
-      categoriaNombre:
-        categoriasSeleccionadas.length === 1 ? (filtros.categoriaNombres?.[0] ?? '') : '',
-      categorias: categoriasSeleccionadas,
+      categoria: filtros.categoria || '',
+      categoriaNombre: filtros.categoriaNombre || '',
+      categorias: filtros.categorias ?? [],
       categoriaNombres: filtros.categoriaNombres ?? [],
-
       ciudad: '',
-      ciudadNombre: filtros.ciudadNombre ?? ciudadVisible ?? '',
-
-      linea: '',
+      ciudadNombre: ciudadVisible || '',
+      linea: filtros.linea || '',
     };
 
     if (filtros.vendedor) {
       filtrosConCodigos.vendedor = this.vendedorMap.get(filtros.vendedor) ?? filtros.vendedor;
     }
 
-    if (proveedorRaw) {
-      filtrosConCodigos.proveedor = this.proveedorMap.get(proveedorRaw) ?? proveedorRaw;
+    if (filtros.proveedor) {
+      filtrosConCodigos.proveedor = this.proveedorMap.get(filtros.proveedor) ?? filtros.proveedor;
     }
 
     if (ciudadVisible) {
@@ -1013,45 +859,34 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.ciudadMap.get(ciudadVisible) ?? this.ciudadMap.get(ciudadNormalizada) ?? ciudadVisible;
     }
 
-    if (lineaRaw) {
-      filtrosConCodigos.linea = this.lineaMap.get(lineaRaw) ?? lineaRaw;
+    if (filtros.linea) {
+      filtrosConCodigos.linea = this.lineaMap.get(filtros.linea) ?? filtros.linea;
     }
 
     this.filtrosActivos = { ...filtrosConCodigos };
 
-    // Refresca categorías según el proveedor seleccionado.
+    // Refresca catálogo de categorías para el rango/proveedor actual.
     this.cargarCategoriasFiltros();
 
     if (!this.esAdmin) {
-      // Mantiene completo el catálogo de ciudades: no recargar ciudad con proveedor/categoría aplicados.
-      this.cargarOpcionesVendedor({
-        ...this.filtrosActivos,
-        proveedor: '',
-        categoria: '',
-        categorias: [],
-        categoriaNombres: [],
-        ciudad: '',
-        ciudadNombre: '',
-        linea: '',
-      });
+      // El catálogo de ciudades debe mantenerse completo: no recargarlo filtrado por ciudad seleccionada.
+      this.cargarOpcionesVendedor({ ...this.filtrosActivos, ciudad: '', ciudadNombre: '' });
     }
 
-    // Auto-ajusta fechas si estamos en modo semanal o diaria.
+    // Auto-ajusta fechas si estamos en modo semanal o diaria
     if (this.rolId === 3 && this.tipoCuota !== 'mensual') {
       const newRange = this.adjustDateRangeForTipoCuota(
         this.tipoCuota,
         this.filtrosActivos.fechaInicio,
       );
-
-      this.filtrosActivos = {
-        ...this.filtrosActivos,
-        fechaInicio: newRange.inicio,
-        fechaFin: newRange.fin,
-      };
+      this.filtrosActivos.fechaInicio = newRange.inicio;
+      this.filtrosActivos.fechaFin = newRange.fin;
     }
 
     if (this.rolId === 3) {
       this.cargarTotalesVendedor();
+      // No llamar a ventasRef?.reloadView() aquí - el setter de @Input filtros
+      // dispara automáticamente solicitarCargaVista() cuando filtrosActivos cambia
     }
   }
 

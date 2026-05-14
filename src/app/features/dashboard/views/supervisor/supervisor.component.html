@@ -8,9 +8,7 @@
 @if (vista === 'asignados') {
   <section class="charts">
     <div class="chart-box dynamic-panel">
-      <h3>
-        Vendedores Asignados
-      </h3>
+      <h3>Vendedores Asignados</h3>
 
       <app-vendedores-table
         [esAdmin]="false"
@@ -31,7 +29,6 @@
       [filtros]="filtrosParaAnalisis"
       [tipoCuota]="tipoCuota"
       [modoAdmin]="true"
-    >
-    </app-ventas>
+    ></app-ventas>
   </section>
 }
