@@ -35,6 +35,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   @Input() set codigoVendedor(value: string) {
     this._codigoVendedor = this.normalizarCodigoVendedor(value);
+    console.debug('[Ventas][setter] codigoVendedor set =>', value, 'normalized=>', this._codigoVendedor, 'iniciado=>', this.iniciado, 'esModoAdminTodos=>', this.esModoAdminTodos());
     if ((value || this.esModoAdminTodos()) && this.iniciado) {
       this.solicitarCargaVista();
     }
@@ -46,6 +47,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   @Input() set modoAdmin(value: boolean) {
     this._modoAdmin = value;
+    console.debug('[Ventas][setter] modoAdmin set =>', value, 'iniciado=>', this.iniciado);
     if (this.iniciado) {
       this.solicitarCargaVista(true);
     }
@@ -70,6 +72,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   @Input() set filtros(value: DashboardFilters) {
     this._filtros = value;
+    console.debug('[Ventas][setter] filtros set =>', value, 'codigoVendedor=>', this._codigoVendedor, 'esModoAdminTodos=>', this.esModoAdminTodos(), 'iniciado=>', this.iniciado);
     if ((this._codigoVendedor || this.esModoAdminTodos()) && this.iniciado) {
       this.solicitarCargaVista();
     }
@@ -117,6 +120,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   totalTopClientes = 0;
   totalTopItemsSubtotal = 0;
   liderVentasProveedor = '—';
+  private categoriasPorId = new Map<string, string>();
 
   private readonly clientesPageSize = 30;
   private readonly productosPageSize = 25;
@@ -201,11 +205,12 @@ export class VentasComponent implements OnInit, OnDestroy {
   constructor() {
     const usuario = this.authService.getVendedor();
     this.rolId = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? 0);
-    this.activeVentasView = this.rolId === 3 ? 'proveedor' : 'vendedor';
+    this.activeVentasView = 'vendedor';
   }
 
   ngOnInit(): void {
     this.iniciado = true;
+    this.cargarMapaCategorias();
     // Hacer carga inicial si hay codigoVendedor O si estamos en modo admin visualizando "todos"
     if (this._codigoVendedor || this.esModoAdminTodos()) {
       this.solicitarCargaVista(true);
@@ -269,7 +274,11 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private solicitarCargaVista(force = false): void {
-    if ((!this._codigoVendedor && !this.esModoAdminTodos()) || !this.iniciado) return;
+    console.debug('[Ventas] solicitarCargaVista called', { codigoVendedor: this._codigoVendedor, esModoAdminTodos: this.esModoAdminTodos(), iniciado: this.iniciado, force });
+    if ((!this._codigoVendedor && !this.esModoAdminTodos()) || !this.iniciado) {
+      console.debug('[Ventas] solicitarCargaVista => omitted, condition not met', { codigoVendedor: this._codigoVendedor, esModoAdminTodos: this.esModoAdminTodos(), iniciado: this.iniciado });
+      return;
+    }
 
     this.cargaForzadaPendiente = this.cargaForzadaPendiente || force;
 
@@ -431,6 +440,141 @@ export class VentasComponent implements OnInit, OnDestroy {
               .subscribe((fallback: any) => {
                 const detalleFallback = Array.isArray(fallback?.detalle) ? fallback.detalle : [];
                 pintarCategoria(detalleFallback);
+              });
+          });
+        return;
+
+      case 'proveedor':
+        this.chartType = 'bar';
+        this.cumplimientoService
+          .getLineasAdmin(filtrosConsulta)
+          .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+          .subscribe((res: any) => {
+            const lineas = Array.isArray(res?.detallePorLinea) ? res.detallePorLinea : [];
+            
+            // Mapear campos del endpoint a formato de tabla
+            const detalleMapeado = lineas.map((item: any) => ({
+              ...item,
+              linea: item?.linea ?? item?.codigoLinea ?? item?.reporteProvConObs ?? 'Sin proveedor',
+              cuotaLinea: Number(item?.cuotaProveedorTotal ?? 0) || 0,
+              ventaAcum: Number(item?.ventaAcum ?? 0) || 0,
+              porcCump: Number(item?.porcCump ?? 0) || 0,
+              proyeccionVenta: Number(item?.proyeccionVenta ?? 0) || 0,
+              porcCumProy: Number(item?.porcCumProy ?? 0) || 0,
+            }));
+            
+            const filtrado = this.filtrarProveedores(detalleMapeado, filtrosConsulta.proveedor);
+            const ordenado = this.ordenarProveedoresPorAlfabeto(filtrado);
+
+            this.tableData = ordenado;
+            this.totalCuotaProveedor = ordenado.reduce(
+              (sum: number, item: any) => sum + (Number(item?.cuotaLinea ?? 0) || 0),
+              0,
+            );
+            this.totalAcumuladoProveedor = ordenado.reduce(
+              (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+              0,
+            );
+
+            const topProveedores = [...ordenado]
+              .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+              .slice(0, 12);
+
+            this.totalTopProveedores = topProveedores.reduce(
+              (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+              0,
+            );
+            this.liderVentasProveedor = topProveedores[0]?.linea ?? '—';
+
+            this.chartData = topProveedores.map((i: any) => ({
+              name: i.linea ?? 'Sin dato',
+              value: Number(i?.ventaAcum ?? 0),
+            }));
+            this.chartId = 'chart-proveedor-admin-' + Date.now();
+            this.cdr.markForCheck();
+          });
+        return;
+
+      case 'ciudad':
+        this.chartType = 'pie';
+        this.cumplimientoService
+          .getVendedores()
+          .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+          .subscribe((vendedores: any[]) => {
+            const codigos = (Array.isArray(vendedores) ? vendedores : [])
+              .map((v: any) =>
+                String(v?.codigo_vendedor ?? v?.codVendedor ?? v?.codigo ?? '').trim(),
+              )
+              .filter(Boolean);
+
+            if (!codigos.length) {
+              this.tableData = [];
+              this.chartData = [];
+              this.cdr.markForCheck();
+              return;
+            }
+
+            const calls = codigos.map((codigo) =>
+              this.esSemanal
+                ? this.semanaService.getCiudadesPorVendedor(codigo, filtrosConsulta)
+                : this.cumplimientoService.getCiudadesPorVendedor(codigo, filtrosConsulta),
+            );
+
+            forkJoin(calls)
+              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+              .subscribe((responses: any[]) => {
+                const ciudadesRaw = responses.flatMap((r: any) =>
+                  Array.isArray(r?.detallePorCiudad) ? r.detallePorCiudad : [],
+                );
+
+                const agg = new Map<string, any>();
+
+                for (const row of ciudadesRaw) {
+                  const ciudad = this.repararTextoCiudad(
+                    row?.ciudad ?? row?.nomCiudad ?? row?.nombreCiudad ?? '',
+                  );
+
+                  if (!ciudad || this.esCiudadResumen(ciudad)) continue;
+
+                  const cuota = this.obtenerCuotaNumero({
+                    ...row,
+                    cuota: row?.cuotaCiudadTotal ?? row?.cuota,
+                  });
+                  const ventaAcum = Number(row?.ventaAcum ?? 0) || 0;
+                  const proyeccionVenta = Number(row?.proyeccionVenta ?? 0) || 0;
+
+                  const actual = agg.get(ciudad) ?? {
+                    ciudad,
+                    cuota: 0,
+                    ventaAcum: 0,
+                    proyeccionVenta: 0,
+                  };
+
+                  actual.cuota += cuota;
+                  actual.ventaAcum += ventaAcum;
+                  actual.proyeccionVenta += proyeccionVenta;
+
+                  agg.set(ciudad, actual);
+                }
+
+                const consolidado = Array.from(agg.values()).map((item: any) => ({
+                  ...item,
+                  porcCump: item.cuota > 0 ? (item.ventaAcum / item.cuota) * 100 : 0,
+                  porcCumProy: item.cuota > 0 ? (item.proyeccionVenta / item.cuota) * 100 : 0,
+                }));
+
+                const filtrado = this.filtrarPorCiudadSeleccionada(consolidado);
+                const topCiudades = [...filtrado]
+                  .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+                  .slice(0, 12);
+
+                this.tableData = filtrado;
+                this.chartData = topCiudades.map((i: any) => ({
+                  name: this.repararTextoCiudad(i?.ciudad),
+                  value: Number(i?.ventaAcum ?? 0),
+                }));
+                this.chartId = 'chart-ciudad-admin-' + Date.now();
+                this.cdr.markForCheck();
               });
           });
         return;
@@ -1189,10 +1333,48 @@ export class VentasComponent implements OnInit, OnDestroy {
     return this.normalizarTexto(this.limpiarNombreCategoria(valor));
   }
 
+  private cargarMapaCategorias(): void {
+    this.cumplimientoService
+      .getCuotaCategoriasPorVendedores()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((res: any) => {
+        const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+        const mapa = new Map<string, string>();
+
+        for (const item of detalle) {
+          const id = String(item?.id_categoria ?? item?.idCategoria ?? item?.categoria_id ?? '').trim();
+          const nombre = this.repararTextoCiudad(
+            item?.categoria ?? item?.nomCategoria ?? item?.nombreCategoria ?? '',
+          ).trim();
+
+          if (id && nombre) {
+            mapa.set(id, nombre);
+          }
+        }
+
+        if (mapa.size === 0) return;
+
+        this.categoriasPorId = mapa;
+
+        if (this.iniciado && this.esModoAdminTodos() && this.activeVentasView === 'categoria') {
+          this.solicitarCargaVista(true);
+        }
+      });
+  }
+
   private obtenerNombreCategoria(item: any): string {
-    return this.limpiarNombreCategoria(
+    const nombreDirecto = this.limpiarNombreCategoria(
       item?.categoria ?? item?.nomCategoria ?? item?.nombreCategoria ?? '',
     );
+    if (nombreDirecto && !/^\d+$/u.test(nombreDirecto)) return nombreDirecto;
+
+    const idCategoria = String(
+      item?.id_categoria ?? item?.idCategoria ?? item?.categoria_id ?? nombreDirecto ?? '',
+    ).trim();
+
+    if (!idCategoria) return '';
+
+    return this.categoriasPorId.get(idCategoria) ?? `Categoría ${idCategoria}`;
   }
 
   private ordenarCategoriasPorAlfabeto(listado: any[]): any[] {
@@ -1279,13 +1461,54 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private filtrarProveedores(listado: any[], codigoProveedor: string): any[] {
-    const codigo = String(codigoProveedor ?? '').trim();
-    if (!codigo) return listado;
+    const filtroRaw = String(codigoProveedor ?? '').trim();
+    if (!filtroRaw) return listado;
+
+    const filtros = filtroRaw
+      .split(',')
+      .map((v) => String(v ?? '').trim())
+      .filter(Boolean)
+      .map((v) => ({
+        raw: v,
+        rawNorm: this.normalizarTexto(v),
+        code: (v.match(/^\d+/)?.[0] ?? v).trim(),
+      }));
+
+    if (!filtros.length) return listado;
 
     return listado.filter((item: any) => {
       const idProveedor = String(item?.idProveedor ?? '').trim();
       const codigoLinea = String(item?.codigoLinea ?? '').trim();
-      return idProveedor === codigo || codigoLinea === codigo;
+      const linea = String(item?.linea ?? '').trim();
+      const reporte = String(item?.reporteProvConObs ?? '').trim();
+
+      const codigoLineaCode = (codigoLinea.match(/^\d+/)?.[0] ?? '').trim();
+      const lineaCode = (linea.match(/^\d+/)?.[0] ?? '').trim();
+
+      const hayCoincidencia = filtros.some((f) => {
+        const fCode = f.code;
+
+        if (idProveedor && f.raw === idProveedor) return true;
+        if (codigoLinea && f.raw === codigoLinea) return true;
+        if (linea && f.raw === linea) return true;
+
+        if (fCode && codigoLineaCode && fCode === codigoLineaCode) return true;
+        if (fCode && lineaCode && fCode === lineaCode) return true;
+
+        const lineaNorm = this.normalizarTexto(linea);
+        const codigoLineaNorm = this.normalizarTexto(codigoLinea);
+        const reporteNorm = this.normalizarTexto(reporte);
+
+        if (f.rawNorm && (lineaNorm.includes(f.rawNorm) || codigoLineaNorm.includes(f.rawNorm))) {
+          return true;
+        }
+
+        if (f.rawNorm && reporteNorm.includes(f.rawNorm)) return true;
+
+        return false;
+      });
+
+      return hayCoincidencia;
     });
   }
 

@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject, forkJoin, of, takeUntil } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -42,8 +42,10 @@ interface ApiVendedorRow {
   codigo_vendedor?: string;
   codVendedor?: string;
   codigo?: string;
+  cod?: string;
   nombre?: string;
   nom_vendedor?: string;
+  nomVendedor?: string;
 }
 
 interface ApiLineaRow {
@@ -103,7 +105,7 @@ interface CumplimientoAdminDetalleRow {
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css'],
 })
-export class DashboardComponent implements OnInit, OnDestroy {
+export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   constructor(
     private route: ActivatedRoute,
     private authService: AuthService,
@@ -167,20 +169,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     this.rolId = Number(this.vendedor?.rol?.idRol ?? this.vendedor?.idRol ?? 0);
 
-    const { inicio, fin } = this.getDefaultDateRange();
-    this.filtrosActivos.fechaInicio = inicio;
-    this.filtrosActivos.fechaFin = fin;
-
-    this.cargarOpcionesFiltros();
-
-    if (this.rolId === 3) {
-      this.cargarTotalesVendedor();
-    }
+    this.resolverRangoInicialConDatos();
   }
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  ngAfterViewInit(): void {
+    // Asegura que la vista de ventas cargue cuando el ViewChild esté disponible
+    if (this.ventasRef && this.filtrosActivos && this.filtrosActivos.fechaInicio) {
+      // Ligeramente async para evitar ExpressionChangedAfterItHasBeenCheckedError
+      setTimeout(() => this.ventasRef?.reloadView(true), 0);
+    }
   }
 
   get esAdmin(): boolean {
@@ -241,6 +243,80 @@ export class DashboardComponent implements OnInit, OnDestroy {
       inicio: this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth(), 1)),
       fin: this.formatDate(new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0)),
     };
+  }
+
+  private getMonthRangeFromOffset(offsetMeses: number): { inicio: string; fin: string } {
+    const hoy = new Date();
+    const inicio = new Date(hoy.getFullYear(), hoy.getMonth() - offsetMeses, 1);
+    const fin = new Date(hoy.getFullYear(), hoy.getMonth() - offsetMeses + 1, 0);
+    return { inicio: this.formatDate(inicio), fin: this.formatDate(fin) };
+  }
+
+  private inicializarDashboardConRango(inicio: string, fin: string): void {
+    this.filtrosActivos = {
+      ...this.filtrosActivos,
+      fechaInicio: inicio,
+      fechaFin: fin,
+    };
+
+    this.cargarOpcionesFiltros();
+
+    // Forzar recarga de la vista de ventas tras inicializar filtros
+    // Pequeño delay para asegurar que otras inicializaciones async terminen
+    setTimeout(() => {
+      console.debug('[Dashboard] Forzando reloadView inicial tras inicializar filtros', this.filtrosActivos);
+      this.ventasRef?.reloadView(true);
+    }, 150);
+
+    if (this.rolId === 3) {
+      this.cargarTotalesVendedor();
+    }
+  }
+
+  private resolverRangoInicialConDatos(): void {
+    const candidatos = Array.from({ length: 7 }, (_, i) => this.getMonthRangeFromOffset(i));
+
+    const intentar = (idx: number): void => {
+      if (idx >= candidatos.length) {
+        const fallback = candidatos[0] ?? this.getDefaultDateRange();
+        this.inicializarDashboardConRango(fallback.inicio, fallback.fin);
+        return;
+      }
+
+      const rango = candidatos[idx];
+      const filtrosPrueba: DashboardFilters = {
+        ...this.filtrosActivos,
+        fechaInicio: rango.inicio,
+        fechaFin: rango.fin,
+      };
+
+      const consulta$ =
+        this.rolId === 3
+          ? this.cumplimientoService.getCumplimientoMesVendedor(filtrosPrueba)
+          : this.cumplimientoService.getCumplimientoMesAdmin(filtrosPrueba);
+
+      consulta$.pipe(takeUntil(this.destroy$)).subscribe({
+        next: (res: ApiTotalesResponse<DashboardTotalesVendedor>) => {
+          const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+          const hayRegistros = detalle.some(
+            (row: DashboardTotalesVendedor) =>
+              String((row as any)?.codVendedor ?? '').trim() !== 'TOTALES',
+          );
+
+          if (hayRegistros) {
+            this.inicializarDashboardConRango(rango.inicio, rango.fin);
+            return;
+          }
+
+          intentar(idx + 1);
+        },
+        error: () => {
+          intentar(idx + 1);
+        },
+      });
+    };
+
+    intentar(0);
   }
 
   private formatDate(date: Date): string {
@@ -354,8 +430,66 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private obtenerCodigoRow(vendedor: ApiVendedorRow): string {
     return this.normalizarCodigoVendedor(
-      vendedor.codigo_vendedor ?? vendedor.codVendedor ?? vendedor.codigo ?? '',
+      vendedor.codigo_vendedor ?? vendedor.codVendedor ?? vendedor.codigo ?? vendedor.cod ?? '',
     );
+  }
+
+  private obtenerNombreVendedorRow(vendedor: ApiVendedorRow): string {
+    return String(vendedor.nombre ?? vendedor.nom_vendedor ?? vendedor.nomVendedor ?? '').trim();
+  }
+
+  private construirOpcionesVendedores(vendedores: ApiVendedorRow[]): FilterOption[] {
+    const mapa = new Map<string, FilterOption>();
+
+    for (const item of Array.isArray(vendedores) ? vendedores : []) {
+      const codigo = this.obtenerCodigoRow(item);
+      const nombre = this.obtenerNombreVendedorRow(item);
+
+      if (!codigo || !nombre) continue;
+
+      mapa.set(codigo, {
+        label: `${codigo} - ${nombre}`,
+        value: codigo,
+      });
+    }
+
+    return Array.from(mapa.values()).sort((a, b) =>
+      a.label.localeCompare(b.label, 'es', {
+        sensitivity: 'base',
+        numeric: true,
+      }),
+    );
+  }
+
+  private aplicarOpcionesVendedores(opciones: FilterOption[]): void {
+    this.vendedorMap.clear();
+    this.vendedoresList = opciones;
+
+    this.vendedoresList.forEach((opt) => {
+      this.vendedorMap.set(opt.label, opt.value);
+      this.vendedorMap.set(opt.value, opt.value);
+    });
+  }
+
+  private cargarVendedoresFiltrosGlobal(): void {
+    this.cumplimientoService
+      .getVendedores()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((res: ApiVendedorRow[]) => {
+        const opciones = this.construirOpcionesVendedores(res);
+
+        if (opciones.length > 0) {
+          this.aplicarOpcionesVendedores(opciones);
+          return;
+        }
+
+        this.usuariosService
+          .listarDetalleVendedores()
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((fallback: ApiVendedorRow[]) => {
+            this.aplicarOpcionesVendedores(this.construirOpcionesVendedores(fallback));
+          });
+      });
   }
 
   private obtenerCiudadCodigo(item: ApiCiudadRow): string {
@@ -661,28 +795,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.proveedoresList = this.toFilterOptions(Array.from(unicos));
       });
 
+    if (this.esAdmin || this.esSupervisor) {
+      this.cargarVendedoresFiltrosGlobal();
+    }
+
     if (this.esAdmin) {
-      this.cumplimientoService
-        .getVendedores()
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((res: ApiVendedorRow[]) => {
-          this.vendedorMap.clear();
-          const etiquetas = new Set<string>();
-
-          res.forEach((item) => {
-            const codigo = this.obtenerCodigoRow(item);
-            const nombre = String(item.nombre ?? item.nom_vendedor ?? '').trim();
-
-            if (codigo && nombre) {
-              const etiqueta = `${String(codigo)} - ${String(nombre)}`;
-              this.vendedorMap.set(etiqueta, String(codigo));
-              etiquetas.add(etiqueta);
-            }
-          });
-
-          this.vendedoresList = this.toFilterOptions(Array.from(etiquetas));
-        });
-
       this.cargarCiudadesYLineasAdmin();
     }
 
@@ -695,7 +812,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     if (this.esSupervisor) {
       this.cargarCiudadesYLineasSupervisor();
-      this.cargarVendedoresSupervisor();
     }
   }
 
@@ -714,20 +830,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((vendedores: ApiVendedorRow[]) => {
         this.vendedorMap.clear();
-        const etiquetas = new Set<string>();
+        this.vendedoresList = this.construirOpcionesVendedores(vendedores);
 
-        vendedores.forEach((item) => {
-          const codigo = this.obtenerCodigoRow(item);
-          const nombre = String(item.nombre ?? item.nom_vendedor ?? '').trim();
-
-          if (codigo && nombre) {
-            const etiqueta = `${String(codigo)} - ${String(nombre)}`;
-            this.vendedorMap.set(etiqueta, String(codigo));
-            etiquetas.add(etiqueta);
-          }
+        this.vendedoresList.forEach((opt) => {
+          this.vendedorMap.set(opt.label, opt.value);
+          this.vendedorMap.set(opt.value, opt.value);
         });
-
-        this.vendedoresList = this.toFilterOptions(Array.from(etiquetas));
       });
   }
 
@@ -888,6 +996,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       // No llamar a ventasRef?.reloadView() aquí - el setter de @Input filtros
       // dispara automáticamente solicitarCargaVista() cuando filtrosActivos cambia
     }
+
+    // Forzar recarga de la vista de ventas después de aplicar los filtros
+    this.ventasRef?.reloadView(true);
   }
 
   private cargarTotalesVendedor(): void {
