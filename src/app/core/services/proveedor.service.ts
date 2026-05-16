@@ -48,19 +48,21 @@ export class ProveedorService {
     const codigo = String(codigoProveedor ?? '').trim();
     if (!codigo) return of([]);
 
-    return this.http
-      .get<ProveedorCategoriasResponse>(`${this.apiUrl}/${encodeURIComponent(codigo)}/categorias`)
-      .pipe(
-        map((res) => {
-          const categorias = Array.isArray(res?.categorias) ? res.categorias : [];
-          return categorias
-            .map((item) => String(item?.nombre ?? '').trim())
-            .filter(Boolean);
-        }),
-        catchError((err) => {
-          console.error('❌ [ProveedorService] Error cargando categorias por proveedor:', err);
-          return of([]);
-        }),
-      );
+    const urlSingular = `${this.apiUrl}/${encodeURIComponent(codigo)}/categorias`;
+    const urlPlural = `${this.apiUrl}/proveedores/${encodeURIComponent(codigo)}/categorias`;
+
+    return this.http.get<ProveedorCategoriasResponse>(urlSingular).pipe(
+      catchError(() => this.http.get<ProveedorCategoriasResponse>(urlPlural)),
+      map((res) => {
+        const categorias = Array.isArray(res?.categorias) ? res.categorias : [];
+        return categorias
+          .map((item) => String(item?.nombre ?? '').trim())
+          .filter(Boolean);
+      }),
+      catchError((err) => {
+        console.error('❌ [ProveedorService] Error cargando categorias por proveedor:', err);
+        return of([]);
+      }),
+    );
   }
 }

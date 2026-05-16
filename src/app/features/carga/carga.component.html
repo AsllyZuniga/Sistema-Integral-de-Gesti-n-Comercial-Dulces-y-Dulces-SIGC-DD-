@@ -7,7 +7,7 @@
         <button class="mobile-menu-btn" (click)="toggleMenuMovil()">
           <span class="material-symbols-rounded">menu</span>
         </button>
-        <h2 class="page-title">Carga de Ventas</h2>
+        <h2 class="page-title">Gestión de carga de ventas</h2>
       </div>
     </header>
 
@@ -18,6 +18,8 @@
           sistema.
         </p>
       </div>
+
+      
 
       <div class="upload-card">
         <div
@@ -161,6 +163,62 @@
           <span class="material-symbols-rounded">warning</span>
           Para archivos grandes (más de 100 MB) el proceso puede tardar varios minutos. No cierres
           la ventana mientras se procesa.
+        </div>
+      </div>
+      
+      <!-- Eliminar ventas por rango (tarjeta de diseño) -->
+      <div class="delete-range-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="material-symbols-rounded icon">delete_outline</span>
+            <div>
+              <div class="title">Eliminar ventas</div>
+              <div class="subtitle">Seleccione el período a eliminar</div>
+            </div>
+          </div>
+          <div class="card-action">
+            <button class="btn-delete main" (click)="openConfirmEliminar()" [disabled]="eliminando">
+              <span *ngIf="eliminando" class="spinner"></span>
+              <span class="material-symbols-rounded">delete</span>
+              Eliminar
+            </button>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <div class="date-row">
+            <label class="date-label">Fecha inicio</label>
+            <div class="date-input-wrapper">
+              <input type="date" [(ngModel)]="fechaInicio" />
+              <span class="material-symbols-rounded cal">calendar_today</span>
+            </div>
+
+            <label class="date-label">Fecha fin</label>
+            <div class="date-input-wrapper">
+              <input type="date" [(ngModel)]="fechaFin" />
+              <span class="material-symbols-rounded cal">calendar_today</span>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <button class="btn-preview" (click)="previewVentas()" [disabled]="cargandoPreview">
+              <span *ngIf="cargandoPreview" class="spinner"></span>
+              Previsualizar
+            </button>
+          </div>
+
+          @if (mensajeOperacion) {
+            <div class="message-banner" [class.success]="tipoOperacion === 'success'" [class.error]="tipoOperacion === 'error'">
+              {{ mensajeOperacion }}
+            </div>
+          }
+
+          @if (previewResult) {
+            <div class="preview-result">
+              <h4>Previsualización</h4>
+              <pre>{{ previewResult | json }}</pre>
+            </div>
+          }
         </div>
       </div>
     </div>

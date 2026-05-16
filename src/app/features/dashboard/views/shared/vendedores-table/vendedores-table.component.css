@@ -10,8 +10,46 @@
   font-weight: 600;
 }
 
+.admin-table tr.inactivo {
+  opacity: 0.9;
+  background: #f8fafc;
+}
+
+.estado-inline {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.estado-inline.inactivo {
+  color: #475569;
+  background: #e2e8f0;
+}
+
 .admin-table td.supervisor {
   min-width: 110px;
+}
+
+/* Center specific columns: Código, Supervisor, Acciones (keep Nombre left-aligned) */
+.admin-table th.col-cod,
+.admin-table td.cod,
+.admin-table th.col-supervisor,
+.admin-table td.supervisor,
+.admin-table th.col-acciones,
+.admin-table td.acciones {
+  text-align: center;
+}
+
+/* Nombre should remain left-aligned for readability */
+.admin-table th.col-nombre,
+.admin-table td.nombre {
+  text-align: left;
 }
 
 .admin-table td.supervisor.sin-asignar {
@@ -149,6 +187,74 @@
   animation: loading-spin 0.8s linear infinite;
   z-index: 6;
   pointer-events: none;
+}
+
+/* Action buttons group */
+.action-group {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-icon {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+  box-shadow: 0 2px 6px rgba(10, 20, 40, 0.06);
+}
+
+.btn-icon .material-symbols-rounded {
+  font-size: 18px;
+}
+
+.btn-icon:hover {
+  transform: translateY(-3px);
+}
+
+.btn-edit {
+  background: linear-gradient(180deg, #ffffff, #f3f4f6);
+  color: var(--c-primary-dark, #034ea2);
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+.btn-edit:hover {
+  box-shadow: 0 6px 14px rgba(3,78,162,0.12);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg,#ff7a7a,#ff4d4d);
+  color: #fff;
+}
+
+.btn-activate {
+  background: linear-gradient(135deg, #9ce28e, #4caf50);
+  color: #fff;
+}
+
+.btn-danger:hover {
+  box-shadow: 0 6px 18px rgba(255,77,77,0.18);
+}
+
+.btn-activate:hover {
+  box-shadow: 0 6px 18px rgba(76, 175, 80, 0.18);
+}
+
+.btn-asignar {
+  /* keep primary gradient but slightly smaller */
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.acciones .btn-icon:focus {
+  outline: 2px solid rgba(3,78,162,0.18);
+  outline-offset: 2px;
 }
 
 @keyframes loading-spin {

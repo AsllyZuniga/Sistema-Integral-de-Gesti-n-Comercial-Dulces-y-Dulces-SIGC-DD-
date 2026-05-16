@@ -25,11 +25,12 @@
       </div>
     </div>
 
-    @if (esAdmin) {
+    @if (mostrarFiltroVendedor) {
       <div class="filter-group">
         <label>Vendedor</label>
         <select
           [(ngModel)]="filtros.vendedor"
+          (ngModelChange)="onVendedorChange($event)"
           (focus)="onClickOtroFiltro()"
           (click)="onClickOtroFiltro()"
         >

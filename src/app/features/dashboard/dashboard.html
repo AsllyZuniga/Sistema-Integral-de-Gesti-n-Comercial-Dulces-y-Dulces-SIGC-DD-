@@ -26,25 +26,27 @@
       </div>
     </header>
 
+    <!-- Selector de tipo de cuota -->
     <div class="cuota-selector-row">
       <app-cuotas-cumplimiento
         [tipoCuota]="tipoCuota"
         (tipoCuotaChange)="onCambiarTipoCuota($event)"
-      >
-      </app-cuotas-cumplimiento>
+      ></app-cuotas-cumplimiento>
     </div>
 
+    <!-- Filtros -->
     <section class="filters">
       <app-filters
         [proveedores]="proveedoresList"
         [categorias]="categoriasList"
         [ciudades]="ciudadesList"
         [lineas]="lineasList"
-        [vendedores]="esAdmin ? vendedoresList : []"
+        [vendedores]="esAdmin || esSupervisor ? vendedoresList : []"
+        [mostrarFiltroVendedor]="esAdmin || esSupervisor"
         (apply)="onAplicarFiltros($event)"
-        (proveedorChange)="onProveedorFiltroChange($event)"
-      >
-      </app-filters>
+        (vendedorChange)="onVendedorChange($event)"
+        (proveedorChange)="onProveedorChange($event)"
+      ></app-filters>
     </section>
 
     @if (esAdmin) {
@@ -61,21 +63,18 @@
       ></app-supervisor-dashboard>
     }
 
+    <!-- VENDEDOR: gráficas y detalle -->
     @if (rolId === 3) {
       <section class="kpis">
         <app-card [title]="labelVentaAcum" [value]="totalesVendedor?.ventaAcum ?? 0"></app-card>
-
         <app-card
           [title]="labelCuota"
-          [value]="
-            tipoCuota === 'diaria'
-              ? (totalesVendedor?.cuotaDiaria ?? totalesVendedor?.cuotaMes ?? 0)
-              : tipoCuota === 'semanal'
-                ? (totalesVendedor?.cuotaSemana ?? totalesVendedor?.cuotaMes ?? 0)
-                : (totalesVendedor?.cuotaMes ?? 0)
-          "
+          [value]="tipoCuota === 'diaria'
+            ? (totalesVendedor?.cuotaDiaria ?? totalesVendedor?.cuotaMes ?? 0)
+            : tipoCuota === 'semanal'
+              ? (totalesVendedor?.cuotaSemana ?? totalesVendedor?.cuotaMes ?? 0)
+              : (totalesVendedor?.cuotaMes ?? 0)"
         ></app-card>
-
         <app-card title="Cumplimiento" [value]="totalesVendedor?.porcCump ?? 0"></app-card>
         <app-card title="Proyección" [value]="totalesVendedor?.proyeccionVenta ?? 0"></app-card>
       </section>
@@ -89,8 +88,7 @@
             [modoAdmin]="esAdmin"
             [filtros]="filtrosActivos"
             [tipoCuota]="tipoCuota"
-          >
-          </app-ventas>
+          ></app-ventas>
         }
       </section>
     }

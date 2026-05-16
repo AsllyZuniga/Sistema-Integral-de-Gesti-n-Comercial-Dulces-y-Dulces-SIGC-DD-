@@ -1,5 +1,6 @@
 import { Component, ViewChild, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpErrorResponse, HttpEventType } from '@angular/common/http';
 import { SidebarComponent } from '../../../shared/components/sidebar/sidebar.component';
 import { AuthService } from '../../../core/services/auth.service';
@@ -25,7 +26,7 @@ interface ImportVentasResponse {
 @Component({
   selector: 'app-carga',
   standalone: true,
-  imports: [CommonModule, SidebarComponent],
+  imports: [CommonModule, FormsModule, SidebarComponent],
   templateUrl: './carga.component.html',
   styleUrls: ['./carga.component.css'],
 })
@@ -52,8 +53,186 @@ export class CargaComponent implements OnDestroy {
   // mostrar/ocultar logs completos en UI
   showLogs = false;
 
+  // Fecha rango para acciones en ventas (ISO yyyy-MM-dd)
+  fechaInicio: string | null = null;
+  fechaFin: string | null = null;
+
+  // preview/delete state
+  cargandoPreview = false;
+  previewResult: any = null;
+  eliminando = false;
+  mensajeOperacion: string | null = null;
+  tipoOperacion: 'success' | 'error' | null = null;
+  // confirm modal
+  showConfirmModal = false;
+  confirmInput = '';
+
   get registrosExitosos(): number {
     return this.resultado?.exitosas ?? this.resultado?.registrosExitosos ?? 0;
+  }
+
+  get periodoSeleccionado(): string {
+    if (!this.fechaInicio || !this.fechaFin) return 'periodo no seleccionado';
+    return `${this.fechaInicio} - ${this.fechaFin}`;
+  }
+
+  onCambiarFechaEliminar(): void {
+    this.mensajeOperacion = null;
+    this.tipoOperacion = null;
+    this.previewResult = null;
+    this.cd.detectChanges();
+  }
+
+  previewVentas(): void {
+    const isoInicio = this.parseInputDateToIso(this.fechaInicio);
+    const isoFin = this.parseInputDateToIso(this.fechaFin);
+    if (!isoInicio || !isoFin) {
+      this.mensajeOperacion = 'Seleccione fecha inicio y fin para previsualizar (mm/dd/yyyy)';
+      this.tipoOperacion = 'error';
+      this.cd.detectChanges();
+      return;
+    }
+
+    this.cargandoPreview = true;
+    this.previewResult = null;
+    this.mensajeOperacion = null;
+    this.tipoOperacion = null;
+
+    const url = `${this.apiUrl}/admin/ventas/preview?fechaInicio=${isoInicio}&fechaFin=${isoFin}`;
+    this.http.get(url).subscribe({
+      next: (res) => {
+        this.previewResult = res;
+        this.cargandoPreview = false;
+        this.cd.detectChanges();
+      },
+      error: (err) => {
+        this.cargandoPreview = false;
+        this.mensajeOperacion = 'Error al obtener previsualización';
+        this.tipoOperacion = 'error';
+        this.cd.detectChanges();
+      },
+    });
+  }
+
+  eliminarVentas(): void {
+    // kept for compatibility, prefer using openConfirmEliminar()
+    this.openConfirmEliminar();
+  }
+
+  openConfirmEliminar(): void {
+    const fechaIsoInicio = this.parseInputDateToIso(this.fechaInicio);
+    const fechaIsoFin = this.parseInputDateToIso(this.fechaFin);
+
+    if (!fechaIsoInicio || !fechaIsoFin) {
+      this.mensajeOperacion = 'Seleccione fecha inicio y fin para eliminar ventas';
+      this.tipoOperacion = 'error';
+      this.cd.detectChanges();
+      return;
+    }
+
+    if (!this.esRangoFechasValido(fechaIsoInicio, fechaIsoFin)) {
+      this.mensajeOperacion = 'La fecha inicio no puede ser mayor que la fecha fin';
+      this.tipoOperacion = 'error';
+      this.cd.detectChanges();
+      return;
+    }
+
+    this.mensajeOperacion = null;
+    this.tipoOperacion = null;
+    this.previewResult = null;
+    this.confirmInput = '';
+    this.showConfirmModal = true;
+    this.cd.detectChanges();
+  }
+
+  closeConfirm(): void {
+    if (this.eliminando) return;
+
+    this.showConfirmModal = false;
+    this.confirmInput = '';
+    this.cd.detectChanges();
+  }
+
+  private parseInputDateToIso(val: string | null): string | null {
+    if (!val) return null;
+
+    const v = val.trim();
+
+    const mmddyyyy = /^(0?[1-9]|1[0-2])\/(0?[1-9]|[12][0-9]|3[01])\/(\d{4})$/;
+    const iso = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+    if (iso.test(v)) return v;
+
+    const m = mmddyyyy.exec(v);
+
+    if (m) {
+      const month = m[1].padStart(2, '0');
+      const day = m[2].padStart(2, '0');
+      const year = m[3];
+
+      return `${year}-${month}-${day}`;
+    }
+
+    return null;
+  }
+
+  private esRangoFechasValido(fechaInicio: string, fechaFin: string): boolean {
+    return fechaInicio <= fechaFin;
+  }
+
+  finalDelete(): void {
+    const fechaIsoInicio = this.parseInputDateToIso(this.fechaInicio);
+    const fechaIsoFin = this.parseInputDateToIso(this.fechaFin);
+
+    if (!fechaIsoInicio || !fechaIsoFin) {
+      this.showConfirmModal = false;
+      this.mensajeOperacion = 'Fechas inválidas. Use el formato mm/dd/yyyy';
+      this.tipoOperacion = 'error';
+      this.cd.detectChanges();
+      return;
+    }
+
+    if (!this.esRangoFechasValido(fechaIsoInicio, fechaIsoFin)) {
+      this.showConfirmModal = false;
+      this.mensajeOperacion = 'La fecha inicio no puede ser mayor que la fecha fin';
+      this.tipoOperacion = 'error';
+      this.cd.detectChanges();
+      return;
+    }
+
+    if (this.confirmInput !== 'ELIMINAR') {
+      return;
+    }
+
+    this.eliminando = true;
+    this.mensajeOperacion = null;
+    this.tipoOperacion = null;
+    this.cd.detectChanges();
+
+    const url = `${this.apiUrl}/admin/ventas?fechaInicio=${fechaIsoInicio}&fechaFin=${fechaIsoFin}`;
+
+    this.http.delete(url, { responseType: 'text' }).subscribe({
+      next: () => {
+        this.eliminando = false;
+        this.showConfirmModal = false;
+        this.confirmInput = '';
+        this.mensajeOperacion = `Ventas eliminadas correctamente para el ${this.periodoSeleccionado}`;
+        this.tipoOperacion = 'success';
+        this.cd.detectChanges();
+      },
+      error: (err) => {
+        this.eliminando = false;
+        this.showConfirmModal = false;
+        this.confirmInput = '';
+        this.mensajeOperacion =
+          err?.error?.mensaje ??
+          err?.error?.message ??
+          err?.message ??
+          'Error al eliminar ventas';
+        this.tipoOperacion = 'error';
+        this.cd.detectChanges();
+      },
+    });
   }
 
   get registrosConError(): number {

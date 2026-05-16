@@ -39,9 +39,11 @@ export class FiltersComponent implements OnChanges {
   @Input() ciudades: FilterOption[] = [];
   @Input() lineas: FilterOption[] = [];
   @Input() vendedores: FilterOption[] = [];
+  @Input() mostrarFiltroVendedor = true;
 
   @Output() apply = new EventEmitter<DashboardFilters>();
   @Output() proveedorChange = new EventEmitter<string>();
+  @Output() vendedorChange = new EventEmitter<string>();
 
   isFiltrosOpen = false;
   mostrarCategoriaDropdown = false;
@@ -259,8 +261,10 @@ export class FiltersComponent implements OnChanges {
       this.filtros.categorias.length === 1 ? this.filtros.categorias[0] : '';
   }
 
-  aplicar(): void {
-    this.isFiltrosOpen = false;
+  aplicar(closeFilters = true): void {
+    if (closeFilters) {
+      this.isFiltrosOpen = false;
+    }
     this.cerrarCategoriaDropdown();
 
     setTimeout(() => {
@@ -290,6 +294,14 @@ export class FiltersComponent implements OnChanges {
         ciudadNombre,
       });
     }, 0);
+  }
+
+  onVendedorChange(value: string): void {
+    this.filtros.vendedor = String(value ?? '').trim();
+    // Emitir un evento directo para permitir al padre reaccionar inmediatamente
+    this.vendedorChange.emit(this.filtros.vendedor);
+    // Aplicar filtros sin cerrar el panel para que el usuario pueda seguir ajustando
+    this.aplicar(false);
   }
 
   limpiar(): void {

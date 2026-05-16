@@ -6,38 +6,65 @@
     [class.table-scroll-wrap]="true">
     <table class="admin-table" [class.supervisor-table]="!esAdmin">
       <thead>
-        <tr>
-          <th data-col="codVendedor">Código</th>
-          <th data-col="nombre">Nombre</th>
-          <th data-col="cuotaMes">{{ labelCuota }}</th>
-          <th data-col="ventaAcum">{{ labelVentaAcum }}</th>
-          <th data-col="porcCump">Cumplimiento</th>
-          <th data-col="proyeccionVenta">Proyección</th>
+          <tr>
+          <th data-col="codVendedor" class="col-cod">Código</th>
+          <th data-col="nombre" class="col-nombre">Nombre</th>
+          @if (mostrarMetricas) {
+            <th data-col="cuotaMes">{{ labelCuota }}</th>
+            <th data-col="ventaAcum">{{ labelVentaAcum }}</th>
+            <th data-col="porcCump">Cumplimiento</th>
+            <th data-col="proyeccionVenta">Proyección</th>
+          }
           @if (esAdmin) {
-            <th>Supervisor</th>
-            <th>Acciones</th>
+            <th class="col-supervisor">Supervisor</th>
+            <th class="col-acciones">Acciones</th>
           }
         </tr>
       </thead>
       <tbody>
         @for (v of todosLosVendedores; track v.codVendedor; let i = $index) {
-          <tr [class.odd]="i % 2 === 1">
+          <tr [class.odd]="i % 2 === 1" [class.inactivo]="v.estado === false">
             <td class="cod">{{ v.codVendedor ?? '—' }}</td>
-            <td class="nombre">{{ v.nombre ?? '—' }}</td>
-            <td class="num">$ {{ montoCuota(v) | number: '1.0-0' }}</td>
-            <td class="num">$ {{ v.ventaAcum ?? 0 | number: '1.0-0' }}</td>
-            <td class="num porc" [class.verde]="(v.porcCump ?? 0) >= 100" [class.rojo]="(v.porcCump ?? 0) < 80">
-              {{ v.porcCump ?? 0 | number: '1.1-1' }} %
+            <td class="nombre">
+              <span>{{ v.nombre ?? '—' }}</span>
+              @if (v.estado === false) {
+                <span class="estado-inline inactivo">Inactivo</span>
+              }
             </td>
-            <td class="num">$ {{ v.proyeccionVenta ?? 0 | number: '1.0-0' }}</td>
+            @if (mostrarMetricas) {
+              <td class="num">$ {{ montoCuota(v) | number: '1.0-0' }}</td>
+              <td class="num">$ {{ v.ventaAcum ?? 0 | number: '1.0-0' }}</td>
+              <td class="num porc" [class.verde]="(v.porcCump ?? 0) >= 100" [class.rojo]="(v.porcCump ?? 0) < 80">
+                {{ v.porcCump ?? 0 | number: '1.1-1' }} %
+              </td>
+              <td class="num">$ {{ v.proyeccionVenta ?? 0 | number: '1.0-0' }}</td>
+            }
             @if (esAdmin) {
               <td class="supervisor" [class.sin-asignar]="!v.nombreSupervisor || v.nombreSupervisor === ''">
                 {{ v.nombreSupervisor && v.nombreSupervisor !== '' ? v.nombreSupervisor : 'Sin asignar' }}
               </td>
               <td class="acciones">
-                <button class="btn-asignar" (click)="onAsignar(v)" title="Asignar supervisor">
-                  <span class="material-symbols-rounded">person_add</span>
-                </button>
+                <div class="action-group" role="group" aria-label="Acciones vendedor">
+                  <button class="btn-icon btn-asignar" (click)="onAsignar(v)" title="Asignar supervisor" aria-label="Asignar supervisor">
+                    <span class="material-symbols-rounded">person_add</span>
+                  </button>
+
+                  <button class="btn-icon btn-edit" (click)="onEditar(v)" title="Editar vendedor" aria-label="Editar vendedor">
+                    <span class="material-symbols-rounded">edit</span>
+                  </button>
+
+                  <button
+                    class="btn-icon"
+                    [class.btn-danger]="v.estado !== false"
+                    [class.btn-activate]="v.estado === false"
+                    (click)="onDesactivar(v)"
+                    [title]="v.estado === false ? 'Activar vendedor' : 'Desactivar vendedor'"
+                    [attr.aria-label]="v.estado === false ? 'Activar vendedor' : 'Desactivar vendedor'">
+                    <span class="material-symbols-rounded">
+                      {{ v.estado === false ? 'check_circle' : 'block' }}
+                    </span>
+                  </button>
+                </div>
               </td>
             }
           </tr>
