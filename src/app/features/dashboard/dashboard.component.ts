@@ -717,34 +717,39 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       linea: '',
     };
 
+    this.ciudadMap.clear();
+    this.lineaMap.clear();
+
+    this.cumplimientoService
+      .getCiudadesGlobal(filtrosBase)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((res: any) => {
+        const ciudadesDetalle: ApiCiudadRow[] = Array.isArray(res?.detallePorCiudad)
+          ? res.detallePorCiudad
+          : [];
+
+        const ciudades = new Set<string>();
+        ciudadesDetalle.forEach((item) => {
+          this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), ciudades);
+        });
+
+        this.ciudadesList = this.toFilterOptions(Array.from(ciudades));
+      });
+
     this.cumplimientoService
       .getCumplimientoMesAdmin(filtrosBase)
       .pipe(takeUntil(this.destroy$))
       .subscribe((res: ApiTotalesResponse<CumplimientoAdminDetalleRow>) => {
         const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
-
-        this.ciudadMap.clear();
-        this.lineaMap.clear();
-
-        const ciudades = new Set<string>();
         const lineas = new Set<string>();
 
         detalle.forEach((row) => {
-          const ciudad = this.repararTextoCiudad(
-            row?.ciudad ?? row?.nomCiudad ?? row?.nombreCiudad ?? '',
-          );
           const linea = String(row?.linea ?? row?.nomLinea ?? row?.nombreLinea ?? '').trim();
-
-          if (ciudad && !this.esCiudadResumen(ciudad)) {
-            ciudades.add(ciudad);
-          }
-
           if (linea) {
             lineas.add(linea);
           }
         });
 
-        this.ciudadesList = this.toFilterOptions(Array.from(ciudades));
         this.lineasList = this.toFilterOptions(Array.from(lineas));
       });
   }
@@ -842,7 +847,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   private cargarCategoriasFiltros(): void {
     const filtrosBase: DashboardFilters = {
       ...this.filtrosActivos,
-      vendedor: this.esAdmin ? '' : this.filtrosActivos.vendedor,
+      vendedor: this.filtrosActivos.vendedor,
+      proveedor: this.filtrosActivos.proveedor,
       fechaInicio: '',
       fechaFin: '',
       categoria: '',
@@ -864,14 +870,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
     const intentarCategorias = (idx: number): void => {
       const filtrosConsulta = candidatos[idx];
-      const categorias$ = this.esAdmin
-        ? this.cumplimientoService.getCuotaCategoriasPorVendedores(filtrosConsulta)
-        : this.codigoVendedor
-          ? this.cumplimientoService.getCuotaCategoriaPorVendedor(
-              this.codigoVendedor,
-              filtrosConsulta,
-            )
-          : of({ detalle: [] });
+      // Usar getCuotaCategoriaGeneral para obtener todas las categorías con filtros (vendedor, proveedor, fecha)
+      const categorias$ = this.cumplimientoService.getCuotaCategoriaGeneral(filtrosConsulta);
 
       categorias$
         .pipe(takeUntil(this.destroy$))

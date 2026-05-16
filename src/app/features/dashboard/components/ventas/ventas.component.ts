@@ -33,6 +33,8 @@ export class VentasComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
 
+  private readonly activeViewStorageKey = 'sigc-dd.dashboard.ventas.activeView';
+
   @Input() set codigoVendedor(value: string) {
     this._codigoVendedor = this.normalizarCodigoVendedor(value);
     console.debug('[Ventas][setter] codigoVendedor set =>', value, 'normalized=>', this._codigoVendedor, 'iniciado=>', this.iniciado, 'esModoAdminTodos=>', this.esModoAdminTodos());
@@ -119,6 +121,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   totalAcumuladoProveedor = 0;
   totalTopClientes = 0;
   totalTopItemsSubtotal = 0;
+  totalTopCiudades = 0;
   liderVentasProveedor = '—';
   private categoriasPorId = new Map<string, string>();
 
@@ -205,7 +208,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   constructor() {
     const usuario = this.authService.getVendedor();
     this.rolId = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? 0);
-    this.activeVentasView = 'vendedor';
+    this.activeVentasView = this.cargarVistaActivaGuardada();
   }
 
   ngOnInit(): void {
@@ -246,6 +249,7 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.totalAcumuladoProveedor = 0;
     this.totalTopClientes = 0;
     this.totalTopItemsSubtotal = 0;
+    this.totalTopCiudades = 0;
     this.liderVentasProveedor = '—';
     this.clientesVisibles = this.clientesPageSize;
     this.chartId = 'chart-' + this.activeVentasView + '-' + Date.now();
@@ -255,7 +259,31 @@ export class VentasComponent implements OnInit, OnDestroy {
   setVentasView(view: string): void {
     if (this.activeVentasView === view) return;
     this.activeVentasView = view;
+    this.guardarVistaActiva(view);
     this.solicitarCargaVista(true);
+  }
+
+  private cargarVistaActivaGuardada(): string {
+    const vistasValidas = new Set(this.todasLasVistas.map((vista) => vista.key));
+
+    try {
+      const vista = window.localStorage.getItem(this.activeViewStorageKey) ?? '';
+      if (vistasValidas.has(vista)) {
+        return vista;
+      }
+    } catch {
+      // Ignore storage access issues and fall back to the default view.
+    }
+
+    return this.rolId === 1 || this.rolId === 2 ? 'proveedor' : 'ventas';
+  }
+
+  private guardarVistaActiva(view: string): void {
+    try {
+      window.localStorage.setItem(this.activeViewStorageKey, view);
+    } catch {
+      // Ignore storage access issues.
+    }
   }
 
   private debugLog(contexto: string, detalle: string): void {
@@ -381,9 +409,14 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private cargarVistaAdminTodos(filtrosConsulta: DashboardFilters): void {
+    const filtrosAdmin =
+      this.activeVentasView === 'ciudad'
+        ? { ...filtrosConsulta, vendedor: '' }
+        : filtrosConsulta;
+
     const admin$ = this.esSemanal
-      ? this.semanaService.getCumplimientoSemanaAdmin(filtrosConsulta)
-      : this.cumplimientoService.getCumplimientoMesAdmin(filtrosConsulta);
+      ? this.semanaService.getCumplimientoSemanaAdmin(filtrosAdmin)
+      : this.cumplimientoService.getCumplimientoMesAdmin(filtrosAdmin);
 
     switch (this.activeVentasView) {
       case 'categoria':
@@ -498,84 +531,62 @@ export class VentasComponent implements OnInit, OnDestroy {
       case 'ciudad':
         this.chartType = 'pie';
         this.cumplimientoService
-          .getVendedores()
+          .getCiudadesGlobal(filtrosConsulta)
           .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-          .subscribe((vendedores: any[]) => {
-            const codigos = (Array.isArray(vendedores) ? vendedores : [])
-              .map((v: any) =>
-                String(v?.codigo_vendedor ?? v?.codVendedor ?? v?.codigo ?? '').trim(),
-              )
-              .filter(Boolean);
+          .subscribe((res: any) => {
+            const ciudadesRaw = Array.isArray(res?.detallePorCiudad) ? res.detallePorCiudad : [];
 
-            if (!codigos.length) {
+            if (!ciudadesRaw.length) {
               this.tableData = [];
               this.chartData = [];
               this.cdr.markForCheck();
               return;
             }
 
-            const calls = codigos.map((codigo) =>
-              this.esSemanal
-                ? this.semanaService.getCiudadesPorVendedor(codigo, filtrosConsulta)
-                : this.cumplimientoService.getCiudadesPorVendedor(codigo, filtrosConsulta),
-            );
-
-            forkJoin(calls)
-              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-              .subscribe((responses: any[]) => {
-                const ciudadesRaw = responses.flatMap((r: any) =>
-                  Array.isArray(r?.detallePorCiudad) ? r.detallePorCiudad : [],
+            const consolidado = ciudadesRaw
+              .map((row: any) => {
+                const ciudad = this.repararTextoCiudad(
+                  row?.ciudad ?? row?.nomCiudad ?? row?.nombreCiudad ?? '',
                 );
+                const cuota =
+                  Number(row?.cuotaCiudad ?? row?.cuotaCiudadTotal ?? row?.cuota ?? 0) || 0;
+                const ventaAcum = Number(row?.ventaAcum ?? 0) || 0;
+                const proyeccionVenta = Number(row?.proyeccionVenta ?? 0) || 0;
 
-                const agg = new Map<string, any>();
+                return {
+                  ciudad,
+                  cuota,
+                  ventaAcum,
+                  proyeccionVenta,
+                  porcCump:
+                    Number(row?.porcCumpCiudad ?? row?.porcCump ?? 0) ||
+                    (cuota > 0 ? (ventaAcum / cuota) * 100 : 0),
+                  porcCumProy:
+                    Number(row?.porcCumProyGlobal ?? row?.porcCumProy ?? 0) ||
+                    (cuota > 0 ? (proyeccionVenta / cuota) * 100 : 0),
+                };
+              })
+              .filter((item: any) => item?.ciudad && !this.esCiudadResumen(item?.ciudad));
 
-                for (const row of ciudadesRaw) {
-                  const ciudad = this.repararTextoCiudad(
-                    row?.ciudad ?? row?.nomCiudad ?? row?.nombreCiudad ?? '',
-                  );
+            const filtrado = this.filtrarPorCiudadSeleccionada(consolidado);
+            const ordenado = [...filtrado].sort((a: any, b: any) =>
+              this.repararTextoCiudad(a?.ciudad).localeCompare(this.repararTextoCiudad(b?.ciudad), 'es'),
+            );
+            const topCiudades = [...filtrado]
+              .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+              .slice(0, 15);
 
-                  if (!ciudad || this.esCiudadResumen(ciudad)) continue;
-
-                  const cuota = this.obtenerCuotaNumero({
-                    ...row,
-                    cuota: row?.cuotaCiudadTotal ?? row?.cuota,
-                  });
-                  const ventaAcum = Number(row?.ventaAcum ?? 0) || 0;
-                  const proyeccionVenta = Number(row?.proyeccionVenta ?? 0) || 0;
-
-                  const actual = agg.get(ciudad) ?? {
-                    ciudad,
-                    cuota: 0,
-                    ventaAcum: 0,
-                    proyeccionVenta: 0,
-                  };
-
-                  actual.cuota += cuota;
-                  actual.ventaAcum += ventaAcum;
-                  actual.proyeccionVenta += proyeccionVenta;
-
-                  agg.set(ciudad, actual);
-                }
-
-                const consolidado = Array.from(agg.values()).map((item: any) => ({
-                  ...item,
-                  porcCump: item.cuota > 0 ? (item.ventaAcum / item.cuota) * 100 : 0,
-                  porcCumProy: item.cuota > 0 ? (item.proyeccionVenta / item.cuota) * 100 : 0,
-                }));
-
-                const filtrado = this.filtrarPorCiudadSeleccionada(consolidado);
-                const topCiudades = [...filtrado]
-                  .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
-                  .slice(0, 12);
-
-                this.tableData = filtrado;
-                this.chartData = topCiudades.map((i: any) => ({
-                  name: this.repararTextoCiudad(i?.ciudad),
-                  value: Number(i?.ventaAcum ?? 0),
-                }));
-                this.chartId = 'chart-ciudad-admin-' + Date.now();
-                this.cdr.markForCheck();
-              });
+            this.tableData = ordenado;
+            this.totalTopCiudades = topCiudades.reduce(
+              (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+              0,
+            );
+            this.chartData = topCiudades.map((i: any) => ({
+              name: this.repararTextoCiudad(i?.ciudad),
+              value: Number(i?.ventaAcum ?? 0),
+            }));
+            this.chartId = 'chart-ciudad-admin-' + Date.now();
+            this.cdr.markForCheck();
           });
         return;
 
@@ -823,11 +834,21 @@ export class VentasComponent implements OnInit, OnDestroy {
                 }),
               );
               const filtrado = this.filtrarPorCiudadSeleccionada(agrupado);
+              const ordenado = [...filtrado].sort((a: any, b: any) =>
+                this.repararTextoCiudad(a?.ciudad).localeCompare(
+                  this.repararTextoCiudad(b?.ciudad),
+                  'es',
+                ),
+              );
               const topCiudades = [...filtrado]
                 .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
-                .slice(0, 12);
+                .slice(0, 15);
 
-              this.tableData = filtrado;
+              this.tableData = ordenado;
+              this.totalTopCiudades = topCiudades.reduce(
+                (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+                0,
+              );
               this.chartData = topCiudades.map((i: any) => ({
                 name: this.repararTextoCiudad(i.ciudad),
                 value: i.ventaAcum,
@@ -1254,6 +1275,10 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   get totalTopItemsSubtotalLabel(): string {
     return this.formatearMoneda(this.totalTopItemsSubtotal);
+  }
+
+  get totalTopCiudadesLabel(): string {
+    return this.formatearMoneda(this.totalTopCiudades);
   }
 
   get totalTopProveedoresCompactoLabel(): string {
@@ -1994,10 +2019,20 @@ export class VentasComponent implements OnInit, OnDestroy {
                   ...i,
                   ciudad: this.repararTextoCiudad(i.ciudad),
                 }));
-                const topCiudades = [...listadoFiltrado]
+                const ordenadoCiudades = [...listadoMapeado].sort((a: any, b: any) =>
+                  this.repararTextoCiudad(a?.ciudad).localeCompare(
+                    this.repararTextoCiudad(b?.ciudad),
+                    'es',
+                  ),
+                );
+                const topCiudades = [...listadoMapeado]
                   .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
-                  .slice(0, 12);
-                this.tableData = listadoMapeado;
+                  .slice(0, 15);
+                this.tableData = ordenadoCiudades;
+                this.totalTopCiudades = topCiudades.reduce(
+                  (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+                  0,
+                );
                 this.chartData = topCiudades.map((i: any) => ({
                   name: this.repararTextoCiudad(i.ciudad),
                   value: i.ventaAcum,

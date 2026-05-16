@@ -141,8 +141,14 @@
 
           @if (chartData.length > 0) {
             <div class="grafica-container">
-              <h4>Por Ciudad</h4>
-              <app-chart [chartId]="chartId" [data]="chartData" [type]="chartType" label="Por Ciudad" />
+              <div class="proveedor-kpis">
+                <article class="proveedor-kpi-card">
+                  <span class="proveedor-kpi-label">Suma top 15</span>
+                  <strong class="proveedor-kpi-value">{{ totalTopCiudadesLabel }}</strong>
+                </article>
+              </div>
+              <h4>Top 15 Ciudades por Acumulado</h4>
+              <app-chart [chartId]="chartId" [data]="chartData" [type]="chartType" label="Top 15 Ciudades" />
             </div>
           }
         </div>

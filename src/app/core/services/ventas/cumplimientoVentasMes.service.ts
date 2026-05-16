@@ -139,6 +139,21 @@ export class CumplimientoService {
       );
   }
 
+  getCiudadesGlobal(filtros?: DashboardFilters): Observable<any> {
+    let params = this.buildParams(filtros);
+    if (params.has('vendedor')) params = params.delete('vendedor');
+
+    return this.http.get<any>(`${this.apiUrl}/mes/cumplimiento/ciudades-global`, { params }).pipe(
+      map((res) => ({
+        ...(res ?? {}),
+        periodo: res?.periodo ?? {},
+        resumen: res?.resumen ?? {},
+        detallePorCiudad: Array.isArray(res?.detallePorCiudad) ? res.detallePorCiudad : [],
+      })),
+      catchError(() => of({ periodo: {}, resumen: {}, detallePorCiudad: [] })),
+    );
+  }
+
   getDetallePorCiudad(
     codigoVendedor: string,
     codigoCiudad: string,
