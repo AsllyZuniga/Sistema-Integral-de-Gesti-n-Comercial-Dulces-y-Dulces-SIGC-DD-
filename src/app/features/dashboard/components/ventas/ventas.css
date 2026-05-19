@@ -252,6 +252,35 @@
   box-shadow: 0 1px 0 rgba(15, 31, 58, 0.03);
 }
 
+.vendedor-card {
+  border-color: #b9c9dd;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+}
+
+.vendedor-head {
+  background: linear-gradient(180deg, #fbfdff 0%, #f3f8fe 100%);
+}
+
+.vendedor-avatar {
+  color: #0f4d86;
+  background: #dcecff;
+}
+
+.vendedor-body {
+  padding-top: 8px;
+}
+
+.vendedor-clientes-listado {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cliente-card-nested {
+  border-color: #e4eaf2;
+  background: #fbfdff;
+}
+
 .cliente-head {
   width: 100%;
   border: none;

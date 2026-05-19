@@ -129,6 +129,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   tipoCuota: TipoCuota = 'mensual';
   rolId = 0;
   activeAnalisisView: 'ventas' | 'impactos' = 'ventas';
+  activeSupervisorView: 'asignados' | 'analisis' = 'asignados';
 
   private proveedorMap: Map<string, string> = new Map();
   private ciudadMap: Map<string, string> = new Map();
@@ -154,7 +155,9 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   ngOnInit(): void {
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       const vista = String(params.get('vista') ?? 'ventas').toLowerCase();
+      const seccion = String(params.get('seccion') ?? 'asignados').toLowerCase();
       this.activeAnalisisView = vista === 'impactos' ? 'impactos' : 'ventas';
+      this.activeSupervisorView = seccion === 'analisis' ? 'analisis' : 'asignados';
     });
 
     this.vendedor = this.authService.getVendedor();
@@ -800,8 +803,10 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         this.proveedoresList = this.toFilterOptions(Array.from(unicos));
       });
 
-    if (this.esAdmin || this.esSupervisor) {
+    if (this.esAdmin) {
       this.cargarVendedoresFiltrosGlobal();
+    } else if (this.esSupervisor) {
+      this.cargarVendedoresSupervisor();
     }
 
     if (this.esAdmin) {
