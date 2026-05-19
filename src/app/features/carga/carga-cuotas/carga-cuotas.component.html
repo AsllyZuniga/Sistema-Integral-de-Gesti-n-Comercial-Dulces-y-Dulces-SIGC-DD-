@@ -9,12 +9,14 @@
         </button>
         <img class="topbar-logo" src="logoDulces.png" alt="Logo" />
       </div>
+
       <div class="topbar-center">
         <h1>
           <span class="accent">Carga de Cuotas</span>
         </h1>
         <span class="welcome">Sistema de Control de Ventas · Dulces y Dulces</span>
       </div>
+
       <div class="topbar-right">
         <button class="logout-btn" (click)="logout()">
           <span class="material-symbols-rounded">logout</span>
@@ -31,9 +33,308 @@
         </p>
       </div>
 
+      <!-- PRIMERO LAS CARGAS -->
       <app-cuota-vendedor-upload></app-cuota-vendedor-upload>
       <app-cuota-proveedor-upload></app-cuota-proveedor-upload>
       <app-cuota-categoria-upload></app-cuota-categoria-upload>
+
+      <!-- AL FINAL: ELIMINAR CUOTA PROVEEDOR / LÍNEA -->
+      <div class="delete-range-card proveedor-delete-card">
+        <div class="delete-header">
+          <div class="delete-title">
+            <div class="delete-icon-box">
+              <span class="material-symbols-rounded">delete_outline</span>
+            </div>
+
+            <div>
+              <h3>Eliminar cuotas proveedor / línea</h3>
+              <p>Seleccione el período de cuotas proveedor/línea a eliminar</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="delete-body">
+          <div class="delete-form-row">
+            <div class="delete-date-group">
+              <label>
+                <span class="material-symbols-rounded">calendar_month</span>
+                Fecha inicio
+              </label>
+
+              <div class="delete-date-input">
+                <input
+                  type="date"
+                  [(ngModel)]="fechaInicioCuotaProveedor"
+                  (ngModelChange)="onCambiarFechaEliminarCuotaProveedor()"
+                />
+              </div>
+            </div>
+
+            <div class="delete-date-group">
+              <label>
+                <span class="material-symbols-rounded">calendar_month</span>
+                Fecha fin
+              </label>
+
+              <div class="delete-date-input">
+                <input
+                  type="date"
+                  [(ngModel)]="fechaFinCuotaProveedor"
+                  (ngModelChange)="onCambiarFechaEliminarCuotaProveedor()"
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              class="btn-delete-range"
+              (click)="openConfirmEliminarCuotaProveedor()"
+              [disabled]="eliminandoCuotaProveedor"
+            >
+              @if (eliminandoCuotaProveedor) {
+                <span class="spinner delete-spinner"></span>
+              } @else {
+                <span class="material-symbols-rounded">delete</span>
+              }
+              Eliminar
+            </button>
+          </div>
+
+          @if (mensajeOperacionCuotaProveedor) {
+            <div
+              class="delete-message"
+              [class.success]="tipoOperacionCuotaProveedor === 'success'"
+              [class.error]="tipoOperacionCuotaProveedor === 'error'"
+            >
+              <span class="material-symbols-rounded">
+                {{ tipoOperacionCuotaProveedor === 'success' ? 'check_circle' : 'error_outline' }}
+              </span>
+              {{ mensajeOperacionCuotaProveedor }}
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- AL FINAL: ELIMINAR CUOTA CATEGORÍA -->
+      <div class="delete-range-card categoria-delete-card">
+        <div class="delete-header">
+          <div class="delete-title">
+            <div class="delete-icon-box">
+              <span class="material-symbols-rounded">delete_outline</span>
+            </div>
+
+            <div>
+              <h3>Eliminar cuotas por categoría</h3>
+              <p>Seleccione el período de cuotas por categoría a eliminar</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="delete-body">
+          <div class="delete-form-row">
+            <div class="delete-date-group">
+              <label>
+                <span class="material-symbols-rounded">calendar_month</span>
+                Fecha inicio
+              </label>
+
+              <div class="delete-date-input">
+                <input
+                  type="date"
+                  [(ngModel)]="fechaInicioCuotaCategoria"
+                  (ngModelChange)="onCambiarFechaEliminarCuotaCategoria()"
+                />
+              </div>
+            </div>
+
+            <div class="delete-date-group">
+              <label>
+                <span class="material-symbols-rounded">calendar_month</span>
+                Fecha fin
+              </label>
+
+              <div class="delete-date-input">
+                <input
+                  type="date"
+                  [(ngModel)]="fechaFinCuotaCategoria"
+                  (ngModelChange)="onCambiarFechaEliminarCuotaCategoria()"
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              class="btn-delete-range"
+              (click)="openConfirmEliminarCuotaCategoria()"
+              [disabled]="eliminandoCuotaCategoria"
+            >
+              @if (eliminandoCuotaCategoria) {
+                <span class="spinner delete-spinner"></span>
+              } @else {
+                <span class="material-symbols-rounded">delete</span>
+              }
+              Eliminar
+            </button>
+          </div>
+
+          @if (mensajeOperacionCuotaCategoria) {
+            <div
+              class="delete-message"
+              [class.success]="tipoOperacionCuotaCategoria === 'success'"
+              [class.error]="tipoOperacionCuotaCategoria === 'error'"
+            >
+              <span class="material-symbols-rounded">
+                {{ tipoOperacionCuotaCategoria === 'success' ? 'check_circle' : 'error_outline' }}
+              </span>
+              {{ mensajeOperacionCuotaCategoria }}
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- MODAL CONFIRMAR PROVEEDOR / LÍNEA -->
+      @if (showConfirmCuotaProveedorModal) {
+        <div class="modal-backdrop">
+          <div class="delete-confirm-modal">
+            <div class="confirm-header">
+              <div class="confirm-icon">
+                <span class="material-symbols-rounded">warning</span>
+              </div>
+
+              <div>
+                <h3>Confirmar eliminación</h3>
+                <p>Esta acción no se puede deshacer.</p>
+              </div>
+            </div>
+
+            <div class="confirm-body">
+              <p>
+                ¿Está seguro de eliminar las cuotas de proveedor/línea del
+                <strong>{{ periodoCuotaProveedorSeleccionado }}</strong
+                >?
+              </p>
+
+              <div class="confirm-range">
+                <span>
+                  <strong>Inicio:</strong>
+                  {{ fechaInicioCuotaProveedor }}
+                </span>
+                <span>
+                  <strong>Fin:</strong>
+                  {{ fechaFinCuotaProveedor }}
+                </span>
+              </div>
+
+              <p class="confirm-warning">Para confirmar, escriba <strong>ELIMINAR</strong>.</p>
+
+              <input
+                type="text"
+                [(ngModel)]="confirmInputCuotaProveedor"
+                placeholder="ELIMINAR"
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="confirm-actions">
+              <button
+                type="button"
+                class="btn-cancel-delete"
+                (click)="closeConfirmCuotaProveedor()"
+                [disabled]="eliminandoCuotaProveedor"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                class="btn-confirm-delete"
+                (click)="finalDeleteCuotaProveedor()"
+                [disabled]="confirmInputCuotaProveedor !== 'ELIMINAR' || eliminandoCuotaProveedor"
+              >
+                @if (eliminandoCuotaProveedor) {
+                  <span class="spinner"></span>
+                  Eliminando...
+                } @else {
+                  <span class="material-symbols-rounded">delete</span>
+                  Confirmar eliminación
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- MODAL CONFIRMAR CATEGORÍA -->
+      @if (showConfirmCuotaCategoriaModal) {
+        <div class="modal-backdrop">
+          <div class="delete-confirm-modal">
+            <div class="confirm-header">
+              <div class="confirm-icon">
+                <span class="material-symbols-rounded">warning</span>
+              </div>
+
+              <div>
+                <h3>Confirmar eliminación</h3>
+                <p>Esta acción no se puede deshacer.</p>
+              </div>
+            </div>
+
+            <div class="confirm-body">
+              <p>
+                ¿Está seguro de eliminar las cuotas por categoría del
+                <strong>{{ periodoCuotaCategoriaSeleccionado }}</strong
+                >?
+              </p>
+
+              <div class="confirm-range">
+                <span>
+                  <strong>Inicio:</strong>
+                  {{ fechaInicioCuotaCategoria }}
+                </span>
+                <span>
+                  <strong>Fin:</strong>
+                  {{ fechaFinCuotaCategoria }}
+                </span>
+              </div>
+
+              <p class="confirm-warning">Para confirmar, escriba <strong>ELIMINAR</strong>.</p>
+
+              <input
+                type="text"
+                [(ngModel)]="confirmInputCuotaCategoria"
+                placeholder="ELIMINAR"
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="confirm-actions">
+              <button
+                type="button"
+                class="btn-cancel-delete"
+                (click)="closeConfirmCuotaCategoria()"
+                [disabled]="eliminandoCuotaCategoria"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                class="btn-confirm-delete"
+                (click)="finalDeleteCuotaCategoria()"
+                [disabled]="confirmInputCuotaCategoria !== 'ELIMINAR' || eliminandoCuotaCategoria"
+              >
+                @if (eliminandoCuotaCategoria) {
+                  <span class="spinner"></span>
+                  Eliminando...
+                } @else {
+                  <span class="material-symbols-rounded">delete</span>
+                  Confirmar eliminación
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   </div>
 </div>
