@@ -554,6 +554,52 @@ export class VentasComponent implements OnInit, OnDestroy {
       }));
   }
 
+
+  private pintarVistaVendedor(
+    detalleVendedores: any[],
+    filtrosConsulta: DashboardFilters,
+    chartPrefix = 'chart-vendedor',
+  ): void {
+    this.chartType = 'bar';
+
+    const codigoVendedorFiltro = String(filtrosConsulta.vendedor ?? '').trim();
+    const vendedoresFiltrados = codigoVendedorFiltro
+      ? this.filtrarVendedores(detalleVendedores, codigoVendedorFiltro)
+      : detalleVendedores;
+
+    const vendedoresValidos = vendedoresFiltrados.filter(
+      (v: any) => String(v?.codVendedor ?? v?.codigo_vendedor ?? '').trim() !== 'TOTALES',
+    );
+
+    this.tableData = [...vendedoresValidos].sort((a: any, b: any) => {
+      const nombreA = String(a?.nombre ?? a?.codVendedor ?? '').trim();
+      const nombreB = String(b?.nombre ?? b?.codVendedor ?? '').trim();
+      return nombreA.localeCompare(nombreB, 'es', { sensitivity: 'base', numeric: true });
+    });
+
+    const topVendedores = [...vendedoresValidos]
+      .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+      .slice(0, 15);
+
+    this.totalTopVendedores = topVendedores.reduce(
+      (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+      0,
+    );
+
+    this.chartData = topVendedores.map((v: any) => {
+      const codigo = String(v?.codVendedor ?? '').trim();
+      const nombre = String(v?.nombre ?? '').trim();
+
+      return {
+        name: nombre || codigo || 'Vendedor',
+        value: Number(v?.ventaAcum ?? 0) || 0,
+      };
+    });
+
+    this.chartId = `${chartPrefix}-${Date.now()}`;
+    this.cdr.markForCheck();
+  }
+
   private agruparAdminPorCampo(detalle: any[], campo: string, campoSalida: string): any[] {
     const agg = new Map<string, any>();
 
@@ -1147,17 +1193,16 @@ export class VentasComponent implements OnInit, OnDestroy {
                 0,
               );
 
-              this.chartData =
-                this.activeVentasView === 'ventas'
-                  ? [
-                      { name: 'Venta', value: venta },
-                      { name: 'Cuota', value: cuota },
-                      { name: 'Proyección', value: proyeccion },
-                    ]
-                  : vendedoresFiltrados.map((v: any) => ({
-                      name: v?.nombre || v?.codVendedor || 'Vendedor',
-                      value: Number(v?.ventaAcum ?? 0),
-                    }));
+              if (this.activeVentasView === 'ventas') {
+                this.chartData = [
+                  { name: 'Venta', value: venta },
+                  { name: 'Cuota', value: cuota },
+                  { name: 'Proyección', value: proyeccion },
+                ];
+              } else {
+                this.pintarVistaVendedor(vendedoresFiltrados, filtrosConsulta, 'chart-vendedor-admin');
+                return;
+              }
               break;
             }
 
@@ -1180,7 +1225,6 @@ export class VentasComponent implements OnInit, OnDestroy {
                 (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
                 0,
               );
-              this.totalTopVendedores = this.totalTopProveedores;
               this.liderVentasProveedor = this.nombreProveedorCard(topProveedores[0]?.linea ?? '—');
               this.tableData = ordenado;
               this.totalCuotaProveedor = this.tableData.reduce(
@@ -2261,6 +2305,41 @@ export class VentasComponent implements OnInit, OnDestroy {
     const codigoCiudad = String(filtrosConsulta.ciudad ?? '').trim();
 
     switch (this.activeVentasView) {
+      case 'vendedor': {
+        this.chartType = 'bar';
+
+        const cargarDesdeAdmin = this.rolId === 1 || this.rolId === 2 || this.tieneCodigosVendedoresPermitidos();
+
+        if (cargarDesdeAdmin) {
+          const admin$ = this.esSemanal
+            ? this.semanaService.getCumplimientoSemanaAdmin(filtrosConsulta)
+            : this.cumplimientoService.getCumplimientoMesAdmin(filtrosConsulta);
+
+          admin$
+            .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+            .subscribe((res: any) => {
+              const detalle = this.filtrarPorCodigosVendedoresPermitidos(
+                this.mapearDetalleAdminAVendedores(res?.detalle ?? []),
+              );
+
+              this.pintarVistaVendedor(detalle, filtrosConsulta, 'chart-vendedor');
+            });
+          break;
+        }
+
+        const vendedor$ = this.esSemanal
+          ? this.semanaService.getCumplimientoSemanaVendedor(filtrosConsulta)
+          : this.cumplimientoService.getCumplimientoPorCodigo(this._codigoVendedor, filtrosConsulta);
+
+        vendedor$
+          .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+          .subscribe((res: any) => {
+            const detalle = this.mapearDetalleAdminAVendedores(res?.detalle ?? []);
+            this.pintarVistaVendedor(detalle, filtrosConsulta, 'chart-vendedor');
+          });
+        break;
+      }
+
       case 'ventas':
         this.chartType = 'line';
 
@@ -2387,7 +2466,6 @@ export class VentasComponent implements OnInit, OnDestroy {
                   (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
                   0,
                 );
-                this.totalTopVendedores = this.totalTopProveedores;
                 this.liderVentasProveedor = this.nombreProveedorCard(
                   topProveedores[0]?.linea ?? '—',
                 );
