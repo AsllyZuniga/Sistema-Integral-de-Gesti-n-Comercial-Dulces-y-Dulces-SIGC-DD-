@@ -270,7 +270,10 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     // Forzar recarga de la vista de ventas tras inicializar filtros
     // Pequeño delay para asegurar que otras inicializaciones async terminen
     setTimeout(() => {
-      console.debug('[Dashboard] Forzando reloadView inicial tras inicializar filtros', this.filtrosActivos);
+      console.debug(
+        '[Dashboard] Forzando reloadView inicial tras inicializar filtros',
+        this.filtrosActivos,
+      );
       this.ventasRef?.reloadView(true);
     }, 150);
 

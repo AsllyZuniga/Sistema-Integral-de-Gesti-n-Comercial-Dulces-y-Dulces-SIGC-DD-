@@ -60,6 +60,18 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
   private _modoAdmin = false;
 
+  @Input() set vendedoresDetalle(value: any[] | null | undefined) {
+    this._vendedoresDetalle = Array.isArray(value) ? value : [];
+
+    if (this.iniciado && this.esModoAdminTodos() && this.activeVentasView === 'cliente') {
+      this.solicitarCargaVista(true);
+    }
+  }
+  get vendedoresDetalle(): any[] {
+    return this._vendedoresDetalle;
+  }
+  private _vendedoresDetalle: any[] = [];
+
   @Input() set codigosVendedores(value: string[] | null | undefined) {
     const normalizados = Array.from(
       new Set(
@@ -1003,96 +1015,7 @@ export class VentasComponent implements OnInit, OnDestroy {
         this.chartType = 'bar';
 
         if (this.activeVentasView === 'cliente') {
-          this.cumplimientoService
-            .getProductosPorClienteGeneral(filtrosConsulta)
-            .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-            .subscribe((res: any) => {
-              const listadoGeneral = this.filtrarPorCodigosVendedoresPermitidos(
-                Array.isArray(res?.data) ? res.data : [],
-              );
-              if (listadoGeneral.length > 0) {
-                const detalleClientes = this.esAgrupacionPorVendedor()
-                  ? this.construirDetalleClientesPorVendedor(listadoGeneral)
-                  : this.construirDetalleClientes(listadoGeneral);
-                const topClientes = [...detalleClientes]
-                  .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
-                  .slice(0, 15);
-
-                this.totalTopClientes = topClientes.reduce(
-                  (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
-                  0,
-                );
-
-                this.clientesAgrupados = detalleClientes;
-                this.clientesVisibles = this.clientesPageSize;
-                this.actualizarClientesVista();
-                this.tableData = detalleClientes;
-                this.chartData = topClientes.map((i: any) => ({
-                  name: this.esAgrupacionPorVendedor() ? i.vendedor : i.cliente,
-                  value: i.ventaAcum,
-                }));
-                this.cargandoClientes = false;
-                this.cdr.markForCheck();
-                return;
-              }
-
-              this.cumplimientoService
-                .getVendedores()
-                .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-                .subscribe((vendedores: any[]) => {
-                  const codigos = this.filtrarCodigosPermitidos(
-                    (Array.isArray(vendedores) ? vendedores : [])
-                    .map((v: any) =>
-                      String(v?.codigo_vendedor ?? v?.codVendedor ?? v?.codigo ?? '').trim(),
-                    )
-                    .filter(Boolean),
-                  );
-
-                  if (!codigos.length) {
-                    this.tableData = [];
-                    this.chartData = [];
-                    this.cdr.markForCheck();
-                    return;
-                  }
-
-                  const calls = codigos.map((codigo) =>
-                    this.cumplimientoService.getProductosPorCliente(codigo, filtrosConsulta),
-                  );
-
-                  forkJoin(calls)
-                    .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-                    .subscribe((responses: any[]) => {
-                      const listado = responses.flatMap((r: any) =>
-                        Array.isArray(r?.data) ? r.data : [],
-                      );
-                      const detalleClientes = this.esAgrupacionPorVendedor()
-                        ? this.construirDetalleClientesPorVendedor(listado)
-                        : this.construirDetalleClientes(listado);
-                      const topClientes = [...detalleClientes]
-                        .sort(
-                          (a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0),
-                        )
-                        .slice(0, 15);
-
-                      this.totalTopClientes = topClientes.reduce(
-                        (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
-                        0,
-                      );
-
-                      this.clientesAgrupados = detalleClientes;
-                      this.clientesVisibles = this.clientesPageSize;
-                      this.actualizarClientesVista();
-                      this.tableData = detalleClientes;
-                      this.chartData = topClientes.map((i: any) => ({
-                        name: this.esAgrupacionPorVendedor() ? i.vendedor : i.cliente,
-                        value: i.ventaAcum,
-                      }));
-                      this.cargandoClientes = false;
-                      this.cdr.markForCheck();
-                    });
-                });
-            });
-
+          this.cargarDetalleClientesAdministrador(filtrosConsulta);
           return;
         }
 
@@ -1102,10 +1025,10 @@ export class VentasComponent implements OnInit, OnDestroy {
           .subscribe((vendedores: any[]) => {
             const codigos = this.filtrarCodigosPermitidos(
               (Array.isArray(vendedores) ? vendedores : [])
-              .map((v: any) =>
-                String(v?.codigo_vendedor ?? v?.codVendedor ?? v?.codigo ?? '').trim(),
-              )
-              .filter(Boolean),
+                .map((v: any) =>
+                  String(v?.codigo_vendedor ?? v?.codVendedor ?? v?.codigo ?? '').trim(),
+                )
+                .filter(Boolean),
             );
 
             if (!codigos.length) {
@@ -1116,48 +1039,19 @@ export class VentasComponent implements OnInit, OnDestroy {
             }
 
             const calls = codigos.map((codigo) =>
-              this.activeVentasView === 'item'
-                ? this.cumplimientoService.getProductosPorVendedor(codigo, filtrosConsulta)
-                : this.cumplimientoService.getProductosPorCliente(codigo, filtrosConsulta),
+              this.cumplimientoService.getProductosPorVendedor(codigo, filtrosConsulta),
             );
 
             forkJoin(calls)
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((responses: any[]) => {
-                if (this.activeVentasView === 'item') {
-                  const listado = responses.flatMap((r: any) =>
-                    Array.isArray(r?.data) ? r.data : [],
-                  );
-                  const listadoOrdenado = this.ordenarDetalleItemsPorFechaAsc(listado);
-                  this.allItemData = listadoOrdenado;
-                  this.tableData = [...listadoOrdenado];
-                  this.recalcularChart();
-                  return;
-                }
-
                 const listado = responses.flatMap((r: any) =>
                   Array.isArray(r?.data) ? r.data : [],
                 );
-                const detalleClientes = this.construirDetalleClientes(listado);
-                const topClientes = [...detalleClientes]
-                  .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
-                  .slice(0, 15);
-
-                this.totalTopClientes = topClientes.reduce(
-                  (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
-                  0,
-                );
-
-                this.clientesAgrupados = detalleClientes;
-                this.clientesVisibles = this.clientesPageSize;
-                this.actualizarClientesVista();
-                this.tableData = detalleClientes;
-                this.chartData = topClientes.map((i: any) => ({
-                  name: i.cliente,
-                  value: i.ventaAcum,
-                }));
-                this.cargandoClientes = false;
-                this.cdr.markForCheck();
+                const listadoOrdenado = this.ordenarDetalleItemsPorFechaAsc(listado);
+                this.allItemData = listadoOrdenado;
+                this.tableData = [...listadoOrdenado];
+                this.recalcularChart();
               });
           });
         return;
@@ -1594,12 +1488,25 @@ export class VentasComponent implements OnInit, OnDestroy {
     }));
   }
 
+  private extraerCodigoDesdeTexto(valor: unknown): string {
+    const raw = String(valor ?? '').trim();
+    if (!raw) return '';
+
+    const match = raw.match(/^\s*(\d+)/);
+    if (match?.[1]) {
+      return this.normalizarCodigoVendedor(match[1]);
+    }
+
+    return this.normalizarCodigoVendedor(raw);
+  }
+
   private obtenerCodigoVendedorDetalle(row: any): string {
     return this.normalizarCodigoVendedor(
       row?.codVendedor ??
         row?.codigo_vendedor ??
         row?.codigoVendedor ??
         row?.vendedor_codigo ??
+        row?.cod_vendedor ??
         row?.codigo ??
         '',
     );
@@ -1607,16 +1514,15 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   private obtenerNombreVendedorDetalle(row: any): string {
     const nombre =
-      row?.vendedor ??
       row?.nombreVendedor ??
+      row?.vendedor ??
       row?.nomVendedor ??
       row?.nombre_vendedor ??
       row?.nom_vendedor ??
       row?.vendedorNombre ??
-      row?.nombre ??
       '';
 
-    return this.repararTextoCiudad(String(nombre).trim()) || 'Sin vendedor';
+    return this.repararTextoCiudad(String(nombre).trim());
   }
 
   private construirDetalleClientesPorVendedor(rows: any[]): any[] {
@@ -1634,35 +1540,37 @@ export class VentasComponent implements OnInit, OnDestroy {
       }
     >();
 
-    for (const row of rows) {
+    for (const row of Array.isArray(rows) ? rows : []) {
       const codVendedor = this.obtenerCodigoVendedorDetalle(row);
-      const vendedor = this.obtenerNombreVendedorDetalle(row);
+      const nombreVendedor = this.obtenerNombreVendedorDetalle(row);
+
+      if (!codVendedor && !nombreVendedor) continue;
+
+      const vendedor = nombreVendedor || `Vendedor ${codVendedor}`;
       const key = codVendedor || vendedor;
-      if (!key) continue;
 
-      const actual = grupos.get(key) ?? {
-        key,
-        codVendedor,
-        vendedor,
-        iniciales: this.obtenerInicialesCliente(vendedor),
-        cantidadClientes: 0,
-        ventaAcum: 0,
-        expandido: false,
-        clientes: [],
-      };
-
-      actual.codVendedor = actual.codVendedor || codVendedor;
-      actual.vendedor = actual.vendedor || vendedor;
-      grupos.set(key, actual);
+      if (!grupos.has(key)) {
+        grupos.set(key, {
+          key,
+          codVendedor,
+          vendedor,
+          iniciales: this.obtenerInicialesCliente(vendedor),
+          cantidadClientes: 0,
+          ventaAcum: 0,
+          expandido: false,
+          clientes: [],
+        });
+      }
     }
 
     for (const [key, grupo] of grupos.entries()) {
-      const filasGrupo = rows.filter((row) => {
+      const filasGrupo = rows.filter((row: any) => {
         const codigo = this.obtenerCodigoVendedorDetalle(row);
         const nombre = this.obtenerNombreVendedorDetalle(row);
+
         return (
           (grupo.codVendedor && codigo === grupo.codVendedor) ||
-          nombre === grupo.vendedor ||
+          (!grupo.codVendedor && nombre === grupo.vendedor) ||
           key === (codigo || nombre)
         );
       });
@@ -1676,12 +1584,396 @@ export class VentasComponent implements OnInit, OnDestroy {
       );
     }
 
-    return Array.from(grupos.values()).sort((a, b) =>
-      String(a?.vendedor ?? '').localeCompare(String(b?.vendedor ?? ''), 'es', {
-        sensitivity: 'base',
-        numeric: true,
-      }),
+    return Array.from(grupos.values())
+      .filter((grupo) => grupo.cantidadClientes > 0)
+      .sort((a, b) =>
+        String(a?.vendedor ?? '').localeCompare(String(b?.vendedor ?? ''), 'es', {
+          sensitivity: 'base',
+          numeric: true,
+        }),
+      );
+  }
+
+  private limpiarDetalleClientesAdmin(): void {
+    this.clientesAgrupados = [];
+    this.clientesVista = [];
+    this.totalClientesFiltrados = 0;
+    this.tableData = [];
+    this.chartData = [];
+    this.totalTopClientes = 0;
+    this.cargandoClientes = false;
+    this.cdr.markForCheck();
+  }
+
+  private obtenerCodigoVendedorCatalogo(vendedor: any): string {
+    return this.normalizarCodigoVendedor(
+      vendedor?.codVendedor ??
+        vendedor?.codigo_vendedor ??
+        vendedor?.codigoVendedor ??
+        vendedor?.codigo ??
+        vendedor?.cod ??
+        '',
     );
+  }
+
+  private obtenerNombreVendedorCatalogo(vendedor: any): string {
+    return this.repararTextoCiudad(
+      String(
+        vendedor?.nombre ??
+          vendedor?.nom_vendedor ??
+          vendedor?.nomVendedor ??
+          vendedor?.nombreVendedor ??
+          vendedor?.vendedor ??
+          '',
+      ).trim(),
+    );
+  }
+
+  private enriquecerDetalleConVendedor(row: any, vendedor: any): any {
+    const codVendedor = this.obtenerCodigoVendedorCatalogo(vendedor);
+    const nombreVendedor = this.obtenerNombreVendedorCatalogo(vendedor);
+
+    return {
+      ...row,
+      codVendedor:
+        row?.codVendedor ??
+        row?.codigo_vendedor ??
+        row?.codigoVendedor ??
+        row?.vendedor_codigo ??
+        codVendedor,
+      codigo_vendedor:
+        row?.codigo_vendedor ??
+        row?.codVendedor ??
+        row?.codigoVendedor ??
+        row?.vendedor_codigo ??
+        codVendedor,
+      codigoVendedor:
+        row?.codigoVendedor ??
+        row?.codVendedor ??
+        row?.codigo_vendedor ??
+        row?.vendedor_codigo ??
+        codVendedor,
+      vendedor:
+        row?.vendedor ??
+        row?.nombreVendedor ??
+        row?.nomVendedor ??
+        row?.nombre_vendedor ??
+        nombreVendedor,
+      nombreVendedor:
+        row?.nombreVendedor ??
+        row?.vendedor ??
+        row?.nomVendedor ??
+        row?.nombre_vendedor ??
+        nombreVendedor,
+      nomVendedor:
+        row?.nomVendedor ??
+        row?.nombreVendedor ??
+        row?.vendedor ??
+        nombreVendedor,
+    };
+  }
+
+  private pintarDetalleClientesAdmin(listado: any[]): void {
+    const detallePorVendedor = this.construirDetalleClientesPorVendedor(listado);
+
+    const topVendedores = [...detallePorVendedor]
+      .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+      .slice(0, 15);
+
+    this.totalTopClientes = topVendedores.reduce(
+      (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+      0,
+    );
+
+    this.clientesAgrupados = detallePorVendedor;
+    this.clientesVisibles = this.clientesPageSize;
+    this.actualizarClientesVista();
+    this.tableData = detallePorVendedor;
+    this.chartData = topVendedores.map((vendedor: any) => ({
+      name: vendedor.vendedor || vendedor.codVendedor || 'Vendedor',
+      value: Number(vendedor?.ventaAcum ?? 0) || 0,
+    }));
+
+    this.chartId = 'chart-clientes-admin-' + Date.now();
+    this.cargandoClientes = false;
+    this.cdr.markForCheck();
+  }
+
+  private obtenerVendedoresDesdeEndpointConItems(res: any): any[] {
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res?.vendedores)) return res.vendedores;
+    if (Array.isArray(res?.data)) return res.data;
+    if (Array.isArray(res?.data?.vendedores)) return res.data.vendedores;
+    if (Array.isArray(res?.detalle)) return res.detalle;
+    return [];
+  }
+
+  private normalizarSubtotalItemEndpoint(item: any): number {
+    const valor =
+      item?.subtotal_producto ??
+      item?.subtotalProducto ??
+      item?.Subtotal ??
+      item?.subtotal ??
+      item?.valorTotal ??
+      item?.total ??
+      0;
+
+    const num = Number(valor);
+    return Number.isFinite(num) ? num : 0;
+  }
+
+  private normalizarCantidadItemEndpoint(item: any): number {
+    const valor =
+      item?.cantidadTotal ??
+      item?.cantidad_total ??
+      item?.cantidad ??
+      item?.Cantidad ??
+      item?.veces ??
+      0;
+
+    const num = Number(valor);
+    return Number.isFinite(num) ? num : 0;
+  }
+
+  private obtenerTotalComprasClienteEndpoint(cliente: any): number {
+    const valor =
+      cliente?.totalCompras ??
+      cliente?.total_compras ??
+      cliente?.ventaAcum ??
+      cliente?.subtotal_total ??
+      cliente?.subtotal ??
+      cliente?.total ??
+      0;
+
+    const num = Number(valor);
+    return Number.isFinite(num) ? num : 0;
+  }
+
+  private vendedorCoincideConFiltro(vendedor: any, vendedorFiltro: string): boolean {
+    if (!vendedorFiltro) return true;
+
+    const valores = [
+      vendedor?.codVendedor,
+      vendedor?.codigo_vendedor,
+      vendedor?.codigoVendedor,
+      vendedor?.codigo,
+      vendedor?.cod,
+      vendedor?.id_vendedor,
+      vendedor?.idVendedor,
+      vendedor?.id,
+    ]
+      .map((valor) => this.normalizarCodigoVendedor(valor))
+      .filter(Boolean);
+
+    const filtroNormalizado = this.normalizarCodigoVendedor(vendedorFiltro);
+    const filtroSinCeros = filtroNormalizado.replace(/^0+/, '') || filtroNormalizado;
+
+    return valores.some((valor) => {
+      const valorSinCeros = valor.replace(/^0+/, '') || valor;
+      return valor === filtroNormalizado || valorSinCeros === filtroSinCeros;
+    });
+  }
+
+  private mapearVendedoresConItemsComprados(res: any, filtrosConsulta: DashboardFilters): any[] {
+    const vendedorFiltro = this.extraerCodigoDesdeTexto(filtrosConsulta?.vendedor);
+    const vendedoresRaw = this.obtenerVendedoresDesdeEndpointConItems(res);
+
+    const vendedores = vendedoresRaw
+      .filter((vendedor: any) => this.vendedorCoincideConFiltro(vendedor, vendedorFiltro))
+      .filter((vendedor: any) => {
+        if (!this.tieneCodigosVendedoresPermitidos()) return true;
+
+        const codigo = this.obtenerCodigoVendedorCatalogo(vendedor);
+        const id = this.normalizarCodigoVendedor(vendedor?.id_vendedor ?? vendedor?.idVendedor ?? vendedor?.id);
+
+        return (
+          (codigo && this._codigosVendedoresPermitidos.includes(codigo)) ||
+          (id && this._codigosVendedoresPermitidos.includes(id))
+        );
+      });
+
+    return vendedores
+      .map((vendedor: any) => {
+        const codVendedor = this.obtenerCodigoVendedorCatalogo(vendedor);
+        const idVendedor = this.normalizarCodigoVendedor(
+          vendedor?.id_vendedor ?? vendedor?.idVendedor ?? vendedor?.id ?? '',
+        );
+        const codigoMostrar = codVendedor || idVendedor;
+        const nombreVendedor = this.obtenerNombreVendedorCatalogo(vendedor) || `Vendedor ${codigoMostrar}`;
+        const clientesRaw = Array.isArray(vendedor?.clientes) ? vendedor.clientes : [];
+
+        const clientes = clientesRaw
+          .map((cliente: any) => {
+            const itemsRaw = Array.isArray(cliente?.items) ? cliente.items : [];
+            const clienteNombre = this.repararTextoCiudad(
+              String(
+                cliente?.razon_social ??
+                  cliente?.cliente ??
+                  cliente?.nombreCliente ??
+                  cliente?.nombre ??
+                  '',
+              ).trim(),
+            );
+
+            if (!clienteNombre) return null;
+
+            const key = String(
+              cliente?.id_cliente ??
+                cliente?.idCliente ??
+                cliente?.nro_documento ??
+                cliente?.documento ??
+                clienteNombre,
+            ).trim();
+
+            const productos = itemsRaw.map((item: any) => {
+              const cantidad = this.normalizarCantidadItemEndpoint(item);
+              const subtotal = this.normalizarSubtotalItemEndpoint(item);
+
+              return {
+                id_item: String(item?.codigo_item ?? item?.codigoItem ?? item?.id_item ?? item?.idItem ?? '').trim() || '—',
+                fecha: String(item?.fecha ?? item?.ultima_venta ?? item?.ultimaVenta ?? '—'),
+                numero_documento: String(cliente?.nro_documento ?? cliente?.numero_documento ?? cliente?.documento ?? '—'),
+                producto: this.repararTextoCiudad(
+                  String(item?.descripcion ?? item?.producto ?? item?.Descripcion ?? 'Sin descripción').trim(),
+                ),
+                cantidad,
+                precio: Number(item?.precio_promedio_ponderado ?? item?.precioPromedioPonderado ?? item?.precio_unitario ?? 0) || 0,
+                subtotal,
+                precio_unitario: Number(item?.precio_promedio_ponderado ?? item?.precioPromedioPonderado ?? item?.precio_unitario ?? 0) || 0,
+                subtotal_producto: subtotal,
+              };
+            });
+
+            const cantidadTotal = productos.reduce(
+              (sum: number, item: any) => sum + (Number(item?.cantidad ?? 0) || 0),
+              0,
+            );
+            const subtotalProductos = productos.reduce(
+              (sum: number, item: any) => sum + (Number(item?.subtotal ?? 0) || 0),
+              0,
+            );
+            const totalCompras = this.obtenerTotalComprasClienteEndpoint(cliente) || subtotalProductos;
+            const ultimaCompra = String(
+              cliente?.ultimaCompra ?? cliente?.ultima_compra ?? cliente?.ultima_venta ?? cliente?.fecha ?? '',
+            ).trim();
+
+            return {
+              key,
+              idClienteSucursal: key,
+              documento: String(cliente?.nro_documento ?? cliente?.numero_documento ?? cliente?.documento ?? '—'),
+              cliente: clienteNombre,
+              sucursal: this.repararTextoCiudad(String(cliente?.sucursal ?? cliente?.sede ?? 'Sin sucursal')),
+              cantidadItems: productos.length,
+              cantidadTotal,
+              ventaAcum: totalCompras,
+              expandido: false,
+              ultimaCompra,
+              ultimaCompraLabel: ultimaCompra ? this.formatearFechaCorta(ultimaCompra) : 'Sin fecha',
+              iniciales: this.obtenerInicialesCliente(clienteNombre),
+              progressItems: 0,
+              productos: productos.sort((a: any, b: any) =>
+                String(a?.producto ?? '').localeCompare(String(b?.producto ?? ''), 'es', {
+                  sensitivity: 'base',
+                  numeric: true,
+                }),
+              ),
+            };
+          })
+          .filter(Boolean);
+
+        const maxItems = Math.max(1, ...clientes.map((cliente: any) => Number(cliente?.cantidadTotal ?? 0) || 0));
+        const clientesConProgreso = clientes.map((cliente: any) => ({
+          ...cliente,
+          progressItems: Math.max(8, Math.round(((Number(cliente.cantidadTotal) || 0) / maxItems) * 100)),
+        }));
+
+        return {
+          key: codigoMostrar || nombreVendedor,
+          codVendedor: codigoMostrar,
+          vendedor: nombreVendedor,
+          iniciales: this.obtenerInicialesCliente(nombreVendedor),
+          cantidadClientes: clientesConProgreso.length,
+          ventaAcum: clientesConProgreso.reduce(
+            (sum: number, cliente: any) => sum + (Number(cliente?.ventaAcum ?? 0) || 0),
+            0,
+          ),
+          expandido: false,
+          clientes: clientesConProgreso.sort((a: any, b: any) =>
+            String(a?.cliente ?? '').localeCompare(String(b?.cliente ?? ''), 'es', {
+              sensitivity: 'base',
+              numeric: true,
+            }),
+          ),
+        };
+      })
+      .filter((vendedor: any) => vendedor.cantidadClientes > 0)
+      .sort((a: any, b: any) =>
+        String(a?.vendedor ?? '').localeCompare(String(b?.vendedor ?? ''), 'es', {
+          sensitivity: 'base',
+          numeric: true,
+        }),
+      );
+  }
+
+  private pintarDetalleClientesAdminDesdeEndpointConItems(res: any, filtrosConsulta: DashboardFilters): void {
+    const detallePorVendedor = this.mapearVendedoresConItemsComprados(res, filtrosConsulta);
+
+    if (!detallePorVendedor.length) {
+      this.limpiarDetalleClientesAdmin();
+      return;
+    }
+
+    const topVendedores = [...detallePorVendedor]
+      .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+      .slice(0, 15);
+
+    this.totalTopClientes = topVendedores.reduce(
+      (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+      0,
+    );
+
+    this.clientesAgrupados = detallePorVendedor;
+    this.clientesVisibles = this.clientesPageSize;
+    this.actualizarClientesVista();
+    this.tableData = detallePorVendedor;
+    this.chartData = topVendedores.map((vendedor: any) => ({
+      name: vendedor.vendedor || vendedor.codVendedor || 'Vendedor',
+      value: Number(vendedor?.ventaAcum ?? 0) || 0,
+    }));
+
+    this.chartId = 'chart-clientes-admin-' + Date.now();
+    this.cargandoClientes = false;
+    this.cdr.markForCheck();
+  }
+
+  private cargarDetalleClientesAdministrador(filtrosConsulta: DashboardFilters): void {
+    this.cargandoClientes = true;
+    this.clientesAgrupados = [];
+    this.clientesVista = [];
+    this.totalClientesFiltrados = 0;
+    this.tableData = [];
+    this.chartData = [];
+    this.cdr.markForCheck();
+
+    this.cumplimientoService
+      .getVendedoresConItemsComprados(filtrosConsulta, {
+        vendedoresPage: 1,
+        vendedoresLimit: 1000,
+        clientesPage: 1,
+        clientesLimit: 10000,
+        itemsPage: 1,
+        itemsLimit: 10000,
+      })
+      .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+      .subscribe({
+        next: (res: any) => {
+          this.pintarDetalleClientesAdminDesdeEndpointConItems(res, filtrosConsulta);
+        },
+        error: (error) => {
+          console.error('Error cargando /vendedor/con-items-comprados:', error);
+          this.limpiarDetalleClientesAdmin();
+        },
+      });
   }
 
   private esAgrupacionPorVendedor(): boolean {
@@ -1860,8 +2152,12 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   toggleCliente(cliente: any): void {
-    for (const c of this.clientesVista) {
-      if (c !== cliente) c.expandido = false;
+    const esClienteAnidado = this.esAgrupacionPorVendedor() && Array.isArray(cliente?.productos);
+
+    if (!esClienteAnidado) {
+      for (const c of this.clientesVista) {
+        if (c !== cliente) c.expandido = false;
+      }
     }
 
     cliente.expandido = !cliente.expandido;
