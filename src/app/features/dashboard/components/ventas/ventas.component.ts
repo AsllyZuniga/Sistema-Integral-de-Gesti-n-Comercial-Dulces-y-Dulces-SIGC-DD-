@@ -156,6 +156,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   totalClientesFiltrados = 0;
   clienteBusqueda = '';
   cargandoClientes = false;
+  errorClientesMsg = '';
   totalCuotaCategoria = 0;
   totalAcumuladoCategoria = 0;
   totalTopCategorias = 0;
@@ -1602,6 +1603,7 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.chartData = [];
     this.totalTopClientes = 0;
     this.cargandoClientes = false;
+    this.errorClientesMsg = '';
     this.cdr.markForCheck();
   }
 
@@ -1700,11 +1702,83 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private obtenerVendedoresDesdeEndpointConItems(res: any): any[] {
-    if (Array.isArray(res)) return res;
-    if (Array.isArray(res?.vendedores)) return res.vendedores;
-    if (Array.isArray(res?.data)) return res.data;
-    if (Array.isArray(res?.data?.vendedores)) return res.data.vendedores;
-    if (Array.isArray(res?.detalle)) return res.detalle;
+    if (Array.isArray(res)) {
+      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: array directo', { count: res.length });
+      return res;
+    }
+    if (Array.isArray(res?.vendedores)) {
+      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: .vendedores', { count: res.vendedores.length });
+      return res.vendedores;
+    }
+    if (Array.isArray(res?.data?.vendedores)) {
+      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: .data.vendedores', { count: res.data.vendedores.length });
+      return res.data.vendedores;
+    }
+    if (Array.isArray(res?.data?.rows)) {
+      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: .data.rows', { count: res.data.rows.length });
+      return res.data.rows;
+    }
+    if (Array.isArray(res?.rows)) {
+      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: .rows', { count: res.rows.length });
+      return res.rows;
+    }
+    if (Array.isArray(res?.data)) {
+      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: .data', { count: res.data.length });
+      return res.data;
+    }
+    if (Array.isArray(res?.detalle)) {
+      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: .detalle', { count: res.detalle.length });
+      return res.detalle;
+    }
+    console.error('❌ [obtenerVendedoresDesdeEndpointConItems] No se pudo extraer vendedores en ningún formato', {
+      respuestaKeys: Object.keys(res ?? {}),
+      esArray: Array.isArray(res),
+      respuesta: res,
+    });
+    return [];
+  }
+
+  private obtenerClientesDesdeVendedor(vendedor: any): any[] {
+    const clientes = vendedor?.clientes;
+    if (Array.isArray(clientes)) {
+      console.debug('📋 [obtenerClientesDesdeVendedor] Formato: array directo', { count: clientes.length });
+      return clientes;
+    }
+    if (Array.isArray(clientes?.data)) {
+      console.debug('📋 [obtenerClientesDesdeVendedor] Formato: .data', { count: clientes.data.length });
+      return clientes.data;
+    }
+    if (Array.isArray(clientes?.rows)) {
+      console.debug('📋 [obtenerClientesDesdeVendedor] Formato: .rows', { count: clientes.rows.length });
+      return clientes.rows;
+    }
+    if (Array.isArray(clientes?.detalle)) {
+      console.debug('📋 [obtenerClientesDesdeVendedor] Formato: .detalle', { count: clientes.detalle.length });
+      return clientes.detalle;
+    }
+    console.warn('⚠️ [obtenerClientesDesdeVendedor] No se pudo extraer clientes', { vendedor });
+    return [];
+  }
+
+  private obtenerItemsDesdeCliente(cliente: any): any[] {
+    const items = cliente?.items;
+    if (Array.isArray(items)) {
+      console.debug('🛍️ [obtenerItemsDesdeCliente] Formato: array directo', { count: items.length });
+      return items;
+    }
+    if (Array.isArray(items?.data)) {
+      console.debug('🛍️ [obtenerItemsDesdeCliente] Formato: .data', { count: items.data.length });
+      return items.data;
+    }
+    if (Array.isArray(items?.rows)) {
+      console.debug('🛍️ [obtenerItemsDesdeCliente] Formato: .rows', { count: items.rows.length });
+      return items.rows;
+    }
+    if (Array.isArray(items?.detalle)) {
+      console.debug('🛍️ [obtenerItemsDesdeCliente] Formato: .detalle', { count: items.detalle.length });
+      return items.detalle;
+    }
+    console.warn('⚠️ [obtenerItemsDesdeCliente] No se pudo extraer items', { cliente });
     return [];
   }
 
@@ -1778,6 +1852,12 @@ export class VentasComponent implements OnInit, OnDestroy {
     const vendedorFiltro = this.extraerCodigoDesdeTexto(filtrosConsulta?.vendedor);
     const vendedoresRaw = this.obtenerVendedoresDesdeEndpointConItems(res);
 
+    console.debug('📊 [mapearVendedoresConItemsComprados] Datos recibidos:', {
+      vendedoresCount: vendedoresRaw.length,
+      primerVendedor: vendedoresRaw[0],
+      respuestaCompleta: res,
+    });
+
     const vendedores = vendedoresRaw
       .filter((vendedor: any) => this.vendedorCoincideConFiltro(vendedor, vendedorFiltro))
       .filter((vendedor: any) => {
@@ -1800,11 +1880,17 @@ export class VentasComponent implements OnInit, OnDestroy {
         );
         const codigoMostrar = codVendedor || idVendedor;
         const nombreVendedor = this.obtenerNombreVendedorCatalogo(vendedor) || `Vendedor ${codigoMostrar}`;
-        const clientesRaw = Array.isArray(vendedor?.clientes) ? vendedor.clientes : [];
+        const clientesRaw = this.obtenerClientesDesdeVendedor(vendedor);
+
+        console.debug('👤 [Vendedor]', {
+          nombre: nombreVendedor,
+          clientesCount: clientesRaw.length,
+          clienteExample: clientesRaw[0],
+        });
 
         const clientes = clientesRaw
           .map((cliente: any) => {
-            const itemsRaw = Array.isArray(cliente?.items) ? cliente.items : [];
+            const itemsRaw = this.obtenerItemsDesdeCliente(cliente);
             const clienteNombre = this.repararTextoCiudad(
               String(
                 cliente?.razon_social ??
@@ -1825,11 +1911,17 @@ export class VentasComponent implements OnInit, OnDestroy {
                 clienteNombre,
             ).trim();
 
+            console.debug('🏪 [Cliente]', {
+              nombre: clienteNombre,
+              itemsCount: itemsRaw.length,
+              itemExample: itemsRaw[0],
+            });
+
             const productos = itemsRaw.map((item: any) => {
               const cantidad = this.normalizarCantidadItemEndpoint(item);
               const subtotal = this.normalizarSubtotalItemEndpoint(item);
 
-              return {
+              const productoMapeado = {
                 id_item: String(item?.codigo_item ?? item?.codigoItem ?? item?.id_item ?? item?.idItem ?? '').trim() || '—',
                 fecha: String(item?.fecha ?? item?.ultima_venta ?? item?.ultimaVenta ?? '—'),
                 numero_documento: String(cliente?.nro_documento ?? cliente?.numero_documento ?? cliente?.documento ?? '—'),
@@ -1842,6 +1934,10 @@ export class VentasComponent implements OnInit, OnDestroy {
                 precio_unitario: Number(item?.precio_promedio_ponderado ?? item?.precioPromedioPonderado ?? item?.precio_unitario ?? 0) || 0,
                 subtotal_producto: subtotal,
               };
+
+              console.debug('📦 [Producto mapeado]', productoMapeado);
+
+              return productoMapeado;
             });
 
             const cantidadTotal = productos.reduce(
@@ -1918,6 +2014,11 @@ export class VentasComponent implements OnInit, OnDestroy {
   private pintarDetalleClientesAdminDesdeEndpointConItems(res: any, filtrosConsulta: DashboardFilters): void {
     const detallePorVendedor = this.mapearVendedoresConItemsComprados(res, filtrosConsulta);
 
+    console.debug('✅ [pintarDetalleClientesAdminDesdeEndpointConItems] Mapeo completo:', {
+      vendedoresCount: detallePorVendedor.length,
+      vendedorConClientesYProductos: detallePorVendedor[0],
+    });
+
     if (!detallePorVendedor.length) {
       this.limpiarDetalleClientesAdmin();
       return;
@@ -1948,6 +2049,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   private cargarDetalleClientesAdministrador(filtrosConsulta: DashboardFilters): void {
     this.cargandoClientes = true;
+    this.errorClientesMsg = '';
     this.clientesAgrupados = [];
     this.clientesVista = [];
     this.totalClientesFiltrados = 0;
@@ -1956,22 +2058,32 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
 
     this.cumplimientoService
-      .getVendedoresConItemsComprados(filtrosConsulta, {
-        vendedoresPage: 1,
-        vendedoresLimit: 1000,
-        clientesPage: 1,
-        clientesLimit: 10000,
-        itemsPage: 1,
-        itemsLimit: 10000,
-      })
+      .getVendedoresConItemsComprados(filtrosConsulta)
       .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
       .subscribe({
         next: (res: any) => {
+          // Verificar si hay error en la respuesta
+          if (res?.data?._error) {
+            const errorMsg = res.data._errorMessage || 'Error al cargar los datos';
+            console.error('❌ Error cargando detalle de clientes:', errorMsg);
+            this.errorClientesMsg = errorMsg;
+            this.limpiarDetalleClientesAdmin();
+            // Mostrar error en la UI
+            this.tableData = [];
+            this.chartData = [];
+            this.cargandoClientes = false;
+            this.cdr.markForCheck();
+            return;
+          }
+
           this.pintarDetalleClientesAdminDesdeEndpointConItems(res, filtrosConsulta);
         },
         error: (error) => {
           console.error('Error cargando /vendedor/con-items-comprados:', error);
+          this.errorClientesMsg = 'Error al cargar los datos. Intenta más tarde.';
           this.limpiarDetalleClientesAdmin();
+          this.cargandoClientes = false;
+          this.cdr.markForCheck();
         },
       });
   }

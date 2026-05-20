@@ -277,6 +277,10 @@
             <div class="placeholder">
               {{ agrupaClientesPorVendedor ? 'Cargando vendedores...' : 'Cargando clientes...' }}
             </div>
+          } @else if (errorClientesMsg) {
+            <div class="placeholder" style="color: #d32f2f; font-weight: 500;">
+              ⚠️ {{ errorClientesMsg }}
+            </div>
           } @else if (clientesVista.length > 0) {
             <div class="clientes-listado">
               @if (agrupaClientesPorVendedor) {
@@ -448,7 +452,7 @@
             }
           } @else {
             <div class="placeholder">
-              No hay {{ etiquetaClientesVista }} para mostrar
+              No hay {{ etiquetaClientesVista }} disponibles para los filtros seleccionados
             </div>
           }
 

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map, catchError, of, shareReplay } from 'rxjs';
+import { Observable, map, catchError, of, shareReplay, timeout } from 'rxjs';
 import { DashboardFilters } from '../../../shared/components/filters/filters.component';
 import { environment } from '../../../../environments/environment';
 
@@ -374,7 +374,13 @@ export class CumplimientoService {
   ): Observable<any> {
     const params = this.buildVendedoresConItemsParams(filtros, opciones);
 
+    console.debug('🔍 [CumplimientoService] Solicitando /vendedor/con-items-comprados', {
+      apiUrl: this.apiUrl,
+      params: params.keys(),
+    });
+
     return this.http.get<any>(`${this.apiUrl}/vendedor/con-items-comprados`, { params }).pipe(
+      timeout(30000), // Timeout de 30 segundos
       map((res) => {
         const vendedores = Array.isArray(res?.data?.vendedores)
           ? res.data.vendedores
@@ -391,6 +397,10 @@ export class CumplimientoService {
           res?.pagination ??
           null;
 
+        console.debug('✅ [CumplimientoService] /vendedor/con-items-comprados respondió', {
+          vendedoresCount: vendedores.length,
+        });
+
         return {
           ...(res ?? {}),
           data: {
@@ -401,12 +411,28 @@ export class CumplimientoService {
         };
       }),
       catchError((err) => {
-        console.error('❌ [CumplimientoService] Error en /vendedor/con-items-comprados:', err);
+        if (err.name === 'TimeoutError') {
+          console.error('⏱️ [CumplimientoService] TIMEOUT en /vendedor/con-items-comprados (30s):', {
+            apiUrl: this.apiUrl,
+            params: params.keys(),
+          });
+        } else {
+          console.error('❌ [CumplimientoService] Error en /vendedor/con-items-comprados:', {
+            status: err.status,
+            message: err.message,
+            error: err.error,
+          });
+        }
 
         return of({
           data: {
             vendedores: [],
             paginacionVendedores: null,
+            _error: err.name === 'TimeoutError' ? 'timeout' : 'error',
+            _errorMessage:
+              err.name === 'TimeoutError'
+                ? 'La solicitud tardó demasiado tiempo. Intenta con filtros más específicos.'
+                : err.message || 'Error al cargar los datos',
           },
         });
       }),
