@@ -71,6 +71,9 @@ interface ApiCiudadRow {
 }
 
 interface ApiCategoriaRow {
+  id_categoria?: number | string;
+  idCategoria?: number | string;
+  categoria_id?: number | string;
   categoria?: string;
   nomCategoria?: string;
   nombreCategoria?: string;
@@ -850,6 +853,35 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private cargarCategoriasFiltros(): void {
+    if (this.esAdmin) {
+      this.cumplimientoService
+        .getCuotaCategoriasPorVendedores()
+        .pipe(takeUntil(this.destroy$))
+        .subscribe((res: ApiTotalesResponse<ApiCategoriaRow>) => {
+          const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+          const unicas = new Map<string, string>();
+
+          detalle.forEach((item) => {
+            const categoriaRaw = this.obtenerNombreCategoria(item);
+
+            if (!categoriaRaw) return;
+
+            const categoriaLimpia = this.limpiarNombreCategoria(categoriaRaw);
+            if (!categoriaLimpia) return;
+
+            if (!unicas.has(categoriaLimpia)) {
+              unicas.set(categoriaLimpia, categoriaRaw);
+            }
+          });
+
+          this.categoriasList = Array.from(unicas.entries())
+            .map(([label, value]) => ({ label, value }))
+            .sort((a, b) => a.label.localeCompare(b.label, 'es'));
+        });
+
+      return;
+    }
+
     const filtrosBase: DashboardFilters = {
       ...this.filtrosActivos,
       vendedor: this.filtrosActivos.vendedor,

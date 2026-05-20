@@ -21,6 +21,7 @@
 /* ===== TOPBAR ===== */
 .topbar,
 .topbar-left,
+.topbar-right,
 .carga-page,
 .upload-card,
 .upload-zone,
@@ -32,22 +33,39 @@
 }
 
 .topbar {
-  display: none;
+  display: flex;
   align-items: center;
-  padding: 12px 0;
-  margin-bottom: 20px;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  box-shadow: var(--shadow-sm);
 }
 
 .topbar-left {
   align-items: center;
   gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .page-title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 800;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--c-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .mobile-menu-btn,
@@ -63,12 +81,31 @@
 }
 
 .mobile-menu-btn {
-  padding: 8px;
+  padding: 7px;
   line-height: 0;
   color: var(--c-primary);
   background: var(--c-surface);
   border: 1.5px solid var(--c-border);
   border-radius: var(--r-sm);
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--c-text);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+}
+
+.logout-btn .material-symbols-rounded {
+  font-size: 18px;
 }
 
 .mobile-menu-btn:hover {
@@ -82,8 +119,8 @@
 /* ===== PÁGINA ===== */
 .carga-page {
   flex-direction: column;
-  gap: 24px;
-  max-width: 720px;
+  gap: 16px;
+  max-width: 620px;
   margin: 0 auto;
 }
 
@@ -117,6 +154,76 @@
 
 .instrucciones-card {
   padding: 24px 28px;
+}
+
+/* Responsive adjustments for small screens */
+@media (max-width: 600px) {
+  .main {
+    padding: 12px 12px;
+  }
+
+  .topbar {
+    padding: 8px 10px;
+    margin-bottom: 12px;
+    gap: 8px;
+  }
+
+  .page-title {
+    font-size: 14px;
+  }
+
+  .logout-btn {
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+
+  .carga-page {
+    max-width: 100%;
+    margin: 0 8px;
+    gap: 12px;
+  }
+
+  .upload-card {
+    padding: 12px;
+    gap: 12px;
+    border-radius: 12px;
+  }
+
+  .upload-zone {
+    padding: 14px 12px;
+    gap: 6px;
+    border-width: 1.5px;
+  }
+
+  .upload-icon {
+    font-size: 28px;
+  }
+
+  .upload-text {
+    font-size: 13px;
+  }
+
+  .upload-hint,
+  .progress-text {
+    font-size: 11px;
+  }
+
+  .upload-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .btn-cargar,
+  .btn-limpiar {
+    width: 100%;
+    justify-content: center;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .instrucciones-card {
+    padding: 12px;
+  }
 }
 
 /* ===== ELIMINAR VENTAS POR RANGO - DISEÑO NUEVO ===== */

@@ -2,7 +2,7 @@
   <app-sidebar (toggle)="onToggleSidebar($event)"></app-sidebar>
 
   <div class="main" [class.expanded]="sidebarColapsado">
-    <header class="topbar">
+    <header class="topbar compact">
       <div class="topbar-left">
         <button class="mobile-menu-btn" (click)="toggleMenuMovil()">
           <span class="material-symbols-rounded">menu</span>
@@ -12,9 +12,11 @@
 
       <div class="topbar-center">
         <h1>
-          <span class="accent">Carga de Cuotas</span>
+          <span class="ticker-track">
+            <span class="ticker-item accent">Carga de Cuotas</span>
+            <span class="ticker-item accent" aria-hidden="true"></span>
+          </span>
         </h1>
-        <span class="welcome">Sistema de Control de Ventas · Dulces y Dulces</span>
       </div>
 
       <div class="topbar-right">
@@ -25,7 +27,7 @@
       </div>
     </header>
 
-    <div class="carga-page">
+    <div class="carga-page compact">
       <div class="page-header">
         <p>
           Administra las cuotas mensuales del sistema desde aquí. Cada sección carga un tipo de
