@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 export interface CuotasUploadResponse {
@@ -76,10 +77,30 @@ export class CuotasUploadService {
     const formData = new FormData();
     formData.append('archivo', archivo);
 
-    return this.http.post<CuotasUploadResponse>(
-      `${this.apiUrl}/cuota-categoria-import/cargar`,
-      formData,
-    );
+    return this.http
+      .post(`${this.apiUrl}/cuota-categoria-import/cargar`, formData, {
+        responseType: 'text',
+      })
+      .pipe(
+        map((responseText) => {
+          const texto = String(responseText ?? '').trim();
+
+          if (!texto) {
+            return { message: 'Importación completada' } as CuotasUploadResponse;
+          }
+
+          if (texto.startsWith('{') || texto.startsWith('[')) {
+            try {
+              const parsed = JSON.parse(texto);
+              return (parsed ?? {}) as CuotasUploadResponse;
+            } catch {
+              // Si el backend respondió texto plano, lo tratamos como mensaje exitoso.
+            }
+          }
+
+          return { message: texto } as CuotasUploadResponse;
+        }),
+      );
   }
 
   eliminarCuotasCategoriaPorFechas(
