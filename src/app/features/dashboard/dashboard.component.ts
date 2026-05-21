@@ -159,7 +159,18 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       const vista = String(params.get('vista') ?? 'ventas').toLowerCase();
       const seccion = String(params.get('seccion') ?? 'asignados').toLowerCase();
-      this.activeAnalisisView = vista === 'impactos' ? 'impactos' : 'ventas';
+
+      // Evitar que vendedores (rolId 3) activen la vista de 'impactos'. Si el usuario
+      // actual es vendedor, forzamos 'ventas' aunque el query param pida 'impactos'.
+      const usuarioActual = this.authService.getVendedor();
+      const rolActual = Number(usuarioActual?.rol?.idRol ?? usuarioActual?.idRol ?? 0);
+
+      if (vista === 'impactos' && rolActual === 3) {
+        this.activeAnalisisView = 'ventas';
+      } else {
+        this.activeAnalisisView = vista === 'impactos' ? 'impactos' : 'ventas';
+      }
+
       this.activeSupervisorView = seccion === 'analisis' ? 'analisis' : 'asignados';
     });
 
