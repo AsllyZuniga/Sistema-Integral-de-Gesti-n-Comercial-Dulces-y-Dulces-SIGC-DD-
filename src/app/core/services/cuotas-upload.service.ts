@@ -48,7 +48,7 @@ export class CuotasUploadService {
     fechaFin: string,
   ): Observable<CuotasUploadResponse> {
     const formData = new FormData();
-    formData.append('archivo', archivo);
+    formData.append('file', archivo);
     formData.append('fecha_inicio', fechaInicio);
     formData.append('fecha_fin', fechaFin);
 
