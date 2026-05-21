@@ -467,13 +467,24 @@ export class VentasComponent implements OnInit, OnDestroy {
     const mapa = new Map<string, any>();
 
     for (const item of categorias) {
-      const categoria = String(item?.categoria ?? '').trim();
-      if (!categoria) continue;
+      const idCategoria = String(
+        item?.id_categoria ?? item?.idCategoria ?? item?.categoria_id ?? '',
+      ).trim();
+      const categoriaBase = this.obtenerNombreCategoria(item);
+      const categoria = this.repararTextoCiudad(
+        categoriaBase ||
+          String(item?.categoria ?? item?.nomCategoria ?? item?.nombreCategoria ?? idCategoria).trim(),
+      ).trim();
+      const key = categoria || idCategoria;
 
-      const existente = mapa.get(categoria);
+      if (!key) continue;
+
+      const existente = mapa.get(key);
       if (!existente) {
-        mapa.set(categoria, {
+        mapa.set(key, {
           ...item,
+          id_categoria: idCategoria || item?.id_categoria || item?.idCategoria || item?.categoria_id,
+          categoria: categoria || idCategoria || 'Sin categoría',
           cuota: Number(item?.cuota ?? 0),
           acumulado: Number(item?.acumulado ?? item?.ventaAcum ?? 0),
           ventaAcum: Number(item?.acumulado ?? item?.ventaAcum ?? 0),
@@ -733,7 +744,11 @@ export class VentasComponent implements OnInit, OnDestroy {
                 ...item,
                 categoria: this.obtenerNombreCategoria(item) || 'Sin categoría',
               }));
-              const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleConNombre);
+              const detalleCompleto = this.completarCategoriasSinDatos(
+                detalleConNombre,
+                filtrosConsulta.categoria,
+              );
+              const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleCompleto);
 
               this.tableData = detalleOrdenado;
               this.totalCuotaCategoria = detalleOrdenado.reduce(
@@ -746,7 +761,7 @@ export class VentasComponent implements OnInit, OnDestroy {
                 0,
               );
 
-              const topCategorias = [...detalleConNombre]
+              const topCategorias = [...detalleCompleto]
                 .map((i: any) => ({
                   name: this.obtenerNombreCategoria(i) || 'Sin categoría',
                   value: Number(i?.acumulado ?? i?.ventaAcum ?? 0),
@@ -2394,12 +2409,45 @@ export class VentasComponent implements OnInit, OnDestroy {
     if (!categoriaFiltro) return listado;
 
     return listado.filter((item: any) => {
-      const categoriaItem = this.normalizarCategoria(
-        item?.categoria ?? item?.nomCategoria ?? item?.nombreCategoria ?? '',
-      );
+      const categoriaItem = this.normalizarCategoria(this.obtenerNombreCategoria(item));
 
       return categoriaItem === categoriaFiltro || categoriaItem.includes(categoriaFiltro);
     });
+  }
+
+  private completarCategoriasSinDatos(listado: any[], categoriaFiltroRaw: unknown): any[] {
+    const categoriaFiltro = this.normalizarCategoria(categoriaFiltroRaw);
+    if (categoriaFiltro || this.categoriasPorId.size === 0) return listado;
+
+    const existentes = new Set<string>();
+
+    for (const item of listado) {
+      const nombre = this.normalizarCategoria(this.obtenerNombreCategoria(item));
+      const id = String(item?.id_categoria ?? item?.idCategoria ?? item?.categoria_id ?? '').trim();
+
+      if (nombre) existentes.add(nombre);
+      if (id) existentes.add(this.normalizarCategoria(id));
+    }
+
+    const faltantes = Array.from(this.categoriasPorId.entries())
+      .filter(([id, nombre]) => {
+        const idNorm = this.normalizarCategoria(id);
+        const nombreNorm = this.normalizarCategoria(nombre);
+
+        return !existentes.has(idNorm) && !existentes.has(nombreNorm);
+      })
+      .map(([id, nombre]) => ({
+        id_categoria: id,
+        categoria: nombre,
+        cuota: 0,
+        acumulado: 0,
+        ventaAcum: 0,
+        proyeccionVenta: 0,
+        porcCump: 0,
+        porcCumProy: 0,
+      }));
+
+    return [...listado, ...faltantes];
   }
 
   private formatearMoneda(valor: unknown): string {
