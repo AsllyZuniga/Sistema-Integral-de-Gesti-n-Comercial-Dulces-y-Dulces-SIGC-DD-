@@ -1600,9 +1600,7 @@ export class VentasComponent implements OnInit, OnDestroy {
       );
     }
 
-    return Array.from(grupos.values())
-      .filter((grupo) => grupo.cantidadClientes > 0)
-      .sort((a, b) =>
+    return Array.from(grupos.values()).sort((a, b) =>
         String(a?.vendedor ?? '').localeCompare(String(b?.vendedor ?? ''), 'es', {
           sensitivity: 'base',
           numeric: true,
@@ -1959,11 +1957,7 @@ export class VentasComponent implements OnInit, OnDestroy {
               (sum: number, item: any) => sum + (Number(item?.cantidad ?? 0) || 0),
               0,
             );
-            const subtotalProductos = productos.reduce(
-              (sum: number, item: any) => sum + (Number(item?.subtotal ?? 0) || 0),
-              0,
-            );
-            const totalCompras = this.obtenerTotalComprasClienteEndpoint(cliente) || subtotalProductos;
+            const totalCompras = this.obtenerTotalComprasClienteEndpoint(cliente);
             const ultimaCompra = String(
               cliente?.ultimaCompra ?? cliente?.ultima_compra ?? cliente?.ultima_venta ?? cliente?.fecha ?? '',
             ).trim();
@@ -2213,8 +2207,8 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   getTotalClienteLabel(cliente: any): string {
-    const total = Number(cliente?.ventaAcum ?? 0);
-    return this.formatearMoneda(total);
+    const total = Number(cliente?.totalCompras ?? cliente?.ventaAcum ?? 0);
+    return Number.isFinite(total) ? total.toLocaleString('es-CO') : '0';
   }
 
   get totalCuotaCategoriaLabel(): string {

@@ -287,11 +287,12 @@
                 @for (vendedor of clientesVista; track vendedor.key) {
                   <article class="cliente-card vendedor-card">
                     <button
-                      class="cliente-head vendedor-head"
-                      type="button"
-                      (click)="toggleCliente(vendedor)"
-                    >
-                      <div class="cliente-avatar vendedor-avatar" aria-hidden="true">
+                        class="cliente-head vendedor-head"
+                        [class.open]="vendedor.expandido"
+                        type="button"
+                        (click)="toggleCliente(vendedor)"
+                      >
+                      <div class="vendedor-avatar" aria-hidden="true">
                         {{ vendedor.iniciales }}
                       </div>
 
@@ -309,7 +310,7 @@
                             Código: {{ vendedor.codVendedor || '—' }}
                           </span>
                           <span class="cliente-total">
-                            Total {{ getTotalClienteLabel(vendedor) }}
+                            Total compras {{ getTotalClienteLabel(vendedor) }}
                           </span>
                         </div>
                       </div>
@@ -344,7 +345,7 @@
                                       Última compra: {{ cliente.ultimaCompraLabel }}
                                     </span>
                                     <span class="cliente-total">
-                                      Total {{ getTotalClienteLabel(cliente) }}
+                                      Total compras {{ getTotalClienteLabel(cliente) }}
                                     </span>
                                   </div>
                                 </div>
@@ -406,7 +407,7 @@
                             Última compra: {{ cliente.ultimaCompraLabel }}
                           </span>
                           <span class="cliente-total">
-                            Total {{ getTotalClienteLabel(cliente) }}
+                            Total compras {{ getTotalClienteLabel(cliente) }}
                           </span>
                         </div>
                       </div>

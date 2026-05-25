@@ -248,8 +248,8 @@ export class CargaComponent implements OnDestroy {
           this.previewResult = null;
 
           this.mensajeOperacion =
-            res ||
-            `Ventas eliminadas correctamente para el período ${fechaIsoInicio} - ${fechaIsoFin}.`;
+            this.formatearMensajeEliminacion(res, fechaIsoInicio, fechaIsoFin) ||
+            `Se eliminaron las ventas del período ${this.formatearPeriodo(fechaIsoInicio, fechaIsoFin)}.`;
 
           this.tipoOperacion = 'success';
           this.cd.detectChanges();
@@ -276,6 +276,66 @@ export class CargaComponent implements OnDestroy {
           this.cd.detectChanges();
         },
       });
+  }
+
+  private formatearPeriodo(fechaInicio: string, fechaFin: string): string {
+    return `${fechaInicio} al ${fechaFin}`;
+  }
+
+  private formatearMensajeEliminacion(
+    respuesta: string,
+    fechaInicio: string,
+    fechaFin: string,
+  ): string | null {
+    const texto = String(respuesta ?? '').trim();
+    if (!texto) return null;
+
+    const respuestaLimpia = this.intentarParsearJson(texto);
+    const ventasEliminadas = this.extraerNumero(respuestaLimpia?.ventasEliminadas ?? respuestaLimpia?.deleted ?? respuestaLimpia?.eliminadas);
+    const detallesEliminados = this.extraerNumero(respuestaLimpia?.detallesEliminados ?? respuestaLimpia?.affected);
+
+    if ((ventasEliminadas ?? 0) === 0 && (detallesEliminados ?? 0) === 0) {
+      return `No se encontraron ventas para eliminar en el período ${this.formatearPeriodo(fechaInicio, fechaFin)}.`;
+    }
+
+    if (ventasEliminadas !== null || detallesEliminados !== null) {
+      const partes: string[] = [];
+      if (ventasEliminadas !== null) {
+        partes.push(`${ventasEliminadas} venta${ventasEliminadas === 1 ? '' : 's'}`);
+      }
+      if (detallesEliminados !== null) {
+        partes.push(`${detallesEliminados} detalle${detallesEliminados === 1 ? '' : 's'}`);
+      }
+
+      return `Se eliminaron ${partes.join(' y ')} del período ${this.formatearPeriodo(fechaInicio, fechaFin)}.`;
+    }
+
+    if (typeof respuestaLimpia?.message === 'string' && respuestaLimpia.message.trim()) {
+      return respuestaLimpia.message.trim();
+    }
+
+    if (typeof respuestaLimpia?.mensaje === 'string' && respuestaLimpia.mensaje.trim()) {
+      return respuestaLimpia.mensaje.trim();
+    }
+
+    return texto.startsWith('{') || texto.startsWith('[')
+      ? `Se eliminaron las ventas del período ${this.formatearPeriodo(fechaInicio, fechaFin)}.`
+      : texto;
+  }
+
+  private intentarParsearJson(texto: string): any {
+    if (!texto.startsWith('{') && !texto.startsWith('[')) return null;
+
+    try {
+      return JSON.parse(texto);
+    } catch {
+      return null;
+    }
+  }
+
+  private extraerNumero(valor: unknown): number | null {
+    const num = Number(valor);
+    return Number.isFinite(num) ? num : null;
   }
 
   private parseInputDateToIso(val: string | null): string | null {

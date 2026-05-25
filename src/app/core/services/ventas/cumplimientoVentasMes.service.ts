@@ -78,11 +78,11 @@ export class CumplimientoService {
 
     params = params
       .set('vendedoresPage', String(opciones.vendedoresPage ?? 1))
-      .set('vendedoresLimit', String(opciones.vendedoresLimit ?? 20))
+      .set('vendedoresLimit', String(opciones.vendedoresLimit ?? 1000))
       .set('clientesPage', String(opciones.clientesPage ?? 1))
-      .set('clientesLimit', String(opciones.clientesLimit ?? 20))
+      .set('clientesLimit', String(opciones.clientesLimit ?? 1000))
       .set('itemsPage', String(opciones.itemsPage ?? 1))
-      .set('itemsLimit', String(opciones.itemsLimit ?? 30));
+      .set('itemsLimit', String(opciones.itemsLimit ?? 1000));
 
     return params;
   }
