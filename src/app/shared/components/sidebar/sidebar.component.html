@@ -17,14 +17,7 @@
         <span class="label">Análisis de ventas</span>
       </a>
 
-      <a
-        [routerLink]="['/dashboard']"
-        [queryParams]="{ vista: 'impactos' }"
-        [class.active]="isVendedorVistaActive('impactos')"
-        [attr.data-tooltip]="isCollapsed ? 'Análisis de Impactos' : null">
-        <span class="icon material-symbols-rounded">insights</span>
-        <span class="label">Análisis de Impactos</span>
-      </a>
+      <!-- Análisis de Impactos removido para vendedores según solicitud -->
     }
 
     @if (esAdmin) {

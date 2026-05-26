@@ -47,6 +47,10 @@ export class AuthService {
     return this.session.getUser();
   }
 
+  getToken(): string | null {
+    return this.session.getToken();
+  }
+
   isLoggedIn(): boolean {
     return this.session.isAuthenticated();
   }
@@ -71,6 +75,7 @@ export class AuthService {
 
     this.detenerTimerInactividad();
     this.reiniciarTimer();
+
     this.ngZone.runOutsideAngular(() => {
       EVENTOS_ACTIVIDAD.forEach((evento) =>
         window.addEventListener(evento, this.onActividad, { passive: true }),
@@ -83,6 +88,7 @@ export class AuthService {
       clearTimeout(this.timerId);
       this.timerId = null;
     }
+
     EVENTOS_ACTIVIDAD.forEach((evento) => window.removeEventListener(evento, this.onActividad));
   }
 
@@ -97,6 +103,7 @@ export class AuthService {
 
   private reiniciarTimer(): void {
     if (this.timerId) clearTimeout(this.timerId);
+
     this.timerId = setTimeout(() => {
       this.ngZone.run(() => this.forzarReingreso(true));
     }, INACTIVIDAD_MS);
@@ -132,6 +139,7 @@ export class AuthService {
       .split('?')[0]
       .split('#')[0]
       .trim();
+
     return limpia === '' || limpia === '/' || limpia === '/login';
   }
 
@@ -145,6 +153,7 @@ export class AuthService {
     }
 
     const ahora = Date.now();
+
     if (!force && ahora - this.ultimaValidacionExitosa < VALIDACION_SESION_TTL_MS) {
       return of(true);
     }
@@ -162,27 +171,33 @@ export class AuthService {
         map(() => true),
         tap(() => {
           this.ultimaValidacionExitosa = Date.now();
-          this.debugLog('AuthService.validarSesion', 'Sesion valida');
+          this.debugLog('AuthService.validarSesion', 'Sesión válida');
         }),
         catchError((err) => {
-          if (err?.status === 401) {
-            this.debugLog('AuthService.validarSesion', 'Sesion invalida (401)');
+          const status = Number(err?.status ?? 0);
+
+          if (status === 401 || status === 403) {
+            this.debugLog(
+              'AuthService.validarSesion',
+              `Sesión inválida (${status}). Token ausente, vencido o rechazado.`,
+            );
             return of(false);
           }
 
-          if (err?.status === 404 || err?.status === 405) {
+          if (status === 404 || status === 405) {
             this.validacionBackendHabilitada = false;
             this.debugLog(
               'AuthService.validarSesion',
-              `Endpoint no encontrado (${err?.status}), se desactiva validacion backend`,
+              `Endpoint no encontrado (${status}), se desactiva validación backend`,
             );
             return of(true);
           }
 
           this.debugLog(
             'AuthService.validarSesion',
-            `Error no bloqueante (${err?.status ?? 'N/A'})`,
+            `Error no bloqueante validando sesión (${status || 'N/A'}). No se cierra sesión.`,
           );
+
           return of(true);
         }),
         finalize(() => {

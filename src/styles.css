@@ -456,6 +456,42 @@ html {
     overflow-x: hidden;
   }
 }
+
+/* Specific overrides for carga-cuotas component to ensure compact topbar */
+app-carga-cuotas .topbar {
+  padding: 8px 10px !important;
+  gap: 8px !important;
+  margin-bottom: 14px !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
+app-carga-cuotas .topbar::before,
+app-carga-cuotas .topbar::after {
+  display: none !important;
+}
+app-carga-cuotas .topbar .topbar-logo {
+  height: 28px !important;
+}
+app-carga-cuotas .topbar .topbar-center h1 {
+  font-size: 15px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: calc(100% - 110px) !important;
+}
+
+@media (max-width: 600px) {
+  app-carga-cuotas .topbar { padding: 6px 8px !important; gap: 6px !important; }
+  app-carga-cuotas .topbar .topbar-logo { height: 26px !important; }
+  app-carga-cuotas .topbar .topbar-center h1 { font-size: 14px !important; max-width: calc(100% - 90px) !important; }
+}
+
+@media (max-width: 480px) {
+  app-carga-cuotas .topbar { padding: 6px 8px !important; }
+  app-carga-cuotas .topbar .topbar-logo { height: 22px !important; }
+  app-carga-cuotas .topbar .topbar-center h1 { font-size: 13px !important; max-width: calc(100% - 80px) !important; }
+}
 @media (max-width: 480px) {
   .chart-box {
     padding: 14px 12px;
@@ -516,6 +552,7 @@ app-carga .advertencia {
 app-carga .topbar {
   align-items: center;
   justify-content: space-between;
+  flex-wrap: nowrap;
   gap: 16px;
   padding: 16px 24px;
   margin-bottom: 28px;
@@ -565,8 +602,10 @@ app-carga .topbar-center {
   position: relative;
   z-index: 1;
   overflow: hidden;
-  flex-direction: column;
-  gap: 2px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
 }
 
 app-carga .topbar-right {
@@ -607,7 +646,7 @@ app-carga .topbar-logo {
 }
 
 app-carga .topbar-center h1 {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 800;
   margin: 0;
   color: #fff;
@@ -615,6 +654,9 @@ app-carga .topbar-center h1 {
   line-height: 1.1;
   white-space: nowrap;
   display: inline-block;
+  width: max-content;
+  flex-shrink: 0;
+  animation: ticker 12s linear infinite;
 }
 
 app-carga .topbar-center h1 .accent {
@@ -622,7 +664,7 @@ app-carga .topbar-center h1 .accent {
 }
 
 app-carga .welcome {
-  display: block;
+  display: none;
   font-size: 11px;
   color: rgba(255, 255, 255, 0.6);
   margin-top: 3px;
@@ -741,6 +783,45 @@ app-carga .upload-icon {
   font-size: 48px;
   color: var(--c-text-muted);
   font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 48;
+}
+
+/* Make topbar and upload area more compact on small screens */
+@media (max-width: 600px) {
+  app-carga .topbar {
+    padding: 10px 12px;
+    border-radius: 12px;
+  }
+
+  app-carga .topbar-left {
+    gap: 8px;
+  }
+
+  app-carga .topbar-logo {
+    height: 34px;
+  }
+
+  app-carga .topbar-center h1 {
+    font-size: 15px;
+    animation: ticker 12s linear infinite;
+  }
+
+  app-carga .upload-card {
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  app-carga .upload-zone {
+    padding: 14px 12px;
+    border-width: 1.2px;
+  }
+
+  app-carga .upload-icon {
+    font-size: 28px;
+  }
+
+  app-carga .upload-text {
+    font-size: 13px;
+  }
 }
 
 app-carga .upload-icon.file-ready {
@@ -939,7 +1020,8 @@ app-carga .advertencia {
 
   app-carga .topbar {
     display: flex;
-    padding: 14px 18px;
+    padding: 10px 12px;
+    gap: 8px;
   }
 
   app-carga .mobile-menu-btn {
@@ -952,7 +1034,7 @@ app-carga .advertencia {
   }
 
   app-carga .topbar-center {
-    padding: 0 10px;
+    padding: 0 8px;
   }
 }
 
@@ -969,16 +1051,13 @@ app-carga .advertencia {
 
   app-carga .topbar {
     gap: 10px;
-    padding: 12px 14px;
+    padding: 8px 10px;
   }
 
   app-carga .topbar-center h1 {
-    font-size: 15px;
-    white-space: normal;
-  }
-
-  app-carga .welcome {
-    white-space: normal;
+    font-size: 14px;
+    white-space: nowrap;
+    animation: ticker 12s linear infinite;
   }
 
   app-carga .logout-label {

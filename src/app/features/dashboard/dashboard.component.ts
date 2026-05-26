@@ -71,6 +71,9 @@ interface ApiCiudadRow {
 }
 
 interface ApiCategoriaRow {
+  id_categoria?: number | string;
+  idCategoria?: number | string;
+  categoria_id?: number | string;
   categoria?: string;
   nomCategoria?: string;
   nombreCategoria?: string;
@@ -129,6 +132,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   tipoCuota: TipoCuota = 'mensual';
   rolId = 0;
   activeAnalisisView: 'ventas' | 'impactos' = 'ventas';
+  activeSupervisorView: 'asignados' | 'analisis' = 'asignados';
 
   private proveedorMap: Map<string, string> = new Map();
   private ciudadMap: Map<string, string> = new Map();
@@ -154,7 +158,20 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   ngOnInit(): void {
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       const vista = String(params.get('vista') ?? 'ventas').toLowerCase();
-      this.activeAnalisisView = vista === 'impactos' ? 'impactos' : 'ventas';
+      const seccion = String(params.get('seccion') ?? 'asignados').toLowerCase();
+
+      // Evitar que vendedores (rolId 3) activen la vista de 'impactos'. Si el usuario
+      // actual es vendedor, forzamos 'ventas' aunque el query param pida 'impactos'.
+      const usuarioActual = this.authService.getVendedor();
+      const rolActual = Number(usuarioActual?.rol?.idRol ?? usuarioActual?.idRol ?? 0);
+
+      if (vista === 'impactos' && rolActual === 3) {
+        this.activeAnalisisView = 'ventas';
+      } else {
+        this.activeAnalisisView = vista === 'impactos' ? 'impactos' : 'ventas';
+      }
+
+      this.activeSupervisorView = seccion === 'analisis' ? 'analisis' : 'asignados';
     });
 
     this.vendedor = this.authService.getVendedor();
@@ -264,7 +281,10 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     // Forzar recarga de la vista de ventas tras inicializar filtros
     // Pequeño delay para asegurar que otras inicializaciones async terminen
     setTimeout(() => {
-      console.debug('[Dashboard] Forzando reloadView inicial tras inicializar filtros', this.filtrosActivos);
+      console.debug(
+        '[Dashboard] Forzando reloadView inicial tras inicializar filtros',
+        this.filtrosActivos,
+      );
       this.ventasRef?.reloadView(true);
     }, 150);
 
@@ -800,8 +820,10 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         this.proveedoresList = this.toFilterOptions(Array.from(unicos));
       });
 
-    if (this.esAdmin || this.esSupervisor) {
+    if (this.esAdmin) {
       this.cargarVendedoresFiltrosGlobal();
+    } else if (this.esSupervisor) {
+      this.cargarVendedoresSupervisor();
     }
 
     if (this.esAdmin) {
@@ -845,6 +867,35 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private cargarCategoriasFiltros(): void {
+    if (this.esAdmin) {
+      this.cumplimientoService
+        .getCuotaCategoriasPorVendedores()
+        .pipe(takeUntil(this.destroy$))
+        .subscribe((res: ApiTotalesResponse<ApiCategoriaRow>) => {
+          const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+          const unicas = new Map<string, string>();
+
+          detalle.forEach((item) => {
+            const categoriaRaw = this.obtenerNombreCategoria(item);
+
+            if (!categoriaRaw) return;
+
+            const categoriaLimpia = this.limpiarNombreCategoria(categoriaRaw);
+            if (!categoriaLimpia) return;
+
+            if (!unicas.has(categoriaLimpia)) {
+              unicas.set(categoriaLimpia, categoriaRaw);
+            }
+          });
+
+          this.categoriasList = Array.from(unicas.entries())
+            .map(([label, value]) => ({ label, value }))
+            .sort((a, b) => a.label.localeCompare(b.label, 'es'));
+        });
+
+      return;
+    }
+
     const filtrosBase: DashboardFilters = {
       ...this.filtrosActivos,
       vendedor: this.filtrosActivos.vendedor,

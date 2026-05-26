@@ -11,8 +11,7 @@
     [filtros]="filtrosAnalisis"
     [tipoCuota]="tipoCuota"
     [modoAdmin]="true"
-  >
-  </app-ventas>
+  ></app-ventas>
 </section>
 
 @if (modalAsignarVisible) {
@@ -39,13 +38,12 @@
         </p>
 
         <label for="supervisorSelect">Supervisor</label>
-        <select
-          id="supervisorSelect"
-          class="form-select"
-          [(ngModel)]="supervisorSeleccionado"
-        >
+        <select id="supervisorSelect" class="form-select" [(ngModel)]="supervisorSeleccionado">
           <option value="">Selecciona un supervisor</option>
-          @for (supervisor of supervisoresList; track supervisor.id_usuario ?? supervisor.idUsuario ?? supervisor.id) {
+          @for (
+            supervisor of supervisoresList;
+            track supervisor.id_usuario ?? supervisor.idUsuario ?? supervisor.id
+          ) {
             <option [value]="supervisor.id_usuario ?? supervisor.idUsuario ?? supervisor.id">
               {{ supervisor.username || supervisor.nombre || 'Supervisor' }}
             </option>
@@ -54,9 +52,7 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn-cancelar" type="button" (click)="cerrarModalAsignar()">
-          Cancelar
-        </button>
+        <button class="btn-cancelar" type="button" (click)="cerrarModalAsignar()">Cancelar</button>
         <button
           class="btn-guardar"
           type="button"

@@ -252,6 +252,71 @@
   box-shadow: 0 1px 0 rgba(15, 31, 58, 0.03);
 }
 
+.vendedor-card {
+  border-color: #b9c9dd;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+}
+
+.vendedor-head {
+  background: linear-gradient(180deg, #fbfdff 0%, #f3f8fe 100%);
+}
+
+.vendedor-avatar {
+  color: #083b66;
+  background: linear-gradient(180deg, #dcecff 0%, #c7e4ff 100%);
+  border: 1px solid rgba(8,59,102,0.08);
+}
+
+.vendedor-body {
+  padding-top: 8px;
+}
+
+/* Diferenciar visualmente el bloque desplegado por vendedor */
+.vendedor-card {
+  position: relative;
+}
+.vendedor-card .vendedor-body::before {
+  content: 'Detalle por vendedor';
+  position: absolute;
+  left: 18px;
+  top: 6px;
+  font-size: 12px;
+  color: #3b5d86;
+  background: rgba(255,255,255,0.9);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(59,93,134,0.08);
+}
+
+/* Indentar y remarcar los clientes anidados dentro del vendedor */
+.vendedor-clientes-listado {
+  margin-top: 18px;
+  padding-left: 12px;
+  border-left: 3px solid rgba(28,102,180,0.06);
+  gap: 12px;
+}
+
+/* El avatar del vendedor permanece azul; el cliente permanece verde. */
+
+.vendedor-clientes-listado {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cliente-card-nested {
+  border-color: #e4eaf2;
+  background: #fbfdff;
+}
+
+/* Resaltar claramente el contenido expandido del cliente (tabla de productos) */
+.cliente-body .tabla-scroll {
+  background: linear-gradient(180deg, rgba(250,251,255,0.9), rgba(245,249,255,0.8));
+  border-radius: 10px;
+  padding: 8px;
+  border: 1px solid rgba(200,218,247,0.6);
+}
+
 .cliente-head {
   width: 100%;
   border: none;
@@ -279,8 +344,9 @@
   justify-content: center;
   font-size: 16px;
   font-weight: 700;
-  color: #2a6fb6;
-  background: #e5f4ef;
+  color: #0b6b48;
+  background: linear-gradient(180deg, #eaf9f1 0%, #def4e8 100%);
+  border: 1px solid rgba(11,107,72,0.06);
   text-transform: uppercase;
   flex: 0 0 auto;
 }
