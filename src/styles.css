@@ -796,6 +796,12 @@ app-carga .upload-icon {
     gap: 8px;
   }
 
+/* Forzar ocultado del pseudo-elemento que muestra "Detalle por vendedor" */
+.vendedor-card .vendedor-body::before {
+  display: none !important;
+  content: none !important;
+}
+
   app-carga .topbar-logo {
     height: 34px;
   }
