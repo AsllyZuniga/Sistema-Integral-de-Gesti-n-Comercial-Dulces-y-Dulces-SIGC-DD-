@@ -1301,6 +1301,15 @@ export class VentasComponent implements OnInit, OnDestroy {
     const fecha = String(fechaRaw ?? '').trim();
     if (!fecha) return null;
 
+    // Aceptar timestamps numéricos en segundos (10 dígitos) o milisegundos (13 dígitos)
+    const soloDigitos = /^\d{10,13}$/.test(fecha);
+    if (soloDigitos) {
+      let n = Number(fecha);
+      if (fecha.length === 10) n = n * 1000; // segundos -> ms
+      const dNum = new Date(n);
+      return Number.isNaN(dNum.getTime()) ? null : dNum;
+    }
+
     const soloFechaIso = /^\d{4}-\d{2}-\d{2}$/;
     if (soloFechaIso.test(fecha)) {
       const d = new Date(`${fecha}T00:00:00`);
