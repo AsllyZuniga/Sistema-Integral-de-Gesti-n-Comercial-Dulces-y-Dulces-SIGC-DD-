@@ -61,6 +61,26 @@ export class CumplimientoService {
   }
 
   /**
+   * Params for supervisor-bound endpoints.
+   * Excludes vendedor because the path already scopes by supervisor.
+   */
+  private buildParamsForSupervisor(filtros?: DashboardFilters): HttpParams {
+    let params = new HttpParams();
+
+    if (!filtros) return params;
+
+    if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
+    if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
+    if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
+    if (filtros?.categoria) params = params.set('categoria', filtros.categoria);
+    if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
+    if (filtros?.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
+    if (filtros?.linea) params = params.set('linea', filtros.linea);
+
+    return params;
+  }
+
+  /**
    * Params para /vendedor/con-items-comprados.
    */
   private buildVendedoresConItemsParams(
@@ -105,6 +125,15 @@ export class CumplimientoService {
       .pipe(catchError(() => of({ detalle: [] })));
   }
 
+  /** Admin: GET /dia/cumplimiento/front → { periodo, detalle: [...], totales: {...} } */
+  getCumplimientoDiaAdmin(filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParams(filtros);
+
+    return this.http
+      .get<any>(`${this.apiUrl}/dia/cumplimiento/front`, { params })
+      .pipe(catchError(() => of({ detalle: [], totales: null, periodo: null })));
+  }
+
   /** Vendedor: GET /mes/cumplimiento/front/me → { periodo, detalle: [vendedor, TOTALES] } */
   getCumplimientoMesVendedor(filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParamsForMe(filtros);
@@ -112,6 +141,37 @@ export class CumplimientoService {
     return this.http
       .get<any>(`${this.apiUrl}/mes/cumplimiento/front/me`, { params })
       .pipe(catchError(() => of({ detalle: [] })));
+  }
+
+  /**
+   * Vendedor: GET /dia/cumplimiento/front/me → { periodo, detalle: [vendedor], totales: {...} }
+   * Se usa solo para rol vendedor cuando la cuota activa es diaria.
+   */
+  getCumplimientoDiaVendedor(filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParamsForMe(filtros);
+
+    return this.http
+      .get<any>(`${this.apiUrl}/dia/cumplimiento/front/me`, { params })
+      .pipe(catchError(() => of({ detalle: [], totales: null, periodo: null })));
+  }
+
+  /**
+   * Supervisor: GET /dia/cumplimiento/supervisor/:idSupervisor
+   * Devuelve el resumen diario del supervisor y, si el backend lo incluye, su lista de vendedores.
+   */
+  getCumplimientoDiaSupervisor(idSupervisor: string | number, filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParamsForSupervisor(filtros);
+    const id = String(idSupervisor ?? '').trim();
+
+    if (!id) {
+      return of({ detalle: [], totales: null, periodo: null });
+    }
+
+    return this.http
+      .get<any>(`${this.apiUrl}/dia/cumplimiento/supervisor/${encodeURIComponent(id)}`, {
+        params,
+      })
+      .pipe(catchError(() => of({ detalle: [], totales: null, periodo: null })));
   }
 
   getCumplimientoMes(filtros?: DashboardFilters): Observable<any[]> {

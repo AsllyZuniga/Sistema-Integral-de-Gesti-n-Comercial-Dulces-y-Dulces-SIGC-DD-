@@ -65,14 +65,40 @@ interface VendedorApiRow {
   cuotaMes?: number | CuotaDetalle;
   cuotaSemana?: number | CuotaDetalle;
   cuotaDiaria?: number | CuotaDetalle;
+  cuotaDia?: number | CuotaDetalle;
   ventaAcum?: number;
+  ventaDiaria?: number;
   porcCump?: number;
   proyeccionVenta?: number;
+  promedioDiario?: number;
   nombreSupervisor?: string;
   id_supervisor?: number | string | null;
   idSupervisor?: number | string | null;
   supervisor?: { username?: string; nombre?: string } | null;
   estado?: boolean;
+}
+
+interface ApiTotalesResponse<TDetalle> {
+  detalle?: TDetalle[];
+}
+
+interface ApiTotalesAdminResponse extends ApiTotalesResponse<VendedorApiRow> {
+  totales?: {
+    cuotaDia?: number;
+    cuotaMes?: number;
+    cuotaSemana?: number;
+    totalVenta?: number;
+    ventaDiaria?: number;
+    porcCump?: number;
+    promedioDiario?: number;
+    proyeccionVenta?: number;
+    totalDias?: number;
+  } | null;
+  periodo?: {
+    fechaInicio?: string;
+    fechaFin?: string;
+    totalDias?: number;
+  } | null;
 }
 
 @Component({
@@ -106,8 +132,11 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
   totales: {
     ventaAcum: number;
     cuotaMes: number;
+    cuotaSemana?: number;
+    cuotaDia?: number;
     porcCump: number;
     proyeccionVenta: number;
+    ventaDiaria?: number;
   } | null = null;
   cargandoVendedores = false;
   catalogoVendedores: VendedorTabla[] = [];
@@ -559,7 +588,9 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     this.filtrosAnalisis = { ...filtros };
 
     const obs$ =
-      this.tipoCuota === 'semanal'
+      this.tipoCuota === 'diaria'
+        ? this.cumplimientoService.getCumplimientoDiaAdmin(filtros)
+        : this.tipoCuota === 'semanal'
         ? this.semanaService.getCumplimientoSemanaAdmin(filtros)
         : this.cumplimientoService.getCumplimientoMesAdmin(filtros);
 
@@ -567,19 +598,19 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   private cargarDesdeEndpointAdmin(
-    obs$: Observable<{ detalle?: VendedorApiRow[] }>,
+    obs$: Observable<ApiTotalesAdminResponse>,
     campoCuota: keyof Pick<VendedorTabla, 'cuotaMes' | 'cuotaSemana' | 'cuotaDiaria'>,
   ): void {
     this.cargandoVendedores = true;
 
     obs$.pipe(takeUntil(this.destroy$)).subscribe({
-      next: (res) => {
+      next: (res: ApiTotalesAdminResponse) => {
         const detalle = (res?.detalle ?? []).filter(
           (v) => this.obtenerCodigoVendedor(v) !== 'TOTALES',
         );
         const detallePorCodigo = new Map<string, VendedorApiRow>();
 
-        detalle.forEach((fila) => {
+        detalle.forEach((fila: VendedorApiRow) => {
           const codigo = this.obtenerCodigoVendedor(fila);
           if (codigo) {
             this.generarClavesCodigo(codigo).forEach((clave) => detallePorCodigo.set(clave, fila));
@@ -590,7 +621,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
           this.catalogoVendedores.length > 0
             ? this.catalogoVendedores
             : detalle.map(
-                (fila) =>
+                (fila: VendedorApiRow) =>
                   ({
                     codigo_vendedor: this.obtenerCodigoVendedor(fila),
                     codVendedor: this.obtenerCodigoVendedor(fila),
@@ -630,10 +661,13 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
             nombreLinea: fila?.nombreLinea ?? base.nombreLinea,
             cuotaMes: this.leerCuota(fila?.cuotaMes ?? 0, 'cuota_mes'),
             cuotaSemana: this.leerCuota(fila?.cuotaSemana ?? 0, 'cuota_semana'),
-            cuotaDiaria: this.leerCuota(fila?.cuotaDiaria ?? 0, 'cuota_dia'),
-            ventaAcum: Number(fila?.ventaAcum ?? 0),
+            cuotaDiaria: this.leerCuota(
+              fila?.cuotaDiaria ?? fila?.cuotaDia ?? 0,
+              'cuota_dia',
+            ),
+            ventaAcum: Number(fila?.ventaAcum ?? fila?.ventaDiaria ?? 0),
             porcCump: Number(fila?.porcCump ?? 0),
-            proyeccionVenta: Number(fila?.proyeccionVenta ?? 0),
+            proyeccionVenta: Number(fila?.proyeccionVenta ?? fila?.promedioDiario ?? 0),
             nombreSupervisor: this.obtenerNombreSupervisor(fila ?? base),
             id_supervisor:
               fila?.id_supervisor ??
@@ -677,7 +711,20 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
         );
         const porcCump = cuota > 0 ? (ventaAcum / cuota) * 100 : 0;
 
-        this.totales = { ventaAcum, cuotaMes: cuota, porcCump, proyeccionVenta };
+        const totalesApi = res?.totales ?? null;
+
+        this.totales = {
+          ventaAcum:
+            Number(totalesApi?.totalVenta ?? totalesApi?.ventaDiaria ?? ventaAcum) || ventaAcum,
+          cuotaMes:
+            Number(totalesApi?.cuotaMes ?? totalesApi?.cuotaDia ?? cuota) || cuota,
+          cuotaDia: Number(totalesApi?.cuotaDia ?? 0) || undefined,
+          porcCump: Number(totalesApi?.porcCump ?? porcCump) || porcCump,
+          proyeccionVenta:
+            Number(totalesApi?.promedioDiario ?? totalesApi?.proyeccionVenta ?? proyeccionVenta) ||
+            proyeccionVenta,
+          ventaDiaria: Number(totalesApi?.ventaDiaria ?? 0) || undefined,
+        };
         this.cargandoVendedores = false;
         this.cdr.detectChanges();
       },
