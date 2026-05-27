@@ -2205,15 +2205,30 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.chartData = [];
     this.cdr.markForCheck();
 
-    this.cumplimientoService
-      .getVendedoresConItemsComprados(filtrosConsulta, {
-        vendedoresPage: 1,
-        vendedoresLimit: 1000,
-        clientesPage: 1,
-        clientesLimit: 10000,
-        itemsPage: 1,
-        itemsLimit: 10000,
-      })
+    const esSupervisor = this.rolId === 2;
+    const endpointLabel = esSupervisor
+      ? '/vendedor/supervisor/con-items-comprados'
+      : '/vendedor/con-items-comprados';
+
+    const detalleClientes$ = esSupervisor
+      ? this.cumplimientoService.getVendedoresConItemsCompradosSupervisor(filtrosConsulta, {
+          vendedoresPage: 1,
+          vendedoresLimit: 1000,
+          clientesPage: 1,
+          clientesLimit: 10000,
+          itemsPage: 1,
+          itemsLimit: 10000,
+        })
+      : this.cumplimientoService.getVendedoresConItemsComprados(filtrosConsulta, {
+          vendedoresPage: 1,
+          vendedoresLimit: 1000,
+          clientesPage: 1,
+          clientesLimit: 10000,
+          itemsPage: 1,
+          itemsLimit: 10000,
+        });
+
+    detalleClientes$
       .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
       .subscribe({
         next: (res: any) => {
@@ -2234,7 +2249,7 @@ export class VentasComponent implements OnInit, OnDestroy {
           this.pintarDetalleClientesAdminDesdeEndpointConItems(res, filtrosConsulta);
         },
         error: (error) => {
-          console.error('Error cargando /vendedor/con-items-comprados:', error);
+          console.error(`Error cargando ${endpointLabel}:`, error);
           this.errorClientesMsg = 'Error al cargar los datos. Intenta más tarde.';
           this.limpiarDetalleClientesAdmin();
           this.cargandoClientes = false;

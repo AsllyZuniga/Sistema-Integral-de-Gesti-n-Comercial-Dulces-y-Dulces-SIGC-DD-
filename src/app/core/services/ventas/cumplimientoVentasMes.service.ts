@@ -448,6 +448,86 @@ export class CumplimientoService {
     );
   }
 
+  /**
+   * Supervisor: una sola petición para Detalle por Cliente.
+   * Backend: GET /vendedor/supervisor/con-items-comprados
+   */
+  getVendedoresConItemsCompradosSupervisor(
+    filtros?: DashboardFilters,
+    opciones: VendedoresConItemsParams = {},
+  ): Observable<any> {
+    const params = this.buildVendedoresConItemsParams(filtros, opciones);
+
+    console.debug('🔍 [CumplimientoService] Solicitando /vendedor/supervisor/con-items-comprados', {
+      apiUrl: this.apiUrl,
+      params: params.keys(),
+    });
+
+    return this.http
+      .get<any>(`${this.apiUrl}/vendedor/supervisor/con-items-comprados`, { params })
+      .pipe(
+        timeout(30000),
+        map((res) => {
+          const vendedores = Array.isArray(res?.data?.vendedores)
+            ? res.data.vendedores
+            : Array.isArray(res?.vendedores)
+              ? res.vendedores
+              : Array.isArray(res)
+                ? res
+                : [];
+
+          const paginacionVendedores =
+            res?.data?.paginacionVendedores ??
+            res?.paginacionVendedores ??
+            res?.data?.pagination ??
+            res?.pagination ??
+            null;
+
+          console.debug('✅ [CumplimientoService] /vendedor/supervisor/con-items-comprados respondió', {
+            vendedoresCount: vendedores.length,
+          });
+
+          return {
+            ...(res ?? {}),
+            data: {
+              ...(res?.data ?? {}),
+              vendedores,
+              paginacionVendedores,
+            },
+          };
+        }),
+        catchError((err) => {
+          if (err.name === 'TimeoutError') {
+            console.error(
+              '⏱️ [CumplimientoService] TIMEOUT en /vendedor/supervisor/con-items-comprados (30s):',
+              {
+                apiUrl: this.apiUrl,
+                params: params.keys(),
+              },
+            );
+          } else {
+            console.error('❌ [CumplimientoService] Error en /vendedor/supervisor/con-items-comprados:', {
+              status: err.status,
+              message: err.message,
+              error: err.error,
+            });
+          }
+
+          return of({
+            data: {
+              vendedores: [],
+              paginacionVendedores: null,
+              _error: err.name === 'TimeoutError' ? 'timeout' : 'error',
+              _errorMessage:
+                err.name === 'TimeoutError'
+                  ? 'La solicitud tardó demasiado tiempo. Intenta con filtros más específicos.'
+                  : err.message || 'Error al cargar los datos',
+            },
+          });
+        }),
+      );
+  }
+
   getVendedores(): Observable<any[]> {
     if (!this.vendedoresCache$) {
       this.vendedoresCache$ = this.http.get<any[]>(`${this.apiUrl}/vendedor`).pipe(
