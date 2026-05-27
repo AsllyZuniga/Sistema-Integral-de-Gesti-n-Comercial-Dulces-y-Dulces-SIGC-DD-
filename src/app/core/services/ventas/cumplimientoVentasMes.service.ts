@@ -62,13 +62,6 @@ export class CumplimientoService {
 
   /**
    * Params para /vendedor/con-items-comprados.
-   *
-   * IMPORTANTE:
-   * Antes estaba mandando 1000 / 10000 / 10000 y eso saturaba Sequelize.
-   * Por eso los defaults seguros son:
-   * vendedoresLimit: 20
-   * clientesLimit: 20
-   * itemsLimit: 30
    */
   private buildVendedoresConItemsParams(
     filtros?: DashboardFilters,
@@ -76,13 +69,29 @@ export class CumplimientoService {
   ): HttpParams {
     let params = this.buildParams(filtros);
 
-    params = params
-      .set('vendedoresPage', String(opciones.vendedoresPage ?? 1))
-      .set('vendedoresLimit', String(opciones.vendedoresLimit ?? 1000))
-      .set('clientesPage', String(opciones.clientesPage ?? 1))
-      .set('clientesLimit', String(opciones.clientesLimit ?? 1000))
-      .set('itemsPage', String(opciones.itemsPage ?? 1))
-      .set('itemsLimit', String(opciones.itemsLimit ?? 1000));
+    if (opciones.vendedoresPage !== undefined) {
+      params = params.set('vendedoresPage', String(opciones.vendedoresPage));
+    }
+
+    if (opciones.vendedoresLimit !== undefined) {
+      params = params.set('vendedoresLimit', String(opciones.vendedoresLimit));
+    }
+
+    if (opciones.clientesPage !== undefined) {
+      params = params.set('clientesPage', String(opciones.clientesPage));
+    }
+
+    if (opciones.clientesLimit !== undefined) {
+      params = params.set('clientesLimit', String(opciones.clientesLimit));
+    }
+
+    if (opciones.itemsPage !== undefined) {
+      params = params.set('itemsPage', String(opciones.itemsPage));
+    }
+
+    if (opciones.itemsLimit !== undefined) {
+      params = params.set('itemsLimit', String(opciones.itemsLimit));
+    }
 
     return params;
   }

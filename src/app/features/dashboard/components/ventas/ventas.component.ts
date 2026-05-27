@@ -38,7 +38,16 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   @Input() set codigoVendedor(value: string) {
     this._codigoVendedor = this.normalizarCodigoVendedor(value);
-    console.debug('[Ventas][setter] codigoVendedor set =>', value, 'normalized=>', this._codigoVendedor, 'iniciado=>', this.iniciado, 'esModoAdminTodos=>', this.esModoAdminTodos());
+    console.debug(
+      '[Ventas][setter] codigoVendedor set =>',
+      value,
+      'normalized=>',
+      this._codigoVendedor,
+      'iniciado=>',
+      this.iniciado,
+      'esModoAdminTodos=>',
+      this.esModoAdminTodos(),
+    );
     if ((value || this.esModoAdminTodos()) && this.iniciado) {
       this.solicitarCargaVista();
     }
@@ -118,7 +127,16 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   @Input() set filtros(value: DashboardFilters) {
     this._filtros = value;
-    console.debug('[Ventas][setter] filtros set =>', value, 'codigoVendedor=>', this._codigoVendedor, 'esModoAdminTodos=>', this.esModoAdminTodos(), 'iniciado=>', this.iniciado);
+    console.debug(
+      '[Ventas][setter] filtros set =>',
+      value,
+      'codigoVendedor=>',
+      this._codigoVendedor,
+      'esModoAdminTodos=>',
+      this.esModoAdminTodos(),
+      'iniciado=>',
+      this.iniciado,
+    );
     if ((this._codigoVendedor || this.esModoAdminTodos()) && this.iniciado) {
       this.solicitarCargaVista();
     }
@@ -364,9 +382,18 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private solicitarCargaVista(force = false): void {
-    console.debug('[Ventas] solicitarCargaVista called', { codigoVendedor: this._codigoVendedor, esModoAdminTodos: this.esModoAdminTodos(), iniciado: this.iniciado, force });
+    console.debug('[Ventas] solicitarCargaVista called', {
+      codigoVendedor: this._codigoVendedor,
+      esModoAdminTodos: this.esModoAdminTodos(),
+      iniciado: this.iniciado,
+      force,
+    });
     if ((!this._codigoVendedor && !this.esModoAdminTodos()) || !this.iniciado) {
-      console.debug('[Ventas] solicitarCargaVista => omitted, condition not met', { codigoVendedor: this._codigoVendedor, esModoAdminTodos: this.esModoAdminTodos(), iniciado: this.iniciado });
+      console.debug('[Ventas] solicitarCargaVista => omitted, condition not met', {
+        codigoVendedor: this._codigoVendedor,
+        esModoAdminTodos: this.esModoAdminTodos(),
+        iniciado: this.iniciado,
+      });
       return;
     }
 
@@ -473,7 +500,9 @@ export class VentasComponent implements OnInit, OnDestroy {
       const categoriaBase = this.obtenerNombreCategoria(item);
       const categoria = this.repararTextoCiudad(
         categoriaBase ||
-          String(item?.categoria ?? item?.nomCategoria ?? item?.nombreCategoria ?? idCategoria).trim(),
+          String(
+            item?.categoria ?? item?.nomCategoria ?? item?.nombreCategoria ?? idCategoria,
+          ).trim(),
       ).trim();
       const key = categoria || idCategoria;
 
@@ -483,7 +512,8 @@ export class VentasComponent implements OnInit, OnDestroy {
       if (!existente) {
         mapa.set(key, {
           ...item,
-          id_categoria: idCategoria || item?.id_categoria || item?.idCategoria || item?.categoria_id,
+          id_categoria:
+            idCategoria || item?.id_categoria || item?.idCategoria || item?.categoria_id,
           categoria: categoria || idCategoria || 'Sin categoría',
           cuota: Number(item?.cuota ?? 0),
           acumulado: Number(item?.acumulado ?? item?.ventaAcum ?? 0),
@@ -578,7 +608,6 @@ export class VentasComponent implements OnInit, OnDestroy {
       }));
   }
 
-
   private pintarVistaVendedor(
     detalleVendedores: any[],
     filtrosConsulta: DashboardFilters,
@@ -665,9 +694,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   private cargarVistaAdminTodos(filtrosConsulta: DashboardFilters): void {
     const filtrosAdmin =
-      this.activeVentasView === 'ciudad'
-        ? { ...filtrosConsulta, vendedor: '' }
-        : filtrosConsulta;
+      this.activeVentasView === 'ciudad' ? { ...filtrosConsulta, vendedor: '' } : filtrosConsulta;
 
     const admin$ = this.esSemanal
       ? this.semanaService.getCumplimientoSemanaAdmin(filtrosAdmin)
@@ -689,15 +716,18 @@ export class VentasComponent implements OnInit, OnDestroy {
           this.combinarResultadosPorVendedor(
             codigos,
             (codigo) =>
-              (this.esSemanal
+              this.esSemanal
                 ? this.semanaService.getCuotaCategoriaPorVendedor(codigo, filtrosConsulta)
-                : this.cumplimientoService.getCuotaCategoriaPorVendedor(codigo, filtrosConsulta)),
+                : this.cumplimientoService.getCuotaCategoriaPorVendedor(codigo, filtrosConsulta),
             (res) => (Array.isArray(res?.detalle) ? res.detalle : []),
           )
             .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((detalleBruto: any[]) => {
               const detalleConsolidado = this.consolidarPorCategoria(detalleBruto);
-              const detalleFiltrado = this.filtrarCategorias(detalleConsolidado, filtrosConsulta.categoria);
+              const detalleFiltrado = this.filtrarCategorias(
+                detalleConsolidado,
+                filtrosConsulta.categoria,
+              );
               const detalleConNombre = detalleFiltrado.map((item: any) => ({
                 ...item,
                 categoria: this.obtenerNombreCategoria(item) || 'Sin categoría',
@@ -739,7 +769,10 @@ export class VentasComponent implements OnInit, OnDestroy {
           .subscribe((res: any) => {
             const pintarCategoria = (detalleRaw: any[]) => {
               const detallePermitido = this.filtrarPorCodigosVendedoresPermitidos(detalleRaw);
-              const detalleFiltrado = this.filtrarCategorias(detallePermitido, filtrosConsulta.categoria);
+              const detalleFiltrado = this.filtrarCategorias(
+                detallePermitido,
+                filtrosConsulta.categoria,
+              );
               const detalleConNombre = detalleFiltrado.map((item: any) => ({
                 ...item,
                 categoria: this.obtenerNombreCategoria(item) || 'Sin categoría',
@@ -809,16 +842,17 @@ export class VentasComponent implements OnInit, OnDestroy {
           this.combinarResultadosPorVendedor(
             codigos,
             (codigo) =>
-              (this.esSemanal
+              this.esSemanal
                 ? this.semanaService.getLineasPorVendedor(codigo, filtrosConsulta)
-                : this.cumplimientoService.getLineasPorVendedor(codigo, filtrosConsulta)),
+                : this.cumplimientoService.getLineasPorVendedor(codigo, filtrosConsulta),
             (res) => (Array.isArray(res?.detallePorLinea) ? res.detallePorLinea : []),
           )
             .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((lineas: any[]) => {
               const detalleMapeado = lineas.map((item: any) => ({
                 ...item,
-                linea: item?.linea ?? item?.codigoLinea ?? item?.reporteProvConObs ?? 'Sin proveedor',
+                linea:
+                  item?.linea ?? item?.codigoLinea ?? item?.reporteProvConObs ?? 'Sin proveedor',
                 cuotaLinea: Number(item?.cuotaProveedorTotal ?? 0) || 0,
                 ventaAcum: Number(item?.ventaAcum ?? 0) || 0,
                 porcCump: Number(item?.porcCump ?? 0) || 0,
@@ -827,7 +861,10 @@ export class VentasComponent implements OnInit, OnDestroy {
               }));
 
               const detalleConsolidado = this.consolidarPorLinea(detalleMapeado);
-              const filtrado = this.filtrarProveedores(detalleConsolidado, filtrosConsulta.proveedor);
+              const filtrado = this.filtrarProveedores(
+                detalleConsolidado,
+                filtrosConsulta.proveedor,
+              );
               const ordenado = this.ordenarProveedoresPorAlfabeto(filtrado);
 
               this.tableData = ordenado;
@@ -865,7 +902,7 @@ export class VentasComponent implements OnInit, OnDestroy {
           .subscribe((res: any) => {
             const lineas = Array.isArray(res?.detallePorLinea) ? res.detallePorLinea : [];
             const lineasPermitidas = this.filtrarPorCodigosVendedoresPermitidos(lineas);
-            
+
             // Mapear campos del endpoint a formato de tabla
             const detalleMapeado = lineasPermitidas.map((item: any) => ({
               ...item,
@@ -876,7 +913,7 @@ export class VentasComponent implements OnInit, OnDestroy {
               proyeccionVenta: Number(item?.proyeccionVenta ?? 0) || 0,
               porcCumProy: Number(item?.porcCumProy ?? 0) || 0,
             }));
-            
+
             const filtrado = this.filtrarProveedores(detalleMapeado, filtrosConsulta.proveedor);
             const ordenado = this.ordenarProveedoresPorAlfabeto(filtrado);
 
@@ -924,9 +961,9 @@ export class VentasComponent implements OnInit, OnDestroy {
           this.combinarResultadosPorVendedor(
             codigos,
             (codigo) =>
-              (this.esSemanal
+              this.esSemanal
                 ? this.semanaService.getCiudadesPorVendedor(codigo, filtrosConsulta)
-                : this.cumplimientoService.getCiudadesPorVendedor(codigo, filtrosConsulta)),
+                : this.cumplimientoService.getCiudadesPorVendedor(codigo, filtrosConsulta),
             (res) => (Array.isArray(res?.detallePorCiudad) ? res.detallePorCiudad : []),
           )
             .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
@@ -1006,7 +1043,10 @@ export class VentasComponent implements OnInit, OnDestroy {
 
             const filtrado = this.filtrarPorCiudadSeleccionada(consolidado);
             const ordenado = [...filtrado].sort((a: any, b: any) =>
-              this.repararTextoCiudad(a?.ciudad).localeCompare(this.repararTextoCiudad(b?.ciudad), 'es'),
+              this.repararTextoCiudad(a?.ciudad).localeCompare(
+                this.repararTextoCiudad(b?.ciudad),
+                'es',
+              ),
             );
             const topCiudades = [...filtrado]
               .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
@@ -1110,7 +1150,11 @@ export class VentasComponent implements OnInit, OnDestroy {
                   { name: 'Proyección', value: proyeccion },
                 ];
               } else {
-                this.pintarVistaVendedor(vendedoresFiltrados, filtrosConsulta, 'chart-vendedor-admin');
+                this.pintarVistaVendedor(
+                  vendedoresFiltrados,
+                  filtrosConsulta,
+                  'chart-vendedor-admin',
+                );
                 return;
               }
               break;
@@ -1610,11 +1654,11 @@ export class VentasComponent implements OnInit, OnDestroy {
     }
 
     return Array.from(grupos.values()).sort((a, b) =>
-        String(a?.vendedor ?? '').localeCompare(String(b?.vendedor ?? ''), 'es', {
-          sensitivity: 'base',
-          numeric: true,
-        }),
-      );
+      String(a?.vendedor ?? '').localeCompare(String(b?.vendedor ?? ''), 'es', {
+        sensitivity: 'base',
+        numeric: true,
+      }),
+    );
   }
 
   private limpiarDetalleClientesAdmin(): void {
@@ -1689,11 +1733,7 @@ export class VentasComponent implements OnInit, OnDestroy {
         row?.nomVendedor ??
         row?.nombre_vendedor ??
         nombreVendedor,
-      nomVendedor:
-        row?.nomVendedor ??
-        row?.nombreVendedor ??
-        row?.vendedor ??
-        nombreVendedor,
+      nomVendedor: row?.nomVendedor ?? row?.nombreVendedor ?? row?.vendedor ?? nombreVendedor,
     };
   }
 
@@ -1725,57 +1765,82 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   private obtenerVendedoresDesdeEndpointConItems(res: any): any[] {
     if (Array.isArray(res)) {
-      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: array directo', { count: res.length });
+      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: array directo', {
+        count: res.length,
+      });
       return res;
     }
     if (Array.isArray(res?.vendedores)) {
-      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: .vendedores', { count: res.vendedores.length });
+      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: .vendedores', {
+        count: res.vendedores.length,
+      });
       return res.vendedores;
     }
     if (Array.isArray(res?.data?.vendedores)) {
-      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: .data.vendedores', { count: res.data.vendedores.length });
+      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: .data.vendedores', {
+        count: res.data.vendedores.length,
+      });
       return res.data.vendedores;
     }
     if (Array.isArray(res?.data?.rows)) {
-      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: .data.rows', { count: res.data.rows.length });
+      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: .data.rows', {
+        count: res.data.rows.length,
+      });
       return res.data.rows;
     }
     if (Array.isArray(res?.rows)) {
-      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: .rows', { count: res.rows.length });
+      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: .rows', {
+        count: res.rows.length,
+      });
       return res.rows;
     }
     if (Array.isArray(res?.data)) {
-      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: .data', { count: res.data.length });
+      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: .data', {
+        count: res.data.length,
+      });
       return res.data;
     }
     if (Array.isArray(res?.detalle)) {
-      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: .detalle', { count: res.detalle.length });
+      console.debug('✓ [obtenerVendedoresDesdeEndpointConItems] Formato: .detalle', {
+        count: res.detalle.length,
+      });
       return res.detalle;
     }
-    console.error('❌ [obtenerVendedoresDesdeEndpointConItems] No se pudo extraer vendedores en ningún formato', {
-      respuestaKeys: Object.keys(res ?? {}),
-      esArray: Array.isArray(res),
-      respuesta: res,
-    });
+    console.error(
+      '❌ [obtenerVendedoresDesdeEndpointConItems] No se pudo extraer vendedores en ningún formato',
+      {
+        respuestaKeys: Object.keys(res ?? {}),
+        esArray: Array.isArray(res),
+        respuesta: res,
+      },
+    );
     return [];
   }
 
   private obtenerClientesDesdeVendedor(vendedor: any): any[] {
     const clientes = vendedor?.clientes;
     if (Array.isArray(clientes)) {
-      console.debug('📋 [obtenerClientesDesdeVendedor] Formato: array directo', { count: clientes.length });
+      console.debug('📋 [obtenerClientesDesdeVendedor] Formato: array directo', {
+        count: clientes.length,
+      });
       return clientes;
     }
     if (Array.isArray(clientes?.data)) {
-      console.debug('📋 [obtenerClientesDesdeVendedor] Formato: .data', { count: clientes.data.length });
+      console.debug('📋 [obtenerClientesDesdeVendedor] Formato: .data', {
+        count: clientes.data.length,
+      });
       return clientes.data;
     }
     if (Array.isArray(clientes?.rows)) {
-      console.debug('📋 [obtenerClientesDesdeVendedor] Formato: .rows', { count: clientes.rows.length });
+      console.debug('📋 [obtenerClientesDesdeVendedor] Formato: .rows', {
+        count: clientes.rows.length,
+      });
       return clientes.rows;
     }
     if (Array.isArray(clientes?.detalle)) {
-      console.debug('📋 [obtenerClientesDesdeVendedor] Formato: .detalle', { count: clientes.detalle.length });
+      console.debug('📋 [obtenerClientesDesdeVendedor] Formato: .detalle', {
+        count: clientes.detalle.length,
+      });
       return clientes.detalle;
     }
     console.warn('⚠️ [obtenerClientesDesdeVendedor] No se pudo extraer clientes', { vendedor });
@@ -1785,7 +1850,9 @@ export class VentasComponent implements OnInit, OnDestroy {
   private obtenerItemsDesdeCliente(cliente: any): any[] {
     const items = cliente?.items;
     if (Array.isArray(items)) {
-      console.debug('🛍️ [obtenerItemsDesdeCliente] Formato: array directo', { count: items.length });
+      console.debug('🛍️ [obtenerItemsDesdeCliente] Formato: array directo', {
+        count: items.length,
+      });
       return items;
     }
     if (Array.isArray(items?.data)) {
@@ -1797,11 +1864,23 @@ export class VentasComponent implements OnInit, OnDestroy {
       return items.rows;
     }
     if (Array.isArray(items?.detalle)) {
-      console.debug('🛍️ [obtenerItemsDesdeCliente] Formato: .detalle', { count: items.detalle.length });
+      console.debug('🛍️ [obtenerItemsDesdeCliente] Formato: .detalle', {
+        count: items.detalle.length,
+      });
       return items.detalle;
     }
     console.warn('⚠️ [obtenerItemsDesdeCliente] No se pudo extraer items', { cliente });
     return [];
+  }
+
+  private normalizarPaginacionCliente(valor: any): any {
+    if (!valor || typeof valor !== 'object') return null;
+
+    return {
+      page: Number(valor?.page ?? valor?.pagina ?? 1) || 1,
+      limit: Number(valor?.limit ?? valor?.limite ?? 0) || 0,
+      total: Number(valor?.total ?? valor?.count ?? 0) || 0,
+    };
   }
 
   private normalizarSubtotalItemEndpoint(item: any): number {
@@ -1886,7 +1965,9 @@ export class VentasComponent implements OnInit, OnDestroy {
         if (!this.tieneCodigosVendedoresPermitidos()) return true;
 
         const codigo = this.obtenerCodigoVendedorCatalogo(vendedor);
-        const id = this.normalizarCodigoVendedor(vendedor?.id_vendedor ?? vendedor?.idVendedor ?? vendedor?.id);
+        const id = this.normalizarCodigoVendedor(
+          vendedor?.id_vendedor ?? vendedor?.idVendedor ?? vendedor?.id,
+        );
 
         return (
           (codigo && this._codigosVendedoresPermitidos.includes(codigo)) ||
@@ -1901,7 +1982,8 @@ export class VentasComponent implements OnInit, OnDestroy {
           vendedor?.id_vendedor ?? vendedor?.idVendedor ?? vendedor?.id ?? '',
         );
         const codigoMostrar = codVendedor || idVendedor;
-        const nombreVendedor = this.obtenerNombreVendedorCatalogo(vendedor) || `Vendedor ${codigoMostrar}`;
+        const nombreVendedor =
+          this.obtenerNombreVendedorCatalogo(vendedor) || `Vendedor ${codigoMostrar}`;
         const clientesRaw = this.obtenerClientesDesdeVendedor(vendedor);
 
         console.debug('👤 [Vendedor]', {
@@ -1944,16 +2026,35 @@ export class VentasComponent implements OnInit, OnDestroy {
               const subtotal = this.normalizarSubtotalItemEndpoint(item);
 
               const productoMapeado = {
-                id_item: String(item?.codigo_item ?? item?.codigoItem ?? item?.id_item ?? item?.idItem ?? '').trim() || '—',
+                id_item:
+                  String(
+                    item?.codigo_item ?? item?.codigoItem ?? item?.id_item ?? item?.idItem ?? '',
+                  ).trim() || '—',
                 fecha: String(item?.fecha ?? item?.ultima_venta ?? item?.ultimaVenta ?? '—'),
-                numero_documento: String(cliente?.nro_documento ?? cliente?.numero_documento ?? cliente?.documento ?? '—'),
+                numero_documento: String(
+                  cliente?.nro_documento ?? cliente?.numero_documento ?? cliente?.documento ?? '—',
+                ),
                 producto: this.repararTextoCiudad(
-                  String(item?.descripcion ?? item?.producto ?? item?.Descripcion ?? 'Sin descripción').trim(),
+                  String(
+                    item?.descripcion ?? item?.producto ?? item?.Descripcion ?? 'Sin descripción',
+                  ).trim(),
                 ),
                 cantidad,
-                precio: Number(item?.precio_promedio_ponderado ?? item?.precioPromedioPonderado ?? item?.precio_unitario ?? 0) || 0,
+                precio:
+                  Number(
+                    item?.precio_promedio_ponderado ??
+                      item?.precioPromedioPonderado ??
+                      item?.precio_unitario ??
+                      0,
+                  ) || 0,
                 subtotal,
-                precio_unitario: Number(item?.precio_promedio_ponderado ?? item?.precioPromedioPonderado ?? item?.precio_unitario ?? 0) || 0,
+                precio_unitario:
+                  Number(
+                    item?.precio_promedio_ponderado ??
+                      item?.precioPromedioPonderado ??
+                      item?.precio_unitario ??
+                      0,
+                  ) || 0,
                 subtotal_producto: subtotal,
               };
 
@@ -1968,23 +2069,35 @@ export class VentasComponent implements OnInit, OnDestroy {
             );
             const totalCompras = this.obtenerTotalComprasClienteEndpoint(cliente);
             const ultimaCompra = String(
-              cliente?.ultimaCompra ?? cliente?.ultima_compra ?? cliente?.ultima_venta ?? cliente?.fecha ?? '',
+              cliente?.ultimaCompra ??
+                cliente?.ultima_compra ??
+                cliente?.ultima_venta ??
+                cliente?.fecha ??
+                '',
             ).trim();
 
             return {
               key,
               idClienteSucursal: key,
-              documento: String(cliente?.nro_documento ?? cliente?.numero_documento ?? cliente?.documento ?? '—'),
+              documento: String(
+                cliente?.nro_documento ?? cliente?.numero_documento ?? cliente?.documento ?? '—',
+              ),
               cliente: clienteNombre,
-              sucursal: this.repararTextoCiudad(String(cliente?.sucursal ?? cliente?.sede ?? 'Sin sucursal')),
+              sucursal: this.repararTextoCiudad(
+                String(cliente?.sucursal ?? cliente?.sede ?? 'Sin sucursal'),
+              ),
               cantidadItems: productos.length,
               cantidadTotal,
               ventaAcum: totalCompras,
+              totalCompras,
               expandido: false,
               ultimaCompra,
-              ultimaCompraLabel: ultimaCompra ? this.formatearFechaCorta(ultimaCompra) : 'Sin fecha',
+              ultimaCompraLabel: ultimaCompra
+                ? this.formatearFechaCorta(ultimaCompra)
+                : 'Sin fecha',
               iniciales: this.obtenerInicialesCliente(clienteNombre),
               progressItems: 0,
+              paginacionItems: this.normalizarPaginacionCliente(cliente?.paginacionItems),
               productos: productos.sort((a: any, b: any) =>
                 String(a?.producto ?? '').localeCompare(String(b?.producto ?? ''), 'es', {
                   sensitivity: 'base',
@@ -1995,10 +2108,16 @@ export class VentasComponent implements OnInit, OnDestroy {
           })
           .filter(Boolean);
 
-        const maxItems = Math.max(1, ...clientes.map((cliente: any) => Number(cliente?.cantidadTotal ?? 0) || 0));
+        const maxItems = Math.max(
+          1,
+          ...clientes.map((cliente: any) => Number(cliente?.cantidadTotal ?? 0) || 0),
+        );
         const clientesConProgreso = clientes.map((cliente: any) => ({
           ...cliente,
-          progressItems: Math.max(8, Math.round(((Number(cliente.cantidadTotal) || 0) / maxItems) * 100)),
+          progressItems: Math.max(
+            8,
+            Math.round(((Number(cliente.cantidadTotal) || 0) / maxItems) * 100),
+          ),
         }));
 
         return {
@@ -2012,6 +2131,7 @@ export class VentasComponent implements OnInit, OnDestroy {
             0,
           ),
           expandido: false,
+          paginacionClientes: this.normalizarPaginacionCliente(vendedor?.paginacionClientes),
           clientes: clientesConProgreso.sort((a: any, b: any) =>
             String(a?.cliente ?? '').localeCompare(String(b?.cliente ?? ''), 'es', {
               sensitivity: 'base',
@@ -2029,7 +2149,10 @@ export class VentasComponent implements OnInit, OnDestroy {
       );
   }
 
-  private pintarDetalleClientesAdminDesdeEndpointConItems(res: any, filtrosConsulta: DashboardFilters): void {
+  private pintarDetalleClientesAdminDesdeEndpointConItems(
+    res: any,
+    filtrosConsulta: DashboardFilters,
+  ): void {
     const detallePorVendedor = this.mapearVendedoresConItemsComprados(res, filtrosConsulta);
 
     console.debug('✅ [pintarDetalleClientesAdminDesdeEndpointConItems] Mapeo completo:', {
@@ -2076,7 +2199,14 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
 
     this.cumplimientoService
-      .getVendedoresConItemsComprados(filtrosConsulta)
+      .getVendedoresConItemsComprados(filtrosConsulta, {
+        vendedoresPage: 1,
+        vendedoresLimit: 1000,
+        clientesPage: 1,
+        clientesLimit: 10000,
+        itemsPage: 1,
+        itemsLimit: 10000,
+      })
       .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
       .subscribe({
         next: (res: any) => {
@@ -2154,6 +2284,9 @@ export class VentasComponent implements OnInit, OnDestroy {
         : this.clientesAgrupados;
 
     this.totalClientesFiltrados = filtrados.length;
+    this.clientesVisibles = this.esAgrupacionPorVendedor()
+      ? filtrados.length
+      : this.clientesVisibles;
     this.clientesVista = filtrados.slice(0, this.clientesVisibles);
   }
 
@@ -2177,7 +2310,9 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   onBuscarClienteChange(valor: string): void {
     this.clienteBusqueda = valor;
-    this.clientesVisibles = this.clientesPageSize;
+    this.clientesVisibles = this.esAgrupacionPorVendedor()
+      ? this.clientesAgrupados.length
+      : this.clientesPageSize;
     this.actualizarClientesVista();
     this.cdr.markForCheck();
   }
@@ -2193,11 +2328,16 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private getLimiteProductosCliente(key: string): number {
+    if (this.esAgrupacionPorVendedor()) {
+      return Number.MAX_SAFE_INTEGER;
+    }
+
     return this.productosVisiblesPorCliente[key] ?? this.productosPageSize;
   }
 
   getProductosClienteVisibles(cliente: any): any[] {
-    return (cliente?.productos ?? []).slice(0, this.getLimiteProductosCliente(cliente?.key));
+    const productos = Array.isArray(cliente?.productos) ? cliente.productos : [];
+    return productos.slice(0, this.getLimiteProductosCliente(cliente?.key));
   }
 
   getCantidadItemsCliente(cliente: any): number {
@@ -2354,7 +2494,9 @@ export class VentasComponent implements OnInit, OnDestroy {
         const mapa = new Map<string, string>();
 
         for (const item of detalle) {
-          const id = String(item?.id_categoria ?? item?.idCategoria ?? item?.categoria_id ?? '').trim();
+          const id = String(
+            item?.id_categoria ?? item?.idCategoria ?? item?.categoria_id ?? '',
+          ).trim();
           const nombre = this.repararTextoCiudad(
             item?.categoria ?? item?.nomCategoria ?? item?.nombreCategoria ?? '',
           ).trim();
@@ -2767,7 +2909,8 @@ export class VentasComponent implements OnInit, OnDestroy {
       case 'vendedor': {
         this.chartType = 'bar';
 
-        const cargarDesdeAdmin = this.rolId === 1 || this.rolId === 2 || this.tieneCodigosVendedoresPermitidos();
+        const cargarDesdeAdmin =
+          this.rolId === 1 || this.rolId === 2 || this.tieneCodigosVendedoresPermitidos();
 
         if (cargarDesdeAdmin) {
           const admin$ = this.esSemanal
@@ -2788,7 +2931,10 @@ export class VentasComponent implements OnInit, OnDestroy {
 
         const vendedor$ = this.esSemanal
           ? this.semanaService.getCumplimientoSemanaVendedor(filtrosConsulta)
-          : this.cumplimientoService.getCumplimientoPorCodigo(this._codigoVendedor, filtrosConsulta);
+          : this.cumplimientoService.getCumplimientoPorCodigo(
+              this._codigoVendedor,
+              filtrosConsulta,
+            );
 
         vendedor$
           .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
