@@ -2067,6 +2067,11 @@ export class VentasComponent implements OnInit, OnDestroy {
               (sum: number, item: any) => sum + (Number(item?.cantidad ?? 0) || 0),
               0,
             );
+            const subtotalTotal = productos.reduce(
+              (sum: number, item: any) =>
+                sum + (Number(item?.subtotal ?? item?.subtotal_producto ?? 0) || 0),
+              0,
+            );
             const totalCompras = this.obtenerTotalComprasClienteEndpoint(cliente);
             const ultimaCompra = String(
               cliente?.ultimaCompra ??
@@ -2088,8 +2093,9 @@ export class VentasComponent implements OnInit, OnDestroy {
               ),
               cantidadItems: productos.length,
               cantidadTotal,
-              ventaAcum: totalCompras,
+              ventaAcum: subtotalTotal,
               totalCompras,
+              subtotalTotal,
               expandido: false,
               ultimaCompra,
               ultimaCompraLabel: ultimaCompra
@@ -2127,7 +2133,8 @@ export class VentasComponent implements OnInit, OnDestroy {
           iniciales: this.obtenerInicialesCliente(nombreVendedor),
           cantidadClientes: clientesConProgreso.length,
           ventaAcum: clientesConProgreso.reduce(
-            (sum: number, cliente: any) => sum + (Number(cliente?.ventaAcum ?? 0) || 0),
+            (sum: number, cliente: any) =>
+              sum + (Number(cliente?.subtotalTotal ?? cliente?.ventaAcum ?? 0) || 0),
             0,
           ),
           expandido: false,
@@ -2356,7 +2363,11 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   getTotalClienteLabel(cliente: any): string {
-    const total = Number(cliente?.totalCompras ?? cliente?.ventaAcum ?? 0);
+    const total = Number(
+      this.esAgrupacionPorVendedor()
+        ? cliente?.subtotalTotal ?? cliente?.ventaAcum ?? 0
+        : cliente?.totalCompras ?? cliente?.ventaAcum ?? 0,
+    );
     return Number.isFinite(total) ? total.toLocaleString('es-CO') : '0';
   }
 

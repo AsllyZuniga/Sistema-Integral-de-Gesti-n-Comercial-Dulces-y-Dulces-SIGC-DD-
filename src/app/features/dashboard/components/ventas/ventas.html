@@ -299,12 +299,6 @@
                       <div class="cliente-identidad">
                         <h4>{{ vendedor.vendedor }}</h4>
 
-                        <span class="cliente-stats">
-                          {{ vendedor.cantidadClientes }}
-                          cliente{{ vendedor.cantidadClientes !== 1 ? 's' : '' }}
-                          asignado{{ vendedor.cantidadClientes !== 1 ? 's' : '' }}
-                        </span>
-
                         <div class="cliente-meta-row">
                           <span class="cliente-meta">
                             Código: {{ vendedor.codVendedor || '—' }}
@@ -341,9 +335,6 @@
                                   </span>
 
                                   <div class="cliente-meta-row">
-                                    <span class="cliente-meta">
-                                      Última compra: {{ cliente.ultimaCompraLabel }}
-                                    </span>
                                     <span class="cliente-total">
                                       Total compras {{ getTotalClienteLabel(cliente) }}
                                     </span>
@@ -403,9 +394,6 @@
                         </span>
 
                         <div class="cliente-meta-row">
-                          <span class="cliente-meta">
-                            Última compra: {{ cliente.ultimaCompraLabel }}
-                          </span>
                           <span class="cliente-total">
                             Total compras {{ getTotalClienteLabel(cliente) }}
                           </span>
