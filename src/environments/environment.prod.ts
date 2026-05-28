@@ -1,6 +1,6 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://api.sisferahub.com',
-  adminVentasUrl: 'https://api.sisferahub.com',
+  apiUrl: '',
+  adminVentasUrl: '',
   authValidationPath: '/api/auth/me',
 };

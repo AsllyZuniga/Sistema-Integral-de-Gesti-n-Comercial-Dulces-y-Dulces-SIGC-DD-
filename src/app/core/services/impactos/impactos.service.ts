@@ -7,7 +7,7 @@ import { DashboardFilters } from '../../../shared/components/filters/filters.com
   providedIn: 'root',
 })
 export class ImpactosService {
-  private apiUrl = 'https://api.sisferahub.com';
+  private apiUrl = '/api';
 
   constructor(private http: HttpClient) { }
 

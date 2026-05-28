@@ -2,7 +2,6 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map, catchError, of, shareReplay, timeout } from 'rxjs';
 import { DashboardFilters } from '../../../shared/components/filters/filters.component';
-import { environment } from '../../../../environments/environment';
 
 export interface VendedoresConItemsParams {
   vendedoresPage?: number;
@@ -17,7 +16,7 @@ export interface VendedoresConItemsParams {
   providedIn: 'root',
 })
 export class CumplimientoService {
-  private apiUrl = environment.apiUrl;
+  private apiUrl = '/api';
   private vendedoresCache$?: Observable<any[]>;
   private proveedoresCache$?: Observable<any[]>;
 

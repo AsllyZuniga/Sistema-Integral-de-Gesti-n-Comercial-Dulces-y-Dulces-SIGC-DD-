@@ -11,8 +11,8 @@ const VALIDACION_SESION_TTL_MS = 60 * 1000;
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly apiUrl = `${environment.apiUrl}/api/auth`;
-  private readonly sessionValidationUrl = `${environment.apiUrl}${environment.authValidationPath}`;
+  private readonly apiUrl = '/api/auth';
+  private readonly sessionValidationUrl = '/api/auth/me';
 
   private timerId: ReturnType<typeof setTimeout> | null = null;
   private validacionBackendHabilitada = true;

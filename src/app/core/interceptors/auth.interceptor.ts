@@ -3,14 +3,12 @@ import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 import { SessionService } from '../services/session.service';
-import { environment } from '../../../environments/environment';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const apiOrigin = new URL(environment.apiUrl).origin;
-  const requestUrl = new URL(req.url, window.location.origin);
-  const esApiConfiable = requestUrl.origin === apiOrigin;
-  const isAuthLoginRequest = requestUrl.pathname.includes('/api/auth/login');
-  const isCuotasVendedorUploadRequest = requestUrl.pathname.includes('/import/cuotas/upload');
+  // Con rutas relativas, todas las URLs que comiencen con /api/ son parte de la API local
+  const isApiRequest = req.url.startsWith('/api/');
+  const isAuthLoginRequest = req.url.includes('/api/auth/login');
+  const isCuotasVendedorUploadRequest = req.url.includes('/import/cuotas/upload');
 
   if (isAuthLoginRequest) {
     return next(req);
@@ -19,7 +17,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const session = inject(SessionService);
   const jwt = session.getToken();
 
-  if (jwt && esApiConfiable && !isCuotasVendedorUploadRequest) {
+  if (jwt && isApiRequest && !isCuotasVendedorUploadRequest) {
     req = req.clone({
       setHeaders: {
         Authorization: `Bearer ${jwt}`,
