@@ -138,6 +138,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     proyeccionVenta: number;
     ventaDiaria?: number;
   } | null = null;
+  ventaMesVista: number | null = null;
   cargandoVendedores = false;
   catalogoVendedores: VendedorTabla[] = [];
   todosLosVendedores: VendedorTabla[] = [];
@@ -714,8 +715,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
         const totalesApi = res?.totales ?? null;
 
         this.totales = {
-          ventaAcum:
-            Number(totalesApi?.totalVenta ?? totalesApi?.ventaDiaria ?? ventaAcum) || ventaAcum,
+          ventaAcum: ventaAcum || Number(totalesApi?.totalVenta ?? totalesApi?.ventaDiaria ?? 0),
           cuotaMes:
             Number(totalesApi?.cuotaMes ?? totalesApi?.cuotaDia ?? cuota) || cuota,
           cuotaDia: Number(totalesApi?.cuotaDia ?? 0) || undefined,
@@ -725,6 +725,9 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
             proyeccionVenta,
           ventaDiaria: Number(totalesApi?.ventaDiaria ?? 0) || undefined,
         };
+        if (this.ventaMesVista === null) {
+          this.ventaMesVista = this.totales.ventaAcum;
+        }
         this.cargandoVendedores = false;
         this.cdr.detectChanges();
       },
@@ -736,6 +739,12 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
         this.cdr.detectChanges();
       },
     });
+  }
+
+  onResumenCambio(resumen: { ventaAcum?: number }): void {
+    const venta = Number(resumen?.ventaAcum ?? 0);
+    this.ventaMesVista = Number.isFinite(venta) ? venta : null;
+    this.cdr.detectChanges();
   }
 
   private aplicarNombresSupervisorEnTabla(): void {

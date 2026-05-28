@@ -1,6 +1,8 @@
 import {
   Component,
   Input,
+  Output,
+  EventEmitter,
   OnInit,
   OnDestroy,
   ChangeDetectorRef,
@@ -35,6 +37,7 @@ export class VentasComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
 
   private readonly activeViewStorageKey = 'sigc-dd.dashboard.ventas.activeView';
+  @Output() resumenCambio = new EventEmitter<{ ventaAcum: number }>();
 
   @Input() set codigoVendedor(value: string) {
     this._codigoVendedor = this.normalizarCodigoVendedor(value);
@@ -329,6 +332,13 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.clientesVisibles = this.clientesPageSize;
     this.chartId = 'chart-' + this.activeVentasView + '-' + Date.now();
     this.cdr.markForCheck();
+  }
+  private emitirResumenVista(): void {
+    if (this.activeVentasView !== 'proveedor') return;
+
+    this.resumenCambio.emit({
+      ventaAcum: Number(this.totalAcumuladoProveedor ?? 0) || 0,
+    });
   }
 
   setVentasView(view: string): void {
@@ -892,6 +902,7 @@ export class VentasComponent implements OnInit, OnDestroy {
                 value: Number(i?.ventaAcum ?? 0),
               }));
               this.chartId = 'chart-proveedor-admin-' + Date.now();
+              this.emitirResumenVista();
               this.cdr.markForCheck();
             });
           return;
@@ -942,6 +953,7 @@ export class VentasComponent implements OnInit, OnDestroy {
               value: Number(i?.ventaAcum ?? 0),
             }));
             this.chartId = 'chart-proveedor-admin-' + Date.now();
+            this.emitirResumenVista();
             this.cdr.markForCheck();
           });
         return;

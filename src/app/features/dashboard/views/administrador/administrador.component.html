@@ -1,5 +1,5 @@
 <section class="kpis">
-  <app-card [title]="labelVentaAcum" [value]="totales?.ventaAcum ?? 0"></app-card>
+  <app-card [title]="labelVentaAcum" [value]="ventaMesVista ?? totales?.ventaAcum ?? 0"></app-card>
   <app-card
     [title]="labelCuota"
     [value]="
@@ -20,6 +20,7 @@
     [filtros]="filtrosAnalisis"
     [tipoCuota]="tipoCuota"
     [modoAdmin]="true"
+    (resumenCambio)="onResumenCambio($event)"
   ></app-ventas>
 </section>
 
