@@ -2588,13 +2588,32 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   private filtrarCategorias(listado: any[], categoriaFiltroRaw: unknown): any[] {
-    const categoriaFiltro = this.normalizarCategoria(categoriaFiltroRaw);
-    if (!categoriaFiltro) return listado;
+    // Acepta cadena o array de valores (ids o nombres). Normaliza todo a minúsculas sin acentos.
+    const filtros: string[] = Array.isArray(categoriaFiltroRaw)
+      ? (categoriaFiltroRaw as unknown[]).map((v) => this.normalizarCategoria(v)).filter(Boolean)
+      : ((): string[] => {
+          const raw = String(categoriaFiltroRaw ?? '').trim();
+          return raw ? [this.normalizarCategoria(raw)] : [];
+        })();
+
+    if (!filtros.length) return listado;
+
+    const setFiltros = new Set(filtros);
 
     return listado.filter((item: any) => {
-      const categoriaItem = this.normalizarCategoria(this.obtenerNombreCategoria(item));
+      const nombreItem = this.normalizarCategoria(this.obtenerNombreCategoria(item));
+      const idItem = this.normalizarCategoria(
+        String(item?.id_categoria ?? item?.idCategoria ?? item?.categoria_id ?? ''),
+      );
 
-      return categoriaItem === categoriaFiltro || categoriaItem.includes(categoriaFiltro);
+      if (setFiltros.has(nombreItem) || (idItem && setFiltros.has(idItem))) return true;
+
+      // Soporte para coincidencias parciales (como antes)
+      for (const f of setFiltros) {
+        if (nombreItem.includes(f)) return true;
+      }
+
+      return false;
     });
   }
 

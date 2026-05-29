@@ -606,9 +606,14 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
 
     obs$.pipe(takeUntil(this.destroy$)).subscribe({
       next: (res: ApiTotalesAdminResponse) => {
-        const detalle = (res?.detalle ?? []).filter(
-          (v) => this.obtenerCodigoVendedor(v) !== 'TOTALES',
-        );
+        const detalleBruto = Array.isArray(res?.detalle) ? res.detalle : [];
+        const filaTotales = detalleBruto.find((v) => {
+          const codigo = this.obtenerCodigoVendedor(v).toUpperCase();
+          const nombre = String(v?.nombre ?? '').trim().toUpperCase();
+          return codigo === 'TOTALES' || nombre === 'TOTALES';
+        }) as VendedorApiRow | undefined;
+
+        const detalle = detalleBruto.filter((v) => this.obtenerCodigoVendedor(v) !== 'TOTALES');
         const detallePorCodigo = new Map<string, VendedorApiRow>();
 
         detalle.forEach((fila: VendedorApiRow) => {
@@ -713,11 +718,14 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
         const porcCump = cuota > 0 ? (ventaAcum / cuota) * 100 : 0;
 
         const totalesApi = res?.totales ?? null;
+        const cuotaSemanaTotal = Number(
+          totalesApi?.cuotaSemana ?? filaTotales?.cuotaSemana ?? filaTotales?.cuotaMes ?? cuota,
+        );
 
         this.totales = {
           ventaAcum: ventaAcum || Number(totalesApi?.totalVenta ?? totalesApi?.ventaDiaria ?? 0),
-          cuotaMes:
-            Number(totalesApi?.cuotaMes ?? totalesApi?.cuotaDia ?? cuota) || cuota,
+          cuotaMes: Number(totalesApi?.cuotaMes ?? cuota) || cuota,
+          cuotaSemana: Number.isFinite(cuotaSemanaTotal) && cuotaSemanaTotal > 0 ? cuotaSemanaTotal : cuota,
           cuotaDia: Number(totalesApi?.cuotaDia ?? 0) || undefined,
           porcCump: Number(totalesApi?.porcCump ?? porcCump) || porcCump,
           proyeccionVenta:

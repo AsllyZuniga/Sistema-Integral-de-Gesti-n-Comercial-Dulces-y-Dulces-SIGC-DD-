@@ -48,7 +48,19 @@ export class CumplimientoSemanaService {
     const params = this.buildParams(filtros);
     return this.http
       .get<any>(`${this.apiUrl}/semana/cumplimiento/front`, { params })
-      .pipe(catchError(() => of({ detalle: [] })));
+      .pipe(
+        map((res) => ({
+          ...(res ?? {}),
+          periodo: res?.periodo ?? res?.data?.periodo ?? {},
+          detalle: Array.isArray(res?.detalle)
+            ? res.detalle
+            : Array.isArray(res?.data?.detalle)
+              ? res.data.detalle
+              : [],
+          totales: res?.totales ?? res?.data?.totales ?? null,
+        })),
+        catchError(() => of({ detalle: [], totales: null, periodo: {} })),
+      );
   }
 
   /**
@@ -59,7 +71,19 @@ export class CumplimientoSemanaService {
     const params = this.buildParamsForMe(filtros);
     return this.http
       .get<any>(`${this.apiUrl}/semana/cumplimiento/front/me`, { params })
-      .pipe(catchError(() => of({ detalle: [] })));
+      .pipe(
+        map((res) => ({
+          ...(res ?? {}),
+          periodo: res?.periodo ?? res?.data?.periodo ?? {},
+          detalle: Array.isArray(res?.detalle)
+            ? res.detalle
+            : Array.isArray(res?.data?.detalle)
+              ? res.data.detalle
+              : [],
+          totales: res?.totales ?? res?.data?.totales ?? null,
+        })),
+        catchError(() => of({ detalle: [], totales: null, periodo: {} })),
+      );
   }
 
   // ─── LÍNEAS ──────────────────────────────────────────────────────────────────
@@ -216,6 +240,18 @@ export class CumplimientoSemanaService {
     const params = this.buildParamsForMe(filtros);
     return this.http
       .get<any>(`${this.apiUrl}/semana/cumplimiento/front/me`, { params })
-      .pipe(catchError(() => of(null)));
+      .pipe(
+        map((res) => ({
+          ...(res ?? {}),
+          periodo: res?.periodo ?? res?.data?.periodo ?? {},
+          detalle: Array.isArray(res?.detalle)
+            ? res.detalle
+            : Array.isArray(res?.data?.detalle)
+              ? res.data.detalle
+              : [],
+          totales: res?.totales ?? res?.data?.totales ?? null,
+        })),
+        catchError(() => of({ detalle: [], totales: null, periodo: {} })),
+      );
   }
 }
