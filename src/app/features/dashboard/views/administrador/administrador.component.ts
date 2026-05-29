@@ -97,11 +97,36 @@ interface ApiTotalesAdminResponse extends ApiTotalesResponse<VendedorApiRow> {
     proyeccionVenta?: number;
     totalDias?: number;
   } | null;
+  total?: {
+    cuotaDia?: number;
+    cuotaMes?: number;
+    cuotaSemana?: number;
+    ventaDiaria?: number;
+    cumplimiento?: number;
+    proyeccion?: number;
+    cumplimientoProyectado?: number;
+    vendedoresCount?: number;
+  } | null;
   periodo?: {
     fechaInicio?: string;
     fechaFin?: string;
     totalDias?: number;
   } | null;
+}
+
+interface TotalesAdminUnificado {
+  cuotaDia?: number;
+  cuotaMes?: number;
+  cuotaSemana?: number;
+  totalVenta?: number;
+  ventaDiaria?: number;
+  porcCump?: number;
+  promedioDiario?: number;
+  proyeccionVenta?: number;
+  proyeccion?: number;
+  cumplimiento?: number;
+  cumplimientoProyectado?: number;
+  vendedoresCount?: number;
 }
 
 @Component({
@@ -792,7 +817,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
         );
         const porcCump = cuota > 0 ? (ventaAcum / cuota) * 100 : 0;
 
-        const totalesApi = res?.totales ?? null;
+        const totalesApi = (res?.totales ?? res?.total ?? null) as TotalesAdminUnificado | null;
         const cuotaSemanaTotal = Number(
           totalesApi?.cuotaSemana ?? filaTotales?.cuotaSemana ?? filaTotales?.cuotaMes ?? cuota,
         );
