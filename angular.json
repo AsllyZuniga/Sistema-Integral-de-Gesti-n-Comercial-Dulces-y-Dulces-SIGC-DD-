@@ -70,7 +70,8 @@
               "buildTarget": "sigc-dd:build:production"
             },
             "development": {
-              "buildTarget": "sigc-dd:build:development"
+              "buildTarget": "sigc-dd:build:development",
+              "proxyConfig": "proxy.conf.json"
             }
           },
           "defaultConfiguration": "development"
