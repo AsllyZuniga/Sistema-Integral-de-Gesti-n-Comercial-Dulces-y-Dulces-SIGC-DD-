@@ -38,7 +38,16 @@ interface DashboardTotalesVendedor {
 
 interface ApiProveedorRow {
   nombre?: string;
+  nombreProveedor?: string;
+  nomProveedor?: string;
+  nombre_proveedor?: string;
+  proveedor?: string;
+
   codigo?: string;
+  codigoProveedor?: string;
+  cod?: string;
+  idProveedor?: string | number;
+  id_proveedor?: string | number;
 }
 
 interface ApiVendedorRow {
@@ -526,7 +535,14 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private obtenerProveedorLabel(item: ApiProveedorRow): string {
-    return String(item.nombre ?? '').trim();
+    return String(
+      item?.nombre ??
+        item?.nombreProveedor ??
+        item?.nomProveedor ??
+        item?.nombre_proveedor ??
+        item?.proveedor ??
+        '',
+    ).trim();
   }
 
   private registrarCiudad(
@@ -810,12 +826,32 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         this.proveedorMap.clear();
         const unicos = new Set<string>();
 
-        proveedores.forEach((item) => {
-          const nombre = this.obtenerProveedorLabel(item);
-          const codigo = String(item.codigo ?? '').trim();
+        console.debug(
+          '[Dashboard] proveedores recibidos:',
+          Array.isArray(proveedores) ? proveedores.length : 0,
+        );
 
-          if (nombre && codigo) {
-            this.proveedorMap.set(nombre, codigo);
+        (Array.isArray(proveedores) ? proveedores : []).forEach((item) => {
+          let nombre = '';
+          let codigo = '';
+
+          if (typeof item === 'string') {
+            nombre = String(item).trim();
+            codigo = '';
+          } else if (item && typeof item === 'object') {
+            nombre = this.obtenerProveedorLabel(item as ApiProveedorRow);
+            codigo = String(
+              (item as any)?.codigo ??
+                (item as any)?.cod ??
+                (item as any)?.idProveedor ??
+                (item as any)?.id_proveedor ??
+                (item as any)?.codigoProveedor ??
+                '',
+            ).trim();
+          }
+
+          if (nombre) {
+            this.proveedorMap.set(nombre, codigo || nombre);
             unicos.add(nombre);
           }
         });
@@ -870,9 +906,17 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private cargarCategoriasFiltros(): void {
+    const filtrosConsulta: DashboardFilters = {
+      ...this.filtrosActivos,
+      categoria: '',
+      categoriaNombre: '',
+      categorias: [],
+      categoriaNombres: [],
+    };
+
     if (this.esAdmin) {
       this.cumplimientoService
-        .getCuotaCategoriasPorVendedores()
+        .getCuotaCategoriasPorVendedores(filtrosConsulta)
         .pipe(takeUntil(this.destroy$))
         .subscribe((res: ApiTotalesResponse<ApiCategoriaRow>) => {
           const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
@@ -880,7 +924,6 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
           detalle.forEach((item) => {
             const categoriaRaw = this.obtenerNombreCategoria(item);
-
             if (!categoriaRaw) return;
 
             const categoriaLimpia = this.limpiarNombreCategoria(categoriaRaw);
@@ -908,6 +951,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       categoria: '',
       categoriaNombre: '',
       categorias: [],
+      categoriaNombres: [],
       linea: '',
     };
 
@@ -923,11 +967,10 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     const intentarCategorias = (idx: number): void => {
-      const filtrosConsulta = candidatos[idx];
-      // Usar getCuotaCategoriaGeneral para obtener todas las categorías con filtros (vendedor, proveedor, fecha)
-      const categorias$ = this.cumplimientoService.getCuotaCategoriaGeneral(filtrosConsulta);
+      const filtros = candidatos[idx];
 
-      categorias$
+      this.cumplimientoService
+        .getCuotaCategoriaGeneral(filtros)
         .pipe(takeUntil(this.destroy$))
         .subscribe((res: ApiTotalesResponse<ApiCategoriaRow>) => {
           const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
@@ -935,7 +978,6 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
           detalle.forEach((item) => {
             const categoriaRaw = this.obtenerNombreCategoria(item);
-
             if (!categoriaRaw) return;
 
             const categoriaLimpia = this.limpiarNombreCategoria(categoriaRaw);
@@ -1013,7 +1055,14 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     if (filtros.proveedor) {
-      filtrosConCodigos.proveedor = this.proveedorMap.get(filtros.proveedor) ?? filtros.proveedor;
+      const mapeado = this.proveedorMap.get(filtros.proveedor) ?? filtros.proveedor;
+      console.debug(
+        '[Dashboard] aplicar filtros - proveedor raw:',
+        filtros.proveedor,
+        'mapeado->',
+        mapeado,
+      );
+      filtrosConCodigos.proveedor = mapeado;
     }
 
     if (ciudadVisible) {
@@ -1062,8 +1111,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       this.tipoCuota === 'diaria'
         ? this.cumplimientoService.getCumplimientoDiaVendedor(filtros)
         : this.tipoCuota === 'mensual'
-        ? this.cumplimientoService.getCumplimientoMesVendedor(filtros)
-        : this.semanaService.getCumplimientoSemanaVendedor(filtros);
+          ? this.cumplimientoService.getCumplimientoMesVendedor(filtros)
+          : this.semanaService.getCumplimientoSemanaVendedor(filtros);
 
     const campo =
       this.tipoCuota === 'semanal'

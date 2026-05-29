@@ -293,7 +293,9 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     }
     
     const proveedorFiltro = this.normalizarTexto(filtros.proveedor);
-    const categoriaFiltro = this.normalizarTexto(filtros.categoria);
+    const categoriasFiltro = Array.isArray(filtros.categorias) && filtros.categorias.length
+      ? filtros.categorias.map((item) => this.normalizarTexto(item)).filter(Boolean)
+      : [this.normalizarTexto(filtros.categoria)].filter(Boolean);
     const ciudadFiltro = this.normalizarTexto(filtros.ciudadNombre ?? filtros.ciudad ?? '');
     const lineaFiltro = this.normalizarTexto(filtros.linea);
 
@@ -311,9 +313,13 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
         if (!proveedorV.includes(proveedorFiltro)) return false;
       }
 
-      if (categoriaFiltro) {
+      if (categoriasFiltro.length) {
         const categoriaV = this.normalizarTexto(v.categoria ?? v.nomCategoria ?? v.nombreCategoria);
-        if (!categoriaV.includes(categoriaFiltro)) return false;
+        const coincideCategoria = categoriasFiltro.some(
+          (categoriaFiltro) =>
+            categoriaV === categoriaFiltro || categoriaV.includes(categoriaFiltro),
+        );
+        if (!coincideCategoria) return false;
       }
 
       if (ciudadFiltro) {

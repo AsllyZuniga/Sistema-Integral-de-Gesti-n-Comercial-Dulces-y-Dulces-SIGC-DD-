@@ -723,26 +723,45 @@ export class VentasComponent implements OnInit, OnDestroy {
             return;
           }
 
+          const filtrosParaConsulta =
+            Array.isArray(filtrosConsulta.categorias) && filtrosConsulta.categorias.length > 1
+              ? {
+                  ...filtrosConsulta,
+                  categoria: '',
+                  categoriaNombre: '',
+                  categorias: [],
+                  categoriaNombres: [],
+                }
+              : filtrosConsulta;
+
           this.combinarResultadosPorVendedor(
             codigos,
             (codigo) =>
               this.esSemanal
-                ? this.semanaService.getCuotaCategoriaPorVendedor(codigo, filtrosConsulta)
-                : this.cumplimientoService.getCuotaCategoriaPorVendedor(codigo, filtrosConsulta),
+                ? this.semanaService.getCuotaCategoriaPorVendedor(codigo, filtrosParaConsulta)
+                : this.cumplimientoService.getCuotaCategoriaPorVendedor(codigo, filtrosParaConsulta),
             (res) => (Array.isArray(res?.detalle) ? res.detalle : []),
           )
             .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((detalleBruto: any[]) => {
-              const detalleConsolidado = this.consolidarPorCategoria(detalleBruto);
-              const detalleFiltrado = this.filtrarCategorias(
-                detalleConsolidado,
-                filtrosConsulta.categoria,
-              );
-              const detalleConNombre = detalleFiltrado.map((item: any) => ({
+              const categoriasSeleccionadas = Array.isArray(filtrosConsulta.categorias)
+                && filtrosConsulta.categorias.length
+                ? filtrosConsulta.categorias.filter(Boolean)
+                : Array.isArray(filtrosConsulta.categoriaNombres)
+                  ? filtrosConsulta.categoriaNombres.filter(Boolean)
+                  : [];
+              const categoriaFiltro = categoriasSeleccionadas.length
+                ? categoriasSeleccionadas
+                : filtrosConsulta.categoria;
+
+              const detalleFiltrado = this.filtrarCategoriasReales(detalleBruto, categoriaFiltro);
+              const detalleConsolidado = this.consolidarPorCategoria(detalleFiltrado);
+              const detalleConNombre = detalleConsolidado.map((item: any) => ({
                 ...item,
                 categoria: this.obtenerNombreCategoria(item) || 'Sin categoría',
               }));
-              const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleConNombre);
+              const detalleCompleto = detalleConNombre;
+              const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleCompleto);
 
               this.tableData = detalleOrdenado;
               this.totalCuotaCategoria = detalleOrdenado.reduce(
@@ -755,7 +774,7 @@ export class VentasComponent implements OnInit, OnDestroy {
                 0,
               );
 
-              const topCategorias = [...detalleConNombre]
+              const topCategorias = [...detalleCompleto]
                 .map((i: any) => ({
                   name: this.obtenerNombreCategoria(i) || 'Sin categoría',
                   value: Number(i?.acumulado ?? i?.ventaAcum ?? 0),
@@ -774,23 +793,41 @@ export class VentasComponent implements OnInit, OnDestroy {
           return;
         }
         this.cumplimientoService
-          .getCuotaCategoriaGeneral(filtrosConsulta)
+          .getCuotaCategoriaGeneral(
+            Array.isArray(filtrosConsulta.categorias) && filtrosConsulta.categorias.length > 1
+              ? {
+                  ...filtrosConsulta,
+                  categoria: '',
+                  categoriaNombre: '',
+                  categorias: [],
+                  categoriaNombres: [],
+                }
+              : filtrosConsulta,
+          )
           .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
           .subscribe((res: any) => {
             const pintarCategoria = (detalleRaw: any[]) => {
               const detallePermitido = this.filtrarPorCodigosVendedoresPermitidos(detalleRaw);
-              const detalleFiltrado = this.filtrarCategorias(
+              const categoriasSeleccionadas = Array.isArray(filtrosConsulta.categorias)
+                && filtrosConsulta.categorias.length
+                ? filtrosConsulta.categorias.filter(Boolean)
+                : Array.isArray(filtrosConsulta.categoriaNombres)
+                  ? filtrosConsulta.categoriaNombres.filter(Boolean)
+                  : [];
+              const categoriaFiltroInner = categoriasSeleccionadas.length
+                ? categoriasSeleccionadas
+                : filtrosConsulta.categoria;
+
+              const detalleFiltrado = this.filtrarCategoriasReales(
                 detallePermitido,
-                filtrosConsulta.categoria,
+                categoriaFiltroInner,
               );
-              const detalleConNombre = detalleFiltrado.map((item: any) => ({
+              const detalleConsolidado = this.consolidarPorCategoria(detalleFiltrado);
+              const detalleConNombre = detalleConsolidado.map((item: any) => ({
                 ...item,
                 categoria: this.obtenerNombreCategoria(item) || 'Sin categoría',
               }));
-              const detalleCompleto = this.completarCategoriasSinDatos(
-                detalleConNombre,
-                filtrosConsulta.categoria,
-              );
+              const detalleCompleto = detalleConNombre;
               const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleCompleto);
 
               this.tableData = detalleOrdenado;
@@ -2523,6 +2560,22 @@ export class VentasComponent implements OnInit, OnDestroy {
     return this.normalizarTexto(this.limpiarNombreCategoria(valor));
   }
 
+  private coincideCategoria(valorA: unknown, valorB: unknown): boolean {
+    const aBruto = this.normalizarTexto(this.repararTextoCiudad(valorA));
+    const bBruto = this.normalizarTexto(this.repararTextoCiudad(valorB));
+    const aNormal = this.normalizarCategoria(valorA);
+    const bNormal = this.normalizarCategoria(valorB);
+
+    return (
+      aBruto === bBruto ||
+      aNormal === bNormal ||
+      aBruto.includes(bBruto) ||
+      bBruto.includes(aBruto) ||
+      aNormal.includes(bNormal) ||
+      bNormal.includes(aNormal)
+    );
+  }
+
   private cargarMapaCategorias(): void {
     this.cumplimientoService
       .getCuotaCategoriasPorVendedores()
@@ -2606,20 +2659,97 @@ export class VentasComponent implements OnInit, OnDestroy {
         String(item?.id_categoria ?? item?.idCategoria ?? item?.categoria_id ?? ''),
       );
 
-      if (setFiltros.has(nombreItem) || (idItem && setFiltros.has(idItem))) return true;
+      return setFiltros.has(nombreItem) || (idItem && setFiltros.has(idItem));
+    });
+  }
 
-      // Soporte para coincidencias parciales (como antes)
-      for (const f of setFiltros) {
-        if (nombreItem.includes(f)) return true;
-      }
+  private construirCategoriasSeleccionadas(listado: any[], categoriaFiltroRaw: unknown): any[] {
+    const categoriasSeleccionadas = Array.isArray(categoriaFiltroRaw)
+      ? (categoriaFiltroRaw as unknown[]).map((v) => this.normalizarCategoria(v)).filter(Boolean)
+      : ((): string[] => {
+          const raw = this.normalizarCategoria(categoriaFiltroRaw);
+          return raw ? [raw] : [];
+        })();
 
-      return false;
+    if (categoriasSeleccionadas.length <= 1) {
+      return this.filtrarCategorias(listado, categoriaFiltroRaw);
+    }
+
+    const mapa = new Map<string, any>();
+
+    for (const item of listado) {
+      const nombre = this.normalizarCategoria(this.obtenerNombreCategoria(item));
+      const id = this.normalizarCategoria(
+        String(item?.id_categoria ?? item?.idCategoria ?? item?.categoria_id ?? ''),
+      );
+
+      if (nombre) mapa.set(nombre, item);
+      if (id) mapa.set(id, item);
+    }
+
+    return categoriasSeleccionadas.map((categoria) => {
+      const coincidencia = mapa.get(categoria);
+      if (coincidencia) return coincidencia;
+
+      const encontrada = listado.find((item: any) => {
+        const nombre = this.normalizarCategoria(this.obtenerNombreCategoria(item));
+        const id = this.normalizarCategoria(
+          String(item?.id_categoria ?? item?.idCategoria ?? item?.categoria_id ?? ''),
+        );
+
+        return nombre === categoria || id === categoria;
+      });
+
+      return (
+        encontrada ?? {
+          id_categoria: categoria,
+          categoria,
+          cuota: 0,
+          acumulado: 0,
+          ventaAcum: 0,
+          proyeccionVenta: 0,
+          porcCump: 0,
+          porcCumProy: 0,
+        }
+      );
+    });
+  }
+
+  private filtrarCategoriasReales(listado: any[], categoriaFiltroRaw: unknown): any[] {
+    const categoriasSeleccionadas = Array.isArray(categoriaFiltroRaw)
+      ? (categoriaFiltroRaw as unknown[]).map((v) => this.normalizarCategoria(v)).filter(Boolean)
+      : ((): string[] => {
+          const raw = this.normalizarCategoria(categoriaFiltroRaw);
+          return raw ? [raw] : [];
+        })();
+
+    if (!categoriasSeleccionadas.length) return listado;
+
+    const setFiltros = new Set(categoriasSeleccionadas);
+
+    return listado.filter((item: any) => {
+      const nombre = this.normalizarCategoria(this.obtenerNombreCategoria(item));
+      const id = this.normalizarCategoria(
+        String(item?.id_categoria ?? item?.idCategoria ?? item?.categoria_id ?? ''),
+      );
+
+      return setFiltros.has(nombre) || (id && setFiltros.has(id));
     });
   }
 
   private completarCategoriasSinDatos(listado: any[], categoriaFiltroRaw: unknown): any[] {
-    const categoriaFiltro = this.normalizarCategoria(categoriaFiltroRaw);
-    if (categoriaFiltro || this.categoriasPorId.size === 0) return listado;
+    const categoriasSeleccionadas = Array.isArray(categoriaFiltroRaw)
+      ? (categoriaFiltroRaw as unknown[]).map((v) => this.normalizarCategoria(v)).filter(Boolean)
+      : ((): string[] => {
+          const categoria = this.normalizarCategoria(categoriaFiltroRaw);
+          return categoria ? [categoria] : [];
+        })();
+
+    if (categoriasSeleccionadas.length === 0 || this.categoriasPorId.size === 0) {
+      if (categoriasSeleccionadas.length > 0) return listado;
+    }
+
+    if (categoriasSeleccionadas.length === 1) return listado;
 
     const existentes = new Set<string>();
 
@@ -2631,23 +2761,30 @@ export class VentasComponent implements OnInit, OnDestroy {
       if (id) existentes.add(this.normalizarCategoria(id));
     }
 
-    const faltantes = Array.from(this.categoriasPorId.entries())
-      .filter(([id, nombre]) => {
-        const idNorm = this.normalizarCategoria(id);
-        const nombreNorm = this.normalizarCategoria(nombre);
+    const faltantes = categoriasSeleccionadas
+      .filter((categoria) => !existentes.has(categoria))
+      .map((categoria) => {
+        const encontrada = Array.from(this.categoriasPorId.entries()).find(([id, nombre]) => {
+          const idNorm = this.normalizarCategoria(id);
+          const nombreNorm = this.normalizarCategoria(nombre);
+          return idNorm === categoria || nombreNorm === categoria;
+        });
 
-        return !existentes.has(idNorm) && !existentes.has(nombreNorm);
+        const id = encontrada?.[0] ?? categoria;
+        const nombre = encontrada?.[1] ?? categoria;
+
+        return {
+          id_categoria: id,
+          categoria: nombre,
+          cuota: 0,
+          acumulado: 0,
+          ventaAcum: 0,
+          proyeccionVenta: 0,
+          porcCump: 0,
+          porcCumProy: 0,
+        };
       })
-      .map(([id, nombre]) => ({
-        id_categoria: id,
-        categoria: nombre,
-        cuota: 0,
-        acumulado: 0,
-        ventaAcum: 0,
-        proyeccionVenta: 0,
-        porcCump: 0,
-        porcCumProy: 0,
-      }));
+      ;
 
     return [...listado, ...faltantes];
   }
@@ -2706,6 +2843,7 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   private filtrarProveedores(listado: any[], codigoProveedor: string): any[] {
     const filtroRaw = String(codigoProveedor ?? '').trim();
+    console.debug('[Ventas] filtrarProveedores called with:', { filtroRaw, proveedoresCount: listado?.length });
     if (!filtroRaw) return listado;
 
     const filtros = filtroRaw
@@ -2748,6 +2886,13 @@ export class VentasComponent implements OnInit, OnDestroy {
         }
 
         if (f.rawNorm && reporteNorm.includes(f.rawNorm)) return true;
+
+        // Intento extra de coincidencia: comparar con una versión limpia del nombre
+        const proveedorLabel = this.normalizarTexto(
+          this.repararTextoCiudad(linea || reporte || idProveedor || ''),
+        );
+
+        if (f.rawNorm && proveedorLabel.includes(f.rawNorm)) return true;
 
         return false;
       });
@@ -3094,6 +3239,10 @@ export class VentasComponent implements OnInit, OnDestroy {
         this.chartType = 'bar';
 
         {
+          const categoriasSeleccionadasOriginales = Array.isArray(filtrosConsulta.categorias)
+            ? filtrosConsulta.categorias.filter(Boolean)
+            : [];
+
           const candidatos = this.debeAplicarFallbackAutomatico(filtrosConsulta)
             ? this.construirCandidatosFallback(filtrosConsulta)
             : [filtrosConsulta];
@@ -3169,12 +3318,28 @@ export class VentasComponent implements OnInit, OnDestroy {
         this.chartType = 'bar';
 
         {
+          const categoriasSeleccionadasOriginales = Array.isArray(filtrosConsulta.categorias)
+            ? filtrosConsulta.categorias.filter(Boolean)
+            : [];
+
           const candidatos = this.debeAplicarFallbackAutomatico(filtrosConsulta)
             ? this.construirCandidatosFallback(filtrosConsulta)
             : [filtrosConsulta];
 
+          const candidatosSinCategoria = candidatos.map((filtros) =>
+            Array.isArray(filtros.categorias) && filtros.categorias.length > 1
+              ? {
+                  ...filtros,
+                  categoria: '',
+                  categoriaNombre: '',
+                  categorias: [],
+                  categoriaNombres: [],
+                }
+              : filtros,
+          );
+
           const intentarCategoria = (idx: number): void => {
-            const filtrosActivos = candidatos[idx];
+            const filtrosActivos = candidatosSinCategoria[idx];
             const categorias$ = this.esSemanal
               ? this.semanaService.getCuotaCategoriaPorVendedor(
                   this._codigoVendedor,
@@ -3189,12 +3354,27 @@ export class VentasComponent implements OnInit, OnDestroy {
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((res: any) => {
                 const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
-                const detalleFiltrado = this.filtrarCategorias(detalle, filtrosActivos.categoria);
-                const detalleConNombre = detalleFiltrado.map((item: any) => ({
+                const categoriasSeleccionadas = categoriasSeleccionadasOriginales.length
+                  ? categoriasSeleccionadasOriginales
+                  : Array.isArray(filtrosActivos.categoriaNombres)
+                    ? filtrosActivos.categoriaNombres.filter(Boolean)
+                    : Array.isArray(filtrosActivos.categorias)
+                      ? filtrosActivos.categorias.filter(Boolean)
+                      : [];
+                const categoriaFiltroActivos = categoriasSeleccionadas.length
+                  ? categoriasSeleccionadas
+                  : filtrosActivos.categoria;
+                  const detalleFiltrado = this.filtrarCategoriasReales(
+                    detalle,
+                    categoriaFiltroActivos,
+                  );
+                  const detalleConsolidado = this.consolidarPorCategoria(detalleFiltrado);
+                  const detalleConNombre = detalleConsolidado.map((item: any) => ({
                   ...item,
                   categoria: this.obtenerNombreCategoria(item) || 'Sin categoría',
                 }));
-                const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleConNombre);
+                  const detalleCompleto = detalleConNombre;
+                const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleCompleto);
 
                 if (!detalleFiltrado.length && idx < candidatos.length - 1) {
                   intentarCategoria(idx + 1);
@@ -3214,7 +3394,7 @@ export class VentasComponent implements OnInit, OnDestroy {
                   0,
                 );
 
-                const topCategorias = [...detalleConNombre]
+                const topCategorias = [...detalleCompleto]
                   .map((i: any) => ({
                     name: this.obtenerNombreCategoria(i) || 'Sin categoría',
                     value: Number(i?.acumulado ?? i?.ventaAcum ?? 0),

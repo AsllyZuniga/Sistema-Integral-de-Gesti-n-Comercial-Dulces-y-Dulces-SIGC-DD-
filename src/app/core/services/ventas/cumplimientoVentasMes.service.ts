@@ -22,6 +22,29 @@ export class CumplimientoService {
 
   constructor(private http: HttpClient) {}
 
+  private aplicarCategoriaParams(params: HttpParams, filtros?: DashboardFilters): HttpParams {
+    const categorias = Array.isArray(filtros?.categorias)
+      ? filtros?.categorias.map((item) => String(item ?? '').trim()).filter(Boolean)
+      : [];
+
+    if (categorias.length > 1) {
+      const categoriasCsv = categorias.join(',');
+      params = params.set('categorias', categoriasCsv);
+      return params;
+    }
+
+    if (categorias.length === 1) {
+      params = params.set('categoria', categorias[0]);
+      return params;
+    }
+
+    if (filtros?.categoria) {
+      params = params.set('categoria', filtros.categoria);
+    }
+
+    return params;
+  }
+
   private buildParams(filtros?: DashboardFilters): HttpParams {
     let params = new HttpParams();
 
@@ -31,7 +54,7 @@ export class CumplimientoService {
     if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
     if (filtros?.vendedor) params = params.set('vendedor', filtros.vendedor);
     if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
-    if (filtros?.categoria) params = params.set('categoria', filtros.categoria);
+    params = this.aplicarCategoriaParams(params, filtros);
     if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
     if (filtros?.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
     if (filtros?.linea) params = params.set('linea', filtros.linea);
@@ -51,7 +74,7 @@ export class CumplimientoService {
     if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
     if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
     if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
-    if (filtros?.categoria) params = params.set('categoria', filtros.categoria);
+    params = this.aplicarCategoriaParams(params, filtros);
     if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
     if (filtros?.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
     if (filtros?.linea) params = params.set('linea', filtros.linea);
@@ -71,7 +94,7 @@ export class CumplimientoService {
     if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
     if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
     if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
-    if (filtros?.categoria) params = params.set('categoria', filtros.categoria);
+    params = this.aplicarCategoriaParams(params, filtros);
     if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
     if (filtros?.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
     if (filtros?.linea) params = params.set('linea', filtros.linea);

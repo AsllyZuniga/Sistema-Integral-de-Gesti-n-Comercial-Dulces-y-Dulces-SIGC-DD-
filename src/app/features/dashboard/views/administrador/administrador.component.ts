@@ -68,8 +68,11 @@ interface VendedorApiRow {
   cuotaDia?: number | CuotaDetalle;
   ventaAcum?: number;
   ventaDiaria?: number;
+  cumplimiento?: number;
   porcCump?: number;
+  proyeccion?: number;
   proyeccionVenta?: number;
+  cumplimientoProyectado?: number;
   promedioDiario?: number;
   nombreSupervisor?: string;
   id_supervisor?: number | string | null;
@@ -281,6 +284,69 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     return Number(valor ?? 0);
   }
 
+  private puntajeFilaCuotaDiaria(fila: VendedorApiRow | null | undefined): number {
+    if (!fila) return 0;
+
+    const valores: number[] = [
+      Number(fila.cuotaDia ?? fila.cuotaDiaria ?? 0) || 0,
+      Number(fila.ventaDiaria ?? 0) || 0,
+      Number(fila.cumplimiento ?? fila.porcCump ?? 0) || 0,
+      Number(fila.proyeccion ?? fila.proyeccionVenta ?? 0) || 0,
+      Number(fila.cumplimientoProyectado ?? 0) || 0,
+    ];
+
+    return valores.reduce((suma: number, valor: number) => suma + Math.abs(valor), 0);
+  }
+
+  private esMejorFilaCuotaDiaria(
+    candidata: VendedorApiRow | null | undefined,
+    actual: VendedorApiRow | null | undefined,
+  ): boolean {
+    if (!actual) return true;
+
+    const puntajeCandidata = this.puntajeFilaCuotaDiaria(candidata);
+    const puntajeActual = this.puntajeFilaCuotaDiaria(actual);
+
+    if (puntajeCandidata !== puntajeActual) {
+      return puntajeCandidata > puntajeActual;
+    }
+
+    const ventaCandidata = Number(candidata?.ventaDiaria ?? 0) || 0;
+    const ventaActual = Number(actual?.ventaDiaria ?? 0) || 0;
+
+    if (ventaCandidata !== ventaActual) {
+      return ventaCandidata > ventaActual;
+    }
+
+    const cuotaCandidata = Number(candidata?.cuotaDia ?? candidata?.cuotaDiaria ?? 0) || 0;
+    const cuotaActual = Number(actual?.cuotaDia ?? actual?.cuotaDiaria ?? 0) || 0;
+
+    return cuotaCandidata > cuotaActual;
+  }
+
+  private normalizarDetalleCuotaDiaria(detalle: VendedorApiRow[]): VendedorApiRow[] {
+    const porCodigo = new Map<string, VendedorApiRow>();
+    const filasSinCodigo: VendedorApiRow[] = [];
+
+    detalle.forEach((fila) => {
+      const codigo = this.obtenerCodigoVendedor(fila);
+
+      if (!codigo) {
+        filasSinCodigo.push(fila);
+        return;
+      }
+
+      for (const clave of this.generarClavesCodigo(codigo)) {
+        const actual = porCodigo.get(clave);
+        if (this.esMejorFilaCuotaDiaria(fila, actual)) {
+          porCodigo.set(clave, fila);
+        }
+      }
+    });
+
+    return [...filasSinCodigo, ...porCodigo.values()];
+  }
+
   private obtenerNombreSupervisor(
     vendedor: VendedorApiRow | VendedorTabla | any,
     supervisor?: SupervisorResumen,
@@ -342,7 +408,9 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
 
     const vendedorFiltro = this.obtenerValoresVendedorFiltro(filtros.vendedor);
     const proveedoresFiltro = this.obtenerValoresProveedorFiltro(filtros.proveedor);
-    const categoriaFiltro = this.normalizarTexto(filtros.categoria);
+    const categoriasFiltro = Array.isArray(filtros.categorias) && filtros.categorias.length
+      ? filtros.categorias.map((item) => this.normalizarTexto(item)).filter(Boolean)
+      : [this.normalizarTexto(filtros.categoria)].filter(Boolean);
     const ciudadFiltro = this.normalizarTexto(filtros.ciudadNombre ?? filtros.ciudad ?? '');
     const lineaFiltro = this.normalizarTexto(filtros.linea);
 
@@ -383,15 +451,18 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
         }
       }
 
-      if (categoriaFiltro) {
+      if (categoriasFiltro.length) {
         const valoresFila = [v.categoria, v.nomCategoria, v.nombreCategoria]
           .map((item) => this.normalizarTexto(item))
           .filter(Boolean);
-        if (
-          valoresFila.length &&
-          !valoresFila.some((valorFila) => valorFila.includes(categoriaFiltro))
-        )
-          return false;
+
+        const coincideCategoria = valoresFila.some((valorFila) =>
+          categoriasFiltro.some(
+            (valorFiltro) => valorFila === valorFiltro || valorFila.includes(valorFiltro),
+          ),
+        );
+
+        if (valoresFila.length && !coincideCategoria) return false;
       }
 
       if (ciudadFiltro) {
@@ -613,7 +684,11 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
           return codigo === 'TOTALES' || nombre === 'TOTALES';
         }) as VendedorApiRow | undefined;
 
-        const detalle = detalleBruto.filter((v) => this.obtenerCodigoVendedor(v) !== 'TOTALES');
+        const detalleFiltrado = detalleBruto.filter((v) => this.obtenerCodigoVendedor(v) !== 'TOTALES');
+        const detalle =
+          campoCuota === 'cuotaDiaria'
+            ? this.normalizarDetalleCuotaDiaria(detalleFiltrado)
+            : detalleFiltrado;
         const detallePorCodigo = new Map<string, VendedorApiRow>();
 
         detalle.forEach((fila: VendedorApiRow) => {
