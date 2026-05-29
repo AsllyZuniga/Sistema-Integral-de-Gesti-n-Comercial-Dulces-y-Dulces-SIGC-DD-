@@ -2,15 +2,35 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map, catchError, of } from 'rxjs';
 import { DashboardFilters } from '../../../shared/components/filters/filters.component';
-import { environment } from '../../../../environments/environment';
 
 @Injectable({
   providedIn: 'root',
 })
 export class CumplimientoSemanaService {
-  private apiUrl = environment.apiUrl;
+  private apiUrl = '/api';
 
   constructor(private http: HttpClient) {}
+
+  private aplicarCategoriaParams(params: HttpParams, filtros?: DashboardFilters): HttpParams {
+    const categorias = Array.isArray(filtros?.categorias)
+      ? filtros?.categorias.map((item) => String(item ?? '').trim()).filter(Boolean)
+      : [];
+
+    if (categorias.length > 1) {
+      const categoriasCsv = categorias.join(',');
+      params = params.set('categorias', categoriasCsv);
+      return params;
+    }
+
+    if (categorias.length === 1) {
+      params = params.set('categoria', categorias[0]);
+      return params;
+    }
+
+    if (filtros?.categoria) params = params.set('categoria', filtros.categoria);
+
+    return params;
+  }
 
   private buildParams(filtros?: DashboardFilters): HttpParams {
     let params = new HttpParams();
@@ -19,7 +39,7 @@ export class CumplimientoSemanaService {
     if (filtros.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
     if (filtros.vendedor) params = params.set('vendedor', filtros.vendedor);
     if (filtros.proveedor) params = params.set('proveedor', filtros.proveedor);
-    if (filtros.categoria) params = params.set('categoria', filtros.categoria);
+    params = this.aplicarCategoriaParams(params, filtros);
     if (filtros.ciudad) params = params.set('ciudad', filtros.ciudad);
     if (filtros.linea) params = params.set('linea', filtros.linea);
     return params;
@@ -33,7 +53,7 @@ export class CumplimientoSemanaService {
     if (filtros.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
     // DO NOT include vendedor - /me endpoint already knows who the authenticated user is
     if (filtros.proveedor) params = params.set('proveedor', filtros.proveedor);
-    if (filtros.categoria) params = params.set('categoria', filtros.categoria);
+    params = this.aplicarCategoriaParams(params, filtros);
     if (filtros.ciudad) params = params.set('ciudad', filtros.ciudad);
     if (filtros.linea) params = params.set('linea', filtros.linea);
     return params;
@@ -49,7 +69,19 @@ export class CumplimientoSemanaService {
     const params = this.buildParams(filtros);
     return this.http
       .get<any>(`${this.apiUrl}/semana/cumplimiento/front`, { params })
-      .pipe(catchError(() => of({ detalle: [] })));
+      .pipe(
+        map((res) => ({
+          ...(res ?? {}),
+          periodo: res?.periodo ?? res?.data?.periodo ?? {},
+          detalle: Array.isArray(res?.detalle)
+            ? res.detalle
+            : Array.isArray(res?.data?.detalle)
+              ? res.data.detalle
+              : [],
+          totales: res?.totales ?? res?.data?.totales ?? null,
+        })),
+        catchError(() => of({ detalle: [], totales: null, periodo: {} })),
+      );
   }
 
   /**
@@ -60,7 +92,19 @@ export class CumplimientoSemanaService {
     const params = this.buildParamsForMe(filtros);
     return this.http
       .get<any>(`${this.apiUrl}/semana/cumplimiento/front/me`, { params })
-      .pipe(catchError(() => of({ detalle: [] })));
+      .pipe(
+        map((res) => ({
+          ...(res ?? {}),
+          periodo: res?.periodo ?? res?.data?.periodo ?? {},
+          detalle: Array.isArray(res?.detalle)
+            ? res.detalle
+            : Array.isArray(res?.data?.detalle)
+              ? res.data.detalle
+              : [],
+          totales: res?.totales ?? res?.data?.totales ?? null,
+        })),
+        catchError(() => of({ detalle: [], totales: null, periodo: {} })),
+      );
   }
 
   // ─── LÍNEAS ──────────────────────────────────────────────────────────────────
@@ -217,6 +261,18 @@ export class CumplimientoSemanaService {
     const params = this.buildParamsForMe(filtros);
     return this.http
       .get<any>(`${this.apiUrl}/semana/cumplimiento/front/me`, { params })
-      .pipe(catchError(() => of(null)));
+      .pipe(
+        map((res) => ({
+          ...(res ?? {}),
+          periodo: res?.periodo ?? res?.data?.periodo ?? {},
+          detalle: Array.isArray(res?.detalle)
+            ? res.detalle
+            : Array.isArray(res?.data?.detalle)
+              ? res.data.detalle
+              : [],
+          totales: res?.totales ?? res?.data?.totales ?? null,
+        })),
+        catchError(() => of({ detalle: [], totales: null, periodo: {} })),
+      );
   }
 }

@@ -26,6 +26,21 @@ import {
 
 interface CumplimientoResponse {
   detalle: any[];
+  vendedores?: any[];
+  totales?: any;
+  periodo?: any;
+}
+
+interface CumplimientoTotalesSupervisor {
+  ventaAcum: number;
+  cuotaMes: number;
+  cuotaSemana?: number;
+  cuotaDiaria?: number;
+  cuotaDia?: number;
+  ventaDiaria?: number;
+  porcCump: number;
+  proyeccionVenta: number;
+  promedioDiario?: number;
 }
 
 interface CuotaDetalle {
@@ -89,7 +104,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     linea: '',
   };
 
-  totales: { ventaAcum: number; cuotaMes: number; porcCump: number; proyeccionVenta: number } | null = null;
+  totales: CumplimientoTotalesSupervisor | null = null;
   cargandoVendedores = false;
   todosLosVendedores: VendedorTabla[] = [];
   codigosVendedoresAsignados: string[] = [];
@@ -245,13 +260,22 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
 
   private obtenerDetalleCumplimiento() {
     const obs$ =
-      this.tipoCuota === 'semanal'
+      this.tipoCuota === 'diaria'
+        ? this.cumplimientoService.getCumplimientoDiaSupervisor(this.idSupervisor, this.filtrosActivos)
+        : this.tipoCuota === 'semanal'
         ? this.semanaService.getCumplimientoSemanaAdmin(this.filtrosActivos)
         : this.cumplimientoService.getCumplimientoMesAdmin(this.filtrosActivos);
 
     return obs$.pipe(
       map((res: any): CumplimientoResponse => ({
         detalle: Array.isArray(res?.detalle) ? res.detalle : [],
+        vendedores: Array.isArray(res?.vendedores)
+          ? res.vendedores
+          : Array.isArray(res?.data?.vendedores)
+            ? res.data.vendedores
+            : [],
+        totales: res?.totales ?? res?.data?.totales ?? null,
+        periodo: res?.periodo ?? res?.data?.periodo ?? null,
       })),
       catchError(() => of<CumplimientoResponse>({ detalle: [] })),
     );
@@ -269,7 +293,9 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     }
     
     const proveedorFiltro = this.normalizarTexto(filtros.proveedor);
-    const categoriaFiltro = this.normalizarTexto(filtros.categoria);
+    const categoriasFiltro = Array.isArray(filtros.categorias) && filtros.categorias.length
+      ? filtros.categorias.map((item) => this.normalizarTexto(item)).filter(Boolean)
+      : [this.normalizarTexto(filtros.categoria)].filter(Boolean);
     const ciudadFiltro = this.normalizarTexto(filtros.ciudadNombre ?? filtros.ciudad ?? '');
     const lineaFiltro = this.normalizarTexto(filtros.linea);
 
@@ -287,9 +313,13 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
         if (!proveedorV.includes(proveedorFiltro)) return false;
       }
 
-      if (categoriaFiltro) {
+      if (categoriasFiltro.length) {
         const categoriaV = this.normalizarTexto(v.categoria ?? v.nomCategoria ?? v.nombreCategoria);
-        if (!categoriaV.includes(categoriaFiltro)) return false;
+        const coincideCategoria = categoriasFiltro.some(
+          (categoriaFiltro) =>
+            categoriaV === categoriaFiltro || categoriaV.includes(categoriaFiltro),
+        );
+        if (!coincideCategoria) return false;
       }
 
       if (ciudadFiltro) {
@@ -325,7 +355,13 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: ({ asignados, cumplimiento }: { asignados: VendedorApiRow[]; cumplimiento: CumplimientoResponse }) => {
+        next: ({
+          asignados,
+          cumplimiento,
+        }: {
+          asignados: VendedorApiRow[];
+          cumplimiento: CumplimientoResponse;
+        }) => {
           console.log('✅ Vendedores asignados recibidos:', asignados);
           console.log('✅ Cumplimiento recibido:', cumplimiento?.detalle?.length, 'filas');
           
@@ -392,8 +428,23 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
             0,
           );
           const porcCump = cuota > 0 ? (ventaAcum / cuota) * 100 : 0;
+          const totalesApi = cumplimiento?.totales ?? null;
 
-          this.totales = { ventaAcum, cuotaMes: cuota, porcCump, proyeccionVenta };
+          this.totales = {
+            ventaAcum:
+              Number(totalesApi?.totalVenta ?? totalesApi?.ventaDiaria ?? ventaAcum) || ventaAcum,
+            cuotaMes:
+              Number(totalesApi?.cuotaMes ?? totalesApi?.cuotaDia ?? cuota) || cuota,
+            cuotaSemana: Number(totalesApi?.cuotaSemana ?? 0) || undefined,
+            cuotaDiaria: Number(totalesApi?.cuotaDiaria ?? totalesApi?.cuotaDia ?? 0) || undefined,
+            cuotaDia: Number(totalesApi?.cuotaDia ?? 0) || undefined,
+            ventaDiaria: Number(totalesApi?.ventaDiaria ?? 0) || undefined,
+            porcCump: Number(totalesApi?.porcCump ?? porcCump) || porcCump,
+            proyeccionVenta:
+              Number(totalesApi?.promedioDiario ?? totalesApi?.proyeccionVenta ?? proyeccionVenta) ||
+              proyeccionVenta,
+            promedioDiario: Number(totalesApi?.promedioDiario ?? 0) || undefined,
+          };
           this.cargandoVendedores = false;
           this.cdr.detectChanges();
         },

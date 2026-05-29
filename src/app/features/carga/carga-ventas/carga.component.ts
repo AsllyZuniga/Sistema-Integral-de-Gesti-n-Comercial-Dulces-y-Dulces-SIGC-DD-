@@ -4,7 +4,6 @@ import { HttpClient, HttpErrorResponse, HttpEventType, HttpParams } from '@angul
 import { FormsModule } from '@angular/forms';
 import { SidebarComponent } from '../../../shared/components/sidebar/sidebar.component';
 import { AuthService } from '../../../core/services/auth.service';
-import { environment } from '../../../../environments/environment';
 import { timeout } from 'rxjs/operators';
 
 type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
@@ -31,8 +30,8 @@ interface ImportVentasResponse {
   styleUrls: ['./carga.component.css'],
 })
 export class CargaComponent implements OnDestroy {
-  private readonly apiUrl = environment.apiUrl;
-  private readonly adminVentasUrl = environment.adminVentasUrl;
+  private readonly apiUrl = '/api';
+  private readonly adminVentasUrl = '/api';
 
   @ViewChild(SidebarComponent) sidebarRef?: SidebarComponent;
 

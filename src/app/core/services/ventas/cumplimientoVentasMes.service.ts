@@ -2,7 +2,6 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map, catchError, of, shareReplay, timeout } from 'rxjs';
 import { DashboardFilters } from '../../../shared/components/filters/filters.component';
-import { environment } from '../../../../environments/environment';
 
 export interface VendedoresConItemsParams {
   vendedoresPage?: number;
@@ -17,11 +16,34 @@ export interface VendedoresConItemsParams {
   providedIn: 'root',
 })
 export class CumplimientoService {
-  private apiUrl = environment.apiUrl;
+  private apiUrl = '/api';
   private vendedoresCache$?: Observable<any[]>;
   private proveedoresCache$?: Observable<any[]>;
 
   constructor(private http: HttpClient) {}
+
+  private aplicarCategoriaParams(params: HttpParams, filtros?: DashboardFilters): HttpParams {
+    const categorias = Array.isArray(filtros?.categorias)
+      ? filtros?.categorias.map((item) => String(item ?? '').trim()).filter(Boolean)
+      : [];
+
+    if (categorias.length > 1) {
+      const categoriasCsv = categorias.join(',');
+      params = params.set('categorias', categoriasCsv);
+      return params;
+    }
+
+    if (categorias.length === 1) {
+      params = params.set('categoria', categorias[0]);
+      return params;
+    }
+
+    if (filtros?.categoria) {
+      params = params.set('categoria', filtros.categoria);
+    }
+
+    return params;
+  }
 
   private buildParams(filtros?: DashboardFilters): HttpParams {
     let params = new HttpParams();
@@ -32,7 +54,7 @@ export class CumplimientoService {
     if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
     if (filtros?.vendedor) params = params.set('vendedor', filtros.vendedor);
     if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
-    if (filtros?.categoria) params = params.set('categoria', filtros.categoria);
+    params = this.aplicarCategoriaParams(params, filtros);
     if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
     if (filtros?.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
     if (filtros?.linea) params = params.set('linea', filtros.linea);
@@ -52,7 +74,27 @@ export class CumplimientoService {
     if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
     if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
     if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
-    if (filtros?.categoria) params = params.set('categoria', filtros.categoria);
+    params = this.aplicarCategoriaParams(params, filtros);
+    if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
+    if (filtros?.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
+    if (filtros?.linea) params = params.set('linea', filtros.linea);
+
+    return params;
+  }
+
+  /**
+   * Params for supervisor-bound endpoints.
+   * Excludes vendedor because the path already scopes by supervisor.
+   */
+  private buildParamsForSupervisor(filtros?: DashboardFilters): HttpParams {
+    let params = new HttpParams();
+
+    if (!filtros) return params;
+
+    if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
+    if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
+    if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
+    params = this.aplicarCategoriaParams(params, filtros);
     if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
     if (filtros?.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
     if (filtros?.linea) params = params.set('linea', filtros.linea);
@@ -62,13 +104,6 @@ export class CumplimientoService {
 
   /**
    * Params para /vendedor/con-items-comprados.
-   *
-   * IMPORTANTE:
-   * Antes estaba mandando 1000 / 10000 / 10000 y eso saturaba Sequelize.
-   * Por eso los defaults seguros son:
-   * vendedoresLimit: 20
-   * clientesLimit: 20
-   * itemsLimit: 30
    */
   private buildVendedoresConItemsParams(
     filtros?: DashboardFilters,
@@ -76,13 +111,29 @@ export class CumplimientoService {
   ): HttpParams {
     let params = this.buildParams(filtros);
 
-    params = params
-      .set('vendedoresPage', String(opciones.vendedoresPage ?? 1))
-      .set('vendedoresLimit', String(opciones.vendedoresLimit ?? 1000))
-      .set('clientesPage', String(opciones.clientesPage ?? 1))
-      .set('clientesLimit', String(opciones.clientesLimit ?? 1000))
-      .set('itemsPage', String(opciones.itemsPage ?? 1))
-      .set('itemsLimit', String(opciones.itemsLimit ?? 1000));
+    if (opciones.vendedoresPage !== undefined) {
+      params = params.set('vendedoresPage', String(opciones.vendedoresPage));
+    }
+
+    if (opciones.vendedoresLimit !== undefined) {
+      params = params.set('vendedoresLimit', String(opciones.vendedoresLimit));
+    }
+
+    if (opciones.clientesPage !== undefined) {
+      params = params.set('clientesPage', String(opciones.clientesPage));
+    }
+
+    if (opciones.clientesLimit !== undefined) {
+      params = params.set('clientesLimit', String(opciones.clientesLimit));
+    }
+
+    if (opciones.itemsPage !== undefined) {
+      params = params.set('itemsPage', String(opciones.itemsPage));
+    }
+
+    if (opciones.itemsLimit !== undefined) {
+      params = params.set('itemsLimit', String(opciones.itemsLimit));
+    }
 
     return params;
   }
@@ -96,6 +147,15 @@ export class CumplimientoService {
       .pipe(catchError(() => of({ detalle: [] })));
   }
 
+  /** Admin: GET /dia/cumplimiento/front → { periodo, detalle: [...], totales: {...} } */
+  getCumplimientoDiaAdmin(filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParams(filtros);
+
+    return this.http
+      .get<any>(`${this.apiUrl}/dia/cumplimiento/front`, { params })
+      .pipe(catchError(() => of({ detalle: [], totales: null, periodo: null })));
+  }
+
   /** Vendedor: GET /mes/cumplimiento/front/me → { periodo, detalle: [vendedor, TOTALES] } */
   getCumplimientoMesVendedor(filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParamsForMe(filtros);
@@ -103,6 +163,37 @@ export class CumplimientoService {
     return this.http
       .get<any>(`${this.apiUrl}/mes/cumplimiento/front/me`, { params })
       .pipe(catchError(() => of({ detalle: [] })));
+  }
+
+  /**
+   * Vendedor: GET /dia/cumplimiento/front/me → { periodo, detalle: [vendedor], totales: {...} }
+   * Se usa solo para rol vendedor cuando la cuota activa es diaria.
+   */
+  getCumplimientoDiaVendedor(filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParamsForMe(filtros);
+
+    return this.http
+      .get<any>(`${this.apiUrl}/dia/cumplimiento/front/me`, { params })
+      .pipe(catchError(() => of({ detalle: [], totales: null, periodo: null })));
+  }
+
+  /**
+   * Supervisor: GET /dia/cumplimiento/supervisor/:idSupervisor
+   * Devuelve el resumen diario del supervisor y, si el backend lo incluye, su lista de vendedores.
+   */
+  getCumplimientoDiaSupervisor(idSupervisor: string | number, filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParamsForSupervisor(filtros);
+    const id = String(idSupervisor ?? '').trim();
+
+    if (!id) {
+      return of({ detalle: [], totales: null, periodo: null });
+    }
+
+    return this.http
+      .get<any>(`${this.apiUrl}/dia/cumplimiento/supervisor/${encodeURIComponent(id)}`, {
+        params,
+      })
+      .pipe(catchError(() => of({ detalle: [], totales: null, periodo: null })));
   }
 
   getCumplimientoMes(filtros?: DashboardFilters): Observable<any[]> {
@@ -437,6 +528,86 @@ export class CumplimientoService {
         });
       }),
     );
+  }
+
+  /**
+   * Supervisor: una sola petición para Detalle por Cliente.
+   * Backend: GET /vendedor/supervisor/con-items-comprados
+   */
+  getVendedoresConItemsCompradosSupervisor(
+    filtros?: DashboardFilters,
+    opciones: VendedoresConItemsParams = {},
+  ): Observable<any> {
+    const params = this.buildVendedoresConItemsParams(filtros, opciones);
+
+    console.debug('🔍 [CumplimientoService] Solicitando /vendedor/supervisor/con-items-comprados', {
+      apiUrl: this.apiUrl,
+      params: params.keys(),
+    });
+
+    return this.http
+      .get<any>(`${this.apiUrl}/vendedor/supervisor/con-items-comprados`, { params })
+      .pipe(
+        timeout(30000),
+        map((res) => {
+          const vendedores = Array.isArray(res?.data?.vendedores)
+            ? res.data.vendedores
+            : Array.isArray(res?.vendedores)
+              ? res.vendedores
+              : Array.isArray(res)
+                ? res
+                : [];
+
+          const paginacionVendedores =
+            res?.data?.paginacionVendedores ??
+            res?.paginacionVendedores ??
+            res?.data?.pagination ??
+            res?.pagination ??
+            null;
+
+          console.debug('✅ [CumplimientoService] /vendedor/supervisor/con-items-comprados respondió', {
+            vendedoresCount: vendedores.length,
+          });
+
+          return {
+            ...(res ?? {}),
+            data: {
+              ...(res?.data ?? {}),
+              vendedores,
+              paginacionVendedores,
+            },
+          };
+        }),
+        catchError((err) => {
+          if (err.name === 'TimeoutError') {
+            console.error(
+              '⏱️ [CumplimientoService] TIMEOUT en /vendedor/supervisor/con-items-comprados (30s):',
+              {
+                apiUrl: this.apiUrl,
+                params: params.keys(),
+              },
+            );
+          } else {
+            console.error('❌ [CumplimientoService] Error en /vendedor/supervisor/con-items-comprados:', {
+              status: err.status,
+              message: err.message,
+              error: err.error,
+            });
+          }
+
+          return of({
+            data: {
+              vendedores: [],
+              paginacionVendedores: null,
+              _error: err.name === 'TimeoutError' ? 'timeout' : 'error',
+              _errorMessage:
+                err.name === 'TimeoutError'
+                  ? 'La solicitud tardó demasiado tiempo. Intenta con filtros más específicos.'
+                  : err.message || 'Error al cargar los datos',
+            },
+          });
+        }),
+      );
   }
 
   getVendedores(): Observable<any[]> {

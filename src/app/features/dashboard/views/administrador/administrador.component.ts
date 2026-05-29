@@ -65,14 +65,68 @@ interface VendedorApiRow {
   cuotaMes?: number | CuotaDetalle;
   cuotaSemana?: number | CuotaDetalle;
   cuotaDiaria?: number | CuotaDetalle;
+  cuotaDia?: number | CuotaDetalle;
   ventaAcum?: number;
+  ventaDiaria?: number;
+  cumplimiento?: number;
   porcCump?: number;
+  proyeccion?: number;
   proyeccionVenta?: number;
+  cumplimientoProyectado?: number;
+  promedioDiario?: number;
   nombreSupervisor?: string;
   id_supervisor?: number | string | null;
   idSupervisor?: number | string | null;
   supervisor?: { username?: string; nombre?: string } | null;
   estado?: boolean;
+}
+
+interface ApiTotalesResponse<TDetalle> {
+  detalle?: TDetalle[];
+}
+
+interface ApiTotalesAdminResponse extends ApiTotalesResponse<VendedorApiRow> {
+  totales?: {
+    cuotaDia?: number;
+    cuotaMes?: number;
+    cuotaSemana?: number;
+    totalVenta?: number;
+    ventaDiaria?: number;
+    porcCump?: number;
+    promedioDiario?: number;
+    proyeccionVenta?: number;
+    totalDias?: number;
+  } | null;
+  total?: {
+    cuotaDia?: number;
+    cuotaMes?: number;
+    cuotaSemana?: number;
+    ventaDiaria?: number;
+    cumplimiento?: number;
+    proyeccion?: number;
+    cumplimientoProyectado?: number;
+    vendedoresCount?: number;
+  } | null;
+  periodo?: {
+    fechaInicio?: string;
+    fechaFin?: string;
+    totalDias?: number;
+  } | null;
+}
+
+interface TotalesAdminUnificado {
+  cuotaDia?: number;
+  cuotaMes?: number;
+  cuotaSemana?: number;
+  totalVenta?: number;
+  ventaDiaria?: number;
+  porcCump?: number;
+  promedioDiario?: number;
+  proyeccionVenta?: number;
+  proyeccion?: number;
+  cumplimiento?: number;
+  cumplimientoProyectado?: number;
+  vendedoresCount?: number;
 }
 
 @Component({
@@ -106,9 +160,13 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
   totales: {
     ventaAcum: number;
     cuotaMes: number;
+    cuotaSemana?: number;
+    cuotaDia?: number;
     porcCump: number;
     proyeccionVenta: number;
+    ventaDiaria?: number;
   } | null = null;
+  ventaMesVista: number | null = null;
   cargandoVendedores = false;
   catalogoVendedores: VendedorTabla[] = [];
   todosLosVendedores: VendedorTabla[] = [];
@@ -251,6 +309,69 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     return Number(valor ?? 0);
   }
 
+  private puntajeFilaCuotaDiaria(fila: VendedorApiRow | null | undefined): number {
+    if (!fila) return 0;
+
+    const valores: number[] = [
+      Number(fila.cuotaDia ?? fila.cuotaDiaria ?? 0) || 0,
+      Number(fila.ventaDiaria ?? 0) || 0,
+      Number(fila.cumplimiento ?? fila.porcCump ?? 0) || 0,
+      Number(fila.proyeccion ?? fila.proyeccionVenta ?? 0) || 0,
+      Number(fila.cumplimientoProyectado ?? 0) || 0,
+    ];
+
+    return valores.reduce((suma: number, valor: number) => suma + Math.abs(valor), 0);
+  }
+
+  private esMejorFilaCuotaDiaria(
+    candidata: VendedorApiRow | null | undefined,
+    actual: VendedorApiRow | null | undefined,
+  ): boolean {
+    if (!actual) return true;
+
+    const puntajeCandidata = this.puntajeFilaCuotaDiaria(candidata);
+    const puntajeActual = this.puntajeFilaCuotaDiaria(actual);
+
+    if (puntajeCandidata !== puntajeActual) {
+      return puntajeCandidata > puntajeActual;
+    }
+
+    const ventaCandidata = Number(candidata?.ventaDiaria ?? 0) || 0;
+    const ventaActual = Number(actual?.ventaDiaria ?? 0) || 0;
+
+    if (ventaCandidata !== ventaActual) {
+      return ventaCandidata > ventaActual;
+    }
+
+    const cuotaCandidata = Number(candidata?.cuotaDia ?? candidata?.cuotaDiaria ?? 0) || 0;
+    const cuotaActual = Number(actual?.cuotaDia ?? actual?.cuotaDiaria ?? 0) || 0;
+
+    return cuotaCandidata > cuotaActual;
+  }
+
+  private normalizarDetalleCuotaDiaria(detalle: VendedorApiRow[]): VendedorApiRow[] {
+    const porCodigo = new Map<string, VendedorApiRow>();
+    const filasSinCodigo: VendedorApiRow[] = [];
+
+    detalle.forEach((fila) => {
+      const codigo = this.obtenerCodigoVendedor(fila);
+
+      if (!codigo) {
+        filasSinCodigo.push(fila);
+        return;
+      }
+
+      for (const clave of this.generarClavesCodigo(codigo)) {
+        const actual = porCodigo.get(clave);
+        if (this.esMejorFilaCuotaDiaria(fila, actual)) {
+          porCodigo.set(clave, fila);
+        }
+      }
+    });
+
+    return [...filasSinCodigo, ...porCodigo.values()];
+  }
+
   private obtenerNombreSupervisor(
     vendedor: VendedorApiRow | VendedorTabla | any,
     supervisor?: SupervisorResumen,
@@ -312,7 +433,9 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
 
     const vendedorFiltro = this.obtenerValoresVendedorFiltro(filtros.vendedor);
     const proveedoresFiltro = this.obtenerValoresProveedorFiltro(filtros.proveedor);
-    const categoriaFiltro = this.normalizarTexto(filtros.categoria);
+    const categoriasFiltro = Array.isArray(filtros.categorias) && filtros.categorias.length
+      ? filtros.categorias.map((item) => this.normalizarTexto(item)).filter(Boolean)
+      : [this.normalizarTexto(filtros.categoria)].filter(Boolean);
     const ciudadFiltro = this.normalizarTexto(filtros.ciudadNombre ?? filtros.ciudad ?? '');
     const lineaFiltro = this.normalizarTexto(filtros.linea);
 
@@ -353,15 +476,18 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
         }
       }
 
-      if (categoriaFiltro) {
+      if (categoriasFiltro.length) {
         const valoresFila = [v.categoria, v.nomCategoria, v.nombreCategoria]
           .map((item) => this.normalizarTexto(item))
           .filter(Boolean);
-        if (
-          valoresFila.length &&
-          !valoresFila.some((valorFila) => valorFila.includes(categoriaFiltro))
-        )
-          return false;
+
+        const coincideCategoria = valoresFila.some((valorFila) =>
+          categoriasFiltro.some(
+            (valorFiltro) => valorFila === valorFiltro || valorFila.includes(valorFiltro),
+          ),
+        );
+
+        if (valoresFila.length && !coincideCategoria) return false;
       }
 
       if (ciudadFiltro) {
@@ -559,7 +685,9 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     this.filtrosAnalisis = { ...filtros };
 
     const obs$ =
-      this.tipoCuota === 'semanal'
+      this.tipoCuota === 'diaria'
+        ? this.cumplimientoService.getCumplimientoDiaAdmin(filtros)
+        : this.tipoCuota === 'semanal'
         ? this.semanaService.getCumplimientoSemanaAdmin(filtros)
         : this.cumplimientoService.getCumplimientoMesAdmin(filtros);
 
@@ -567,19 +695,28 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   private cargarDesdeEndpointAdmin(
-    obs$: Observable<{ detalle?: VendedorApiRow[] }>,
+    obs$: Observable<ApiTotalesAdminResponse>,
     campoCuota: keyof Pick<VendedorTabla, 'cuotaMes' | 'cuotaSemana' | 'cuotaDiaria'>,
   ): void {
     this.cargandoVendedores = true;
 
     obs$.pipe(takeUntil(this.destroy$)).subscribe({
-      next: (res) => {
-        const detalle = (res?.detalle ?? []).filter(
-          (v) => this.obtenerCodigoVendedor(v) !== 'TOTALES',
-        );
+      next: (res: ApiTotalesAdminResponse) => {
+        const detalleBruto = Array.isArray(res?.detalle) ? res.detalle : [];
+        const filaTotales = detalleBruto.find((v) => {
+          const codigo = this.obtenerCodigoVendedor(v).toUpperCase();
+          const nombre = String(v?.nombre ?? '').trim().toUpperCase();
+          return codigo === 'TOTALES' || nombre === 'TOTALES';
+        }) as VendedorApiRow | undefined;
+
+        const detalleFiltrado = detalleBruto.filter((v) => this.obtenerCodigoVendedor(v) !== 'TOTALES');
+        const detalle =
+          campoCuota === 'cuotaDiaria'
+            ? this.normalizarDetalleCuotaDiaria(detalleFiltrado)
+            : detalleFiltrado;
         const detallePorCodigo = new Map<string, VendedorApiRow>();
 
-        detalle.forEach((fila) => {
+        detalle.forEach((fila: VendedorApiRow) => {
           const codigo = this.obtenerCodigoVendedor(fila);
           if (codigo) {
             this.generarClavesCodigo(codigo).forEach((clave) => detallePorCodigo.set(clave, fila));
@@ -590,7 +727,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
           this.catalogoVendedores.length > 0
             ? this.catalogoVendedores
             : detalle.map(
-                (fila) =>
+                (fila: VendedorApiRow) =>
                   ({
                     codigo_vendedor: this.obtenerCodigoVendedor(fila),
                     codVendedor: this.obtenerCodigoVendedor(fila),
@@ -630,10 +767,13 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
             nombreLinea: fila?.nombreLinea ?? base.nombreLinea,
             cuotaMes: this.leerCuota(fila?.cuotaMes ?? 0, 'cuota_mes'),
             cuotaSemana: this.leerCuota(fila?.cuotaSemana ?? 0, 'cuota_semana'),
-            cuotaDiaria: this.leerCuota(fila?.cuotaDiaria ?? 0, 'cuota_dia'),
-            ventaAcum: Number(fila?.ventaAcum ?? 0),
+            cuotaDiaria: this.leerCuota(
+              fila?.cuotaDiaria ?? fila?.cuotaDia ?? 0,
+              'cuota_dia',
+            ),
+            ventaAcum: Number(fila?.ventaAcum ?? fila?.ventaDiaria ?? 0),
             porcCump: Number(fila?.porcCump ?? 0),
-            proyeccionVenta: Number(fila?.proyeccionVenta ?? 0),
+            proyeccionVenta: Number(fila?.proyeccionVenta ?? fila?.promedioDiario ?? 0),
             nombreSupervisor: this.obtenerNombreSupervisor(fila ?? base),
             id_supervisor:
               fila?.id_supervisor ??
@@ -677,7 +817,25 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
         );
         const porcCump = cuota > 0 ? (ventaAcum / cuota) * 100 : 0;
 
-        this.totales = { ventaAcum, cuotaMes: cuota, porcCump, proyeccionVenta };
+        const totalesApi = (res?.totales ?? res?.total ?? null) as TotalesAdminUnificado | null;
+        const cuotaSemanaTotal = Number(
+          totalesApi?.cuotaSemana ?? filaTotales?.cuotaSemana ?? filaTotales?.cuotaMes ?? cuota,
+        );
+
+        this.totales = {
+          ventaAcum: ventaAcum || Number(totalesApi?.totalVenta ?? totalesApi?.ventaDiaria ?? 0),
+          cuotaMes: Number(totalesApi?.cuotaMes ?? cuota) || cuota,
+          cuotaSemana: Number.isFinite(cuotaSemanaTotal) && cuotaSemanaTotal > 0 ? cuotaSemanaTotal : cuota,
+          cuotaDia: Number(totalesApi?.cuotaDia ?? 0) || undefined,
+          porcCump: Number(totalesApi?.porcCump ?? porcCump) || porcCump,
+          proyeccionVenta:
+            Number(totalesApi?.promedioDiario ?? totalesApi?.proyeccionVenta ?? proyeccionVenta) ||
+            proyeccionVenta,
+          ventaDiaria: Number(totalesApi?.ventaDiaria ?? 0) || undefined,
+        };
+        if (this.ventaMesVista === null) {
+          this.ventaMesVista = this.totales.ventaAcum;
+        }
         this.cargandoVendedores = false;
         this.cdr.detectChanges();
       },
@@ -689,6 +847,12 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
         this.cdr.detectChanges();
       },
     });
+  }
+
+  onResumenCambio(resumen: { ventaAcum?: number }): void {
+    const venta = Number(resumen?.ventaAcum ?? 0);
+    this.ventaMesVista = Number.isFinite(venta) ? venta : null;
+    this.cdr.detectChanges();
   }
 
   private aplicarNombresSupervisorEnTabla(): void {

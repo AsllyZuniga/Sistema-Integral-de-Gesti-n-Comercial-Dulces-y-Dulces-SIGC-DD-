@@ -1,13 +1,12 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, Subject, catchError, map, of, throwError } from 'rxjs';
-import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root',
 })
 export class UsuariosService {
-  private apiUrl = environment.apiUrl;
+  private apiUrl = '/api';
   private supervisorAsignado$ = new Subject<{
     idVendedor: string;
     idSupervisor: string;

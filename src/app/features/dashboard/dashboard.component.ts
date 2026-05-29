@@ -25,17 +25,29 @@ import { DashboardRoleViewsModule } from './views/dashboard-role-views.module';
 
 interface DashboardTotalesVendedor {
   ventaAcum?: number;
+  ventaDiaria?: number;
   cuotaMes?: number;
   cuotaDiaria?: number;
+  cuotaDia?: number;
   cuotaSemana?: number;
   porcCump?: number;
   proyeccionVenta?: number;
+  promedioDiario?: number;
   codVendedor?: string;
 }
 
 interface ApiProveedorRow {
   nombre?: string;
+  nombreProveedor?: string;
+  nomProveedor?: string;
+  nombre_proveedor?: string;
+  proveedor?: string;
+
   codigo?: string;
+  codigoProveedor?: string;
+  cod?: string;
+  idProveedor?: string | number;
+  id_proveedor?: string | number;
 }
 
 interface ApiVendedorRow {
@@ -523,7 +535,14 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private obtenerProveedorLabel(item: ApiProveedorRow): string {
-    return String(item.nombre ?? '').trim();
+    return String(
+      item?.nombre ??
+        item?.nombreProveedor ??
+        item?.nomProveedor ??
+        item?.nombre_proveedor ??
+        item?.proveedor ??
+        '',
+    ).trim();
   }
 
   private registrarCiudad(
@@ -807,12 +826,32 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         this.proveedorMap.clear();
         const unicos = new Set<string>();
 
-        proveedores.forEach((item) => {
-          const nombre = this.obtenerProveedorLabel(item);
-          const codigo = String(item.codigo ?? '').trim();
+        console.debug(
+          '[Dashboard] proveedores recibidos:',
+          Array.isArray(proveedores) ? proveedores.length : 0,
+        );
 
-          if (nombre && codigo) {
-            this.proveedorMap.set(nombre, codigo);
+        (Array.isArray(proveedores) ? proveedores : []).forEach((item) => {
+          let nombre = '';
+          let codigo = '';
+
+          if (typeof item === 'string') {
+            nombre = String(item).trim();
+            codigo = '';
+          } else if (item && typeof item === 'object') {
+            nombre = this.obtenerProveedorLabel(item as ApiProveedorRow);
+            codigo = String(
+              (item as any)?.codigo ??
+                (item as any)?.cod ??
+                (item as any)?.idProveedor ??
+                (item as any)?.id_proveedor ??
+                (item as any)?.codigoProveedor ??
+                '',
+            ).trim();
+          }
+
+          if (nombre) {
+            this.proveedorMap.set(nombre, codigo || nombre);
             unicos.add(nombre);
           }
         });
@@ -867,9 +906,17 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private cargarCategoriasFiltros(): void {
+    const filtrosConsulta: DashboardFilters = {
+      ...this.filtrosActivos,
+      categoria: '',
+      categoriaNombre: '',
+      categorias: [],
+      categoriaNombres: [],
+    };
+
     if (this.esAdmin) {
       this.cumplimientoService
-        .getCuotaCategoriasPorVendedores()
+        .getCuotaCategoriasPorVendedores(filtrosConsulta)
         .pipe(takeUntil(this.destroy$))
         .subscribe((res: ApiTotalesResponse<ApiCategoriaRow>) => {
           const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
@@ -877,7 +924,6 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
           detalle.forEach((item) => {
             const categoriaRaw = this.obtenerNombreCategoria(item);
-
             if (!categoriaRaw) return;
 
             const categoriaLimpia = this.limpiarNombreCategoria(categoriaRaw);
@@ -905,6 +951,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       categoria: '',
       categoriaNombre: '',
       categorias: [],
+      categoriaNombres: [],
       linea: '',
     };
 
@@ -920,11 +967,10 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     const intentarCategorias = (idx: number): void => {
-      const filtrosConsulta = candidatos[idx];
-      // Usar getCuotaCategoriaGeneral para obtener todas las categorías con filtros (vendedor, proveedor, fecha)
-      const categorias$ = this.cumplimientoService.getCuotaCategoriaGeneral(filtrosConsulta);
+      const filtros = candidatos[idx];
 
-      categorias$
+      this.cumplimientoService
+        .getCuotaCategoriaGeneral(filtros)
         .pipe(takeUntil(this.destroy$))
         .subscribe((res: ApiTotalesResponse<ApiCategoriaRow>) => {
           const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
@@ -932,7 +978,6 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
           detalle.forEach((item) => {
             const categoriaRaw = this.obtenerNombreCategoria(item);
-
             if (!categoriaRaw) return;
 
             const categoriaLimpia = this.limpiarNombreCategoria(categoriaRaw);
@@ -1010,7 +1055,14 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     if (filtros.proveedor) {
-      filtrosConCodigos.proveedor = this.proveedorMap.get(filtros.proveedor) ?? filtros.proveedor;
+      const mapeado = this.proveedorMap.get(filtros.proveedor) ?? filtros.proveedor;
+      console.debug(
+        '[Dashboard] aplicar filtros - proveedor raw:',
+        filtros.proveedor,
+        'mapeado->',
+        mapeado,
+      );
+      filtrosConCodigos.proveedor = mapeado;
     }
 
     if (ciudadVisible) {
@@ -1056,9 +1108,11 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     const filtros = { ...this.filtrosActivos };
 
     const obs$ =
-      this.tipoCuota === 'mensual'
-        ? this.cumplimientoService.getCumplimientoMesVendedor(filtros)
-        : this.semanaService.getCumplimientoSemanaVendedor(filtros);
+      this.tipoCuota === 'diaria'
+        ? this.cumplimientoService.getCumplimientoDiaVendedor(filtros)
+        : this.tipoCuota === 'mensual'
+          ? this.cumplimientoService.getCumplimientoMesVendedor(filtros)
+          : this.semanaService.getCumplimientoSemanaVendedor(filtros);
 
     const campo =
       this.tipoCuota === 'semanal'
@@ -1068,11 +1122,26 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           : 'cuotaMes';
 
     obs$.pipe(takeUntil(this.destroy$)).subscribe({
-      next: (res: ApiTotalesResponse<DashboardTotalesVendedor>) => {
+      next: (res: ApiTotalesResponse<DashboardTotalesVendedor> & { totales?: any }) => {
         const detalle = (res?.detalle ?? []).filter((v) => v.codVendedor !== 'TOTALES');
-        const d = detalle[0];
+        const d = detalle[0] ?? null;
+
+        const totales = res?.totales ?? null;
 
         if (!d) {
+          if (totales) {
+            this.totalesVendedor = {
+              ventaAcum: Number(totales?.totalVenta ?? totales?.ventaAcum ?? 0) || 0,
+              cuotaMes: Number(totales?.cuotaMes ?? totales?.cuotaDia ?? 0) || 0,
+              cuotaSemana: Number(totales?.cuotaSemana ?? totales?.cuotaDia ?? 0) || 0,
+              cuotaDiaria: Number(totales?.cuotaDia ?? totales?.cuotaDiaria ?? 0) || 0,
+              porcCump: Number(totales?.porcCump ?? 0) || 0,
+              proyeccionVenta:
+                Number(totales?.promedioDiario ?? totales?.proyeccionVenta ?? 0) || 0,
+            };
+            return;
+          }
+
           this.totalesVendedor = null;
           return;
         }
@@ -1101,17 +1170,21 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         );
 
         this.totalesVendedor = {
-          ventaAcum: Number(d.ventaAcum ?? 0) || 0,
+          ventaAcum: Number(d.ventaAcum ?? d.ventaDiaria ?? 0) || 0,
           cuotaMes:
-            cuotaMesVal || (this.tipoCuota === 'mensual' ? Number(d[campo] ?? 0) : cuotaMesVal),
+            cuotaMesVal ||
+            (this.tipoCuota === 'mensual' ? Number(d[campo] ?? 0) : cuotaMesVal) ||
+            Number(d.cuotaDia ?? 0) ||
+            0,
           cuotaSemana:
             cuotaSemanaVal ||
             (this.tipoCuota === 'semanal' ? Number(d[campo] ?? 0) : cuotaSemanaVal),
           cuotaDiaria:
             cuotaDiariaVal ||
+            Number(d.cuotaDia ?? 0) ||
             (this.tipoCuota === 'diaria' ? Number(d[campo] ?? 0) : cuotaDiariaVal),
           porcCump: Number(d.porcCump ?? 0) || 0,
-          proyeccionVenta: Number(d.proyeccionVenta ?? 0) || 0,
+          proyeccionVenta: Number(d.proyeccionVenta ?? d.promedioDiario ?? 0) || 0,
         };
       },
       error: () => {

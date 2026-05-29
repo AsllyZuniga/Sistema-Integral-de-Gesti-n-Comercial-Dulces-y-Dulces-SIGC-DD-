@@ -2,7 +2,6 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, of } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { environment } from '../../../environments/environment';
 
 interface ProveedorDB {
   id_proveedor: string;
@@ -26,7 +25,7 @@ interface ProveedorCategoriasResponse {
   providedIn: 'root',
 })
 export class ProveedorService {
-  private apiUrl = `${environment.apiUrl}/proveedor`;
+  private apiUrl = '/api/proveedor';
 
   constructor(private http: HttpClient) {}
 

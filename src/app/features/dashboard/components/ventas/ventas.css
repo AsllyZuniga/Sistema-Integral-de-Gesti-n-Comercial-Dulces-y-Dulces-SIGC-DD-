@@ -262,9 +262,19 @@
 }
 
 .vendedor-avatar {
-  color: #083b66;
-  background: linear-gradient(180deg, #dcecff 0%, #c7e4ff 100%);
-  border: 1px solid rgba(8,59,102,0.08);
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff; /* letra blanca */
+  background: linear-gradient(180deg, #0e529e 0%, #0b477e 100%); /* círculo principal #0e529e */
+  border: 1px solid rgba(6,44,86,0.12);
+  flex: 0 0 auto;
+  text-transform: uppercase;
 }
 
 .vendedor-body {
@@ -276,16 +286,7 @@
   position: relative;
 }
 .vendedor-card .vendedor-body::before {
-  content: 'Detalle por vendedor';
-  position: absolute;
-  left: 18px;
-  top: 6px;
-  font-size: 12px;
-  color: #3b5d86;
-  background: rgba(255,255,255,0.9);
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(59,93,134,0.08);
+  display: none; /* ocultado por petición del usuario */
 }
 
 /* Indentar y remarcar los clientes anidados dentro del vendedor */
@@ -344,9 +345,9 @@
   justify-content: center;
   font-size: 16px;
   font-weight: 700;
-  color: #0b6b48;
-  background: linear-gradient(180deg, #eaf9f1 0%, #def4e8 100%);
-  border: 1px solid rgba(11,107,72,0.06);
+  color: #ffffff; /* sigla en blanco */
+  background: linear-gradient(180deg, #517697 0%, #43607a 100%); /* reemplaza verde por #517697 */
+  border: 1px solid rgba(33,60,80,0.08);
   text-transform: uppercase;
   flex: 0 0 auto;
 }
