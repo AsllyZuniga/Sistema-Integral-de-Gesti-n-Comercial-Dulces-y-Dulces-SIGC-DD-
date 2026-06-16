@@ -2,29 +2,13 @@
   <app-sidebar (toggle)="onToggleSidebar($event)"></app-sidebar>
 
   <div class="main" [class.expanded]="isSidebarCollapsed">
-    <header class="topbar">
-      <div class="topbar-left">
-        <button class="mobile-menu-btn" type="button" (click)="toggleMenuMovil()">
-          <span class="material-symbols-rounded">menu</span>
-        </button>
-        <img class="topbar-logo" src="logoDulces.png" alt="Logo" />
-      </div>
-
-      <div class="topbar-center">
-        <h1>
-          <span class="accent">Bienvenido,</span>
-          {{ vendedor?.nombre || 'Dashboard' }}
-        </h1>
-        <span class="welcome">Sistema de Control de Ventas · Dulces y Dulces</span>
-      </div>
-
-      <div class="topbar-right">
-        <button class="logout-btn" type="button" (click)="logout()">
-          <span class="material-symbols-rounded">logout</span>
-          <span class="logout-label">Salir</span>
-        </button>
-      </div>
-    </header>
+    <app-topbar
+      textoIntro="Bienvenido,"
+      [titulo]="vendedor?.nombre || 'Dashboard'"
+      subtitulo="Sistema de Control de Ventas · Dulces y Dulces"
+      (menuClick)="toggleMenuMovil()"
+      (logoutClick)="logout()"
+    ></app-topbar>
 
     <div class="cuota-selector-row">
       <app-cuotas-cumplimiento

@@ -14,6 +14,8 @@ export interface DashboardFilters {
 
   proveedor: string;
   proveedorNombre?: string;
+  proveedores?: string[];
+  proveedorNombres?: string[];
 
   categoria: string;
   categoriaNombre?: string;
@@ -47,6 +49,7 @@ export class FiltersComponent implements OnChanges {
 
   isFiltrosOpen = false;
   mostrarCategoriaDropdown = false;
+  mostrarProveedorDropdown = false;
 
   filtros: DashboardFilters = {
     fechaInicio: '',
@@ -54,6 +57,8 @@ export class FiltersComponent implements OnChanges {
     vendedor: '',
     proveedor: '',
     proveedorNombre: '',
+    proveedores: [],
+    proveedorNombres: [],
     categoria: '',
     categoriaNombre: '',
     categorias: [],
@@ -70,6 +75,10 @@ export class FiltersComponent implements OnChanges {
       this.actualizarCiudadesVista(this.ciudades);
     }
 
+    if (changes['proveedores']) {
+      this.limpiarProveedoresSeleccionadosInexistentes();
+    }
+
     if (changes['categorias']) {
       this.limpiarCategoriasSeleccionadasInexistentes();
     }
@@ -77,6 +86,25 @@ export class FiltersComponent implements OnChanges {
 
   get esAdmin(): boolean {
     return this.vendedores.length > 0;
+  }
+
+  get proveedoresSeleccionados(): string[] {
+    return Array.isArray(this.filtros.proveedores) ? this.filtros.proveedores : [];
+  }
+
+  get textoProveedoresSeleccionados(): string {
+    const total = this.proveedoresSeleccionados.length;
+
+    if (total === 0) {
+      return 'Todos';
+    }
+
+    if (total === 1) {
+      const proveedor = this.proveedores.find((p) => p.value === this.proveedoresSeleccionados[0]);
+      return proveedor?.label ?? '1 seleccionado';
+    }
+
+    return `${total} seleccionado(s)`;
   }
 
   get categoriasSeleccionadas(): string[] {
@@ -101,10 +129,21 @@ export class FiltersComponent implements OnChanges {
   toggleFiltros(): void {
     this.isFiltrosOpen = !this.isFiltrosOpen;
     this.cerrarCategoriaDropdown();
+    this.cerrarProveedorDropdown();
+  }
+
+  toggleProveedorDropdown(): void {
+    this.mostrarProveedorDropdown = !this.mostrarProveedorDropdown;
+    this.cerrarCategoriaDropdown();
+  }
+
+  cerrarProveedorDropdown(): void {
+    this.mostrarProveedorDropdown = false;
   }
 
   toggleCategoriaDropdown(): void {
     this.mostrarCategoriaDropdown = !this.mostrarCategoriaDropdown;
+    this.cerrarProveedorDropdown();
   }
 
   cerrarCategoriaDropdown(): void {
@@ -113,18 +152,40 @@ export class FiltersComponent implements OnChanges {
 
   onClickOtroFiltro(): void {
     this.cerrarCategoriaDropdown();
+    this.cerrarProveedorDropdown();
   }
 
-  onProveedorChange(value: string): void {
-    const proveedor = String(value ?? '').trim();
+  toggleProveedorCheckbox(value: string): void {
+    const valor = String(value ?? '').trim();
+    if (!valor) return;
 
-    this.filtros.proveedor = proveedor;
+    const actuales = Array.isArray(this.filtros.proveedores)
+      ? [...this.filtros.proveedores]
+      : [];
 
-    // Al cambiar proveedor se limpian categorías seleccionadas anteriores.
+    const existe = actuales.includes(valor);
+    const seleccionados = existe
+      ? actuales.filter((item) => item !== valor)
+      : [...actuales, valor];
+
+    this.filtros.proveedores = seleccionados;
+    this.filtros.proveedor = seleccionados.join(',');
+    this.filtros.proveedorNombre = '';
+    this.filtros.proveedorNombres = [];
+
+    // Al cambiar proveedor se limpian categorías anteriores para que el catálogo
+    // se cargue nuevamente con las categorías disponibles de esos proveedores.
     this.limpiarCategoriasSeleccionadas();
+    this.proveedorChange.emit(this.filtros.proveedor);
+  }
 
-    // Notifica al Dashboard para cargar categorías del proveedor sin aplicar filtros.
-    this.proveedorChange.emit(proveedor);
+  limpiarProveedoresSeleccionados(): void {
+    this.filtros.proveedores = [];
+    this.filtros.proveedor = '';
+    this.filtros.proveedorNombre = '';
+    this.filtros.proveedorNombres = [];
+    this.limpiarCategoriasSeleccionadas();
+    this.proveedorChange.emit('');
   }
 
   toggleCategoriaCheckbox(value: string): void {
@@ -242,6 +303,23 @@ export class FiltersComponent implements OnChanges {
       .filter(Boolean);
   }
 
+  private limpiarProveedoresSeleccionadosInexistentes(): void {
+    const seleccionados = Array.isArray(this.filtros.proveedores)
+      ? this.filtros.proveedores
+      : [];
+
+    if (!seleccionados.length) return;
+
+    const valoresPermitidos = new Set(
+      this.proveedores.map((item) => this.normalizarTexto(item.value)).filter(Boolean),
+    );
+
+    this.filtros.proveedores = seleccionados.filter((value) =>
+      valoresPermitidos.has(this.normalizarTexto(value)),
+    );
+    this.filtros.proveedor = this.filtros.proveedores.join(',');
+  }
+
   private limpiarCategoriasSeleccionadasInexistentes(): void {
     const categoriasSeleccionadas = Array.isArray(this.filtros.categorias)
       ? this.filtros.categorias
@@ -266,12 +344,23 @@ export class FiltersComponent implements OnChanges {
       this.isFiltrosOpen = false;
     }
     this.cerrarCategoriaDropdown();
+    this.cerrarProveedorDropdown();
 
     setTimeout(() => {
-      const proveedorNombre = this.obtenerLabelSeleccionado(
+      const proveedoresSeleccionados = Array.isArray(this.filtros.proveedores)
+        ? this.filtros.proveedores.filter(Boolean)
+        : String(this.filtros.proveedor ?? '')
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean);
+
+      const proveedorNombres = this.obtenerLabelsSeleccionados(
         this.proveedores,
-        this.filtros.proveedor,
+        proveedoresSeleccionados,
       );
+
+      const proveedorNombre =
+        proveedorNombres.length === 1 ? proveedorNombres[0] : '';
 
       const categoriasSeleccionadas = Array.isArray(this.filtros.categorias)
         ? this.filtros.categorias.filter(Boolean)
@@ -286,7 +375,10 @@ export class FiltersComponent implements OnChanges {
 
       this.apply.emit({
         ...this.filtros,
+        proveedor: proveedoresSeleccionados.join(','),
         proveedorNombre,
+        proveedores: proveedoresSeleccionados,
+        proveedorNombres,
         categoria: categoriasSeleccionadas.length === 1 ? categoriasSeleccionadas[0] : '',
         categoriaNombre: categoriaNombres.length === 1 ? categoriaNombres[0] : '',
         categorias: categoriasSeleccionadas,
@@ -313,6 +405,8 @@ export class FiltersComponent implements OnChanges {
       vendedor: '',
       proveedor: '',
       proveedorNombre: '',
+      proveedores: [],
+      proveedorNombres: [],
       categoria: '',
       categoriaNombre: '',
       categorias: [],

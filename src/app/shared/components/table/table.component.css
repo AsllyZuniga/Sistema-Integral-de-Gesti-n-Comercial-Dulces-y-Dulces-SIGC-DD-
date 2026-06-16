@@ -1,26 +1,43 @@
 :host {
   display: block;
   width: 100%;
+  min-width: 0;
 
   --table-row-bg-odd: #fcfdff;
   --table-row-bg-hover: #eaf3ff;
 }
 
-/* Scroll container: single source of scrolling behavior for the table. */
 .table-scroll-wrap {
   width: 100%;
   max-width: 100%;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
   max-height: var(--table-max-height, 58vh);
   scrollbar-gutter: stable both-edges;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
   border: 1px solid var(--c-border);
   border-radius: var(--r-md);
   background: var(--c-surface);
 }
 
-/* Base table layout. */
+.table-scroll-wrap::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+.table-scroll-wrap::-webkit-scrollbar-track {
+  background: var(--c-surface-alt);
+  border-radius: 999px;
+}
+
+.table-scroll-wrap::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--c-primary-mid), var(--c-primary));
+  border-radius: 999px;
+  border: 2px solid var(--c-surface-alt);
+}
+
 table {
   width: max-content;
   min-width: 100%;
@@ -39,6 +56,10 @@ th,
 td {
   border-right: 1px solid var(--c-border);
   white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  hyphens: none;
+  max-width: none;
 }
 
 th {
@@ -74,7 +95,6 @@ tbody tr:last-child td {
   border-bottom: none;
 }
 
-/* Row states. */
 tbody tr.odd td {
   background: var(--table-row-bg-odd);
 }
@@ -84,33 +104,67 @@ tbody tr.odd:hover td {
   background: var(--table-row-bg-hover);
 }
 
-/* Numeric columns alignment. */
 td[data-col='cuotaMes'],
 th[data-col='cuotaMes'],
+td[data-col='cuotaSemana'],
+th[data-col='cuotaSemana'],
+td[data-col='cuotaDiaria'],
+th[data-col='cuotaDiaria'],
+td[data-col='cuotaLinea'],
+th[data-col='cuotaLinea'],
+td[data-col='cuota'],
+th[data-col='cuota'],
 td[data-col='ventaAcum'],
 th[data-col='ventaAcum'],
+td[data-col='acumulado'],
+th[data-col='acumulado'],
 td[data-col='proyeccionVenta'],
 th[data-col='proyeccionVenta'],
+td[data-col='proyectado'],
+th[data-col='proyectado'],
 td[data-col='porcCump'],
 th[data-col='porcCump'],
 td[data-col='porcCumProy'],
 th[data-col='porcCumProy'],
+td[data-col='porcentajeCumplimiento'],
+th[data-col='porcentajeCumplimiento'],
+td[data-col='porcentajeCumplimientoProyectado'],
+th[data-col='porcentajeCumplimientoProyectado'],
 td[data-col='Venta_Unid_Cajas'],
-th[data-col='Venta_Unid_Cajas'] {
+th[data-col='Venta_Unid_Cajas'],
+td[data-col='Cantidad'],
+th[data-col='Cantidad'],
+td[data-col='cantidad'],
+th[data-col='cantidad'],
+td[data-col='Subtotal'],
+th[data-col='Subtotal'],
+td[data-col='subtotal'],
+th[data-col='subtotal'] {
   text-align: right;
 }
 
 td[data-col='cuotaMes'],
+td[data-col='cuotaSemana'],
+td[data-col='cuotaDiaria'],
+td[data-col='cuotaLinea'],
+td[data-col='cuota'],
 td[data-col='ventaAcum'],
+td[data-col='acumulado'],
 td[data-col='proyeccionVenta'],
+td[data-col='proyectado'],
 td[data-col='porcCump'],
 td[data-col='porcCumProy'],
-td[data-col='Venta_Unid_Cajas'] {
+td[data-col='porcentajeCumplimiento'],
+td[data-col='porcentajeCumplimientoProyectado'],
+td[data-col='Venta_Unid_Cajas'],
+td[data-col='Cantidad'],
+td[data-col='cantidad'],
+td[data-col='Subtotal'],
+td[data-col='subtotal'] {
   font-variant-numeric: tabular-nums;
   font-weight: 500;
 }
 
-/* Semantic color states. */
 td.cell-success {
   color: #16a34a;
   font-weight: 700;
@@ -135,10 +189,13 @@ td.empty {
   overflow: visible;
 }
 
-/* Responsive density. */
 @media (max-width: 768px) {
+  .table-scroll-wrap {
+    max-height: var(--table-max-height-mobile, 62vh);
+  }
+
   th {
-    font-size: 10px;
+    font-size: 10.5px;
     padding: 9px 10px;
   }
 
@@ -149,18 +206,18 @@ td.empty {
 }
 
 @media (max-width: 480px) {
-  table {
-    min-width: 560px;
+  .table-scroll-wrap {
+    max-height: var(--table-max-height-mobile, 64vh);
   }
 
   th {
-    font-size: 9px;
-    padding: 7px 8px;
-    letter-spacing: 0.3px;
+    font-size: 10px;
+    padding: 8px 9px;
+    letter-spacing: 0.35px;
   }
 
   td {
-    font-size: 11px;
-    padding: 7px 8px;
+    font-size: 11.5px;
+    padding: 8px 9px;
   }
 }

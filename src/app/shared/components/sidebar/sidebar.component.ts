@@ -2,6 +2,8 @@ import { Component, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { SessionService } from '../../../core/services/session.service';
+import { MENU_ITEMS, MenuItem } from '../../../core/auth/menu-items';
+import { nombreRol } from '../../../core/auth/roles';
 
 @Component({
   selector: 'app-sidebar',
@@ -11,7 +13,7 @@ import { SessionService } from '../../../core/services/session.service';
   styleUrls: ['./sidebar.component.css'],
 })
 export class SidebarComponent {
-  isCollapsed  = false;
+  isCollapsed = false;
   isMobileOpen = false;
   rolId = 0;
 
@@ -25,76 +27,41 @@ export class SidebarComponent {
   }
 
   get tituloRol(): string {
-    if (this.rolId === 1) return 'Admin';
-    if (this.rolId === 2) return 'Supervisor';
-    return 'Vendedor';
+    return nombreRol(this.rolId);
   }
 
-  get esVendedor(): boolean {
-    return this.rolId !== 1 && this.rolId !== 2;
+  get navItems(): MenuItem[] {
+    return MENU_ITEMS.filter((item) => item.roles.includes(this.rolId));
   }
 
-  get esAdmin(): boolean {
-    return this.rolId === 1;
-  }
-
-  get esSupervisor(): boolean {
-    return this.rolId === 2;
-  }
-
-  private readonly todasLasOpciones = [
-    { icon: 'dashboard', label: 'Dashboard', ruta: '/dashboard', roles: [1, 2] },
-    { icon: 'upload_file', label: 'Gestión de ventas', ruta: '/carga',     roles: [1]      },
-    { icon: 'request_quote', label: 'Gestión de Cuotas', ruta: '/carga-cuotas', roles: [1] },
-    { icon: 'group',       label: 'Gestión Usuarios', ruta: '/gestion-usuarios', roles: [1] },
-
-    // ⏸️ Módulos pendientes de implementación
-    // { icon: 'inventory_2',       label: 'Detalle',        ruta: '/detalle',      roles: [1, 2, 3] },
-    // { icon: 'assignment_return', label: 'Devoluciones',   ruta: '/devoluciones', roles: [1, 2, 3] },
-    // { icon: 'history',           label: 'Históricos',     ruta: '/historicos',   roles: [1, 2, 3] },
-    // { icon: 'verified',          label: 'Nivel Servicio', ruta: '/nivel',        roles: [1, 2, 3] },
-  ];
-
-  get navItems() {
-    return this.todasLasOpciones.filter((item) => item.roles.includes(this.rolId));
-  }
-
-  isSupervisorVistaActive(seccion: 'asignados' | 'analisis'): boolean {
+  isActive(item: MenuItem): boolean {
     const url = this.router.parseUrl(this.router.url);
     const primary = url.root.children['primary'];
-    const path = '/' + (primary?.segments.map((s) => s.path).join('/') ?? '');
+    const path = '/' + (primary?.segments.map((segment) => segment.path).join('/') ?? '');
 
-    if (path !== '/dashboard') return false;
+    if (path !== item.ruta) {
+      return false;
+    }
 
-    const seccionActual = String(url.queryParams['seccion'] ?? 'asignados').toLowerCase();
-    return seccionActual === seccion;
+    if (!item.activoPorParams) {
+      return true;
+    }
+
+    return Object.entries(item.activoPorParams).every(
+      ([key, value]) => String(url.queryParams[key] ?? '').toLowerCase() === value.toLowerCase(),
+    );
   }
 
-  isVendedorVistaActive(vista: 'ventas' | 'impactos'): boolean {
-    const url = this.router.parseUrl(this.router.url);
-    const primary = url.root.children['primary'];
-    const path = '/' + (primary?.segments.map((s) => s.path).join('/') ?? '');
-
-    if (path !== '/dashboard') return false;
-
-    const vistaActual = String(url.queryParams['vista'] ?? 'ventas').toLowerCase();
-    return vista === 'impactos' ? vistaActual === 'impactos' : vistaActual !== 'impactos';
-  }
-
-  isActive(ruta: string): boolean {
-    return this.router.url === ruta;
-  }
-
-  toggleSidebar() {
+  toggleSidebar(): void {
     this.isCollapsed = !this.isCollapsed;
     this.toggle.emit(this.isCollapsed);
   }
 
-  toggleMobile() {
+  toggleMobile(): void {
     this.isMobileOpen = !this.isMobileOpen;
   }
 
-  closeMobile() {
+  closeMobile(): void {
     this.isMobileOpen = false;
   }
 }

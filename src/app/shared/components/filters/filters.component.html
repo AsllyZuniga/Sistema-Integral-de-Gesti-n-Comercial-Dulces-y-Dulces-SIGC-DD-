@@ -44,17 +44,45 @@
 
     <div class="filter-group">
       <label>Proveedor</label>
-      <select
-        [(ngModel)]="filtros.proveedor"
-        (ngModelChange)="onProveedorChange($event)"
-        (focus)="onClickOtroFiltro()"
-        (click)="onClickOtroFiltro()"
-      >
-        <option value="">Todos</option>
-        @for (p of proveedores; track p.value) {
-          <option [value]="p.value">{{ p.label }}</option>
+
+      <div class="checkbox-dropdown">
+        <button
+          type="button"
+          class="checkbox-dropdown-toggle"
+          (click)="toggleProveedorDropdown()"
+        >
+          <span class="checkbox-dropdown-text">
+            {{ textoProveedoresSeleccionados }}
+          </span>
+
+          <span class="material-symbols-rounded dropdown-icon">expand_more</span>
+        </button>
+
+        @if (mostrarProveedorDropdown) {
+          <div class="checkbox-dropdown-menu">
+            <label class="checkbox-item checkbox-item-all">
+              <input
+                type="checkbox"
+                [checked]="proveedoresSeleccionados.length === 0"
+                (change)="limpiarProveedoresSeleccionados()"
+              />
+              <span>Todos</span>
+            </label>
+
+            @for (p of proveedores; track p.value) {
+              <label class="checkbox-item">
+                <input
+                  type="checkbox"
+                  [value]="p.value"
+                  [checked]="filtros.proveedores?.includes(p.value) || false"
+                  (change)="toggleProveedorCheckbox(p.value)"
+                />
+                <span>{{ p.label }}</span>
+              </label>
+            }
+          </div>
         }
-      </select>
+      </div>
     </div>
 
     <div class="filter-group">

@@ -6,465 +6,136 @@
     </span>
   </h3>
 
-  <div class="tabs">
-    @for (view of ventasViews; track view.key) {
-      <button
-        type="button"
-        [class.active]="activeVentasView === view.key"
-        (click)="setVentasView(view.key)"
-      >
-        {{ view.label }}
-      </button>
-    }
-  </div>
+  <app-ventas-tabs
+    [views]="ventasViews"
+    [activeView]="activeVentasView"
+    (viewChange)="setVentasView($event)"
+  ></app-ventas-tabs>
 
   <div class="dynamic-content">
     @switch (activeVentasView) {
       @case ('ventas') {
-        <div class="stack-layout">
-          @if (tableData.length > 0) {
-            <div class="tabla-scroll">
-              <app-table [columns]="tableColumns" [data]="tableData"></app-table>
-            </div>
-          }
-
-          @if (chartData.length > 0) {
-            <div class="grafica-container">
-              <app-chart
-                [chartId]="chartId"
-                [data]="chartData"
-                [type]="chartType"
-                label="Ventas"
-              ></app-chart>
-            </div>
-          }
-
-          @if (tableData.length === 0 && chartData.length === 0) {
-            <div class="placeholder">
-              No hay datos disponibles para los filtros seleccionados.
-            </div>
-          }
-        </div>
+        <app-ventas-tabla-grafica
+          [columns]="tableColumns"
+          [data]="tableData"
+          [chartData]="chartData"
+          [chartId]="chartId"
+          [chartType]="chartType"
+          chartLabel="Ventas"
+        ></app-ventas-tabla-grafica>
       }
 
       @case ('vendedor') {
-        <div class="stack-layout">
-          <div class="tabla-scroll">
-            @if (tableData.length > 0) {
-              <app-table [columns]="tableColumns" [data]="tableData"></app-table>
-            } @else {
-              <div class="placeholder">
-                No hay datos disponibles para los filtros seleccionados.
-              </div>
-            }
-          </div>
-
-          @if (chartData.length > 0) {
-            <div class="grafica-container">
-              <div class="proveedor-kpis">
-                <article class="proveedor-kpi-card">
-                  <span class="proveedor-kpi-label">Suma top 15</span>
-                  <strong class="proveedor-kpi-value">{{ totalTopVendedoresLabel }}</strong>
-                </article>
-              </div>
-
-              <div class="proveedor-chart-head">
-                <h4>Top 15 Vendedores por Acumulado</h4>
-              </div>
-
-              <app-chart
-                [chartId]="chartId"
-                [data]="chartData"
-                [type]="chartType"
-                [showLegend]="false"
-                label="Top 15 Vendedores"
-              ></app-chart>
-            </div>
-          }
-        </div>
+        <app-ventas-tabla-grafica
+          [columns]="tableColumns"
+          [data]="tableData"
+          [chartData]="chartData"
+          [chartId]="chartId"
+          [chartType]="chartType"
+          [showLegend]="false"
+          chartLabel="Top 15 Vendedores"
+          chartTitle="Top 15 Vendedores por Acumulado"
+          kpiLabel="Suma top 15"
+          [kpiValue]="totalTopVendedoresLabel"
+        ></app-ventas-tabla-grafica>
       }
 
       @case ('proveedor') {
-        <div class="stack-layout">
-          @if (tableData.length > 0) {
-            <div class="proveedor-totales-above">
-              <span class="categoria-total-pill">
-                Total Cuota: <strong>{{ totalCuotaProveedorLabel }}</strong>
-              </span>
-              <span class="categoria-total-pill" style="margin-left: 12px;">
-                Total Acumulado: <strong>{{ totalAcumuladoProveedorLabel }}</strong>
-              </span>
-            </div>
-          }
-
-          <div class="tabla-scroll">
-            @if (tableData.length > 0) {
-              <app-table [columns]="lineasColumns" [data]="tableData"></app-table>
-            } @else {
-              <div class="placeholder">
-                No hay datos disponibles para los filtros seleccionados.
-              </div>
-            }
-          </div>
-
-          @if (chartData.length > 0) {
-            <div class="grafica-container">
-              <div class="proveedor-kpis">
-                <article class="proveedor-kpi-card">
-                  <span class="proveedor-kpi-label">Suma top 12</span>
-                  <strong class="proveedor-kpi-value">{{ totalTopProveedoresLabel }}</strong>
-                </article>
-              </div>
-
-              <div class="proveedor-chart-head">
-                <h4>Proveedores por venta acumulada</h4>
-              </div>
-
-              <app-chart
-                [chartId]="chartId"
-                [data]="chartData"
-                [type]="chartType"
-                [showLegend]="false"
-                label="Ventas acumuladas"
-              ></app-chart>
-            </div>
-          }
-        </div>
+        <app-ventas-tabla-grafica
+          [columns]="lineasColumns"
+          [data]="tableData"
+          [chartData]="chartData"
+          [chartId]="chartId"
+          [chartType]="chartType"
+          [showLegend]="false"
+          chartLabel="Ventas acumuladas"
+          chartTitle="Proveedores por venta acumulada"
+          kpiLabel="Suma top 12"
+          [kpiValue]="totalTopProveedoresLabel"
+          [showTotals]="true"
+          totalsClass="proveedor-totales-above"
+          [totalCuotaLabel]="totalCuotaProveedorLabel"
+          [totalAcumuladoLabel]="totalAcumuladoProveedorLabel"
+        ></app-ventas-tabla-grafica>
       }
 
       @case ('categoria') {
-        <div class="stack-layout">
-          @if (tableData.length > 0) {
-            <div class="categoria-totales">
-              <span class="categoria-total-pill">
-                Total Cuota: <strong>{{ totalCuotaCategoriaLabel }}</strong>
-              </span>
-              <span class="categoria-total-pill">
-                Total Acumulado: <strong>{{ totalAcumuladoCategoriaLabel }}</strong>
-              </span>
-            </div>
-          }
-
-          <div class="tabla-scroll category-table-scroll">
-            @if (tableData.length > 0) {
-              <app-table [columns]="categoriasColumns" [data]="tableData"></app-table>
-            } @else {
-              <div class="placeholder">
-                No hay datos disponibles para los filtros seleccionados.
-              </div>
-            }
-          </div>
-
-          @if (chartData.length > 0) {
-            <div class="grafica-container">
-              <div class="proveedor-kpis">
-                <article class="proveedor-kpi-card">
-                  <span class="proveedor-kpi-label">Suma top 15</span>
-                  <strong class="proveedor-kpi-value">{{ totalTopCategoriasLabel }}</strong>
-                </article>
-              </div>
-
-              <div class="proveedor-chart-head">
-                <h4>Top 15 Categorías por Acumulado</h4>
-              </div>
-
-              <app-chart
-                [chartId]="chartId"
-                [data]="chartData"
-                [type]="chartType"
-                [showLegend]="false"
-                label="Top 15 Categorías"
-              ></app-chart>
-            </div>
-          }
-        </div>
+        <app-ventas-tabla-grafica
+          [columns]="categoriasColumns"
+          [data]="tableData"
+          [chartData]="chartData"
+          [chartId]="chartId"
+          [chartType]="chartType"
+          [showLegend]="false"
+          tableScrollClass="tabla-scroll category-table-scroll"
+          chartLabel="Top 15 Categorías"
+          chartTitle="Top 15 Categorías por Acumulado"
+          kpiLabel="Suma top 15"
+          [kpiValue]="totalTopCategoriasLabel"
+          [showTotals]="true"
+          [totalCuotaLabel]="totalCuotaCategoriaLabel"
+          [totalAcumuladoLabel]="totalAcumuladoCategoriaLabel"
+        ></app-ventas-tabla-grafica>
       }
 
       @case ('ciudad') {
-        <div class="stack-layout">
-          <div class="tabla-scroll">
-            @if (tableData.length > 0) {
-              <app-table [columns]="ciudadesColumns" [data]="tableData"></app-table>
-            } @else {
-              <div class="placeholder">
-                No hay datos disponibles para los filtros seleccionados.
-              </div>
-            }
-          </div>
-
-          @if (chartData.length > 0) {
-            <div class="grafica-container">
-              <div class="proveedor-kpis">
-                <article class="proveedor-kpi-card">
-                  <span class="proveedor-kpi-label">Suma top 15</span>
-                  <strong class="proveedor-kpi-value">{{ totalTopCiudadesLabel }}</strong>
-                </article>
-              </div>
-
-              <h4>Top 15 Ciudades por Acumulado</h4>
-
-              <app-chart
-                [chartId]="chartId"
-                [data]="chartData"
-                [type]="chartType"
-                label="Top 15 Ciudades"
-              ></app-chart>
-            </div>
-          }
-        </div>
+        <app-ventas-tabla-grafica
+          [columns]="ciudadesColumns"
+          [data]="tableData"
+          [chartData]="chartData"
+          [chartId]="chartId"
+          [chartType]="chartType"
+          chartLabel="Top 15 Ciudades"
+          chartTitle="Top 15 Ciudades por Acumulado"
+          chartHeadClass=""
+          kpiLabel="Suma top 15"
+          [kpiValue]="totalTopCiudadesLabel"
+          [showTotals]="true"
+          totalsClass="categoria-totales"
+          [totalAcumuladoLabel]="totalAcumuladoCiudadLabel"
+        ></app-ventas-tabla-grafica>
       }
 
       @case ('item') {
-        <div class="stack-layout">
-          <div class="filtro-bar">
-            <span class="filtro-badge">
-              {{ tableData.length }} registro{{ tableData.length !== 1 ? 's' : '' }}
-            </span>
-          </div>
-
-          <div class="tabla-scroll">
-            @if (tableData.length > 0) {
-              <app-table [columns]="productosColumns" [data]="tableData"></app-table>
-            } @else {
-              <div class="placeholder">
-                No hay datos disponibles para los filtros seleccionados.
-              </div>
-            }
-          </div>
-
-          @if (chartData.length > 0) {
-            <div class="grafica-container">
-              <div class="proveedor-kpis">
-                <article class="proveedor-kpi-card">
-                  <span class="proveedor-kpi-label">Suma subtotal top 15</span>
-                  <strong class="proveedor-kpi-value">{{ totalTopItemsSubtotalLabel }}</strong>
-                </article>
-              </div>
-
-              <h4>Top 15 Items</h4>
-
-              <app-chart
-                [chartId]="chartId"
-                [data]="chartData"
-                [type]="chartType"
-                label="Top 15 Items"
-              ></app-chart>
-            </div>
-          }
-        </div>
+        <app-ventas-tabla-grafica
+          [columns]="productosColumns"
+          [data]="tableData"
+          [chartData]="chartData"
+          [chartId]="chartId"
+          [chartType]="chartType"
+          chartLabel="Top 15 Items"
+          chartTitle="Top 15 Items"
+          chartHeadClass=""
+          kpiLabel="Suma subtotal top 15"
+          [kpiValue]="totalTopItemsSubtotalLabel"
+          [showCountBadge]="true"
+        ></app-ventas-tabla-grafica>
       }
 
       @case ('cliente') {
-        <div class="stack-layout">
-          <div class="filtro-bar filtro-bar-clientes">
-            <label class="cliente-search" for="cliente-search-input">
-              <span class="cliente-search-icon" aria-hidden="true">search</span>
-              <input
-                id="cliente-search-input"
-                type="text"
-                [ngModel]="clienteBusqueda"
-                (ngModelChange)="onBuscarClienteChange($event)"
-                [placeholder]="placeholderBusquedaClientes"
-              />
-            </label>
-
-            <span class="filtro-badge">
-              {{ totalClientesFiltrados }} {{ etiquetaClientesVista }}
-            </span>
-          </div>
-
-          @if (cargandoClientes) {
-            <div class="placeholder">
-              {{ agrupaClientesPorVendedor ? 'Cargando vendedores...' : 'Cargando clientes...' }}
-            </div>
-          } @else if (errorClientesMsg) {
-            <div class="placeholder" style="color: #d32f2f; font-weight: 500;">
-              ⚠️ {{ errorClientesMsg }}
-            </div>
-          } @else if (clientesVista.length > 0) {
-            <div class="clientes-listado">
-              @if (agrupaClientesPorVendedor) {
-                @for (vendedor of clientesVista; track vendedor.key) {
-                  <article class="cliente-card vendedor-card">
-                    <button
-                        class="cliente-head vendedor-head"
-                        [class.open]="vendedor.expandido"
-                        type="button"
-                        (click)="toggleCliente(vendedor)"
-                      >
-                      <div class="vendedor-avatar" aria-hidden="true">
-                        {{ vendedor.iniciales }}
-                      </div>
-
-                      <div class="cliente-identidad">
-                        <h4>{{ vendedor.vendedor }}</h4>
-
-                        <div class="cliente-meta-row">
-                          <span class="cliente-meta">
-                            Código: {{ vendedor.codVendedor || '—' }}
-                          </span>
-                          <span class="cliente-total">
-                            Total compras {{ getTotalClienteLabel(vendedor) }}
-                          </span>
-                        </div>
-                      </div>
-
-                      <span class="cliente-toggle" [class.open]="vendedor.expandido">›</span>
-                    </button>
-
-                    @if (vendedor.expandido) {
-                      <div class="cliente-body tabla-scroll vendedor-body">
-                        <div class="vendedor-clientes-listado">
-                          @for (cliente of vendedor.clientes; track cliente.key) {
-                            <article class="cliente-card cliente-card-nested">
-                              <button
-                                class="cliente-head"
-                                type="button"
-                                (click)="toggleCliente(cliente)"
-                              >
-                                <div class="cliente-avatar" aria-hidden="true">
-                                  {{ cliente.iniciales }}
-                                </div>
-
-                                <div class="cliente-identidad">
-                                  <h4>{{ cliente.cliente }}</h4>
-
-                                  <span class="cliente-stats">
-                                    {{ getCantidadItemsClienteLabel(cliente) }}
-                                    item{{ getCantidadItemsCliente(cliente) !== 1 ? 's' : '' }}
-                                  </span>
-
-                                  <div class="cliente-meta-row">
-                                    <span class="cliente-total">
-                                      Total compras {{ getTotalClienteLabel(cliente) }}
-                                    </span>
-                                  </div>
-                                </div>
-
-                                <span class="cliente-toggle" [class.open]="cliente.expandido">
-                                  ›
-                                </span>
-                              </button>
-
-                              @if (cliente.expandido) {
-                                <div class="cliente-body tabla-scroll">
-                                  <app-table
-                                    [columns]="clienteProductosColumns"
-                                    [data]="getProductosClienteVisibles(cliente)"
-                                  ></app-table>
-
-                                  @if (tieneMasProductos(cliente)) {
-                                    <div class="cliente-actions">
-                                      <button
-                                        type="button"
-                                        class="btn-ver-mas"
-                                        (click)="verMasProductos(cliente)"
-                                      >
-                                        Ver más productos
-                                      </button>
-                                    </div>
-                                  }
-                                </div>
-                              }
-                            </article>
-                          }
-                        </div>
-                      </div>
-                    }
-                  </article>
-                }
-              } @else {
-                @for (cliente of clientesVista; track cliente.key) {
-                  <article class="cliente-card">
-                    <button
-                      class="cliente-head"
-                      type="button"
-                      (click)="toggleCliente(cliente)"
-                    >
-                      <div class="cliente-avatar" aria-hidden="true">
-                        {{ cliente.iniciales }}
-                      </div>
-
-                      <div class="cliente-identidad">
-                        <h4>{{ cliente.cliente }}</h4>
-
-                        <span class="cliente-stats">
-                          {{ getCantidadItemsClienteLabel(cliente) }}
-                          item{{ getCantidadItemsCliente(cliente) !== 1 ? 's' : '' }}
-                        </span>
-
-                        <div class="cliente-meta-row">
-                          <span class="cliente-total">
-                            Total compras {{ getTotalClienteLabel(cliente) }}
-                          </span>
-                        </div>
-                      </div>
-
-                      <span class="cliente-toggle" [class.open]="cliente.expandido">›</span>
-                    </button>
-
-                    @if (cliente.expandido) {
-                      <div class="cliente-body tabla-scroll">
-                        <app-table
-                          [columns]="clienteProductosColumns"
-                          [data]="getProductosClienteVisibles(cliente)"
-                        ></app-table>
-
-                        @if (tieneMasProductos(cliente)) {
-                          <div class="cliente-actions">
-                            <button
-                              type="button"
-                              class="btn-ver-mas"
-                              (click)="verMasProductos(cliente)"
-                            >
-                              Ver más productos
-                            </button>
-                          </div>
-                        }
-                      </div>
-                    }
-                  </article>
-                }
-              }
-            </div>
-
-            @if (hayMasClientes) {
-              <div class="cliente-actions cliente-actions-global">
-                <button
-                  type="button"
-                  class="btn-ver-mas"
-                  (click)="verMasClientes()"
-                >
-                  Ver más {{ etiquetaClientesVista }}
-                </button>
-              </div>
-            }
-          } @else {
-            <div class="placeholder">
-              No hay {{ etiquetaClientesVista }} disponibles para los filtros seleccionados
-            </div>
-          }
-
-          @if (chartData.length > 0) {
-            <div class="grafica-container">
-              <div class="proveedor-kpis">
-                <article class="proveedor-kpi-card">
-                  <span class="proveedor-kpi-label">Suma Top 15</span>
-                  <strong class="proveedor-kpi-value">{{ totalTopClientesLabel }}</strong>
-                </article>
-              </div>
-
-              <h4>{{ totalTopClientesTitulo }}</h4>
-
-              <app-chart
-                [chartId]="chartId"
-                [data]="chartData"
-                [type]="chartType"
-                [label]="totalTopClientesTitulo"
-              ></app-chart>
-            </div>
-          }
-        </div>
+        <app-ventas-clientes-detalle
+          [clienteBusqueda]="clienteBusqueda"
+          [totalClientesFiltrados]="totalClientesFiltrados"
+          [etiquetaClientesVista]="etiquetaClientesVista"
+          [placeholderBusquedaClientes]="placeholderBusquedaClientes"
+          [cargandoClientes]="cargandoClientes"
+          [errorClientesMsg]="errorClientesMsg"
+          [clientesVista]="clientesVista"
+          [agrupaClientesPorVendedor]="agrupaClientesPorVendedor"
+          [hayMasClientes]="hayMasClientes"
+          [clienteProductosColumns]="clienteProductosColumns"
+          [productosVisiblesPorCliente]="productosVisiblesPorCliente"
+          [productosPageSize]="productosPageSize"
+          [chartId]="chartId"
+          [chartData]="chartData"
+          [chartType]="chartType"
+          [totalTopClientesLabel]="totalTopClientesLabel"
+          [totalTopClientesTitulo]="totalTopClientesTitulo"
+          (buscarCliente)="onBuscarClienteChange($event)"
+          (toggleCliente)="toggleCliente($event)"
+          (verMasClientes)="verMasClientes()"
+          (verMasProductos)="verMasProductos($event)"
+        ></app-ventas-clientes-detalle>
       }
     }
   </div>

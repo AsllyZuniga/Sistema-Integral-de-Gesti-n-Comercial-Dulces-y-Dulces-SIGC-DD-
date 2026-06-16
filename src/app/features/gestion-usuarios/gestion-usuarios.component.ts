@@ -10,6 +10,7 @@ import {
 import { UsuariosService } from '../../core/services/usuarios.service';
 import { AuthService } from '../../core/services/auth.service';
 import { SidebarComponent } from '../../shared/components/sidebar/sidebar.component';
+import { TopbarComponent } from '../../shared/components/topbar/topbar.component';
 
 type Seccion =
   | 'list'
@@ -21,7 +22,7 @@ type Seccion =
 @Component({
   selector: 'app-gestion-usuarios',
   standalone: true,
-  imports: [CommonModule, FormsModule, SidebarComponent, VendedoresTableComponent],
+  imports: [CommonModule, FormsModule, SidebarComponent, TopbarComponent, VendedoresTableComponent],
   templateUrl: './gestion-usuarios.component.html',
   styleUrls: ['./gestion-usuarios.component.css'],
 })

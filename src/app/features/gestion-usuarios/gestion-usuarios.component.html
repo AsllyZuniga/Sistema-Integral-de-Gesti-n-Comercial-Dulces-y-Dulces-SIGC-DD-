@@ -2,28 +2,12 @@
   <app-sidebar (toggle)="onToggleSidebar($event)"></app-sidebar>
 
   <div class="main" [class.expanded]="isSidebarCollapsed">
-    <header class="topbar">
-      <div class="topbar-left">
-        <button class="mobile-menu-btn" (click)="toggleMenuMovil()">
-          <span class="material-symbols-rounded">menu</span>
-        </button>
-        <img class="topbar-logo" src="logoDulces.png" alt="Logo" />
-      </div>
-
-      <div class="topbar-center">
-        <h1>
-          <span class="accent">Gestión de Usuarios</span>
-        </h1>
-        <span class="welcome">Sistema de Control de Ventas · Dulces y Dulces</span>
-      </div>
-
-      <div class="topbar-right">
-        <button class="logout-btn" (click)="logout()">
-          <span class="material-symbols-rounded">logout</span>
-          <span class="logout-label">Salir</span>
-        </button>
-      </div>
-    </header>
+    <app-topbar
+      titulo="Gestión de Usuarios"
+      subtitulo="Administración de usuarios y asignaciones · Dulces y Dulces"
+      (menuClick)="toggleMenuMovil()"
+      (logoutClick)="logout()"
+    ></app-topbar>
 
     <div class="content-wrapper">
       @if (mensajeOperacion) {

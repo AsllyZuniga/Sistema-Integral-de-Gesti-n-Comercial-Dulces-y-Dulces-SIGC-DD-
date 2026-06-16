@@ -63,18 +63,18 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private readonly COLORS = [
-    '#2563eb',
-    '#16a34a',
-    '#d97706',
-    '#7c3aed',
-    '#0891b2',
-    '#db2777',
-    '#65a30d',
-    '#ea580c',
-    '#0284c7',
-    '#9333ea',
-    '#15803d',
-    '#b45309',
+    '#004286',
+    '#1d63b8',
+    '#0f5fa8',
+    '#3b82c4',
+    '#6aa3d8',
+    '#8bbce8',
+    '#002f63',
+    '#0b4f8f',
+    '#4f86c6',
+    '#7aa8d8',
+    '#a8c8ea',
+    '#dbeafe',
   ];
 
   private getColors(count: number): string[] {
@@ -150,9 +150,9 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
           {
             label: this.label,
             data: values,
-            backgroundColor: isPie || isBar ? colors : colors[0],
-            borderColor: isLine ? colors[0] : 'transparent',
-            borderWidth: isLine ? 2 : 0,
+            backgroundColor: isPie || isBar ? colors : 'rgba(29, 99, 184, 0.14)',
+            borderColor: isLine ? colors[0] : '#ffffff',
+            borderWidth: isLine ? 3 : 1,
             tension: isLine ? 0.3 : 0,
             fill: false,
           },
