@@ -10,7 +10,7 @@
 .table-scroll-wrap {
   width: 100%;
   max-width: 100%;
-  overflow-x: auto;
+  overflow-x: scroll;
   overflow-y: auto;
   max-height: var(--table-max-height, 58vh);
   scrollbar-gutter: stable both-edges;
@@ -40,7 +40,7 @@
 
 table {
   width: max-content;
-  min-width: 100%;
+  min-width: max(860px, 100%);
   border-collapse: separate;
   border-spacing: 0;
   background: transparent;
@@ -192,6 +192,11 @@ td.empty {
 @media (max-width: 768px) {
   .table-scroll-wrap {
     max-height: var(--table-max-height-mobile, 62vh);
+    overflow-x: scroll;
+  }
+
+  table {
+    min-width: max(780px, 100%);
   }
 
   th {
@@ -208,6 +213,10 @@ td.empty {
 @media (max-width: 480px) {
   .table-scroll-wrap {
     max-height: var(--table-max-height-mobile, 64vh);
+  }
+
+  table {
+    min-width: max(760px, 100%);
   }
 
   th {

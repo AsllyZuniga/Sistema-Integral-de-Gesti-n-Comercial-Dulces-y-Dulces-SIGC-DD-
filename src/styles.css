@@ -1513,3 +1513,49 @@ app-topbar .material-symbols-rounded {
   hyphens: none;
   max-width: none;
 }
+
+
+/* ===== AJUSTE FINAL: TABLAS EN CELULAR =====
+   Mantiene palabras completas y obliga el desplazamiento dentro de la tabla. */
+.table-scroll-wrap,
+.tabla-scroll {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: scroll !important;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  scrollbar-width: thin;
+}
+
+.table-scroll-wrap table,
+.tabla-scroll table {
+  width: max-content !important;
+  min-width: max(860px, 100%) !important;
+  table-layout: auto !important;
+}
+
+.table-scroll-wrap th,
+.table-scroll-wrap td,
+.tabla-scroll th,
+.tabla-scroll td {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+  max-width: none !important;
+}
+
+@media (max-width: 768px) {
+  .table-scroll-wrap table,
+  .tabla-scroll table {
+    min-width: max(780px, 100%) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .table-scroll-wrap table,
+  .tabla-scroll table {
+    min-width: max(760px, 100%) !important;
+  }
+}

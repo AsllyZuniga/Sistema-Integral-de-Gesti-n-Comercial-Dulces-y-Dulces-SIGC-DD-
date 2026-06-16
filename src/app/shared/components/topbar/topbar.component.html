@@ -7,13 +7,15 @@
   </div>
 
   <div class="topbar-center">
-    <h1>
-      @if (textoIntro) {
-        <span class="accent">{{ textoIntro }}</span>
-        {{ titulo }}
-      } @else {
-        <span class="accent">{{ titulo }}</span>
-      }
+    <h1 class="topbar-title" [title]="textoIntro ? textoIntro + ' ' + titulo : titulo">
+      <span class="topbar-title-text">
+        @if (textoIntro) {
+          <span class="accent">{{ textoIntro }}</span>
+          {{ titulo }}
+        } @else {
+          <span class="accent">{{ titulo }}</span>
+        }
+      </span>
     </h1>
     <span class="welcome">{{ subtitulo }}</span>
     @if (nombreUsuario) {

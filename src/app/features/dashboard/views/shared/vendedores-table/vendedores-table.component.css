@@ -124,7 +124,8 @@
 
 .tabla-scroll.role-scroll {
   display: block;
-  overflow: auto !important;
+  overflow-x: scroll !important;
+  overflow-y: auto !important;
   max-height: var(--table-max-height, 58vh);
   touch-action: pan-x pan-y;
   overscroll-behavior: contain;
@@ -134,7 +135,7 @@
 
 .tabla-scroll.role-scroll .admin-table {
   width: max-content !important;
-  min-width: 100% !important;
+  min-width: max(860px, 100%) !important;
   table-layout: auto !important;
 }
 
@@ -155,7 +156,7 @@
 
   .tabla-scroll.role-scroll .admin-table {
     width: max-content !important;
-    min-width: 100% !important;
+    min-width: max(860px, 100%) !important;
   }
 
   .tabla-scroll.role-scroll .admin-table th,

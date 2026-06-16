@@ -75,7 +75,8 @@
   overflow: hidden;
 }
 
-.topbar-center h1 {
+.topbar-center h1,
+.topbar-title {
   margin: 0;
   color: #fff;
   font-size: 21px;
@@ -85,6 +86,13 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.topbar-title-text {
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  vertical-align: top;
 }
 
 .topbar-center .accent {
@@ -179,8 +187,25 @@
     padding: 0 6px;
   }
 
-  .topbar-center h1 {
+  .topbar-center h1,
+  .topbar-title {
     font-size: 16px;
+  }
+
+  .topbar-title {
+    text-overflow: clip;
+  }
+
+  .topbar-title-text {
+    max-width: none;
+    min-width: max-content;
+    padding-right: 42px;
+    animation: topbar-title-marquee 12s linear infinite;
+  }
+
+  .topbar-title:hover .topbar-title-text,
+  .topbar-title:focus-within .topbar-title-text {
+    animation-play-state: paused;
   }
 
   .welcome,
@@ -210,6 +235,11 @@
 @media (max-width: 480px) {
   .topbar {
     padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .topbar-center {
+    padding: 0 4px;
   }
 
   .topbar-logo {
@@ -217,7 +247,28 @@
     max-width: 88px;
   }
 
+  .topbar-title-text {
+    animation-duration: 10s;
+  }
+
   .welcome {
     display: none;
+  }
+}
+
+
+@keyframes topbar-title-marquee {
+  0%, 12% {
+    transform: translateX(0);
+  }
+  88%, 100% {
+    transform: translateX(calc(-100% + min(100%, 100vw - 170px)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar-title-text {
+    animation: none !important;
+    transform: none !important;
   }
 }
