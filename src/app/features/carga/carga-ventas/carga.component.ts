@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { HttpClient, HttpErrorResponse, HttpEventType, HttpParams } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { SidebarComponent } from '../../../shared/components/sidebar/sidebar.component';
+import { TopbarComponent } from '../../../shared/components/topbar/topbar.component';
 import { AuthService } from '../../../core/services/auth.service';
 import { timeout } from 'rxjs/operators';
 
@@ -25,7 +26,7 @@ interface ImportVentasResponse {
 @Component({
   selector: 'app-carga',
   standalone: true,
-  imports: [CommonModule, FormsModule, SidebarComponent],
+  imports: [CommonModule, FormsModule, SidebarComponent, TopbarComponent],
   templateUrl: './carga.component.html',
   styleUrls: ['./carga.component.css'],
 })

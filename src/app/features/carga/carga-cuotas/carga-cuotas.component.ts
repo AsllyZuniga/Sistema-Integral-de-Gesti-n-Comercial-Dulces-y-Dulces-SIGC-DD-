@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 
 import { SidebarComponent } from '../../../shared/components/sidebar/sidebar.component';
+import { TopbarComponent } from '../../../shared/components/topbar/topbar.component';
 import { AuthService } from '../../../core/services/auth.service';
 
 import { CuotaVendedorUploadComponent } from './cuota-vendedor-upload/cuota-vendedor-upload.component';
@@ -22,6 +23,7 @@ import {
     CommonModule,
     FormsModule,
     SidebarComponent,
+    TopbarComponent,
     CuotaVendedorUploadComponent,
     CuotaProveedorUploadComponent,
     CuotaCategoriaUploadComponent,
