@@ -21,14 +21,23 @@ import { Chart, ChartOptions } from 'chart.js/auto';
   `,
   styles: [
     `
+      :host {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+      }
       .chart-wrapper {
         width: 100%;
+        max-width: 100%;
         max-height: 380px;
         height: clamp(240px, 36vh, 380px);
         position: relative;
         min-width: 0;
+        overflow: hidden;
       }
       canvas {
+        display: block;
         width: 100% !important;
         height: 100% !important;
       }

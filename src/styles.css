@@ -216,6 +216,7 @@ html {
   box-sizing: border-box;
   overflow: hidden;
   width: 100%;
+  max-width: 100%;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -230,10 +231,15 @@ html {
   min-height: 320px;
   overflow: hidden;
 }
+.grafica-container app-chart {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
 .grafica-container canvas {
   max-width: 100% !important;
   width: 100% !important;
-  height: auto !important;
 }
 
 .split-layout {
@@ -250,11 +256,25 @@ html {
   display: block;
   min-width: 0;
   width: 100%;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: visible;
   max-height: none;
   border: 0;
   box-shadow: none;
   box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  scrollbar-width: thin;
+}
+
+.category-table-scroll {
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.category-table-scroll app-table {
+  --table-max-height: 460px;
 }
 
 .grafica-lateral {
@@ -1485,22 +1505,25 @@ app-topbar .material-symbols-rounded {
 }
 
 /* ===== TABLAS RESPONSIVE COMPARTIDAS =====
-   La tabla conserva palabras completas y el desplazamiento horizontal
-   ocurre dentro del contenedor de tabla, no en toda la página. */
+   Scroll horizontal dentro del contenedor de tabla, nunca fuera.
+   En desktop el scroll se oculta si la tabla cabe; en móvil aparece.
+   NOTA: No definir width/min-width de <table> aquí porque entra en
+   conflicto de especificidad con las reglas scoped de app-table y
+   vendedores-table (ambas tienen la misma específicidad y la global
+   gana por orden, sobreescribiendo min-width: max(860px, 100%)). */
 .table-scroll-wrap,
 .tabla-scroll {
+  display: block;
+  width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow-x: auto;
+  box-sizing: border-box;
+  padding: 0;
+  overflow: auto;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x pan-y;
-}
-
-.table-scroll-wrap table,
-.tabla-scroll table {
-  width: max-content;
-  min-width: 100%;
-  table-layout: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
 }
 
 .table-scroll-wrap th,
@@ -1514,48 +1537,191 @@ app-topbar .material-symbols-rounded {
   max-width: none;
 }
 
+@media (max-width: 768px) {
+  .table-scroll-wrap,
+  .tabla-scroll {
+    padding: 0 4px;
+  }
+}
 
-/* ===== AJUSTE FINAL: TABLAS EN CELULAR =====
-   Mantiene palabras completas y obliga el desplazamiento dentro de la tabla. */
-.table-scroll-wrap,
-.tabla-scroll {
+/* =========================================================
+   Responsive UX fixes for Ventas module
+   - Tables keep full width and create their own horizontal scroll.
+   - Right spacing is preserved inside the analysis panel.
+   - Tabs wrap/grid so every section remains visible on small screens.
+   - Charts and nested customer/detail sections never overflow the panel.
+   ========================================================= */
+app-ventas,
+app-ventas .chart-box.dynamic-panel,
+app-ventas .dynamic-content,
+app-ventas .stack-layout,
+app-ventas .grafica-container,
+app-ventas .clientes-listado,
+app-ventas .cliente-card,
+app-ventas .cliente-body,
+app-ventas .vendedor-body {
+  width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow-x: scroll !important;
-  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+app-ventas {
+  display: block;
+  overflow: hidden;
+}
+
+app-ventas .chart-box.dynamic-panel {
+  overflow: hidden;
+  padding-inline: clamp(14px, 2vw, 22px);
+}
+
+app-ventas .dynamic-content {
+  overflow: hidden;
+  padding: clamp(12px, 1.8vw, 18px);
+}
+
+app-ventas .tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  overflow: visible;
+  padding-right: 0;
+}
+
+app-ventas .tabs button {
+  flex: 0 1 auto;
+  min-width: max-content;
+  max-width: 100%;
+}
+
+app-ventas .tabla-scroll {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-bottom: 10px;
+  box-sizing: border-box;
+  scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-x pan-y;
-  scrollbar-width: thin;
 }
 
-.table-scroll-wrap table,
-.tabla-scroll table {
-  width: max-content !important;
-  min-width: max(860px, 100%) !important;
-  table-layout: auto !important;
+app-ventas app-table {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
-.table-scroll-wrap th,
-.table-scroll-wrap td,
-.tabla-scroll th,
-.tabla-scroll td {
-  white-space: nowrap !important;
-  word-break: keep-all !important;
-  overflow-wrap: normal !important;
-  hyphens: none !important;
-  max-width: none !important;
+app-ventas .grafica-container {
+  overflow: hidden;
 }
 
-@media (max-width: 768px) {
-  .table-scroll-wrap table,
-  .tabla-scroll table {
-    min-width: max(780px, 100%) !important;
+app-ventas .grafica-container app-chart {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+app-ventas .filtro-bar-clientes {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+app-ventas .cliente-search {
+  min-width: min(260px, 100%);
+}
+
+app-ventas .cliente-head,
+app-ventas .vendedor-head {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+app-ventas .cliente-identidad {
+  min-width: 0;
+}
+
+app-ventas .cliente-identidad h4,
+app-ventas .cliente-meta-row,
+app-ventas .cliente-stats,
+app-ventas .cliente-total {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  app-ventas .tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  app-ventas .tabs button {
+    width: 100%;
+    min-width: 0;
+    text-align: center;
+    justify-content: center;
   }
 }
 
-@media (max-width: 480px) {
-  .table-scroll-wrap table,
-  .tabla-scroll table {
-    min-width: max(760px, 100%) !important;
+@media (max-width: 640px) {
+  app-ventas .chart-box.dynamic-panel {
+    padding-inline: 12px;
+  }
+
+  app-ventas .dynamic-content {
+    padding: 12px;
+  }
+
+  app-ventas .tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  app-ventas .tabs button {
+    padding: 8px 10px;
+    font-size: 11.5px;
+    white-space: normal;
+    line-height: 1.2;
+  }
+
+  app-ventas .filtro-bar-clientes {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  app-ventas .cliente-search {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  app-ventas .filtro-badge {
+    align-self: flex-start;
+    margin-left: 0;
+  }
+
+  app-ventas .cliente-head,
+  app-ventas .vendedor-head {
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  app-ventas .cliente-avatar,
+  app-ventas .vendedor-avatar {
+    flex: 0 0 auto;
   }
 }
+
+@media (max-width: 380px) {
+  app-ventas .tabs {
+    grid-template-columns: 1fr;
+  }
+}
+

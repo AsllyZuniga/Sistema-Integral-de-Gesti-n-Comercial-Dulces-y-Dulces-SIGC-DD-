@@ -48,8 +48,7 @@
             } @else if (vendedores.length === 0) {
               <p class="empty-state">No hay vendedores registrados</p>
             } @else {
-              <div class="tabla-scroll">
-                <app-vendedores-table
+              <app-vendedores-table
                   [esAdmin]="true"
                   [mostrarMetricas]="false"
                   [labelCuota]="'Cuota Mes'"
@@ -61,7 +60,6 @@
                   (editar)="irAEditarVendedor($event)"
                   (desactivar)="toggleEstadoVendedor($event)"
                 ></app-vendedores-table>
-              </div>
             }
           </div>
 

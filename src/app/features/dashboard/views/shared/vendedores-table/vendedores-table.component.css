@@ -124,19 +124,20 @@
 
 .tabla-scroll.role-scroll {
   display: block;
-  overflow-x: scroll !important;
-  overflow-y: auto !important;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  overflow: auto;
   max-height: var(--table-max-height, 58vh);
-  touch-action: pan-x pan-y;
-  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
 }
 
 .tabla-scroll.role-scroll .admin-table {
-  width: max-content !important;
-  min-width: max(860px, 100%) !important;
-  table-layout: auto !important;
+  width: max-content;
+  min-width: max(860px, 100%);
+  table-layout: auto;
 }
 
 .tabla-scroll.role-scroll .admin-table th,
@@ -149,14 +150,21 @@
   hyphens: none;
 }
 
+@media (max-width: 1024px) {
+  .tabla-scroll.role-scroll .admin-table {
+    min-width: max(860px, 100%);
+  }
+}
+
 @media (max-width: 768px) {
   .tabla-scroll.role-scroll {
     max-height: 62vh;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
   }
 
   .tabla-scroll.role-scroll .admin-table {
-    width: max-content !important;
-    min-width: max(860px, 100%) !important;
+    min-width: max(860px, 100%);
   }
 
   .tabla-scroll.role-scroll .admin-table th,

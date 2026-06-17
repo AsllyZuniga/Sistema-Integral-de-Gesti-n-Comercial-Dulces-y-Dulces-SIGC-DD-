@@ -10,13 +10,14 @@
 .table-scroll-wrap {
   width: 100%;
   max-width: 100%;
-  overflow-x: scroll;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0;
+  overflow-x: auto;
   overflow-y: auto;
   max-height: var(--table-max-height, 58vh);
-  scrollbar-gutter: stable both-edges;
-  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-x pan-y;
   border: 1px solid var(--c-border);
   border-radius: var(--r-md);
   background: var(--c-surface);
@@ -73,7 +74,7 @@ th {
   letter-spacing: 0.8px;
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 20;
   box-shadow: 0 1px 0 var(--c-border);
   border-bottom: 1px solid var(--c-border);
 }
@@ -192,7 +193,9 @@ td.empty {
 @media (max-width: 768px) {
   .table-scroll-wrap {
     max-height: var(--table-max-height-mobile, 62vh);
-    overflow-x: scroll;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding: 0;
   }
 
   table {
@@ -213,6 +216,8 @@ td.empty {
 @media (max-width: 480px) {
   .table-scroll-wrap {
     max-height: var(--table-max-height-mobile, 64vh);
+    overscroll-behavior-x: contain;
+    padding: 0;
   }
 
   table {
