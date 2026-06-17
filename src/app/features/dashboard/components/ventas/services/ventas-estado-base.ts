@@ -115,7 +115,7 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
     const cambio = this._tipoCuota !== value;
     this._tipoCuota = value;
 
-    if (cambio && this._codigoVendedor && this.iniciado) {
+    if (cambio && (this._codigoVendedor || this.esModoAdminTodos()) && this.iniciado) {
       this.solicitarCargaVista(true);
     }
   }
@@ -137,7 +137,7 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
       this.iniciado,
     );
     if ((this._codigoVendedor || this.esModoAdminTodos()) && this.iniciado) {
-      this.solicitarCargaVista();
+      this.solicitarCargaVista(true);
     }
   }
   get filtros(): DashboardFilters {
@@ -185,6 +185,10 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
   totalTopItemsSubtotal = 0;
   totalTopCiudades = 0;
   totalAcumuladoCiudad = 0;
+  // Totales adicionales solicitados
+  totalCuotaVendedor = 0;
+  totalAcumuladoVendedor = 0;
+  totalCuotaCiudad = 0;
   liderVentasProveedor = '—';
   protected categoriasPorId = new Map<string, string>();
 
@@ -303,12 +307,38 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
     this.chartId = 'chart-' + this.activeVentasView + '-' + Date.now();
     this.cdr.markForCheck();
   }
+
   protected emitirResumenVista(): void {
-    if (this.activeVentasView !== 'proveedor') return;
+    const ventaAcum = this.obtenerVentaAcumVistaActiva();
+    if (ventaAcum === null) return;
 
     this.resumenCambio.emit({
-      ventaAcum: Number(this.totalAcumuladoProveedor ?? 0) || 0,
+      ventaAcum: Number(ventaAcum ?? 0) || 0,
     });
+  }
+
+  protected obtenerVentaAcumVistaActiva(): number | null {
+    switch (this.activeVentasView) {
+      case 'proveedor':
+        return this.totalAcumuladoProveedor;
+      case 'vendedor':
+        return this.totalAcumuladoVendedor;
+      case 'categoria':
+        return this.totalAcumuladoCategoria;
+      case 'ciudad':
+        return this.totalAcumuladoCiudad;
+      case 'ventas':
+        return this.calcularVentaAcumVisible();
+      default:
+        return null;
+    }
+  }
+
+  protected calcularVentaAcumVisible(): number {
+    return this.tableData.reduce(
+      (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? item?.acumulado ?? 0) || 0),
+      0,
+    );
   }
 
   setVentasView(view: string): void {

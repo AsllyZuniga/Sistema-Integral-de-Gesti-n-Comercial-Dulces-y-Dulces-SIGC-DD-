@@ -1181,6 +1181,18 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
     return this.formatearMoneda(this.totalAcumuladoCiudad);
   }
 
+  get totalCuotaVendedorLabel(): string {
+    return this.formatearMoneda(this.totalCuotaVendedor);
+  }
+
+  get totalAcumuladoVendedorLabel(): string {
+    return this.formatearMoneda(this.totalAcumuladoVendedor);
+  }
+
+  get totalCuotaCiudadLabel(): string {
+    return this.formatearMoneda(this.totalCuotaCiudad);
+  }
+
   get totalTopProveedoresCompactoLabel(): string {
     return this.formatearMonedaCompacta(this.totalTopProveedores);
   }

@@ -125,9 +125,10 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
           ciudades$
             .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((res: any) => {
-              const listado = this.filtrarPorCiudadSeleccionada(res?.detallePorCiudad ?? []);
-              this.tableData = listado;
-              this.chartData = listado.map((i: any) => ({
+              const listadoFiltrado = this.filtrarPorCiudadSeleccionada(res?.detallePorCiudad ?? []);
+              const consolidado = this.consolidarPorCiudad(listadoFiltrado);
+              this.tableData = consolidado;
+              this.chartData = consolidado.map((i: any) => ({
                 name: this.repararTextoCiudad(i.ciudad),
                 value: i.ventaAcum,
               }));
@@ -384,7 +385,8 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
                   return;
                 }
 
-                const listadoMapeado = listadoFiltrado.map((i: any) => ({
+                const consolidado = this.consolidarPorCiudad(listadoFiltrado);
+                const listadoMapeado = consolidado.map((i: any) => ({
                   ...i,
                   ciudad: this.repararTextoCiudad(i.ciudad),
                 }));
@@ -404,6 +406,11 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
                 );
                 this.totalTopCiudades = topCiudades.reduce(
                   (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+                  0,
+                );
+                // Total cuota por ciudad
+                this.totalCuotaCiudad = ordenadoCiudades.reduce(
+                  (sum: number, item: any) => sum + (Number(item?.cuota ?? item?.cuotaLinea ?? 0) || 0),
                   0,
                 );
                 this.chartData = topCiudades.map((i: any) => ({

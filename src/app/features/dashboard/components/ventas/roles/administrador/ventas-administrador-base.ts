@@ -92,6 +92,7 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
               );
               this.chartData = topCategorias;
               this.chartId = 'chart-categoria-admin-' + Date.now();
+              this.emitirResumenVista();
               this.cdr.markForCheck();
             });
           return;
@@ -159,6 +160,7 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
               );
               this.chartData = topCategorias;
               this.chartId = 'chart-categoria-admin-' + Date.now();
+              this.emitirResumenVista();
               this.cdr.markForCheck();
             };
 
@@ -411,6 +413,10 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
               .slice(0, 15);
 
             this.tableData = ordenado;
+            this.totalAcumuladoCiudad = ordenado.reduce(
+              (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? item?.acumulado ?? 0) || 0),
+              0,
+            );
             this.totalTopCiudades = topCiudades.reduce(
               (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
               0,
@@ -420,6 +426,7 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
               value: Number(i?.ventaAcum ?? 0),
             }));
             this.chartId = 'chart-ciudad-admin-' + Date.now();
+            this.emitirResumenVista();
             this.cdr.markForCheck();
           });
         return;
@@ -587,6 +594,7 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
                 name: this.repararTextoCiudad(i.ciudad),
                 value: i.ventaAcum,
               }));
+              this.emitirResumenVista();
               break;
             }
           }

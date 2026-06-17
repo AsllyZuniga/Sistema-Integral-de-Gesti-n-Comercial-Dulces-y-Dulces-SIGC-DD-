@@ -207,7 +207,19 @@ export abstract class VentasTransformacionesBase extends VentasEstadoBase {
     });
 
     this.chartId = `${chartPrefix}-${Date.now()}`;
+
+    // Calcular totales para la vista por vendedor
+    this.totalCuotaVendedor = vendedoresValidos.reduce(
+      (sum: number, item: any) => sum + (Number(item?.[this.cuotaColumn] ?? 0) || 0),
+      0,
+    );
+    this.totalAcumuladoVendedor = vendedoresValidos.reduce(
+      (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+      0,
+    );
+
     this.cdr.markForCheck();
+    this.emitirResumenVista();
   }
 
   protected agruparAdminPorCampo(detalle: any[], campo: string, campoSalida: string): any[] {

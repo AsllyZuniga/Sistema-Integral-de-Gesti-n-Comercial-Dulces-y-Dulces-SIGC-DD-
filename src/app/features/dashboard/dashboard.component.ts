@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, AfterViewInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject, forkJoin, of, takeUntil } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -129,6 +129,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     private cumplimientoService: CumplimientoService,
     private semanaService: CumplimientoSemanaService,
     private usuariosService: UsuariosService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   @ViewChild(SidebarComponent) sidebarRef!: SidebarComponent;
@@ -1206,20 +1207,22 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
         if (!d) {
           if (totales) {
-            this.totalesVendedor = {
-              ventaAcum: Number(totales?.totalVenta ?? totales?.ventaAcum ?? 0) || 0,
-              cuotaMes: Number(totales?.cuotaMes ?? totales?.cuotaDia ?? 0) || 0,
-              cuotaSemana: Number(totales?.cuotaSemana ?? totales?.cuotaDia ?? 0) || 0,
-              cuotaDiaria: Number(totales?.cuotaDia ?? totales?.cuotaDiaria ?? 0) || 0,
-              porcCump: Number(totales?.porcCump ?? 0) || 0,
-              proyeccionVenta:
-                Number(totales?.promedioDiario ?? totales?.proyeccionVenta ?? 0) || 0,
-            };
-            return;
-          }
+              this.totalesVendedor = {
+                ventaAcum: Number(totales?.totalVenta ?? totales?.ventaAcum ?? 0) || 0,
+                cuotaMes: Number(totales?.cuotaMes ?? totales?.cuotaDia ?? 0) || 0,
+                cuotaSemana: Number(totales?.cuotaSemana ?? totales?.cuotaDia ?? 0) || 0,
+                cuotaDiaria: Number(totales?.cuotaDia ?? totales?.cuotaDiaria ?? 0) || 0,
+                porcCump: Number(totales?.porcCump ?? 0) || 0,
+                proyeccionVenta:
+                  Number(totales?.promedioDiario ?? totales?.proyeccionVenta ?? 0) || 0,
+              };
+              this.cdr.markForCheck();
+              return;
+            }
 
-          this.totalesVendedor = null;
-          return;
+            this.totalesVendedor = null;
+            this.cdr.markForCheck();
+            return;
         }
 
         const raw = d as Record<string, unknown>;
@@ -1262,9 +1265,11 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           porcCump: Number(d.porcCump ?? 0) || 0,
           proyeccionVenta: Number(d.proyeccionVenta ?? d.promedioDiario ?? 0) || 0,
         };
+        this.cdr.markForCheck();
       },
       error: () => {
         this.totalesVendedor = null;
+        this.cdr.markForCheck();
       },
     });
   }
