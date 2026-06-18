@@ -1,0 +1,124 @@
+import { Injectable } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable, map, catchError, of, tap } from 'rxjs';
+
+export interface CuotaDiaVendedor {
+  id_cuotaDia: string;
+  cuota_dia: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  id_usuario: number;
+  usuario: {
+    id_usuario: number;
+    username: string;
+    estado: boolean;
+    vendedor: {
+      id_vendedor: number;
+      codigo_vendedor: string;
+      nombre: string;
+    };
+  };
+  venta_acumulada_dia?: number;
+  pct_cumplimiento?: number;
+  proye_venta?: number;
+  dias_corridos?: number;
+  dias_habiles?: number;
+}
+
+export interface CuotaDiaResponse {
+  success: boolean;
+  data: CuotaDiaVendedor[];
+  message: string;
+}
+
+export interface CuotaDiaParams {
+  fechaInicio: string;
+  fechaFin: string;
+  idSupervisor?: string | number;
+}
+
+@Injectable({
+  providedIn: 'root',
+})
+export class CuotaDiaService {
+  private apiUrl = '/api/cuota-dia';
+  private apiRoles = '/api/roles/cuota-dia';
+
+  constructor(private http: HttpClient) {}
+
+  /**
+   * ADMIN: GET /api/cuota-dia/por-dia
+   * Todos los vendedores
+   */
+  getCuotaDiaAdmin(params: CuotaDiaParams): Observable<CuotaDiaVendedor[]> {
+    const httpParams = this.buildParams(params);
+
+    console.debug('[CuotaDiaService] GET /api/cuota-dia/por-dia', {
+      fecha_inicio: params.fechaInicio,
+      fecha_fin: params.fechaFin,
+    });
+
+    return this.http.get<CuotaDiaResponse>(`${this.apiUrl}/por-dia`, { params: httpParams }).pipe(
+      tap((res: CuotaDiaResponse) => {
+        console.debug('[CuotaDiaService] Respuesta raw:', {
+          success: res?.success,
+          dataLength: res?.data?.length ?? 0,
+          message: res?.message,
+        });
+      }),
+      map((res: CuotaDiaResponse) => {
+        const data = res?.success && Array.isArray(res.data) ? res.data : [];
+        console.debug('[CuotaDiaService] Data retornada:', data.length, 'registros');
+        return data;
+      }),
+      catchError((err) => {
+        console.error('[CuotaDiaService] Error en getCuotaDiaAdmin:', err);
+        return of([]);
+      }),
+    );
+  }
+
+  /**
+   * SUPERVISOR: GET /api/roles/cuota-dia/por-supervisor?id_supervisor=X
+   * Vendedores asignados al supervisor
+   */
+  getCuotaDiaSupervisor(params: CuotaDiaParams): Observable<CuotaDiaVendedor[]> {
+    const httpParams = this.buildParams(params);
+
+    return this.http.get<CuotaDiaResponse>(`${this.apiRoles}/por-supervisor`, { params: httpParams }).pipe(
+      map((res) => (res?.success && Array.isArray(res.data) ? res.data : [])),
+      catchError(() => of([])),
+    );
+  }
+
+  /**
+   * VENDEDOR: GET /api/roles/cuota-dia/por-vendedor
+   * Solo el vendedor autenticado (extraído del token)
+   */
+  getCuotaDiaVendedor(params: CuotaDiaParams): Observable<CuotaDiaVendedor[]> {
+    const httpParams = this.buildParams(params);
+
+    return this.http.get<CuotaDiaResponse>(`${this.apiRoles}/por-vendedor`, { params: httpParams }).pipe(
+      map((res) => (res?.success && Array.isArray(res.data) ? res.data : [])),
+      catchError(() => of([])),
+    );
+  }
+
+  private buildParams(params: CuotaDiaParams): HttpParams {
+    let httpParams = new HttpParams();
+
+    if (params.fechaInicio) {
+      httpParams = httpParams.set('fecha_inicio', params.fechaInicio);
+    }
+
+    if (params.fechaFin) {
+      httpParams = httpParams.set('fecha_fin', params.fechaFin);
+    }
+
+    if (params.idSupervisor) {
+      httpParams = httpParams.set('id_supervisor', String(params.idSupervisor));
+    }
+
+    return httpParams;
+  }
+}

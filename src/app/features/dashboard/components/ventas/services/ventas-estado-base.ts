@@ -12,6 +12,7 @@ import { Observable, forkJoin, merge, of, Subject, takeUntil } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { CumplimientoService } from '../../../../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../../../../core/services/ventas/cumplimientoVentasSemana.service';
+import { CuotaDiaService, CuotaDiaVendedor } from '../../../../../core/services/ventas/cuotaDia.service';
 import { DashboardFilters } from '../../../../../shared/components/filters/filters.component';
 import { AuthService } from '../../../../../core/services/auth.service';
 import { TipoCuota } from '../../../../cumplimientos-cuota/cumplimientos.component';
@@ -29,6 +30,7 @@ import {
 export abstract class VentasEstadoBase implements OnInit, OnDestroy {
   protected cumplimientoService = inject(CumplimientoService);
   protected semanaService = inject(CumplimientoSemanaService);
+  protected cuotaDiaService = inject(CuotaDiaService);
   protected authService = inject(AuthService);
   protected cdr = inject(ChangeDetectorRef);
 
@@ -191,6 +193,8 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
   totalCuotaCiudad = 0;
   liderVentasProveedor = '—';
   protected categoriasPorId = new Map<string, string>();
+  protected cuotasDiariasCache: CuotaDiaVendedor[] = [];
+  totalCuotaDiaria = 0;
 
   protected readonly clientesPageSize = 30;
   readonly productosPageSize = 25;
@@ -259,6 +263,12 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
   constructor() {
     const usuario = this.authService.getVendedor();
     this.rolId = Number(usuario?.rol?.idRol ?? usuario?.idRol ?? 0);
+    console.debug('[VentasEstadoBase] Usuario cargado:', {
+      rolId: this.rolId,
+      usuarioRaw: usuario,
+      rol: usuario?.rol,
+      idRol: usuario?.idRol,
+    });
     this.activeVentasView = this.cargarVistaActivaGuardada();
   }
 
@@ -302,6 +312,8 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
     this.totalTopItemsSubtotal = 0;
     this.totalTopCiudades = 0;
     this.totalAcumuladoCiudad = 0;
+    this.totalCuotaDiaria = 0;
+    this.cuotasDiariasCache = [];
     this.liderVentasProveedor = '—';
     this.clientesVisibles = this.clientesPageSize;
     this.chartId = 'chart-' + this.activeVentasView + '-' + Date.now();

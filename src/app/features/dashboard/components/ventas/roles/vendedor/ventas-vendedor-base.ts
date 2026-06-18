@@ -4,6 +4,7 @@ import { catchError } from 'rxjs/operators';
 import { RoleId } from '../../../../../../core/auth/roles';
 import { DashboardFilters } from '../../../../../../shared/components/filters/filters.component';
 import { VentasSupervisorBase } from '../supervisor/ventas-supervisor-base';
+import { CuotaDiaVendedor } from '../../../../../../core/services/ventas/cuotaDia.service';
 
 @Directive()
 export abstract class VentasVendedorBase extends VentasSupervisorBase {
@@ -43,6 +44,21 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
       case 'vendedor': {
         this.chartType = 'bar';
 
+        if (this._tipoCuota === 'diaria') {
+          console.debug('[VentasVendedorBase] Cuota diaria - rolId detectado:', this.rolId, {
+            esAdmin: this.rolId === RoleId.ADMINISTRADOR,
+            esSupervisor: this.rolId === RoleId.SUPERVISOR,
+          });
+          if (this.rolId === RoleId.ADMINISTRADOR) {
+            this.cargarVendedorCuotaDiariaAdmin(filtrosConsulta);
+          } else if (this.rolId === RoleId.SUPERVISOR) {
+            this.cargarVendedorCuotaDiariaSupervisor(filtrosConsulta);
+          } else {
+            this.cargarVendedorCuotaDiaria(filtrosConsulta);
+          }
+          break;
+        }
+
         const cargarDesdeAdmin =
           this.rolId === RoleId.ADMINISTRADOR || this.rolId === RoleId.SUPERVISOR || this.tieneCodigosVendedoresPermitidos();
 
@@ -81,6 +97,11 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
 
       case 'ventas':
         this.chartType = 'line';
+
+        if (this._tipoCuota === 'diaria') {
+          this.cargarVentasCuotaDiaria(filtrosConsulta);
+          break;
+        }
 
         if (tieneProveedor) {
           const detalleProveedor$ = this.esSemanal
@@ -546,5 +567,258 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
   // For dashboard parent to force a reload when filters/tipoCuota change
   public reloadView(force = true): void {
     this.solicitarCargaVista(!!force);
-}
+  }
+
+  // ─── CUOTA DIARIA ──────────────────────────────────────────────────────────────
+
+  protected cargarVentasCuotaDiaria(filtros: DashboardFilters): void {
+    const fechaInicio = String(filtros.fechaInicio ?? '').trim();
+    const fechaFin = String(filtros.fechaFin ?? '').trim();
+
+    if (!fechaInicio || !fechaFin) {
+      this.tableData = [];
+      this.chartData = [];
+      this.totalCuotaDiaria = 0;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    this.cuotaDiaService
+      .getCuotaDiaVendedor({ fechaInicio, fechaFin })
+      .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+      .subscribe((cuotas: CuotaDiaVendedor[]) => {
+        this.cuotasDiariasCache = cuotas;
+
+        if (!cuotas.length) {
+          this.tableData = [];
+          this.chartData = [];
+          this.totalCuotaDiaria = 0;
+          this.cdr.markForCheck();
+          return;
+        }
+
+        const cuotasMapeadas = this.mapearCuotaDiariaData(cuotas);
+
+        this.tableData = cuotasMapeadas;
+
+        this.totalCuotaDiaria = cuotasMapeadas.reduce(
+          (sum, item) => sum + (Number(item.cuotaDiaria ?? 0) || 0),
+          0,
+        );
+
+        this.chartData = [
+          { name: 'Cuota Diaria', value: this.totalCuotaDiaria },
+          { name: 'Venta Acumulada', value: cuotasMapeadas.reduce((s, i) => s + (Number(i.ventaAcum ?? 0) || 0), 0) },
+          { name: 'Proyección', value: cuotasMapeadas.reduce((s, i) => s + (Number(i.proyeccionVenta ?? 0) || 0), 0) },
+        ];
+
+        this.cdr.markForCheck();
+      });
+  }
+
+  protected cargarVendedorCuotaDiaria(filtros: DashboardFilters): void {
+    const fechaInicio = String(filtros.fechaInicio ?? '').trim();
+    const fechaFin = String(filtros.fechaFin ?? '').trim();
+
+    if (!fechaInicio || !fechaFin) {
+      this.tableData = [];
+      this.chartData = [];
+      this.totalCuotaDiaria = 0;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    this.cuotaDiaService
+      .getCuotaDiaVendedor({ fechaInicio, fechaFin })
+      .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+      .subscribe((cuotas: CuotaDiaVendedor[]) => {
+        this.cuotasDiariasCache = cuotas;
+
+        if (!cuotas.length) {
+          this.tableData = [];
+          this.chartData = [];
+          this.totalCuotaDiaria = 0;
+          this.cdr.markForCheck();
+          return;
+        }
+
+        const cuotasMapeadas = this.mapearCuotaDiariaData(cuotas);
+
+        const cuotasFiltradas = this.filtrarPorCodigosVendedoresPermitidos(cuotasMapeadas);
+
+        this.tableData = cuotasFiltradas;
+
+        this.totalCuotaDiaria = cuotasFiltradas.reduce(
+          (sum, item) => sum + (Number(item.cuotaDiaria ?? 0) || 0),
+          0,
+        );
+
+        this.totalCuotaVendedor = this.totalCuotaDiaria;
+        this.totalAcumuladoVendedor = cuotasFiltradas.reduce(
+          (sum, item) => sum + (Number(item.ventaAcum ?? 0) || 0),
+          0,
+        );
+
+        const topVendedores = [...cuotasFiltradas]
+          .sort((a, b) => Number(b.ventaAcum ?? 0) - Number(a.ventaAcum ?? 0))
+          .slice(0, 15);
+
+        this.totalTopVendedores = topVendedores.reduce(
+          (sum, item) => sum + (Number(item.ventaAcum ?? 0) || 0),
+          0,
+        );
+
+        this.chartData = topVendedores.map((item) => ({
+          name: item.nombre ?? item.codVendedor,
+          value: Number(item.ventaAcum ?? 0),
+        }));
+
+        this.cdr.markForCheck();
+      });
+  }
+
+  protected cargarVendedorCuotaDiariaAdmin(filtros: DashboardFilters): void {
+    const fechaInicio = String(filtros.fechaInicio ?? '').trim();
+    const fechaFin = String(filtros.fechaFin ?? '').trim();
+
+    if (!fechaInicio || !fechaFin) {
+      this.tableData = [];
+      this.chartData = [];
+      this.totalCuotaDiaria = 0;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    this.cuotaDiaService
+      .getCuotaDiaAdmin({ fechaInicio, fechaFin })
+      .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+      .subscribe((cuotas: CuotaDiaVendedor[]) => {
+        this.cuotasDiariasCache = cuotas;
+
+        if (!cuotas.length) {
+          this.tableData = [];
+          this.chartData = [];
+          this.totalCuotaDiaria = 0;
+          this.cdr.markForCheck();
+          return;
+        }
+
+        const cuotasMapeadas = this.mapearCuotaDiariaData(cuotas);
+        const cuotasFiltradas = this.filtrarPorCodigosVendedoresPermitidos(cuotasMapeadas);
+
+        this.tableData = cuotasFiltradas;
+
+        this.totalCuotaDiaria = cuotasFiltradas.reduce(
+          (sum, item) => sum + (Number(item.cuotaDiaria ?? 0) || 0),
+          0,
+        );
+
+        this.totalCuotaVendedor = this.totalCuotaDiaria;
+        this.totalAcumuladoVendedor = cuotasFiltradas.reduce(
+          (sum, item) => sum + (Number(item.ventaAcum ?? 0) || 0),
+          0,
+        );
+
+        const topVendedores = [...cuotasFiltradas]
+          .sort((a, b) => Number(b.ventaAcum ?? 0) - Number(a.ventaAcum ?? 0))
+          .slice(0, 15);
+
+        this.totalTopVendedores = topVendedores.reduce(
+          (sum, item) => sum + (Number(item.ventaAcum ?? 0) || 0),
+          0,
+        );
+
+        this.chartData = topVendedores.map((item) => ({
+          name: item.nombre ?? item.codVendedor,
+          value: Number(item.ventaAcum ?? 0),
+        }));
+
+        this.cdr.markForCheck();
+      });
+  }
+
+  protected cargarVendedorCuotaDiariaSupervisor(filtros: DashboardFilters): void {
+    const fechaInicio = String(filtros.fechaInicio ?? '').trim();
+    const fechaFin = String(filtros.fechaFin ?? '').trim();
+
+    if (!fechaInicio || !fechaFin) {
+      this.tableData = [];
+      this.chartData = [];
+      this.totalCuotaDiaria = 0;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    const idSupervisor = this.obtenerIdSupervisorSesion();
+
+    if (!idSupervisor) {
+      this.tableData = [];
+      this.chartData = [];
+      this.totalCuotaDiaria = 0;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    this.cuotaDiaService
+      .getCuotaDiaSupervisor({ fechaInicio, fechaFin, idSupervisor })
+      .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+      .subscribe((cuotas: CuotaDiaVendedor[]) => {
+        this.cuotasDiariasCache = cuotas;
+
+        if (!cuotas.length) {
+          this.tableData = [];
+          this.chartData = [];
+          this.totalCuotaDiaria = 0;
+          this.cdr.markForCheck();
+          return;
+        }
+
+        const cuotasMapeadas = this.mapearCuotaDiariaData(cuotas);
+        const cuotasFiltradas = this.filtrarPorCodigosVendedoresPermitidos(cuotasMapeadas);
+
+        this.tableData = cuotasFiltradas;
+
+        this.totalCuotaDiaria = cuotasFiltradas.reduce(
+          (sum, item) => sum + (Number(item.cuotaDiaria ?? 0) || 0),
+          0,
+        );
+
+        this.totalCuotaVendedor = this.totalCuotaDiaria;
+        this.totalAcumuladoVendedor = cuotasFiltradas.reduce(
+          (sum, item) => sum + (Number(item.ventaAcum ?? 0) || 0),
+          0,
+        );
+
+        const topVendedores = [...cuotasFiltradas]
+          .sort((a, b) => Number(b.ventaAcum ?? 0) - Number(a.ventaAcum ?? 0))
+          .slice(0, 15);
+
+        this.totalTopVendedores = topVendedores.reduce(
+          (sum, item) => sum + (Number(item.ventaAcum ?? 0) || 0),
+          0,
+        );
+
+        this.chartData = topVendedores.map((item) => ({
+          name: item.nombre ?? item.codVendedor,
+          value: Number(item.ventaAcum ?? 0),
+        }));
+
+        this.cdr.markForCheck();
+      });
+  }
+
+  protected override mapearCuotaDiariaData(cuotas: CuotaDiaVendedor[]): any[] {
+    return cuotas.map((cuota) => {
+      const vendedor = cuota.usuario?.vendedor;
+      return {
+        codVendedor: vendedor?.codigo_vendedor ?? '',
+        nombre: vendedor?.nombre ?? '',
+        cuotaDiaria: Number(cuota.cuota_dia ?? 0),
+        ventaAcum: Number(cuota.venta_acumulada_dia ?? 0),
+        porcCump: Number(cuota.pct_cumplimiento ?? 0),
+        proyeccionVenta: Number(cuota.proye_venta ?? 0),
+        porcCumProy: Number(cuota.pct_cumplimiento ?? 0),
+      };
+    });
+  }
 }

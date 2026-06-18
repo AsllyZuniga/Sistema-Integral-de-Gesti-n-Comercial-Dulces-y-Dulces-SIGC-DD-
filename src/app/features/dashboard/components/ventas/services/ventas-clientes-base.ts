@@ -1193,6 +1193,10 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
     return this.formatearMoneda(this.totalCuotaCiudad);
   }
 
+  get totalCuotaDiariaLabel(): string {
+    return this.formatearMoneda(this.totalCuotaDiaria);
+  }
+
   get totalTopProveedoresCompactoLabel(): string {
     return this.formatearMonedaCompacta(this.totalTopProveedores);
   }
