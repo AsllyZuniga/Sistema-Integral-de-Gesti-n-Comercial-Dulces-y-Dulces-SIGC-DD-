@@ -762,7 +762,8 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
     this.cuotaDiaService
       .getCuotaDiaSupervisor({ fechaInicio, fechaFin, idSupervisor })
       .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-      .subscribe((cuotas: CuotaDiaVendedor[]) => {
+      .subscribe((response) => {
+        const cuotas = response?.success && Array.isArray(response.data) ? response.data : [];
         this.cuotasDiariasCache = cuotas;
 
         if (!cuotas.length) {

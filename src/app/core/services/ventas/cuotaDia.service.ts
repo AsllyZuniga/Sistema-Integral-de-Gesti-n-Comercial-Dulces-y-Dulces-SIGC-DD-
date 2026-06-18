@@ -25,6 +25,19 @@ export interface CuotaDiaVendedor {
   dias_habiles?: number;
 }
 
+export interface CuotaDiaSupervisorInfo {
+  id_usuario: number;
+  username: string;
+}
+
+export interface CuotaDiaSupervisorResponse {
+  success: boolean;
+  data: CuotaDiaVendedor[];
+  message: string;
+  supervisor?: CuotaDiaSupervisorInfo;
+  total_vendedores?: number;
+}
+
 export interface CuotaDiaResponse {
   success: boolean;
   data: CuotaDiaVendedor[];
@@ -79,15 +92,38 @@ export class CuotaDiaService {
   }
 
   /**
-   * SUPERVISOR: GET /api/roles/cuota-dia/por-supervisor?id_supervisor=X
-   * Vendedores asignados al supervisor
+   * SUPERVISOR: GET /api/roles/cuota-dia/por-supervisor?fecha_inicio=X&fecha_fin=Y&id_supervisor=Z
+   * Vendedores asignados al supervisor con información adicional
    */
-  getCuotaDiaSupervisor(params: CuotaDiaParams): Observable<CuotaDiaVendedor[]> {
+  getCuotaDiaSupervisor(params: CuotaDiaParams): Observable<CuotaDiaSupervisorResponse> {
     const httpParams = this.buildParams(params);
 
-    return this.http.get<CuotaDiaResponse>(`${this.apiRoles}/por-supervisor`, { params: httpParams }).pipe(
-      map((res) => (res?.success && Array.isArray(res.data) ? res.data : [])),
-      catchError(() => of([])),
+    console.debug('[CuotaDiaService] GET /api/roles/cuota-dia/por-supervisor', {
+      fecha_inicio: params.fechaInicio,
+      fecha_fin: params.fechaFin,
+      id_supervisor: params.idSupervisor,
+    });
+
+    return this.http.get<CuotaDiaSupervisorResponse>(`${this.apiRoles}/por-supervisor`, { params: httpParams }).pipe(
+      tap((res: CuotaDiaSupervisorResponse) => {
+        console.debug('[CuotaDiaService] Respuesta supervisor raw:', {
+          success: res?.success,
+          dataLength: res?.data?.length ?? 0,
+          message: res?.message,
+          supervisor: res?.supervisor,
+          totalVendedores: res?.total_vendedores,
+        });
+      }),
+      catchError((err) => {
+        console.error('[CuotaDiaService] Error en getCuotaDiaSupervisor:', err);
+        return of({
+          success: false,
+          data: [],
+          message: 'Error al obtener cuotas del supervisor',
+          supervisor: undefined,
+          total_vendedores: 0,
+        });
+      }),
     );
   }
 

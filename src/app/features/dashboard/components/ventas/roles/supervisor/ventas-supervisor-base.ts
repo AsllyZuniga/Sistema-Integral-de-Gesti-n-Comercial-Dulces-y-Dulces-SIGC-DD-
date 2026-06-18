@@ -3,11 +3,14 @@ import { merge, takeUntil } from 'rxjs';
 import { RoleId } from '../../../../../../core/auth/roles';
 import { DashboardFilters } from '../../../../../../shared/components/filters/filters.component';
 import { VentasAdministradorBase } from '../administrador/ventas-administrador-base';
-import { CuotaDiaVendedor } from '../../../../../../core/services/ventas/cuotaDia.service';
+import { CuotaDiaVendedor, CuotaDiaSupervisorResponse } from '../../../../../../core/services/ventas/cuotaDia.service';
 
 /**
  * Base para lógica compartida del rol supervisor.
  * Usa el endpoint específico para supervisor con filtro por id_supervisor.
+ * Endpoint: GET /api/roles/cuota-dia/por-supervisor?fecha_inicio=X&fecha_fin=Y&id_supervisor=Z
+ * Respuesta: { success, data[], message, supervisor: { id_usuario, username }, total_vendedores }
+ * Errores: 401 (Sin token), 403 (Rol ≠ 1), 404 (Supervisor no encontrado o no tiene rol 2)
  */
 @Directive()
 export abstract class VentasSupervisorBase extends VentasAdministradorBase {
@@ -31,6 +34,7 @@ export abstract class VentasSupervisorBase extends VentasAdministradorBase {
     const idSupervisor = this.obtenerIdSupervisorSesion();
 
     if (!idSupervisor) {
+      console.warn('[Supervisor CuotaDiaria] No se encontró id_supervisor en sesión');
       this.tableData = [];
       this.chartData = [];
       this.totalCuotaDiaria = 0;
@@ -38,19 +42,41 @@ export abstract class VentasSupervisorBase extends VentasAdministradorBase {
       return;
     }
 
+    console.debug('[Supervisor CuotaDiaria] Cargando datos del supervisor:', {
+      fechaInicio,
+      fechaFin,
+      idSupervisor,
+    });
+
     this.cuotaDiaService
       .getCuotaDiaSupervisor({ fechaInicio, fechaFin, idSupervisor })
       .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-      .subscribe((cuotas: any[]) => {
-        this.cuotasDiariasCache = cuotas;
+      .subscribe((response: CuotaDiaSupervisorResponse) => {
+        console.debug('[Supervisor CuotaDiaria] Respuesta:', {
+          success: response?.success,
+          totalRegistros: response?.data?.length ?? 0,
+          message: response?.message,
+          supervisor: response?.supervisor,
+          totalVendedores: response?.total_vendedores,
+        });
 
-        if (!cuotas.length) {
+        if (!response?.success || !Array.isArray(response.data) || !response.data.length) {
+          console.warn('[Supervisor CuotaDiaria] Sin datos o error:', response?.message);
           this.tableData = [];
           this.chartData = [];
           this.totalCuotaDiaria = 0;
           this.cdr.markForCheck();
           return;
         }
+
+        const cuotas = response.data;
+        this.cuotasDiariasCache = cuotas;
+
+        const supervisorInfo = response.supervisor;
+        const totalVendedores = response.total_vendedores ?? 0;
+
+        console.debug('[Supervisor CuotaDiaria] Info supervisor:', supervisorInfo);
+        console.debug('[Supervisor CuotaDiaria] Total vendedores:', totalVendedores);
 
         const cuotasMapeadas = this.mapearCuotaDiariaData(cuotas);
 
