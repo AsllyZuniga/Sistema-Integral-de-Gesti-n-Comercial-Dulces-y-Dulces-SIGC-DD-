@@ -42,6 +42,11 @@ export interface CuotaDiaResponse {
   success: boolean;
   data: CuotaDiaVendedor[];
   message: string;
+  vendedor?: {
+    id_vendedor?: number;
+    codigo_vendedor?: string;
+    nombre?: string;
+  };
 }
 
 export interface CuotaDiaParams {
@@ -61,9 +66,9 @@ export class CuotaDiaService {
 
   /**
    * ADMIN: GET /api/cuota-dia/por-dia
-   * Todos los vendedores
+   * Todos los vendedores. Conserva errores HTTP para mostrar mensajes específicos en el dashboard.
    */
-  getCuotaDiaAdmin(params: CuotaDiaParams): Observable<CuotaDiaVendedor[]> {
+  getCuotaDiaAdminResponse(params: CuotaDiaParams): Observable<CuotaDiaResponse> {
     const httpParams = this.buildParams(params);
 
     console.debug('[CuotaDiaService] GET /api/cuota-dia/por-dia', {
@@ -71,7 +76,15 @@ export class CuotaDiaService {
       fecha_fin: params.fechaFin,
     });
 
-    return this.http.get<CuotaDiaResponse>(`${this.apiUrl}/por-dia`, { params: httpParams }).pipe(
+    return this.http.get<CuotaDiaResponse>(`${this.apiUrl}/por-dia`, { params: httpParams });
+  }
+
+  /**
+   * ADMIN: GET /api/cuota-dia/por-dia
+   * Variante segura para tablas/gráficas: si falla, retorna arreglo vacío.
+   */
+  getCuotaDiaAdmin(params: CuotaDiaParams): Observable<CuotaDiaVendedor[]> {
+    return this.getCuotaDiaAdminResponse(params).pipe(
       tap((res: CuotaDiaResponse) => {
         console.debug('[CuotaDiaService] Respuesta raw:', {
           success: res?.success,
@@ -93,9 +106,9 @@ export class CuotaDiaService {
 
   /**
    * SUPERVISOR: GET /api/roles/cuota-dia/por-supervisor?fecha_inicio=X&fecha_fin=Y&id_supervisor=Z
-   * Vendedores asignados al supervisor con información adicional
+   * Vendedores asignados al supervisor con información adicional. Conserva errores HTTP.
    */
-  getCuotaDiaSupervisor(params: CuotaDiaParams): Observable<CuotaDiaSupervisorResponse> {
+  getCuotaDiaSupervisorResponse(params: CuotaDiaParams): Observable<CuotaDiaSupervisorResponse> {
     const httpParams = this.buildParams(params);
 
     console.debug('[CuotaDiaService] GET /api/roles/cuota-dia/por-supervisor', {
@@ -104,7 +117,15 @@ export class CuotaDiaService {
       id_supervisor: params.idSupervisor,
     });
 
-    return this.http.get<CuotaDiaSupervisorResponse>(`${this.apiRoles}/por-supervisor`, { params: httpParams }).pipe(
+    return this.http.get<CuotaDiaSupervisorResponse>(`${this.apiRoles}/por-supervisor`, { params: httpParams });
+  }
+
+  /**
+   * SUPERVISOR: GET /api/roles/cuota-dia/por-supervisor?fecha_inicio=X&fecha_fin=Y&id_supervisor=Z
+   * Variante segura para tablas/gráficas: si falla, retorna respuesta vacía.
+   */
+  getCuotaDiaSupervisor(params: CuotaDiaParams): Observable<CuotaDiaSupervisorResponse> {
+    return this.getCuotaDiaSupervisorResponse(params).pipe(
       tap((res: CuotaDiaSupervisorResponse) => {
         console.debug('[CuotaDiaService] Respuesta supervisor raw:', {
           success: res?.success,
@@ -129,14 +150,29 @@ export class CuotaDiaService {
 
   /**
    * VENDEDOR: GET /api/roles/cuota-dia/por-vendedor
-   * Solo el vendedor autenticado (extraído del token)
+   * Solo el vendedor autenticado (extraído del token).
+   * Este método conserva el error HTTP para que el dashboard pueda mostrar
+   * mensajes específicos 401/403/404 y evitar cards con valores viejos.
    */
-  getCuotaDiaVendedor(params: CuotaDiaParams): Observable<CuotaDiaVendedor[]> {
+  getCuotaDiaVendedorResponse(params: CuotaDiaParams): Observable<CuotaDiaResponse> {
     const httpParams = this.buildParams(params);
 
-    return this.http.get<CuotaDiaResponse>(`${this.apiRoles}/por-vendedor`, { params: httpParams }).pipe(
+    return this.http.get<CuotaDiaResponse>(`${this.apiRoles}/por-vendedor`, {
+      params: httpParams,
+    });
+  }
+
+  /**
+   * VENDEDOR: GET /api/roles/cuota-dia/por-vendedor
+   * Variante segura para tablas/gráficas: si falla, retorna arreglo vacío.
+   */
+  getCuotaDiaVendedor(params: CuotaDiaParams): Observable<CuotaDiaVendedor[]> {
+    return this.getCuotaDiaVendedorResponse(params).pipe(
       map((res) => (res?.success && Array.isArray(res.data) ? res.data : [])),
-      catchError(() => of([])),
+      catchError((err) => {
+        console.error('[CuotaDiaService] Error en getCuotaDiaVendedor:', err);
+        return of([]);
+      }),
     );
   }
 

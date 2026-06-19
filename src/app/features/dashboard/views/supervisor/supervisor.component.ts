@@ -108,6 +108,8 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
   cargandoVendedores = false;
   todosLosVendedores: VendedorTabla[] = [];
   codigosVendedoresAsignados: string[] = [];
+  mensajeErrorTotales = '';
+
   filtrosParaAnalisis: DashboardFilters = {
     fechaInicio: '',
     fechaFin: '',
@@ -258,26 +260,78 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     return Array.from(keys).filter(Boolean);
   }
 
+  private normalizarNumero(valor: unknown): number {
+    if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
+
+    const texto = String(valor ?? '').trim();
+    if (!texto) return 0;
+
+    let normalizado = texto;
+    if (normalizado.includes(',') && normalizado.includes('.')) {
+      normalizado = normalizado.replace(/\./g, '').replace(',', '.');
+    } else if (normalizado.includes(',')) {
+      normalizado = normalizado.replace(',', '.');
+    } else if (/^\d{1,3}(\.\d{3})+$/.test(normalizado)) {
+      normalizado = normalizado.replace(/\./g, '');
+    }
+
+    const numero = Number(normalizado);
+    return Number.isFinite(numero) ? numero : 0;
+  }
+
+  private obtenerMensajeErrorCumplimientoDiarioSupervisor(status: number): string {
+    switch (status) {
+      case 401:
+        return 'Sesión expirada o token inválido. Inicia sesión nuevamente.';
+      case 403:
+        return 'Permisos insuficientes para consultar el cumplimiento diario del supervisor.';
+      case 404:
+        return 'No hay datos diarios para el supervisor en la fecha seleccionada.';
+      default:
+        return 'No fue posible consultar los datos diarios del supervisor.';
+    }
+  }
+
   private obtenerDetalleCumplimiento() {
+    this.mensajeErrorTotales = '';
+
+    // IMPORTANTE: para SUPERVISOR las cards deben usar el mismo endpoint de
+    // cumplimiento que alimenta la tabla de vendedores asignados y el análisis.
+    // /api/roles/cuota-dia/por-supervisor solo trae cuotas diarias por vendedor;
+    // si se usa como fuente directa de cards puede duplicar o ignorar filtros
+    // comerciales y dejar Venta Diaria/Proyección infladas.
     const obs$ =
       this.tipoCuota === 'diaria'
         ? this.cumplimientoService.getCumplimientoDiaSupervisor(this.idSupervisor, this.filtrosActivos)
         : this.tipoCuota === 'semanal'
-        ? this.semanaService.getCumplimientoSemanaAdmin(this.filtrosActivos)
-        : this.cumplimientoService.getCumplimientoMesAdmin(this.filtrosActivos);
+          ? this.semanaService.getCumplimientoSemanaAdmin(this.filtrosActivos)
+          : this.cumplimientoService.getCumplimientoMesAdmin(this.filtrosActivos);
 
     return obs$.pipe(
-      map((res: any): CumplimientoResponse => ({
-        detalle: Array.isArray(res?.detalle) ? res.detalle : [],
-        vendedores: Array.isArray(res?.vendedores)
-          ? res.vendedores
-          : Array.isArray(res?.data?.vendedores)
-            ? res.data.vendedores
-            : [],
-        totales: res?.totales ?? res?.data?.totales ?? null,
-        periodo: res?.periodo ?? res?.data?.periodo ?? null,
-      })),
-      catchError(() => of<CumplimientoResponse>({ detalle: [] })),
+      map((res: any): CumplimientoResponse => {
+        const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+        if (this.tipoCuota === 'diaria' && !detalle.length) {
+          this.mensajeErrorTotales = 'No hay datos diarios para la fecha seleccionada.';
+        }
+
+        return {
+          detalle,
+          vendedores: Array.isArray(res?.vendedores)
+            ? res.vendedores
+            : Array.isArray(res?.data?.vendedores)
+              ? res.data.vendedores
+              : [],
+          totales: res?.totales ?? res?.data?.totales ?? null,
+          periodo: res?.periodo ?? res?.data?.periodo ?? null,
+        };
+      }),
+      catchError((err) => {
+        this.mensajeErrorTotales =
+          this.tipoCuota === 'diaria'
+            ? this.obtenerMensajeErrorCumplimientoDiarioSupervisor(Number(err?.status ?? 0))
+            : 'No fue posible cargar los totales del supervisor.';
+        return of<CumplimientoResponse>({ detalle: [] });
+      }),
     );
   }
 
@@ -342,7 +396,8 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     if (!this.idSupervisor) {
       console.warn('⚠️ ID de supervisor no disponible');
       this.todosLosVendedores = [];
-      this.totales = null;
+      this.totales = { ventaAcum: 0, cuotaMes: 0, cuotaSemana: 0, cuotaDiaria: 0, cuotaDia: 0, ventaDiaria: 0, porcCump: 0, proyeccionVenta: 0 };
+      this.mensajeErrorTotales = 'No se encontró el ID del supervisor en la sesión.';
       return;
     }
 
@@ -393,7 +448,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
               idVendedor: v.id_vendedor ?? v.idVendedor,
               cuotaMes: this.leerCuota(filaCumplimiento?.cuotaMes ?? v.cuotaMes, 'cuota_mes'),
               cuotaSemana: this.leerCuota(filaCumplimiento?.cuotaSemana ?? v.cuotaSemana, 'cuota_semana'),
-              cuotaDiaria: this.leerCuota(filaCumplimiento?.cuotaDiaria ?? v.cuotaDia, 'cuota_dia'),
+              cuotaDiaria: this.leerCuota(filaCumplimiento?.cuotaDiaria ?? filaCumplimiento?.cuotaDia ?? v.cuotaDia, 'cuota_dia'),
               nombreSupervisor: v.supervisor?.username ?? v.supervisor?.nombre ?? 'Sin asignar',
               id_supervisor: v.id_supervisor ?? v.idSupervisor ?? null,
               ventaAcum: Number(filaCumplimiento?.ventaAcum ?? v.ventaAcum ?? 0),
@@ -451,7 +506,8 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
         error: (err: any) => {
           console.error('❌ Error cargando vendedores del supervisor:', err);
           this.cargandoVendedores = false;
-          this.totales = null;
+          this.totales = { ventaAcum: 0, cuotaMes: 0, cuotaSemana: 0, cuotaDiaria: 0, cuotaDia: 0, ventaDiaria: 0, porcCump: 0, proyeccionVenta: 0 };
+          this.mensajeErrorTotales = this.tipoCuota === 'diaria' ? this.obtenerMensajeErrorCumplimientoDiarioSupervisor(Number(err?.status ?? 0)) : 'No fue posible cargar los totales del supervisor.';
           this.todosLosVendedores = [];
           this.codigosVendedoresAsignados = [];
           this.cdr.detectChanges();

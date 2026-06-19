@@ -7,6 +7,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { SessionUser } from '../../core/services/session.service';
 import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../core/services/ventas/cumplimientoVentasSemana.service';
+import { CuotaDiaService, CuotaDiaVendedor } from '../../core/services/ventas/cuotaDia.service';
 import { UsuariosService } from '../../core/services/usuarios.service';
 import {
   FiltersComponent,
@@ -128,6 +129,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     private authService: AuthService,
     private cumplimientoService: CumplimientoService,
     private semanaService: CumplimientoSemanaService,
+    private cuotaDiaService: CuotaDiaService,
     private usuariosService: UsuariosService,
     private cdr: ChangeDetectorRef,
   ) {}
@@ -159,6 +161,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   private codigoVendedorDetectado = '';
 
   totalesVendedor: DashboardTotalesVendedor | null = null;
+  mensajeErrorTotalesVendedor = '';
 
   filtrosActivos: DashboardFilters = {
     fechaInicio: '',
@@ -403,19 +406,19 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
   onCambiarTipoCuota(tipo: TipoCuota): void {
     if (this.tipoCuota === tipo) return;
+
     this.tipoCuota = tipo;
 
-    if (this.rolId === 3) {
-      // Auto-ajusta fechas según el nuevo tipoCuota
-      const pivotDate = this.filtrosActivos.fechaInicio || this.formatDate(new Date());
-      const newRange = this.adjustDateRangeForTipoCuota(tipo, pivotDate);
-      this.filtrosActivos.fechaInicio = newRange.inicio;
-      this.filtrosActivos.fechaFin = newRange.fin;
+    const pivotDate = this.filtrosActivos.fechaInicio || this.formatDate(new Date());
+    const newRange = this.adjustDateRangeForTipoCuota(tipo, pivotDate);
 
-      this.totalesVendedor = null;
-      this.cargarTotalesVendedor();
-      this.ventasRef?.reloadView(true);
-    }
+    this.filtrosActivos = {
+      ...this.filtrosActivos,
+      fechaInicio: newRange.inicio,
+      fechaFin: newRange.fin,
+    };
+
+    this.refrescarDashboardSincronizado();
   }
 
   onToggleSidebar(collapsed: boolean): void {
@@ -1092,8 +1095,10 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
   onAplicarFiltros(filtros: DashboardFilters): void {
     const rangoDefault = this.getDefaultDateRange();
-    const fechaInicio = String(filtros.fechaInicio ?? '').trim() || rangoDefault.inicio;
-    const fechaFin = String(filtros.fechaFin ?? '').trim() || rangoDefault.fin;
+    const fechaFiltroInicio = String(filtros.fechaInicio ?? '').trim() || rangoDefault.inicio;
+    const rangoPeriodo = this.adjustDateRangeForTipoCuota(this.tipoCuota, fechaFiltroInicio);
+    const fechaInicio = rangoPeriodo.inicio;
+    const fechaFin = rangoPeriodo.fin;
 
     let ciudadVisible = String(filtros.ciudad ?? '').trim();
     if (this.esCiudadResumen(ciudadVisible)) {
@@ -1161,116 +1166,158 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       this.cargarOpcionesVendedor({ ...this.filtrosActivos, ciudad: '', ciudadNombre: '' });
     }
 
-    // Auto-ajusta fechas si estamos en modo semanal o diaria
-    if (this.rolId === 3 && this.tipoCuota !== 'mensual') {
-      const newRange = this.adjustDateRangeForTipoCuota(
-        this.tipoCuota,
-        this.filtrosActivos.fechaInicio,
-      );
-      this.filtrosActivos.fechaInicio = newRange.inicio;
-      this.filtrosActivos.fechaFin = newRange.fin;
-    }
+    this.refrescarDashboardSincronizado();
+  }
 
+  private refrescarDashboardSincronizado(): void {
     if (this.rolId === 3) {
       this.cargarTotalesVendedor();
-      // No llamar a ventasRef?.reloadView() aquí - el setter de @Input filtros
-      // dispara automáticamente solicitarCargaVista() cuando filtrosActivos cambia
     }
 
-    // Forzar recarga de la vista de ventas después de aplicar los filtros
+    // Para VENDEDOR el ViewChild apunta al app-ventas directo.
+    // ADMIN y SUPERVISOR recargan sus cards/tablas desde sus @Input actualizados.
     this.ventasRef?.reloadView(true);
+  }
+
+  private normalizarNumero(valor: unknown): number {
+    if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
+
+    const texto = String(valor ?? '').trim();
+    if (!texto) return 0;
+
+    let normalizado = texto;
+
+    // Soporta formatos: 18313184, 18.313.184, 18.313.184,50, 212.07 y 212,07.
+    if (normalizado.includes(',') && normalizado.includes('.')) {
+      normalizado = normalizado.replace(/\./g, '').replace(',', '.');
+    } else if (normalizado.includes(',')) {
+      normalizado = normalizado.replace(',', '.');
+    } else if (/^\d{1,3}(\.\d{3})+$/.test(normalizado)) {
+      normalizado = normalizado.replace(/\./g, '');
+    }
+
+    const numero = Number(normalizado);
+    return Number.isFinite(numero) ? numero : 0;
+  }
+
+  private limpiarTotalesVendedor(mensaje = ''): void {
+    this.totalesVendedor = {
+      ventaAcum: 0,
+      cuotaMes: 0,
+      cuotaSemana: 0,
+      cuotaDiaria: 0,
+      porcCump: 0,
+      proyeccionVenta: 0,
+    };
+    this.mensajeErrorTotalesVendedor = mensaje;
+    this.cdr.markForCheck();
+  }
+
+  private cargarTotalesDiariosVendedor(): void {
+    const fechaInicio = String(this.filtrosActivos.fechaInicio ?? '').trim();
+    const fechaFin = String(this.filtrosActivos.fechaFin ?? fechaInicio).trim() || fechaInicio;
+
+    if (!fechaInicio || !fechaFin) {
+      this.limpiarTotalesVendedor('Selecciona una fecha válida para consultar la cuota diaria.');
+      return;
+    }
+
+    this.cuotaDiaService
+      .getCuotaDiaVendedorResponse({ fechaInicio, fechaFin })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res) => {
+          const fila = Array.isArray(res?.data) ? res.data[0] : null;
+
+          if (!res?.success || !fila) {
+            this.limpiarTotalesVendedor('No hay datos de cuota diaria para la fecha seleccionada.');
+            return;
+          }
+
+          const cuotaDia = this.normalizarNumero(fila.cuota_dia);
+          const ventaDia = this.normalizarNumero(fila.venta_acumulada_dia);
+
+          this.totalesVendedor = {
+            ventaAcum: ventaDia,
+            ventaDiaria: ventaDia,
+            cuotaMes: cuotaDia,
+            cuotaDiaria: cuotaDia,
+            cuotaDia,
+            porcCump: this.normalizarNumero(fila.pct_cumplimiento),
+            proyeccionVenta: this.normalizarNumero(fila.proye_venta),
+            codVendedor: this.normalizarCodigoVendedor(
+              fila.usuario?.vendedor?.codigo_vendedor ?? res?.vendedor?.codigo_vendedor ?? '',
+            ),
+          };
+          this.mensajeErrorTotalesVendedor = '';
+          this.cdr.markForCheck();
+        },
+        error: (err) => {
+          const status = Number(err?.status ?? 0);
+          const mensaje =
+            status === 401
+              ? 'Sesión expirada o token inválido. Inicia sesión nuevamente.'
+              : status === 403
+                ? 'Permisos insuficientes para consultar la cuota diaria del vendedor.'
+                : status === 404
+                  ? 'El usuario no tiene un vendedor asociado.'
+                  : 'No fue posible consultar la cuota diaria del vendedor.';
+
+          this.limpiarTotalesVendedor(mensaje);
+        },
+      });
   }
 
   private cargarTotalesVendedor(): void {
     const filtros = { ...this.filtrosActivos };
 
-    const obs$ =
-      this.tipoCuota === 'diaria'
-        ? this.cumplimientoService.getCumplimientoDiaVendedor(filtros)
-        : this.tipoCuota === 'mensual'
-          ? this.cumplimientoService.getCumplimientoMesVendedor(filtros)
-          : this.semanaService.getCumplimientoSemanaVendedor(filtros);
+    if (this.tipoCuota === 'diaria') {
+      this.cargarTotalesDiariosVendedor();
+      return;
+    }
 
-    const campo =
-      this.tipoCuota === 'semanal'
-        ? 'cuotaSemana'
-        : this.tipoCuota === 'diaria'
-          ? 'cuotaDiaria'
-          : 'cuotaMes';
+    const obs$ =
+      this.tipoCuota === 'mensual'
+        ? this.cumplimientoService.getCumplimientoMesVendedor(filtros)
+        : this.semanaService.getCumplimientoSemanaVendedor(filtros);
+
+    const campo = this.tipoCuota === 'semanal' ? 'cuotaSemana' : 'cuotaMes';
 
     obs$.pipe(takeUntil(this.destroy$)).subscribe({
       next: (res: ApiTotalesResponse<DashboardTotalesVendedor> & { totales?: any }) => {
         const detalle = (res?.detalle ?? []).filter((v) => v.codVendedor !== 'TOTALES');
         const d = detalle[0] ?? null;
-
         const totales = res?.totales ?? null;
 
-        if (!d) {
-          if (totales) {
-              this.totalesVendedor = {
-                ventaAcum: Number(totales?.totalVenta ?? totales?.ventaAcum ?? 0) || 0,
-                cuotaMes: Number(totales?.cuotaMes ?? totales?.cuotaDia ?? 0) || 0,
-                cuotaSemana: Number(totales?.cuotaSemana ?? totales?.cuotaDia ?? 0) || 0,
-                cuotaDiaria: Number(totales?.cuotaDia ?? totales?.cuotaDiaria ?? 0) || 0,
-                porcCump: Number(totales?.porcCump ?? 0) || 0,
-                proyeccionVenta:
-                  Number(totales?.promedioDiario ?? totales?.proyeccionVenta ?? 0) || 0,
-              };
-              this.cdr.markForCheck();
-              return;
-            }
-
-            this.totalesVendedor = null;
-            this.cdr.markForCheck();
-            return;
+        if (!d && !totales) {
+          this.limpiarTotalesVendedor('No hay datos para el periodo seleccionado.');
+          return;
         }
 
-        const raw = d as Record<string, unknown>;
-        const leerNumero = (...valores: unknown[]): number => {
-          for (const valor of valores) {
-            const numero = Number(valor ?? 0);
-            if (Number.isFinite(numero)) return numero;
-          }
-          return 0;
-        };
-
-        // Normalize possible field names and fill all cuota variants so template bindings work.
-        const cuotaMesVal = leerNumero(raw['cuotaMes'], raw['cuota_mes']);
-        const cuotaSemanaVal = leerNumero(
-          raw['cuotaSemana'],
-          raw['cuota_semana'],
-          this.tipoCuota === 'semanal' ? raw[campo] : undefined,
+        const fuente = (d ?? totales ?? {}) as Record<string, unknown>;
+        const ventaAcum = this.normalizarNumero(
+          fuente['ventaAcum'] ?? fuente['totalVenta'] ?? fuente['ventaDiaria'],
         );
-        const cuotaDiariaVal = leerNumero(
-          raw['cuotaDiaria'],
-          raw['cuotaDia'],
-          raw['cuota_dia'],
-          this.tipoCuota === 'diaria' ? raw[campo] : undefined,
+        const cuotaMes = this.normalizarNumero(fuente['cuotaMes'] ?? fuente['cuota_mes']);
+        const cuotaSemana = this.normalizarNumero(
+          fuente['cuotaSemana'] ?? fuente['cuota_semana'] ?? (this.tipoCuota === 'semanal' ? fuente[campo] : 0),
         );
+        const cuotaPeriodo = this.tipoCuota === 'semanal' ? cuotaSemana : cuotaMes;
 
         this.totalesVendedor = {
-          ventaAcum: Number(d.ventaAcum ?? d.ventaDiaria ?? 0) || 0,
-          cuotaMes:
-            cuotaMesVal ||
-            (this.tipoCuota === 'mensual' ? Number(d[campo] ?? 0) : cuotaMesVal) ||
-            Number(d.cuotaDia ?? 0) ||
-            0,
-          cuotaSemana:
-            cuotaSemanaVal ||
-            (this.tipoCuota === 'semanal' ? Number(d[campo] ?? 0) : cuotaSemanaVal),
-          cuotaDiaria:
-            cuotaDiariaVal ||
-            Number(d.cuotaDia ?? 0) ||
-            (this.tipoCuota === 'diaria' ? Number(d[campo] ?? 0) : cuotaDiariaVal),
-          porcCump: Number(d.porcCump ?? 0) || 0,
-          proyeccionVenta: Number(d.proyeccionVenta ?? d.promedioDiario ?? 0) || 0,
+          ventaAcum,
+          cuotaMes: cuotaMes || cuotaPeriodo,
+          cuotaSemana,
+          porcCump: this.normalizarNumero(fuente['porcCump'] ?? fuente['cumplimiento']),
+          proyeccionVenta: this.normalizarNumero(
+            fuente['proyeccionVenta'] ?? fuente['promedioDiario'] ?? fuente['proyeccion'],
+          ),
         };
+        this.mensajeErrorTotalesVendedor = '';
         this.cdr.markForCheck();
       },
       error: () => {
-        this.totalesVendedor = null;
-        this.cdr.markForCheck();
+        this.limpiarTotalesVendedor('No fue posible cargar los totales del vendedor.');
       },
     });
-  }
-}
+  }}

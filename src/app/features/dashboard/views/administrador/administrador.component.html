@@ -1,5 +1,5 @@
 <section class="kpis">
-  <app-card [title]="labelVentaAcum" [value]="ventaMesVista ?? totales?.ventaAcum ?? 0"></app-card>
+  <app-card [title]="labelVentaAcum" [value]="totales?.ventaAcum ?? 0"></app-card>
   <app-card
     [title]="labelCuota"
     [value]="
@@ -14,13 +14,18 @@
   <app-card title="Proyección" [value]="totales?.proyeccionVenta ?? 0"></app-card>
 </section>
 
+@if (mensajeErrorTotales) {
+  <div class="dashboard-alert dashboard-alert-warning">
+    {{ mensajeErrorTotales }}
+  </div>
+}
+
 <section class="charts">
   <app-ventas
     [codigoVendedor]="codigoVendedorAnalisis"
     [filtros]="filtrosAnalisis"
     [tipoCuota]="tipoCuota"
     [modoAdmin]="true"
-    (resumenCambio)="onResumenCambio($event)"
   ></app-ventas>
 </section>
 

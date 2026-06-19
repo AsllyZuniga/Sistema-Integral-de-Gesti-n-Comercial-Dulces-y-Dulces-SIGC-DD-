@@ -14,6 +14,12 @@
   <app-card title="Proyección" [value]="totales?.proyeccionVenta ?? 0"></app-card>
 </section>
 
+@if (mensajeErrorTotales) {
+  <div class="dashboard-alert dashboard-alert-warning">
+    {{ mensajeErrorTotales }}
+  </div>
+}
+
 @if (vista === 'asignados') {
   <section class="charts">
     <div class="chart-box dynamic-panel">
