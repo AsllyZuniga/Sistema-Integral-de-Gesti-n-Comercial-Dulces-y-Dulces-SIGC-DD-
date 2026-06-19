@@ -47,12 +47,6 @@
     }
 
     @if (rolId === 3) {
-      @if (mensajeErrorTotalesVendedor) {
-        <div class="dashboard-alert dashboard-alert-warning">
-          {{ mensajeErrorTotalesVendedor }}
-        </div>
-      }
-
       <section class="kpis">
         <app-card [title]="labelVentaAcum" [value]="totalesVendedor?.ventaAcum ?? 0"></app-card>
         <app-card

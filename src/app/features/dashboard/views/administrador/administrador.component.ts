@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Observable, Subject, of, takeUntil } from 'rxjs';
+import { Observable, Subject, takeUntil } from 'rxjs';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
 import { CumplimientoService } from '../../../../core/services/ventas/cumplimientoVentasMes.service';
@@ -167,7 +167,6 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     ventaDiaria?: number;
   } | null = null;
   ventaMesVista: number | null = null;
-  mensajeErrorTotales = '';
   cargandoVendedores = false;
   catalogoVendedores: VendedorTabla[] = [];
   todosLosVendedores: VendedorTabla[] = [];
@@ -681,37 +680,16 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  private obtenerMensajeErrorCumplimientoDiarioAdmin(status: number): string {
-    switch (status) {
-      case 401:
-        return 'Sesión expirada o token inválido. Inicia sesión nuevamente.';
-      case 403:
-        return 'Permisos insuficientes para consultar el cumplimiento diario de administrador.';
-      case 404:
-        return 'No se encontraron datos diarios para la fecha seleccionada.';
-      default:
-        return 'No fue posible consultar los datos diarios.';
-    }
-  }
-
-
   private cargarTotales(): void {
     const filtros = this.obtenerFiltrosParaApi();
     this.filtrosAnalisis = { ...filtros };
-    this.mensajeErrorTotales = '';
 
-    // IMPORTANTE: las cards principales de ADMIN deben salir del mismo endpoint
-    // de cumplimiento/ventas que alimenta la tabla y el análisis.
-    // El endpoint /api/cuota-dia/por-dia devuelve cuotas por vendedor, pero no
-    // necesariamente respeta todos los filtros comerciales del dashboard
-    // (proveedor, categoría, ciudad, línea, vendedor), por eso no debe ser la
-    // fuente directa de Venta Diaria/Proyección de las cards.
     const obs$ =
       this.tipoCuota === 'diaria'
         ? this.cumplimientoService.getCumplimientoDiaAdmin(filtros)
         : this.tipoCuota === 'semanal'
-          ? this.semanaService.getCumplimientoSemanaAdmin(filtros)
-          : this.cumplimientoService.getCumplimientoMesAdmin(filtros);
+        ? this.semanaService.getCumplimientoSemanaAdmin(filtros)
+        : this.cumplimientoService.getCumplimientoMesAdmin(filtros);
 
     this.cargarDesdeEndpointAdmin(obs$, this.campoCuota);
   }
@@ -848,29 +826,23 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
           ventaAcum: ventaAcum || Number(totalesApi?.totalVenta ?? totalesApi?.ventaDiaria ?? 0),
           cuotaMes: Number(totalesApi?.cuotaMes ?? cuota) || cuota,
           cuotaSemana: Number.isFinite(cuotaSemanaTotal) && cuotaSemanaTotal > 0 ? cuotaSemanaTotal : cuota,
-          cuotaDia:
-            campoCuota === 'cuotaDiaria'
-              ? cuota
-              : Number(totalesApi?.cuotaDia ?? 0) || undefined,
+          cuotaDia: Number(totalesApi?.cuotaDia ?? 0) || undefined,
           porcCump: Number(totalesApi?.porcCump ?? porcCump) || porcCump,
           proyeccionVenta:
             Number(totalesApi?.promedioDiario ?? totalesApi?.proyeccionVenta ?? proyeccionVenta) ||
             proyeccionVenta,
-          ventaDiaria:
-            campoCuota === 'cuotaDiaria'
-              ? ventaAcum
-              : Number(totalesApi?.ventaDiaria ?? 0) || undefined,
+          ventaDiaria: Number(totalesApi?.ventaDiaria ?? 0) || undefined,
         };
-        this.ventaMesVista = this.totales.ventaAcum;
-        this.mensajeErrorTotales = this.tipoCuota === 'diaria' ? this.mensajeErrorTotales : '';
+        if (this.ventaMesVista === null) {
+          this.ventaMesVista = this.totales.ventaAcum;
+        }
         this.cargandoVendedores = false;
         this.cdr.detectChanges();
       },
       error: (err: any) => {
         console.error('Error cargando totales administrador:', err);
-        this.totales = { ventaAcum: 0, cuotaMes: 0, cuotaSemana: 0, cuotaDia: 0, porcCump: 0, proyeccionVenta: 0, ventaDiaria: 0 };
+        this.totales = null;
         this.todosLosVendedores = [];
-        this.mensajeErrorTotales = this.tipoCuota === 'diaria' ? this.obtenerMensajeErrorCumplimientoDiarioAdmin(Number(err?.status ?? 0)) : 'No fue posible cargar los totales del administrador.';
         this.cargandoVendedores = false;
         this.cdr.detectChanges();
       },

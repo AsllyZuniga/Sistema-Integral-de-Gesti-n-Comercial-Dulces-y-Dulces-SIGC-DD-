@@ -312,6 +312,9 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
     this.totalTopItemsSubtotal = 0;
     this.totalTopCiudades = 0;
     this.totalAcumuladoCiudad = 0;
+    this.totalCuotaVendedor = 0;
+    this.totalAcumuladoVendedor = 0;
+    this.totalCuotaCiudad = 0;
     this.totalCuotaDiaria = 0;
     this.cuotasDiariasCache = [];
     this.liderVentasProveedor = '—';
