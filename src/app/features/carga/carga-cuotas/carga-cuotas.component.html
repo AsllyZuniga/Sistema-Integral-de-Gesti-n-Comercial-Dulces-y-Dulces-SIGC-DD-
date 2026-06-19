@@ -2,30 +2,12 @@
   <app-sidebar (toggle)="onToggleSidebar($event)"></app-sidebar>
 
   <div class="main" [class.expanded]="sidebarColapsado">
-    <header class="topbar compact">
-      <div class="topbar-left">
-        <button class="mobile-menu-btn" (click)="toggleMenuMovil()">
-          <span class="material-symbols-rounded">menu</span>
-        </button>
-        <img class="topbar-logo" src="logoDulces.png" alt="Logo" />
-      </div>
-
-      <div class="topbar-center">
-        <h1>
-          <span class="ticker-track">
-            <span class="ticker-item accent">Carga de Cuotas</span>
-            <span class="ticker-item accent" aria-hidden="true"></span>
-          </span>
-        </h1>
-      </div>
-
-      <div class="topbar-right">
-        <button class="logout-btn" (click)="logout()">
-          <span class="material-symbols-rounded">logout</span>
-          <span class="logout-label">Salir</span>
-        </button>
-      </div>
-    </header>
+    <app-topbar
+      titulo="Gestión de cuotas"
+      subtitulo="Carga y administración de cuotas · Dulces y Dulces"
+      (menuClick)="toggleMenuMovil()"
+      (logoutClick)="logout()"
+    ></app-topbar>
 
     <div class="carga-page compact">
       <div class="page-header">

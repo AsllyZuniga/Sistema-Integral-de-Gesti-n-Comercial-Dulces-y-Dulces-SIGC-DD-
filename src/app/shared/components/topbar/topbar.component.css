@@ -1,0 +1,274 @@
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.topbar {
+  min-height: 92px;
+  width: 100%;
+  background: linear-gradient(135deg, #042f5f 0%, #0b4f96 56%, #0a6bbd 100%);
+  border-radius: 22px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 12px 28px rgba(4, 47, 95, 0.18);
+}
+
+/* Compacto se mantiene por compatibilidad, pero no cambia el tamaño visual.
+   Así todas las páginas conservan el mismo topbar. */
+.topbar.compact {
+  min-height: 92px;
+}
+
+.topbar::before {
+  content: '';
+  position: absolute;
+  top: -52px;
+  right: -44px;
+  width: 200px;
+  height: 200px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  pointer-events: none;
+}
+
+.topbar::after {
+  content: '';
+  position: absolute;
+  bottom: -82px;
+  right: 120px;
+  width: 230px;
+  height: 230px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  pointer-events: none;
+}
+
+.topbar-left,
+.topbar-center,
+.topbar-right {
+  position: relative;
+  z-index: 1;
+}
+
+.topbar-left,
+.topbar-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.topbar-left {
+  gap: 18px;
+  min-width: 212px;
+}
+
+.topbar-center {
+  flex: 1;
+  min-width: 0;
+  padding: 0 18px;
+  overflow: hidden;
+}
+
+.topbar-center h1,
+.topbar-title {
+  margin: 0;
+  color: #fff;
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.14;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar-title-text {
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.topbar-center .accent {
+  color: #d4ce2e;
+}
+
+.welcome,
+.topbar-user {
+  display: block;
+  margin-top: 5px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar-user {
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 700;
+}
+
+.topbar-logo {
+  height: 54px;
+  width: auto;
+  max-width: 150px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.18));
+}
+
+.mobile-menu-btn,
+.logout-btn {
+  border: 0;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: 0.2s ease;
+  font-family: inherit;
+}
+
+.mobile-menu-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  flex: 0 0 44px;
+}
+
+.logout-btn {
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.mobile-menu-btn:hover,
+.logout-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.material-symbols-rounded {
+  font-size: 21px;
+}
+
+@media (max-width: 992px) {
+  .topbar-left {
+    min-width: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .topbar,
+  .topbar.compact {
+    min-height: 72px;
+    padding: 12px 14px;
+    gap: 10px;
+    margin-bottom: 16px;
+    border-radius: 18px;
+  }
+
+  .topbar-left {
+    gap: 10px;
+  }
+
+  .topbar-center {
+    padding: 0 6px;
+  }
+
+  .topbar-center h1,
+  .topbar-title {
+    font-size: 16px;
+  }
+
+  .topbar-title {
+    text-overflow: clip;
+  }
+
+  .topbar-title-text {
+    max-width: none;
+    min-width: max-content;
+    padding-right: 42px;
+    animation: topbar-title-marquee 12s linear infinite;
+  }
+
+  .topbar-title:hover .topbar-title-text,
+  .topbar-title:focus-within .topbar-title-text {
+    animation-play-state: paused;
+  }
+
+  .welcome,
+  .topbar-user {
+    font-size: 12px;
+  }
+
+  .topbar-logo {
+    height: 38px;
+    max-width: 105px;
+  }
+
+  .logout-label {
+    display: none;
+  }
+
+  .logout-btn,
+  .mobile-menu-btn {
+    width: 38px;
+    height: 38px;
+    min-height: 38px;
+    padding: 0;
+    flex-basis: 38px;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .topbar-center {
+    padding: 0 4px;
+  }
+
+  .topbar-logo {
+    height: 32px;
+    max-width: 88px;
+  }
+
+  .topbar-title-text {
+    animation-duration: 10s;
+  }
+
+  .welcome {
+    display: none;
+  }
+}
+
+
+@keyframes topbar-title-marquee {
+  0%, 12% {
+    transform: translateX(0);
+  }
+  88%, 100% {
+    transform: translateX(calc(-100% + min(100%, 100vw - 170px)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar-title-text {
+    animation: none !important;
+    transform: none !important;
+  }
+}

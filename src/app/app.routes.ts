@@ -3,6 +3,7 @@ import { LoginComponent } from './features/login/login.component';
 import { AuthGuard } from './core/guards/auth.guard';
 import { LoginGuard } from './core/guards/login.guard';
 import { RoleGuard } from './core/guards/role.guard';
+import { ADMIN_ROLES, ANALISIS_ROLES, DASHBOARD_ROLES } from './core/auth/roles';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -15,7 +16,8 @@ export const routes: Routes = [
     path: 'dashboard',
     loadComponent: () =>
       import('./features/dashboard/dashboard.component').then((m) => m.DashboardComponent),
-    canActivate: [AuthGuard],
+    canActivate: [RoleGuard],
+    data: { roles: DASHBOARD_ROLES },
   },
   {
     path: 'impactos',
@@ -23,13 +25,14 @@ export const routes: Routes = [
       import('./features/dashboard/components/impactos/impactos.component').then(
         (m) => m.ImpactosComponent,
       ),
-    canActivate: [AuthGuard],
+    canActivate: [RoleGuard],
+    data: { roles: ANALISIS_ROLES },
   },
   {
     path: 'carga',
     loadComponent: () => import('./features/carga/carga.component').then((m) => m.CargaComponent),
     canActivate: [RoleGuard],
-    data: { roles: [1] },
+    data: { roles: ADMIN_ROLES },
   },
   {
     path: 'carga-cuotas',
@@ -38,7 +41,7 @@ export const routes: Routes = [
         (m) => m.CargaCuotasComponent,
       ),
     canActivate: [RoleGuard],
-    data: { roles: [1] },
+    data: { roles: ADMIN_ROLES },
   },
   {
     path: 'gestion-usuarios',
@@ -47,7 +50,7 @@ export const routes: Routes = [
         (m) => m.GestionUsuariosComponent,
       ),
     canActivate: [RoleGuard],
-    data: { roles: [1] },
+    data: { roles: ADMIN_ROLES },
   },
   { path: '**', redirectTo: 'login' },
 ];

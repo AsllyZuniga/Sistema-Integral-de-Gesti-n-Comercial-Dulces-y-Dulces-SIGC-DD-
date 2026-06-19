@@ -21,15 +21,37 @@ import { Chart, ChartOptions } from 'chart.js/auto';
   `,
   styles: [
     `
+      :host {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+      }
       .chart-wrapper {
         width: 100%;
-        max-height: 380px; /* ✅ límite en pantallas grandes */
-        height: clamp(220px, 35vh, 380px); /* ✅ fluido: mínimo 220px, máximo 380px */
+        max-width: 100%;
+        max-height: 380px;
+        height: clamp(240px, 36vh, 380px);
         position: relative;
+        min-width: 0;
+        overflow: hidden;
       }
       canvas {
+        display: block;
         width: 100% !important;
         height: 100% !important;
+      }
+      @media (max-width: 768px) {
+        .chart-wrapper {
+          height: clamp(240px, 52vh, 340px);
+          max-height: 340px;
+        }
+      }
+      @media (max-width: 480px) {
+        .chart-wrapper {
+          height: clamp(230px, 58vh, 320px);
+          max-height: 320px;
+        }
       }
     `,
   ],
@@ -63,18 +85,18 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private readonly COLORS = [
-    '#2563eb',
-    '#16a34a',
-    '#d97706',
-    '#7c3aed',
-    '#0891b2',
-    '#db2777',
-    '#65a30d',
-    '#ea580c',
-    '#0284c7',
-    '#9333ea',
-    '#15803d',
-    '#b45309',
+    '#004286', // azul principal marca
+    '#f2c94c', // amarillo dorado del logo
+    '#14b8a6', // turquesa
+    '#f97316', // naranja cálido
+    '#22c55e', // verde
+    '#8b5cf6', // violeta
+    '#ef4444', // rojo suave para contraste
+    '#0ea5e9', // celeste
+    '#64748b', // azul grisáceo
+    '#d946ef', // magenta
+    '#84cc16', // lima
+    '#a16207', // dorado oscuro
   ];
 
   private getColors(count: number): string[] {
@@ -108,10 +130,19 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
     const options: ChartOptions = {
       responsive: true,
       maintainAspectRatio: false,
+      resizeDelay: 120,
       plugins: {
         legend: {
           display: this.showLegend,
           position: 'top',
+          labels: {
+            boxWidth: 12,
+            boxHeight: 12,
+            usePointStyle: true,
+            font: {
+              size: 11,
+            },
+          },
         },
         // Si existe chartjs-plugin-datalabels en el proyecto o por carga global,
         // se fuerza a ocultar los valores encima de las barras.
@@ -130,11 +161,27 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
       ...(isBar || isLine
         ? {
             scales: {
+              x: {
+                ticks: {
+                  autoSkip: true,
+                  maxRotation: 35,
+                  minRotation: 0,
+                  font: {
+                    size: 10,
+                  },
+                },
+                grid: {
+                  display: false,
+                },
+              },
               y: {
                 min: yMin,
                 max: yMax,
                 ticks: {
                   callback: (val) => this.formatNumber(val as number),
+                  font: {
+                    size: 10,
+                  },
                 },
               },
             },
@@ -150,9 +197,10 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
           {
             label: this.label,
             data: values,
-            backgroundColor: isPie || isBar ? colors : colors[0],
-            borderColor: isLine ? colors[0] : 'transparent',
-            borderWidth: isLine ? 2 : 0,
+            backgroundColor: isPie || isBar ? colors : 'rgba(0, 66, 134, 0.12)',
+            borderColor: isLine ? '#004286' : colors,
+            hoverBackgroundColor: colors.map((color) => color + 'dd'),
+            borderWidth: isLine ? 3 : 1,
             tension: isLine ? 0.3 : 0,
             fill: false,
           },
