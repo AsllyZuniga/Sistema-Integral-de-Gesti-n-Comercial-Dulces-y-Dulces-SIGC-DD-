@@ -5,7 +5,6 @@ import { VentasUtilidadesBase } from '../../services/ventas-utilidades-base';
 
 @Directive()
 export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
-
   protected cargarVistaAdminTodos(filtrosConsulta: DashboardFilters): void {
     const filtrosAdmin =
       this.activeVentasView === 'ciudad' ? { ...filtrosConsulta, vendedor: '' } : filtrosConsulta;
@@ -43,17 +42,20 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
             (codigo) =>
               this.esSemanal
                 ? this.semanaService.getCuotaCategoriaPorVendedor(codigo, filtrosParaConsulta)
-                : this.cumplimientoService.getCuotaCategoriaPorVendedor(codigo, filtrosParaConsulta),
+                : this.cumplimientoService.getCuotaCategoriaPorVendedor(
+                    codigo,
+                    filtrosParaConsulta,
+                  ),
             (res) => (Array.isArray(res?.detalle) ? res.detalle : []),
           )
             .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((detalleBruto: any[]) => {
-              const categoriasSeleccionadas = Array.isArray(filtrosConsulta.categorias)
-                && filtrosConsulta.categorias.length
-                ? filtrosConsulta.categorias.filter(Boolean)
-                : Array.isArray(filtrosConsulta.categoriaNombres)
-                  ? filtrosConsulta.categoriaNombres.filter(Boolean)
-                  : [];
+              const categoriasSeleccionadas =
+                Array.isArray(filtrosConsulta.categorias) && filtrosConsulta.categorias.length
+                  ? filtrosConsulta.categorias.filter(Boolean)
+                  : Array.isArray(filtrosConsulta.categoriaNombres)
+                    ? filtrosConsulta.categoriaNombres.filter(Boolean)
+                    : [];
               const categoriaFiltro = categoriasSeleccionadas.length
                 ? categoriasSeleccionadas
                 : filtrosConsulta.categoria;
@@ -113,12 +115,12 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
           .subscribe((res: any) => {
             const pintarCategoria = (detalleRaw: any[]) => {
               const detallePermitido = this.filtrarPorCodigosVendedoresPermitidos(detalleRaw);
-              const categoriasSeleccionadas = Array.isArray(filtrosConsulta.categorias)
-                && filtrosConsulta.categorias.length
-                ? filtrosConsulta.categorias.filter(Boolean)
-                : Array.isArray(filtrosConsulta.categoriaNombres)
-                  ? filtrosConsulta.categoriaNombres.filter(Boolean)
-                  : [];
+              const categoriasSeleccionadas =
+                Array.isArray(filtrosConsulta.categorias) && filtrosConsulta.categorias.length
+                  ? filtrosConsulta.categorias.filter(Boolean)
+                  : Array.isArray(filtrosConsulta.categoriaNombres)
+                    ? filtrosConsulta.categoriaNombres.filter(Boolean)
+                    : [];
               const categoriaFiltroInner = categoriasSeleccionadas.length
                 ? categoriasSeleccionadas
                 : filtrosConsulta.categoria;
@@ -346,7 +348,8 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
 
               this.tableData = ordenado;
               this.totalAcumuladoCiudad = ordenado.reduce(
-                (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? item?.acumulado ?? 0) || 0),
+                (sum: number, item: any) =>
+                  sum + (Number(item?.ventaAcum ?? item?.acumulado ?? 0) || 0),
                 0,
               );
               this.totalTopCiudades = topCiudades.reduce(
@@ -414,7 +417,8 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
 
             this.tableData = ordenado;
             this.totalAcumuladoCiudad = ordenado.reduce(
-              (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? item?.acumulado ?? 0) || 0),
+              (sum: number, item: any) =>
+                sum + (Number(item?.ventaAcum ?? item?.acumulado ?? 0) || 0),
               0,
             );
             this.totalTopCiudades = topCiudades.reduce(
@@ -588,7 +592,8 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
 
               this.tableData = ordenado;
               this.totalAcumuladoCiudad = ordenado.reduce(
-                (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? item?.acumulado ?? 0) || 0),
+                (sum: number, item: any) =>
+                  sum + (Number(item?.ventaAcum ?? item?.acumulado ?? 0) || 0),
                 0,
               );
               this.totalTopCiudades = topCiudades.reduce(
@@ -674,8 +679,20 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
 
             this.chartData = [
               { name: 'Cuota Diaria', value: this.totalCuotaDiaria },
-              { name: 'Venta Acumulada', value: vendedoresFiltrados.reduce((s: number, i: any) => s + (Number(i.ventaAcum ?? 0) || 0), 0) },
-              { name: 'Proyección', value: vendedoresFiltrados.reduce((s: number, i: any) => s + (Number(i.proyeccionVenta ?? 0) || 0), 0) },
+              {
+                name: 'Venta Acumulada',
+                value: vendedoresFiltrados.reduce(
+                  (s: number, i: any) => s + (Number(i.ventaAcum ?? 0) || 0),
+                  0,
+                ),
+              },
+              {
+                name: 'Proyección',
+                value: vendedoresFiltrados.reduce(
+                  (s: number, i: any) => s + (Number(i.proyeccionVenta ?? 0) || 0),
+                  0,
+                ),
+              },
             ];
             break;
           }
@@ -753,3 +770,4 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
     });
   }
 }
+//recueperar archivo original en caso de error: src/app/features/dashboard/components/ventas/roles/administrador/ventas-administrador-base.ts
