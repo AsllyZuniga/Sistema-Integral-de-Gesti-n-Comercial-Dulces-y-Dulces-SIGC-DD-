@@ -158,6 +158,9 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   private destroy$ = new Subject<void>();
   private codigoVendedorDetectado = '';
 
+  private respuestaCumplimientoOriginal: any = null;
+  private cacheCumplimientoClave: string = '';
+
   totalesVendedor: DashboardTotalesVendedor | null = null;
 
   filtrosActivos: DashboardFilters = {
@@ -661,23 +664,39 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private construirOpcionesCategorias(detalle: ApiCategoriaRow[]): FilterOption[] {
+    console.debug('[Dashboard] construyendo opciones de categorías desde:', detalle);
+    
     const unicas = new Map<string, string>();
 
     (Array.isArray(detalle) ? detalle : []).forEach((item) => {
       const categoriaRaw = this.obtenerNombreCategoria(item);
-      if (!categoriaRaw) return;
+      console.debug('[Dashboard] Categoría raw:', categoriaRaw, 'desde item:', item);
+      
+      if (!categoriaRaw) {
+        console.debug('[Dashboard] Categoría vacía, omitiendo');
+        return;
+      }
 
       const categoriaLimpia = this.limpiarNombreCategoria(categoriaRaw);
-      if (!categoriaLimpia) return;
+      console.debug('[Dashboard] Categoría limpia:', categoriaLimpia);
+      
+      if (!categoriaLimpia) {
+        console.debug('[Dashboard] Categoría limpia vacía, omitiendo');
+        return;
+      }
 
       if (!unicas.has(categoriaLimpia)) {
         unicas.set(categoriaLimpia, categoriaRaw);
       }
     });
 
-    return Array.from(unicas.entries())
+    const opciones = Array.from(unicas.entries())
       .map(([label, value]) => ({ label, value }))
       .sort((a, b) => a.label.localeCompare(b.label, 'es', { numeric: true, sensitivity: 'base' }));
+    
+    console.debug('[Dashboard] Opciones de categorías finales:', opciones);
+    
+    return opciones;
   }
 
   private obtenerIdSupervisorActual(): string {
@@ -1028,36 +1047,347 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       conservarVendedor: true,
     });
 
-    const aplicar = (detalle: ApiCategoriaRow[]): void => {
-      this.categoriasList = this.construirOpcionesCategorias(detalle);
-    };
+    const proveedoresSeleccionados = this.obtenerProveedoresSeleccionados();
+    const cacheClave = this.obtenerCacheClave(filtrosConsulta);
 
-    if (this.esAdmin && !String(this.filtrosActivos.vendedor ?? '').trim()) {
-      this.cumplimientoService
-        .getCuotaCategoriasPorVendedores(filtrosConsulta)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((res: ApiTotalesResponse<ApiCategoriaRow>) => aplicar(res?.detalle ?? []));
+    if (
+      this.respuestaCumplimientoOriginal &&
+      this.cacheCumplimientoClave === cacheClave
+    ) {
+      this.aplicarCategoriasDesdeRespuesta(
+        this.respuestaCumplimientoOriginal,
+        proveedoresSeleccionados,
+      );
       return;
     }
 
+    this.cacheCumplimientoClave = cacheClave;
+
+    const filtrosIniciales: DashboardFilters = {
+      ...filtrosConsulta,
+      proveedor: '',
+      proveedores: [],
+      proveedorNombre: '',
+      proveedorNombres: [],
+    };
+
+    if (this.esAdmin && !String(this.filtrosActivos.vendedor ?? '').trim()) {
+      this.cargarCategoriasDesdeCumplimientoAdmin(filtrosIniciales, proveedoresSeleccionados);
+      return;
+    }
+
+    this.cargarCategoriasDesdeCumplimientoPorRol(filtrosIniciales, proveedoresSeleccionados);
+  }
+
+  private cargarCategoriasDesdeCumplimientoAdmin(
+    filtrosConsulta: DashboardFilters,
+    proveedores: string[],
+  ): void {
+    this.cumplimientoService
+      .getCumplimientoMesAdmin(filtrosConsulta)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res: any) => {
+          this.respuestaCumplimientoOriginal = res;
+          this.aplicarCategoriasDesdeRespuesta(res, proveedores);
+        },
+        error: (err) => {
+          console.error('Error cargando categorías desde cumplimiento admin:', err);
+          this.categoriasList = [];
+          this.cdr.markForCheck();
+        },
+      });
+  }
+
+  private cargarCategoriasDesdeCumplimientoPorRol(
+    filtrosConsulta: DashboardFilters,
+    proveedores: string[],
+  ): void {
     this.codigosParaCatalogosPorRol((codigos) => {
       if (!codigos.length) {
         this.categoriasList = [];
+        this.cdr.markForCheck();
         return;
       }
 
       const peticiones = codigos.map((codigo) =>
         this.cumplimientoService
-          .getCuotaCategoriaPorVendedor(codigo, filtrosConsulta)
-          .pipe(catchError(() => of({ detalle: [] } as ApiTotalesResponse<ApiCategoriaRow>))),
+          .getCumplimientoMesVendedor(filtrosConsulta)
+          .pipe(catchError(() => of({ detalle: [] } as any))),
       );
 
       forkJoin(peticiones)
         .pipe(takeUntil(this.destroy$))
-        .subscribe((respuestas: Array<ApiTotalesResponse<ApiCategoriaRow>>) => {
-          aplicar(respuestas.flatMap((res) => res?.detalle ?? []));
+        .subscribe({
+          next: (respuestas: any[]) => {
+            const respuestaCompleta = {
+              detalle: respuestas.flatMap((r) => r?.detalle ?? []),
+            };
+            this.respuestaCumplimientoOriginal = respuestaCompleta;
+            this.aplicarCategoriasDesdeRespuesta(respuestaCompleta, proveedores);
+          },
+          error: (err) => {
+            console.error('Error cargando categorías desde cumplimiento por proveedor:', err);
+            this.categoriasList = [];
+            this.cdr.markForCheck();
+          },
         });
     });
+  }
+
+  private aplicarCategoriasDesdeRespuesta(res: any, proveedores: string[]): void {
+    const detalleNormalizado = this.normalizarDetalleParaCategorias(res);
+    const categoriasUnicas = this.extraerCategoriasDeCumplimiento(
+      { detalle: detalleNormalizado },
+      proveedores,
+    );
+
+    // Importante: el dropdown ya pinta la opción "Todas" por separado.
+    // Por eso categoriasList solo debe contener categorías reales del proveedor
+    // seleccionado o categorías generales cuando no hay proveedor seleccionado.
+    this.categoriasList = this.construirOpcionesCategorias(categoriasUnicas);
+    this.cdr.markForCheck();
+  }
+
+  private normalizarDetalleParaCategorias(res: any): any[] {
+    if (!res) return [];
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res?.detalle)) return res.detalle;
+    if (Array.isArray(res?.data)) return res.data;
+    return [];
+  }
+
+  private obtenerProveedoresSeleccionados(): string[] {
+    if (Array.isArray(this.filtrosActivos.proveedores)) {
+      return this.filtrosActivos.proveedores
+        .map((p) => String(p ?? '').trim())
+        .filter(Boolean);
+    }
+
+    return String(this.filtrosActivos.proveedor ?? '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  private obtenerCacheClave(filtros: DashboardFilters): string {
+    return [
+      String(filtros.fechaInicio ?? '').trim(),
+      String(filtros.fechaFin ?? '').trim(),
+      String(filtros.vendedor ?? '').trim(),
+      this.rolId,
+    ].join('|');
+  }
+
+  private eliminarCategoriasDuplicadas(categorias: ApiCategoriaRow[]): ApiCategoriaRow[] {
+    const mapa = new Map<string, ApiCategoriaRow>();
+
+    (Array.isArray(categorias) ? categorias : []).forEach((cat) => {
+      const idCategoria = String(
+        cat?.idCategoria ?? cat?.id_categoria ?? cat?.categoria_id ?? '',
+      ).trim();
+      const nombreCategoria = String(
+        cat?.categoria ?? cat?.nomCategoria ?? cat?.nombreCategoria ?? '',
+      ).trim();
+
+      if (!nombreCategoria && !idCategoria) return;
+
+      const key = idCategoria || nombreCategoria;
+      if (!mapa.has(key)) {
+        mapa.set(key, { ...cat, idCategoria: idCategoria || cat?.idCategoria, categoria: nombreCategoria || cat?.categoria });
+      }
+    });
+
+    return Array.from(mapa.values());
+  }
+
+  private cargarCategoriasGeneralesPorVendedor(
+    filtrosConsulta: DashboardFilters,
+    codigos: string[],
+  ): void {
+    const filtrosSinProveedor: DashboardFilters = {
+      ...filtrosConsulta,
+      proveedor: '',
+      proveedores: [],
+      proveedorNombre: '',
+      proveedorNombres: [],
+    };
+
+    const peticiones = codigos.map((codigo) =>
+      this.cumplimientoService
+        .getCumplimientoMesVendedor(filtrosSinProveedor)
+        .pipe(catchError(() => of({ detalle: [] } as any))),
+    );
+
+    forkJoin(peticiones)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (respuestas: any[]) => {
+          const categoriasUnicas = this.extraerCategoriasDeCumplimiento(
+            { detalle: respuestas.flatMap((r) => r?.detalle ?? []) },
+            [],
+          );
+          this.categoriasList = this.construirOpcionesCategorias(categoriasUnicas);
+          this.cdr.markForCheck();
+        },
+        error: (err) => {
+          console.error('Error cargando categorías generales por vendedor:', err);
+          this.categoriasList = [];
+          this.cdr.markForCheck();
+        },
+      });
+  }
+
+  private extraerCategoriasDeCumplimiento(
+    res: any,
+    proveedoresFiltro: string[],
+  ): ApiCategoriaRow[] {
+    const proveedoresSet =
+      proveedoresFiltro.length > 0
+        ? this.construirSetProveedoresFlexible(proveedoresFiltro)
+        : null;
+
+    const categoriasUnicas = new Map<string, ApiCategoriaRow>();
+    const detalleNormalizado = this.normalizarDetalleParaCategorias(res);
+    const proveedoresHoja = this.extraerProveedoresHoja(detalleNormalizado);
+
+    proveedoresHoja.forEach((prov: any) => {
+      if (proveedoresSet && !this.coincideProveedor(prov, proveedoresSet)) return;
+
+      const categorias = Array.isArray(prov?.categorias) ? prov.categorias : [];
+      categorias.forEach((cat: any) => {
+        const idCategoria = String(
+          cat?.idCategoria ?? cat?.id_categoria ?? cat?.categoria_id ?? '',
+        ).trim();
+        const nombreCategoria = String(
+          cat?.categoria ?? cat?.nomCategoria ?? cat?.nombreCategoria ?? '',
+        ).trim();
+        if (!nombreCategoria) return;
+        const key = idCategoria || nombreCategoria;
+        if (!categoriasUnicas.has(key)) {
+          categoriasUnicas.set(key, {
+            idCategoria: idCategoria || undefined,
+            categoria: nombreCategoria,
+          });
+        }
+      });
+    });
+
+    return Array.from(categoriasUnicas.values());
+  }
+
+  private extraerProveedoresHoja(items: any[]): any[] {
+    const proveedores: any[] = [];
+    (Array.isArray(items) ? items : []).forEach((item) => {
+      if (!item || typeof item !== 'object') return;
+
+      if (Array.isArray(item.detallePorProveedor)) {
+        item.detallePorProveedor.forEach((prov: any) => {
+          if (prov && typeof prov === 'object') proveedores.push(prov);
+        });
+        return;
+      }
+
+      if (Array.isArray(item.proveedores)) {
+        item.proveedores.forEach((prov: any) => {
+          if (prov && typeof prov === 'object') proveedores.push(prov);
+        });
+        return;
+      }
+
+      const tieneCodigo =
+        item?.codigoProveedor !== undefined ||
+        item?.idProveedor !== undefined ||
+        item?.codigo_proveedor !== undefined;
+      const tieneCategorias = Array.isArray(item?.categorias);
+
+      if (tieneCodigo || tieneCategorias) {
+        proveedores.push(item);
+      }
+    });
+    return proveedores;
+  }
+
+  private extraerCodigoProveedor(item: any): string {
+    if (!item) return '';
+    const candidatos = [
+      item?.codigoProveedor,
+      item?.codigo_proveedor,
+      item?.codigo,
+      item?.cod,
+      item?.idProveedor,
+      item?.id_proveedor,
+    ];
+    for (const candidato of candidatos) {
+      const normalizado = String(candidato ?? '').trim();
+      if (normalizado) return normalizado;
+    }
+    return '';
+  }
+
+  private construirSetProveedoresFlexible(proveedores: string[]): Set<string> {
+    const set = new Set<string>();
+
+    proveedores.forEach((prov) => {
+      this.obtenerClavesProveedor(prov).forEach((clave) => set.add(clave));
+    });
+
+    return set;
+  }
+
+  private coincideProveedor(prov: any, proveedoresSet: Set<string>): boolean {
+    const candidatos = [
+      prov?.codigoProveedor,
+      prov?.codigo_proveedor,
+      prov?.codigo,
+      prov?.cod,
+      prov?.idProveedor,
+      prov?.id_proveedor,
+      prov?.nombreProveedor,
+      prov?.nombre_proveedor,
+      prov?.nomProveedor,
+      prov?.proveedor,
+      prov?.nombre,
+      prov?.linea,
+      prov?.reporteProvConObs,
+    ];
+
+    return candidatos.some((candidato) =>
+      this.obtenerClavesProveedor(candidato).some((clave) => proveedoresSet.has(clave)),
+    );
+  }
+
+  private obtenerClavesProveedor(valor: unknown): string[] {
+    const texto = String(valor ?? '').trim();
+    if (!texto) return [];
+
+    const claves = new Set<string>();
+    const agregar = (item: string): void => {
+      const limpio = String(item ?? '').trim();
+      if (!limpio) return;
+
+      claves.add(limpio);
+      claves.add(limpio.toLowerCase());
+
+      const sinCeros = limpio.replace(/^0+/, '');
+      if (sinCeros && sinCeros !== limpio) {
+        claves.add(sinCeros);
+        claves.add(sinCeros.toLowerCase());
+      }
+    };
+
+    agregar(texto);
+
+    // Soporta valores que lleguen como "020 - ARCOR" o "060 - LUKER PROCOVAL".
+    // En esos casos el checkbox puede emitir la etiqueta completa, pero el backend
+    // y la respuesta suelen traer solo codigoProveedor = "020" / "060".
+    const codigoInicial = texto.match(/^\s*0*(\d+)/)?.[1];
+    const codigoConCeros = texto.match(/^\s*(\d+)/)?.[1];
+
+    if (codigoConCeros) agregar(codigoConCeros);
+    if (codigoInicial) agregar(codigoInicial);
+
+    return Array.from(claves);
   }
 
   onVendedorChange(vendedor: string): void {
@@ -1091,6 +1421,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onAplicarFiltros(filtros: DashboardFilters): void {
+    console.debug('[Dashboard] Aplicando filtros:', filtros);
+    
     const rangoDefault = this.getDefaultDateRange();
     const fechaInicio = String(filtros.fechaInicio ?? '').trim() || rangoDefault.inicio;
     const fechaFin = String(filtros.fechaFin ?? '').trim() || rangoDefault.fin;
@@ -1115,6 +1447,9 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       ciudadNombre: ciudadVisible || '',
       linea: filtros.linea || '',
     };
+
+    console.debug('[Dashboard] Filtros con códigos:', filtrosConCodigos);
+    console.debug('[Dashboard] Categorías seleccionadas:', filtrosConCodigos.categorias);
 
     if (filtros.vendedor) {
       filtrosConCodigos.vendedor = this.vendedorMap.get(filtros.vendedor) ?? filtros.vendedor;

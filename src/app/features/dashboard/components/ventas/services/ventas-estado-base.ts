@@ -196,9 +196,14 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
   protected cuotasDiariasCache: CuotaDiaVendedor[] = [];
   totalCuotaDiaria = 0;
 
-  protected readonly clientesPageSize = 30;
+  // Paginación dinámica según rol
+  protected get clientesPageSize(): number {
+    const esAdmin = this.rolId === RoleId.ADMINISTRADOR;
+    return esAdmin ? Number.MAX_SAFE_INTEGER : 30;
+  }
+  
   readonly productosPageSize = 25;
-  protected clientesVisibles = this.clientesPageSize;
+  protected clientesVisibles = 30;
   readonly productosVisiblesPorCliente: Record<string, number> = {};
 
   protected readonly todasLasVistas = VENTAS_VIEWS;

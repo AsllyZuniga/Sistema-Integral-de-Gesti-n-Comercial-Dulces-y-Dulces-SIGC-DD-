@@ -208,25 +208,60 @@ export abstract class VentasUtilidadesBase extends VentasClientesBase {
   }
 
   protected filtrarCategoriasReales(listado: any[], categoriaFiltroRaw: unknown): any[] {
-    const categoriasSeleccionadas = Array.isArray(categoriaFiltroRaw)
-      ? (categoriaFiltroRaw as unknown[]).map((v) => this.normalizarCategoria(v)).filter(Boolean)
-      : ((): string[] => {
-          const raw = this.normalizarCategoria(categoriaFiltroRaw);
-          return raw ? [raw] : [];
-        })();
+    const categoriasSeleccionadas = (Array.isArray(categoriaFiltroRaw)
+      ? categoriaFiltroRaw
+      : [categoriaFiltroRaw]
+    )
+      .map((v) => String(v ?? '').trim())
+      .filter(Boolean);
 
-    if (!categoriasSeleccionadas.length) return listado;
+    if (!categoriasSeleccionadas.length) {
+      return listado;
+    }
 
-    const setFiltros = new Set(categoriasSeleccionadas);
+    const setCategorias = new Set(categoriasSeleccionadas.map((c) => c.toLowerCase()));
 
-    return listado.filter((item: any) => {
-      const nombre = this.normalizarCategoria(this.obtenerNombreCategoria(item));
-      const id = this.normalizarCategoria(
-        String(item?.id_categoria ?? item?.idCategoria ?? item?.categoria_id ?? ''),
-      );
+    const filtrado = listado.filter((item: any) => {
+      const codigoItem = String(
+        item?.id_categoria ?? item?.idCategoria ?? item?.categoria_id ?? '',
+      ).trim();
+      const nombreCompletoItem = String(
+        item?.categoria ?? item?.nomCategoria ?? item?.nombreCategoria ?? '',
+      ).trim();
+      const codigoItemLower = codigoItem.toLowerCase();
+      const nombreItemLower = nombreCompletoItem.toLowerCase();
 
-      return setFiltros.has(nombre) || (id && setFiltros.has(id));
+      return categoriasSeleccionadas.some((catOriginal) => {
+        const cat = String(catOriginal ?? '').trim();
+        const catLower = cat.toLowerCase();
+
+        if (!cat) return false;
+
+        if (codigoItem && codigoItem === cat) return true;
+        if (nombreCompletoItem && nombreCompletoItem === cat) return true;
+
+        if (codigoItem && nombreCompletoItem.startsWith(codigoItem)) {
+          if (cat.startsWith(codigoItem)) return true;
+        }
+
+        if (cat && nombreCompletoItem.startsWith(cat + ' ')) return true;
+        if (cat && nombreCompletoItem.startsWith(cat + '-')) return true;
+
+        const nombreNormalizado = this.normalizarCategoria(item);
+        const catNormalizado = this.normalizarCategoria(catOriginal);
+        if (nombreNormalizado && catNormalizado && nombreNormalizado === catNormalizado) {
+          return true;
+        }
+
+        if (setCategorias.has(codigoItemLower) || setCategorias.has(nombreItemLower)) {
+          return true;
+        }
+
+        return false;
+      });
     });
+
+    return filtrado;
   }
 
   protected completarCategoriasSinDatos(listado: any[], categoriaFiltroRaw: unknown): any[] {

@@ -1,5 +1,5 @@
 import { Directive } from '@angular/core';
-import { merge, of, takeUntil } from 'rxjs';
+import { forkJoin, merge, of, takeUntil } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { RoleId } from '../../../../../../core/auth/roles';
 import { DashboardFilters } from '../../../../../../shared/components/filters/filters.component';
@@ -276,95 +276,178 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
             ? filtrosConsulta.categorias.filter(Boolean)
             : [];
 
+          console.debug('[Ventas-VendedorBase] Vista categoría - categorías seleccionadas:', categoriasSeleccionadasOriginales);
+          console.debug('[Ventas-VendedorBase] Vista categoría - filtros completos:', filtrosConsulta);
+
           const candidatos = this.debeAplicarFallbackAutomatico(filtrosConsulta)
             ? this.construirCandidatosFallback(filtrosConsulta)
             : [filtrosConsulta];
 
-          const candidatosSinCategoria = candidatos.map((filtros) =>
-            Array.isArray(filtros.categorias) && filtros.categorias.length > 1
-              ? {
-                  ...filtros,
-                  categoria: '',
-                  categoriaNombre: '',
-                  categorias: [],
-                  categoriaNombres: [],
-                }
-              : filtros,
-          );
-
           const intentarCategoria = (idx: number): void => {
-            const filtrosActivos = candidatosSinCategoria[idx];
-            const categorias$ = this.esSemanal
-              ? this.semanaService.getCuotaCategoriaPorVendedor(
-                  this._codigoVendedor,
-                  filtrosActivos,
-                )
-              : this.cumplimientoService.getCuotaCategoriaPorVendedor(
-                  this._codigoVendedor,
-                  filtrosActivos,
-                );
+            const filtrosActivos = candidatos[idx];
+            
+            console.debug('[Ventas-VendedorBase] Intentando cargar categorías con filtros:', filtrosActivos);
+            
+            // Si hay múltiples categorías seleccionadas, hacer múltiples llamadas
+            if (categoriasSeleccionadasOriginales.length > 1) {
+              console.debug('[Ventas-VendedorBase] Múltiples categorías seleccionadas:', categoriasSeleccionadasOriginales.length);
+              
+              const peticiones = categoriasSeleccionadasOriginales.map((categoria) => {
+                const filtrosConUnaCategoria = {
+                  ...filtrosActivos,
+                  categorias: [categoria],
+                  categoria: categoria,
+                };
+                
+                return this.esSemanal
+                  ? this.semanaService.getCuotaCategoriaPorVendedor(
+                      this._codigoVendedor,
+                      filtrosConUnaCategoria,
+                    )
+                  : this.cumplimientoService.getCuotaCategoriaPorVendedor(
+                      this._codigoVendedor,
+                      filtrosConUnaCategoria,
+                    );
+              });
 
-            categorias$
-              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-              .subscribe((res: any) => {
-                const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
-                const categoriasSeleccionadas = categoriasSeleccionadasOriginales.length
-                  ? categoriasSeleccionadasOriginales
-                  : Array.isArray(filtrosActivos.categoriaNombres)
-                    ? filtrosActivos.categoriaNombres.filter(Boolean)
-                    : Array.isArray(filtrosActivos.categorias)
-                      ? filtrosActivos.categorias.filter(Boolean)
-                      : [];
-                const categoriaFiltroActivos = categoriasSeleccionadas.length
-                  ? categoriasSeleccionadas
-                  : filtrosActivos.categoria;
+              forkJoin(peticiones)
+                .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+                .subscribe((respuestas: any[]) => {
+                  console.debug('[Ventas-VendedorBase] Respuestas de múltiples categorías:', respuestas);
+                  
+                  // Combinar todos los detalles de las respuestas
+                  const detalleCombinado = respuestas.flatMap((res: any) => 
+                    Array.isArray(res?.detalle) ? res.detalle : []
+                  );
+                  
+                  console.debug('[Ventas-VendedorBase] Detalle combinado:', detalleCombinado.length, 'registros');
+                  
+                  const detalleConsolidado = this.consolidarPorCategoria(detalleCombinado);
+                  const detalleConNombre = detalleConsolidado.map((item: any) => ({
+                    ...item,
+                    categoria: this.obtenerNombreCategoria(item) || 'Sin categoría',
+                  }));
+                  const detalleCompleto = detalleConNombre;
+                  const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleCompleto);
+
+                  if (!detalleCombinado.length && idx < candidatos.length - 1) {
+                    intentarCategoria(idx + 1);
+                    return;
+                  }
+
+                  this.tableData = detalleOrdenado;
+
+                  this.totalCuotaCategoria = detalleOrdenado.reduce(
+                    (sum: number, item: any) => sum + (Number(item?.cuota ?? 0) || 0),
+                    0,
+                  );
+
+                  this.totalAcumuladoCategoria = detalleOrdenado.reduce(
+                    (sum: number, item: any) =>
+                      sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
+                    0,
+                  );
+
+                  const topCategorias = [...detalleCompleto]
+                    .map((i: any) => ({
+                      name: this.obtenerNombreCategoria(i) || 'Sin categoría',
+                      value: Number(i?.acumulado ?? i?.ventaAcum ?? 0),
+                    }))
+                    .sort((a: any, b: any) => b.value - a.value)
+                    .slice(0, 15);
+
+                  this.totalTopCategorias = topCategorias.reduce(
+                    (sum: number, item: any) => sum + (Number(item?.value ?? 0) || 0),
+                    0,
+                  );
+
+                  this.chartData = topCategorias;
+                  this.chartId = 'chart-categoria-' + Date.now();
+                  this.cdr.markForCheck();
+                });
+            } else {
+              // Una sola categoría o ninguna - llamada normal
+              const categorias$ = this.esSemanal
+                ? this.semanaService.getCuotaCategoriaPorVendedor(
+                    this._codigoVendedor,
+                    filtrosActivos,
+                  )
+                : this.cumplimientoService.getCuotaCategoriaPorVendedor(
+                    this._codigoVendedor,
+                    filtrosActivos,
+                  );
+
+              categorias$
+                .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+                .subscribe((res: any) => {
+                  console.debug('[Ventas-VendedorBase] Respuesta de categorías del backend:', res);
+                  
+                  const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+                  const categoriasSeleccionadas = categoriasSeleccionadasOriginales.length
+                    ? categoriasSeleccionadasOriginales
+                    : Array.isArray(filtrosActivos.categoriaNombres)
+                      ? filtrosActivos.categoriaNombres.filter(Boolean)
+                      : Array.isArray(filtrosActivos.categorias)
+                        ? filtrosActivos.categorias.filter(Boolean)
+                        : [];
+                        
+                  console.debug('[Ventas-VendedorBase] Categorías a filtrar:', categoriasSeleccionadas);
+                  
+                  const categoriaFiltroActivos = categoriasSeleccionadas.length
+                    ? categoriasSeleccionadas
+                    : filtrosActivos.categoria;
+                    
                   const detalleFiltrado = this.filtrarCategoriasReales(
                     detalle,
                     categoriaFiltroActivos,
                   );
+                  
+                  console.debug('[Ventas-VendedorBase] Detalle filtrado:', detalleFiltrado.length, 'registros');
+                  
                   const detalleConsolidado = this.consolidarPorCategoria(detalleFiltrado);
                   const detalleConNombre = detalleConsolidado.map((item: any) => ({
-                  ...item,
-                  categoria: this.obtenerNombreCategoria(item) || 'Sin categoría',
-                }));
+                    ...item,
+                    categoria: this.obtenerNombreCategoria(item) || 'Sin categoría',
+                  }));
                   const detalleCompleto = detalleConNombre;
-                const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleCompleto);
+                  const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleCompleto);
 
-                if (!detalleFiltrado.length && idx < candidatos.length - 1) {
-                  intentarCategoria(idx + 1);
-                  return;
-                }
+                  if (!detalleFiltrado.length && idx < candidatos.length - 1) {
+                    intentarCategoria(idx + 1);
+                    return;
+                  }
 
-                this.tableData = detalleOrdenado;
+                  this.tableData = detalleOrdenado;
 
-                this.totalCuotaCategoria = detalleOrdenado.reduce(
-                  (sum: number, item: any) => sum + (Number(item?.cuota ?? 0) || 0),
-                  0,
-                );
+                  this.totalCuotaCategoria = detalleOrdenado.reduce(
+                    (sum: number, item: any) => sum + (Number(item?.cuota ?? 0) || 0),
+                    0,
+                  );
 
-                this.totalAcumuladoCategoria = detalleOrdenado.reduce(
-                  (sum: number, item: any) =>
-                    sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
-                  0,
-                );
+                  this.totalAcumuladoCategoria = detalleOrdenado.reduce(
+                    (sum: number, item: any) =>
+                      sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
+                    0,
+                  );
 
-                const topCategorias = [...detalleCompleto]
-                  .map((i: any) => ({
-                    name: this.obtenerNombreCategoria(i) || 'Sin categoría',
-                    value: Number(i?.acumulado ?? i?.ventaAcum ?? 0),
-                  }))
-                  .sort((a: any, b: any) => b.value - a.value)
-                  .slice(0, 15);
+                  const topCategorias = [...detalleCompleto]
+                    .map((i: any) => ({
+                      name: this.obtenerNombreCategoria(i) || 'Sin categoría',
+                      value: Number(i?.acumulado ?? i?.ventaAcum ?? 0),
+                    }))
+                    .sort((a: any, b: any) => b.value - a.value)
+                    .slice(0, 15);
 
-                this.totalTopCategorias = topCategorias.reduce(
-                  (sum: number, item: any) => sum + (Number(item?.value ?? 0) || 0),
-                  0,
-                );
+                  this.totalTopCategorias = topCategorias.reduce(
+                    (sum: number, item: any) => sum + (Number(item?.value ?? 0) || 0),
+                    0,
+                  );
 
-                this.chartData = topCategorias;
-                this.chartId = 'chart-categoria-' + Date.now();
-                this.cdr.markForCheck();
-              });
+                  this.chartData = topCategorias;
+                  this.chartId = 'chart-categoria-' + Date.now();
+                  this.cdr.markForCheck();
+                });
+            }
           };
 
           intentarCategoria(0);
