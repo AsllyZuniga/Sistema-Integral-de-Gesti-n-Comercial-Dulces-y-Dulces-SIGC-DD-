@@ -29,6 +29,15 @@ export const routes: Routes = [
     data: { roles: ANALISIS_ROLES },
   },
   {
+    path: 'vendedor-items',
+    loadChildren: () =>
+      import('./features/vendedor-items/vendedor-items.routes').then(
+        (m) => m.VENDEDOR_ITEMS_ROUTES,
+      ),
+    canActivate: [RoleGuard],
+    data: { roles: ANALISIS_ROLES },
+  },
+  {
     path: 'carga',
     loadComponent: () => import('./features/carga/carga.component').then((m) => m.CargaComponent),
     canActivate: [RoleGuard],

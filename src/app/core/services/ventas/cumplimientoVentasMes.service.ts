@@ -19,8 +19,41 @@ export class CumplimientoService {
   private apiUrl = '/api';
   private vendedoresCache$?: Observable<any[]>;
   private proveedoresCache$?: Observable<any[]>;
+  private cuotaCategoriasCache?: Observable<any>;
+  private responseCache = new Map<string, Observable<any>>();
 
   constructor(private http: HttpClient) {}
+
+  private cacheKeyFromParams(params: HttpParams): string {
+    if (!params || !params.keys().length) return 'empty';
+    const keys = params.keys().sort();
+    return keys.map((k) => `${k}=${params.get(k) ?? ''}`).join('&');
+  }
+
+  private getOrCreateCache(key: string, factory: () => Observable<any>): Observable<any> {
+    const cached = this.responseCache.get(key);
+    if (cached) return cached;
+    const obs$ = factory().pipe(
+      shareReplay({ bufferSize: 1, refCount: false }),
+      catchError(() => of(null)),
+    );
+    this.responseCache.set(key, obs$);
+    return obs$;
+  }
+
+  /**
+   * Invalida TODAS las respuestas cacheadas por clave de filtros.
+   * Llamar cuando cambian las fechas / filtros que no estan contemplados en la cache.
+   */
+  invalidarCacheRespuestas(): void {
+    this.responseCache.clear();
+  }
+
+  invalidarCachePorPrefijo(prefijo: string): void {
+    for (const key of this.responseCache.keys()) {
+      if (key.startsWith(prefijo)) this.responseCache.delete(key);
+    }
+  }
 
   private aplicarCategoriaParams(params: HttpParams, filtros?: DashboardFilters): HttpParams {
     const categorias = Array.isArray(filtros?.categorias)
@@ -171,31 +204,50 @@ export class CumplimientoService {
     return params;
   }
 
-  /** Admin: GET /mes/cumplimiento/front → { periodo, detalle: [...vendedores, TOTALES] } */
+  /** Admin: GET /mes/cumplimiento/front → { periodo, detalle: [...vendedores, TOTALES] }
+   *  Cacheado por clave de filtros con shareReplay(1): varios componentes
+   *  pueden consumir la misma respuesta para un mismo rango de fechas
+   *  sin disparar multiples HTTP.
+   */
   getCumplimientoMesAdmin(filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
+    const cacheKey = this.cacheKeyFromParams(params);
 
-    return this.http
-      .get<any>(`${this.apiUrl}/mes/cumplimiento/front`, { params })
-      .pipe(catchError(() => of({ detalle: [] })));
+    return this.getOrCreateCache(
+      `front-${cacheKey}`,
+      () =>
+        this.http
+          .get<any>(`${this.apiUrl}/mes/cumplimiento/front`, { params })
+          .pipe(catchError(() => of({ detalle: [] }))),
+    );
   }
 
   /** Admin: GET /dia/cumplimiento/front → { periodo, detalle: [...], totales: {...} } */
   getCumplimientoDiaAdmin(filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParams(filtros);
+    const cacheKey = this.cacheKeyFromParams(params);
 
-    return this.http
-      .get<any>(`${this.apiUrl}/dia/cumplimiento/front`, { params })
-      .pipe(catchError(() => of({ detalle: [], totales: null, periodo: null })));
+    return this.getOrCreateCache(
+      `dia-front-${cacheKey}`,
+      () =>
+        this.http
+          .get<any>(`${this.apiUrl}/dia/cumplimiento/front`, { params })
+          .pipe(catchError(() => of({ detalle: [], totales: null, periodo: null }))),
+    );
   }
 
   /** Vendedor: GET /mes/cumplimiento/front/me → { periodo, detalle: [vendedor, TOTALES] } */
   getCumplimientoMesVendedor(filtros?: DashboardFilters): Observable<any> {
     const params = this.buildParamsForMe(filtros);
+    const cacheKey = this.cacheKeyFromParams(params);
 
-    return this.http
-      .get<any>(`${this.apiUrl}/mes/cumplimiento/front/me`, { params })
-      .pipe(catchError(() => of({ detalle: [] })));
+    return this.getOrCreateCache(
+      `me-${cacheKey}`,
+      () =>
+        this.http
+          .get<any>(`${this.apiUrl}/mes/cumplimiento/front/me`, { params })
+          .pipe(catchError(() => of({ detalle: [] }))),
+    );
   }
 
   /**
@@ -246,23 +298,34 @@ export class CumplimientoService {
       .pipe(catchError(() => of(null)));
   }
 
+  /**
+   * GET /mes/cumplimiento/vendedor/:codigo/lineas → detallePorLinea del vendor
+   * Cacheado por (codigoVendedor + filtros) con shareReplay(1) para evitar
+   * llamadas repetidas cuando varios componentes la solicitan con la misma clave.
+   */
   getLineasPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
+    const codigo = String(codigoVendedor ?? '').trim();
+    if (!codigo) return of({ detallePorLinea: [] });
+
     const params = this.buildParams(filtros);
-
-    return this.http
-      .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/lineas`, { params })
-      .pipe(
-        map((res) => {
-          if (res?.detallePorLinea) {
-            res.detallePorLinea = Array.isArray(res.detallePorLinea)
-              ? res.detallePorLinea
-              : [];
-          }
-
-          return res;
-        }),
-        catchError(() => of({ detallePorLinea: [] })),
-      );
+    const cacheKey = this.cacheKeyFromParams(params);
+    return this.getOrCreateCache(
+      `lineas-${codigo}-${cacheKey}`,
+      () =>
+        this.http
+          .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigo}/lineas`, { params })
+          .pipe(
+            map((res) => {
+              if (res?.detallePorLinea) {
+                res.detallePorLinea = Array.isArray(res.detallePorLinea)
+                  ? res.detallePorLinea
+                  : [];
+              }
+              return res;
+            }),
+            catchError(() => of({ detallePorLinea: [] })),
+          ),
+    );
   }
 
   getDetallePorLinea(
@@ -310,25 +373,33 @@ export class CumplimientoService {
       .pipe(catchError(() => of(null)));
   }
 
+  /**
+   * GET /mes/cumplimiento/vendedor/:codigo/ciudades → detallePorCiudad del vendor
+   * Cacheado por (codigoVendedor + filtros) con shareReplay(1).
+   */
   getCiudadesPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
+    const codigo = String(codigoVendedor ?? '').trim();
+    if (!codigo) return of({ detallePorCiudad: [] });
+
     const params = this.buildParams(filtros);
-
-    return this.http
-      .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/ciudades`, {
-        params,
-      })
-      .pipe(
-        map((res) => {
-          if (res?.detallePorCiudad) {
-            res.detallePorCiudad = Array.isArray(res.detallePorCiudad)
-              ? res.detallePorCiudad
-              : [];
-          }
-
-          return res;
-        }),
-        catchError(() => of({ detallePorCiudad: [] })),
-      );
+    const cacheKey = this.cacheKeyFromParams(params);
+    return this.getOrCreateCache(
+      `ciudades-${codigo}-${cacheKey}`,
+      () =>
+        this.http
+          .get<any>(`${this.apiUrl}/mes/cumplimiento/vendedor/${codigo}/ciudades`, { params })
+          .pipe(
+            map((res) => {
+              if (res?.detallePorCiudad) {
+                res.detallePorCiudad = Array.isArray(res.detallePorCiudad)
+                  ? res.detallePorCiudad
+                  : [];
+              }
+              return res;
+            }),
+            catchError(() => of({ detallePorCiudad: [] })),
+          ),
+    );
   }
 
   getCiudadesGlobal(filtros?: DashboardFilters): Observable<any> {
@@ -402,6 +473,10 @@ export class CumplimientoService {
       );
   }
 
+  /**
+   * GET /cuota-categoria/vendedor/:codigo → detalle de categorias del vendor
+   * Cacheado por (codigoVendedor + filtros) con shareReplay(1).
+   */
   getCuotaCategoriaPorVendedor(
     codigoVendedor: string,
     filtros?: DashboardFilters,
@@ -418,24 +493,22 @@ export class CumplimientoService {
       return of({ detalle: [] });
     }
 
-    console.debug('[CumplimientoService] getCuotaCategoriaPorVendedor - código:', codigo);
-    console.debug('[CumplimientoService] getCuotaCategoriaPorVendedor - filtros:', filtros);
-    console.debug('[CumplimientoService] getCuotaCategoriaPorVendedor - params:', params.toString());
-
-    return this.http
-      .get<any>(`${this.apiUrl}/cuota-categoria/vendedor/${encodeURIComponent(codigo)}`, {
-        params,
-      })
-      .pipe(
-        map((res) => {
-          console.debug('[CumplimientoService] getCuotaCategoriaPorVendedor - respuesta:', res);
-          return {
-            ...(res ?? {}),
-            detalle: Array.isArray(res?.detalle) ? res.detalle : [],
-          };
-        }),
-        catchError(() => of({ detalle: [] })),
-      );
+    const cacheKey = this.cacheKeyFromParams(params);
+    return this.getOrCreateCache(
+      `cuota-cat-${codigo}-${cacheKey}`,
+      () =>
+        this.http
+          .get<any>(`${this.apiUrl}/cuota-categoria/vendedor/${encodeURIComponent(codigo)}`, {
+            params,
+          })
+          .pipe(
+            map((res) => ({
+              ...(res ?? {}),
+              detalle: Array.isArray(res?.detalle) ? res.detalle : [],
+            })),
+            catchError(() => of({ detalle: [] })),
+          ),
+    );
   }
 
   getProductosPorCliente(idVendedor: string | number, filtros?: DashboardFilters): Observable<any> {
@@ -690,18 +763,29 @@ export class CumplimientoService {
     );
   }
 
-  /** GET /cuota-categoria/vendedores → categorías de múltiples vendedores con filtros de fecha */
+  /** GET /cuota-categoria/vendedores → categorías de múltiples vendedores con filtros de fecha.
+   *  Cacheado con shareReplay(1): no cambia durante la sesion salvo recarga manual.
+   *  Se invalida con invalidarCacheMapaCategorias() al cambiar de mes.
+   */
   getCuotaCategoriasPorVendedores(filtros?: DashboardFilters): Observable<any> {
-    const params = this.buildParams(filtros);
+    if (!this.cuotaCategoriasCache) {
+      this.cuotaCategoriasCache = this.http
+        .get<any>(`${this.apiUrl}/cuota-categoria/vendedores`)
+        .pipe(
+          map((res) => ({
+            ...(res ?? {}),
+            periodo: res?.periodo ?? {},
+            detalle: Array.isArray(res?.detalle) ? res.detalle : [],
+          })),
+          catchError(() => of({ periodo: {}, detalle: [] })),
+          shareReplay({ bufferSize: 1, refCount: false }),
+        );
+    }
+    return this.cuotaCategoriasCache;
+  }
 
-    return this.http.get<any>(`${this.apiUrl}/cuota-categoria/vendedores`, { params }).pipe(
-      map((res) => ({
-        ...(res ?? {}),
-        periodo: res?.periodo ?? {},
-        detalle: Array.isArray(res?.detalle) ? res.detalle : [],
-      })),
-      catchError(() => of({ periodo: {}, detalle: [] })),
-    );
+  invalidarCacheMapaCategorias(): void {
+    this.cuotaCategoriasCache = undefined;
   }
 
   getCuotaCategoriaGeneral(filtros?: DashboardFilters): Observable<any> {

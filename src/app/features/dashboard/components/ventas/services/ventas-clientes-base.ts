@@ -938,9 +938,33 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
   ): void {
     const detallePorVendedor = this.mapearVendedoresConItemsComprados(res, filtrosConsulta);
 
-    console.debug('✅ [pintarDetalleClientesAdminDesdeEndpointConItems] Mapeo completo:', {
-      vendedoresCount: detallePorVendedor.length,
-      vendedorConClientesYProductos: detallePorVendedor[0],
+    const paginacion =
+      res?.data?.paginacionVendedores ??
+      res?.paginacionVendedores ??
+      null;
+    if (paginacion) {
+      this.paginacionVendedores = {
+        page: Number(paginacion?.page ?? 1) || 1,
+        limit: Number(paginacion?.limit ?? 0) || 0,
+        total: Number(paginacion?.total ?? 0) || 0,
+      };
+    }
+
+    detallePorVendedor.forEach((grupo: any) => {
+      const key = String(grupo?.key ?? grupo?.codVendedor ?? grupo?.vendedor ?? '');
+      if (!key) return;
+      if (grupo?.paginacionClientes) {
+        this.paginacionClientesPorVendedor.set(key, grupo.paginacionClientes);
+      }
+      if (Array.isArray(grupo?.clientes)) {
+        grupo.clientes.forEach((cliente: any) => {
+          const clienteKey = String(cliente?.key ?? cliente?.idClienteSucursal ?? '');
+          if (!clienteKey) return;
+          if (cliente?.paginacionItems) {
+            this.paginacionItemsPorCliente.set(clienteKey, cliente.paginacionItems);
+          }
+        });
+      }
     });
 
     if (!detallePorVendedor.length) {
@@ -948,7 +972,6 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
       return;
     }
 
-    // Calcular totales con TODOS los vendedores, no solo top 15
     const totalAcumuladoTodos = detallePorVendedor.reduce(
       (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
       0,
@@ -963,13 +986,10 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
       0,
     );
 
-    // Guardar el total acumulado de todos los vendedores para mostrar en el dashboard
     this.totalAcumuladoVendedor = totalAcumuladoTodos;
 
     this.clientesAgrupados = detallePorVendedor;
-    // Para administrador: mostrar todos los vendedores sin límite
-    const esAdmin = this.rolId === RoleId.ADMINISTRADOR;
-    this.clientesVisibles = esAdmin ? detallePorVendedor.length : this.clientesPageSize;
+    this.clientesVisibles = detallePorVendedor.length;
     this.actualizarClientesVista();
     this.tableData = detallePorVendedor;
     this.chartData = topVendedores.map((vendedor: any) => ({
@@ -979,6 +999,7 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
 
     this.chartId = 'chart-clientes-admin-' + Date.now();
     this.cargandoClientes = false;
+    this.cargandoMasVendedores = false;
     this.emitirResumenVista();
     this.cdr.markForCheck();
   }
@@ -991,33 +1012,26 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
     this.totalClientesFiltrados = 0;
     this.tableData = [];
     this.chartData = [];
+    this.vendedoresPageActual = 1;
+    this.paginacionVendedores = null;
+    this.paginacionClientesPorVendedor = new Map();
+    this.paginacionItemsPorCliente = new Map();
     this.cdr.markForCheck();
 
     const esSupervisor = this.rolId === RoleId.SUPERVISOR;
-    const esAdmin = this.rolId === RoleId.ADMINISTRADOR;
     const endpointLabel = esSupervisor
       ? '/vendedor/supervisor/con-items-comprados'
       : '/vendedor/con-items-comprados';
 
-    // Para administrador: sin límites de paginación (traer todo)
-    // Para supervisor: límites altos pero controlados
-    const paramsPaginacion = esAdmin
-      ? {
-          vendedoresPage: 1,
-          vendedoresLimit: 100000,
-          clientesPage: 1,
-          clientesLimit: 1000000,
-          itemsPage: 1,
-          itemsLimit: 1000000,
-        }
-      : {
-          vendedoresPage: 1,
-          vendedoresLimit: 1000,
-          clientesPage: 1,
-          clientesLimit: 10000,
-          itemsPage: 1,
-          itemsLimit: 10000,
-        };
+    // Paginación real (server-side) con límites razonables
+    const paramsPaginacion = {
+      vendedoresPage: this.vendedoresPageActual,
+      vendedoresLimit: this.vendedorItemsPageSize,
+      clientesPage: 1,
+      clientesLimit: this.clienteItemsPageSize,
+      itemsPage: 1,
+      itemsLimit: this.productosItemsPageSize,
+    };
 
     const detalleClientes$ = esSupervisor
       ? this.cumplimientoService.getVendedoresConItemsCompradosSupervisor(filtrosConsulta, paramsPaginacion)
@@ -1051,6 +1065,393 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
           this.cdr.markForCheck();
         },
       });
+  }
+
+  cargarMasVendedores(): void {
+    if (this.cargandoMasVendedores || !this.puedeCargarMasVendedores()) return;
+    if (this.rolId === RoleId.VENDEDOR) return;
+
+    this.cargandoMasVendedores = true;
+    this.vendedoresPageActual += 1;
+    this.cdr.markForCheck();
+
+    const filtrosActivos = this.obtenerFiltrosActivos();
+    const esSupervisor = this.rolId === RoleId.SUPERVISOR;
+    const paramsPaginacion = {
+      vendedoresPage: this.vendedoresPageActual,
+      vendedoresLimit: this.vendedorItemsPageSize,
+      clientesPage: 1,
+      clientesLimit: this.clienteItemsPageSize,
+      itemsPage: 1,
+      itemsLimit: this.productosItemsPageSize,
+    };
+
+    const detalleClientes$ = esSupervisor
+      ? this.cumplimientoService.getVendedoresConItemsCompradosSupervisor(filtrosActivos, paramsPaginacion)
+      : this.cumplimientoService.getVendedoresConItemsComprados(filtrosActivos, paramsPaginacion);
+
+    detalleClientes$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe({
+      next: (res: any) => {
+        if (res?.data?._error) {
+          this.cargandoMasVendedores = false;
+          this.vendedoresPageActual = Math.max(1, this.vendedoresPageActual - 1);
+          this.cdr.markForCheck();
+          return;
+        }
+
+        const nuevos = this.mapearVendedoresConItemsComprados(res, filtrosActivos);
+        nuevos.forEach((grupo: any) => {
+          const key = String(grupo?.key ?? grupo?.codVendedor ?? grupo?.vendedor ?? '');
+          if (key && grupo?.paginacionClientes) {
+            this.paginacionClientesPorVendedor.set(key, grupo.paginacionClientes);
+          }
+        });
+
+        const pag =
+          res?.data?.paginacionVendedores ??
+          res?.paginacionVendedores ??
+          null;
+        if (pag) {
+          this.paginacionVendedores = {
+            page: Number(pag?.page ?? 1) || 1,
+            limit: Number(pag?.limit ?? 0) || 0,
+            total: Number(pag?.total ?? 0) || 0,
+          };
+        }
+
+        this.clientesAgrupados = [...this.clientesAgrupados, ...nuevos];
+        this.clientesVisibles = this.clientesAgrupados.length;
+        this.actualizarClientesVista();
+        this.tableData = this.clientesAgrupados;
+        this.cargandoMasVendedores = false;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.cargandoMasVendedores = false;
+        this.vendedoresPageActual = Math.max(1, this.vendedoresPageActual - 1);
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  puedeCargarMasVendedores(): boolean {
+    const pag = this.paginacionVendedores;
+    if (!pag) return false;
+    return pag.page * pag.limit < pag.total;
+  }
+
+  cargarMasClientesDeVendedor(vendedor: any): void {
+    if (!vendedor) return;
+    const key = String(vendedor?.key ?? vendedor?.codVendedor ?? '');
+    if (!key) return;
+    if (this.cargandoMasClientesPorVendedor.has(key)) return;
+
+    const pagActual = this.paginacionClientesPorVendedor.get(key);
+    if (!pagActual) return;
+    if (pagActual.page * pagActual.limit >= pagActual.total) return;
+
+    this.cargandoMasClientesPorVendedor.add(key);
+    vendedor._cargandoMasClientes = true;
+    this.cdr.markForCheck();
+
+    const filtrosActivos = this.obtenerFiltrosActivos();
+    const esSupervisor = this.rolId === RoleId.SUPERVISOR;
+    const paginaSiguiente = pagActual.page + 1;
+
+    const posicionVendedor = this.clientesAgrupados.findIndex(
+      (v: any) => String(v?.key ?? v?.codVendedor ?? '') === key,
+    );
+    const vendedoresPage = posicionVendedor >= 0 ? Math.floor(posicionVendedor / this.vendedorItemsPageSize) + 1 : 1;
+
+    const paramsPaginacion = {
+      vendedoresPage,
+      vendedoresLimit: 1,
+      clientesPage: paginaSiguiente,
+      clientesLimit: this.clienteItemsPageSize,
+      itemsPage: 1,
+      itemsLimit: this.productosItemsPageSize,
+    };
+
+    const detalleClientes$ = esSupervisor
+      ? this.cumplimientoService.getVendedoresConItemsCompradosSupervisor(filtrosActivos, paramsPaginacion)
+      : this.cumplimientoService.getVendedoresConItemsComprados(filtrosActivos, paramsPaginacion);
+
+    detalleClientes$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe({
+      next: (res: any) => {
+        if (res?.data?._error) {
+          this.errorClientesMsg = res.data._errorMessage || 'Error al cargar más clientes';
+          this.cargandoMasClientesPorVendedor.delete(key);
+          if (vendedor) vendedor._cargandoMasClientes = false;
+          this.cdr.markForCheck();
+          return;
+        }
+
+        const vendedores = this.obtenerVendedoresDesdeEndpointConItems(res);
+        const vendedorBackend = vendedores[0];
+        if (!vendedorBackend) {
+          this.cargandoMasClientesPorVendedor.delete(key);
+          if (vendedor) vendedor._cargandoMasClientes = false;
+          this.cdr.markForCheck();
+          return;
+        }
+
+        const nuevosClientes = this.obtenerClientesDesdeVendedor(vendedorBackend).map(
+          (clienteRaw: any) => this.mapearClienteConProductos(clienteRaw, vendedorBackend),
+        );
+
+        const pag = this.normalizarPaginacionCliente(vendedorBackend?.paginacionClientes) ?? pagActual;
+        const pagNormalizada = {
+          page: Number(pag?.page ?? paginaSiguiente) || paginaSiguiente,
+          limit: Number(pag?.limit ?? this.clienteItemsPageSize) || this.clienteItemsPageSize,
+          total: Number(pag?.total ?? pagActual.total) || pagActual.total,
+        };
+        this.paginacionClientesPorVendedor.set(key, pagNormalizada);
+
+        nuevosClientes.forEach((c: any) => {
+          const clienteKey = String(c?.key ?? c?.idClienteSucursal ?? '');
+          if (clienteKey && c?.paginacionItems) {
+            this.paginacionItemsPorCliente.set(clienteKey, c.paginacionItems);
+          }
+        });
+
+        const idx = this.clientesAgrupados.findIndex(
+          (v: any) => String(v?.key ?? v?.codVendedor ?? '') === key,
+        );
+        if (idx >= 0) {
+          const destino = this.clientesAgrupados[idx];
+          destino.clientes = [...(destino.clientes ?? []), ...nuevosClientes];
+          destino.cantidadClientes = destino.clientes.length;
+          destino.paginacionClientes = pagNormalizada;
+          destino._cargandoMasClientes = false;
+        }
+
+        this.actualizarClientesVista();
+        this.tableData = this.clientesAgrupados;
+        this.cargandoMasClientesPorVendedor.delete(key);
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        this.cargandoMasClientesPorVendedor.delete(key);
+        if (vendedor) vendedor._cargandoMasClientes = false;
+        this.errorClientesMsg = 'Error al cargar más clientes. Intenta nuevamente.';
+        console.error('Error cargando más clientes:', err);
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  cargarMasItemsDeCliente(cliente: any, vendedorKey: string): void {
+    if (!cliente) return;
+    const clienteKey = String(cliente?.key ?? cliente?.idClienteSucursal ?? '');
+    if (!clienteKey) return;
+    if (this.cargandoMasItemsPorCliente.has(clienteKey)) return;
+
+    const pagActual = this.paginacionItemsPorCliente.get(clienteKey);
+    if (!pagActual) return;
+    if (pagActual.page * pagActual.limit >= pagActual.total) return;
+
+    this.cargandoMasItemsPorCliente.add(clienteKey);
+    cliente._cargandoMasItems = true;
+    this.cdr.markForCheck();
+
+    const filtrosActivos = this.obtenerFiltrosActivos();
+    const esSupervisor = this.rolId === RoleId.SUPERVISOR;
+    const paginaSiguiente = pagActual.page + 1;
+
+    const posicionVendedor = this.clientesAgrupados.findIndex(
+      (v: any) => String(v?.key ?? v?.codVendedor ?? '') === vendedorKey,
+    );
+    const vendedoresPage = posicionVendedor >= 0 ? Math.floor(posicionVendedor / this.vendedorItemsPageSize) + 1 : 1;
+
+    let clientesPage = 1;
+    if (posicionVendedor >= 0) {
+      const vendedorGrupo = this.clientesAgrupados[posicionVendedor];
+      const posicionCliente = (vendedorGrupo?.clientes ?? []).findIndex(
+        (c: any) => String(c?.key ?? c?.idClienteSucursal ?? '') === clienteKey,
+      );
+      if (posicionCliente >= 0) {
+        clientesPage = Math.floor(posicionCliente / this.clienteItemsPageSize) + 1;
+      }
+    }
+
+    const paramsPaginacion = {
+      vendedoresPage,
+      vendedoresLimit: 1,
+      clientesPage,
+      clientesLimit: 1,
+      itemsPage: paginaSiguiente,
+      itemsLimit: this.productosItemsPageSize,
+    };
+
+    const detalleClientes$ = esSupervisor
+      ? this.cumplimientoService.getVendedoresConItemsCompradosSupervisor(filtrosActivos, paramsPaginacion)
+      : this.cumplimientoService.getVendedoresConItemsComprados(filtrosActivos, paramsPaginacion);
+
+    detalleClientes$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe({
+      next: (res: any) => {
+        if (res?.data?._error) {
+          this.errorClientesMsg = res.data._errorMessage || 'Error al cargar más productos';
+          this.cargandoMasItemsPorCliente.delete(clienteKey);
+          if (cliente) cliente._cargandoMasItems = false;
+          this.cdr.markForCheck();
+          return;
+        }
+
+        const vendedores = this.obtenerVendedoresDesdeEndpointConItems(res);
+        const vendedorBackend = vendedores[0];
+        const clienteBackend = this.obtenerClientesDesdeVendedor(vendedorBackend)[0];
+        if (!clienteBackend) {
+          this.cargandoMasItemsPorCliente.delete(clienteKey);
+          if (cliente) cliente._cargandoMasItems = false;
+          this.cdr.markForCheck();
+          return;
+        }
+
+        const nuevosItems = this.obtenerItemsDesdeCliente(clienteBackend).map((it: any) =>
+          this.mapearItemProducto(it, clienteBackend),
+        );
+
+        const pagItems = this.normalizarPaginacionCliente(clienteBackend?.paginacionItems) ?? pagActual;
+        const pagItemsNormalizada = {
+          page: Number(pagItems?.page ?? paginaSiguiente) || paginaSiguiente,
+          limit: Number(pagItems?.limit ?? this.productosItemsPageSize) || this.productosItemsPageSize,
+          total: Number(pagItems?.total ?? pagActual.total) || pagActual.total,
+        };
+        this.paginacionItemsPorCliente.set(clienteKey, pagItemsNormalizada);
+
+        if (posicionVendedor >= 0) {
+          const vendedorGrupo = this.clientesAgrupados[posicionVendedor];
+          const idxCliente = (vendedorGrupo?.clientes ?? []).findIndex(
+            (c: any) => String(c?.key ?? c?.idClienteSucursal ?? '') === clienteKey,
+          );
+          if (idxCliente >= 0) {
+            const destino = vendedorGrupo.clientes[idxCliente];
+            destino.productos = [...(destino.productos ?? []), ...nuevosItems];
+            destino.cantidadItems = destino.productos.length;
+            destino.paginacionItems = pagItemsNormalizada;
+            destino._cargandoMasItems = false;
+          }
+        }
+
+        this.actualizarClientesVista();
+        this.tableData = this.clientesAgrupados;
+        this.cargandoMasItemsPorCliente.delete(clienteKey);
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        this.cargandoMasItemsPorCliente.delete(clienteKey);
+        if (cliente) cliente._cargandoMasItems = false;
+        this.errorClientesMsg = 'Error al cargar más productos. Intenta nuevamente.';
+        console.error('Error cargando más items:', err);
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  puedeCargarMasClientes(vendedor: any): boolean {
+    const key = String(vendedor?.key ?? vendedor?.codVendedor ?? '');
+    if (!key) return false;
+    const pag = this.paginacionClientesPorVendedor.get(key);
+    if (!pag) return false;
+    return pag.page * pag.limit < pag.total;
+  }
+
+  puedeCargarMasItems(cliente: any): boolean {
+    const key = String(cliente?.key ?? cliente?.idClienteSucursal ?? '');
+    if (!key) return false;
+    const pag = this.paginacionItemsPorCliente.get(key);
+    if (!pag) return false;
+    return pag.page * pag.limit < pag.total;
+  }
+
+  cargandoClientesPara(vendedor: any): boolean {
+    const key = String(vendedor?.key ?? vendedor?.codVendedor ?? '');
+    return this.cargandoMasClientesPorVendedor.has(key);
+  }
+
+  cargandoItemsPara(cliente: any): boolean {
+    const key = String(cliente?.key ?? cliente?.idClienteSucursal ?? '');
+    return this.cargandoMasItemsPorCliente.has(key);
+  }
+
+  obtenerFiltrosActivos(): DashboardFilters {
+    return { ...this.filtros };
+  }
+
+  private mapearClienteConProductos(clienteRaw: any, vendedor: any): any {
+    const key = String(clienteRaw?.id_cliente ?? clienteRaw?.idCliente ?? '');
+    const clienteNombre = this.repararTextoCiudad(
+      String(clienteRaw?.razon_social ?? 'Sin cliente'),
+    );
+    const productos = this.obtenerItemsDesdeCliente(clienteRaw).map((it: any) =>
+      this.mapearItemProducto(it, clienteRaw),
+    );
+    const cantidadTotal = productos.reduce(
+      (s: number, i: any) => s + (Number(i?.cantidad ?? 0) || 0),
+      0,
+    );
+    const subtotalTotal = productos.reduce(
+      (s: number, i: any) => s + (Number(i?.subtotal ?? i?.subtotal_producto ?? 0) || 0),
+      0,
+    );
+    const totalCompras = this.obtenerTotalComprasClienteEndpoint(clienteRaw);
+    const ultimaCompra = String(
+      clienteRaw?.ultimaCompra ??
+        clienteRaw?.ultima_compra ??
+        clienteRaw?.ultima_venta ??
+        clienteRaw?.fecha ??
+        '',
+    ).trim();
+
+    return {
+      key,
+      idClienteSucursal: key,
+      documento: String(
+        clienteRaw?.nro_documento ?? clienteRaw?.numero_documento ?? clienteRaw?.documento ?? '—',
+      ),
+      cliente: clienteNombre,
+      sucursal: this.repararTextoCiudad(
+        String(clienteRaw?.sucursal ?? clienteRaw?.sede ?? 'Sin sucursal'),
+      ),
+      cantidadItems: productos.length,
+      cantidadTotal,
+      ventaAcum: subtotalTotal,
+      totalCompras,
+      subtotalTotal,
+      expandido: false,
+      ultimaCompra,
+      ultimaCompraLabel: ultimaCompra ? this.formatearFechaCorta(ultimaCompra) : 'Sin fecha',
+      iniciales: this.obtenerInicialesCliente(clienteNombre),
+      progressItems: 0,
+      paginacionItems: this.normalizarPaginacionCliente(clienteRaw?.paginacionItems),
+      productos: productos.sort((a: any, b: any) =>
+        String(a?.producto ?? '').localeCompare(String(b?.producto ?? ''), 'es', {
+          sensitivity: 'base',
+          numeric: true,
+        }),
+      ),
+    };
+  }
+
+  private mapearItemProducto(item: any, cliente: any): any {
+    const cantidad = this.normalizarCantidadItemEndpoint(item);
+    const subtotal = this.normalizarSubtotalItemEndpoint(item);
+    return {
+      id_item:
+        String(
+          item?.codigo_item ?? item?.codigoItem ?? item?.id_item ?? item?.idItem ?? '',
+        ).trim() || '—',
+      fecha: String(item?.fecha ?? item?.ultima_venta ?? item?.ultimaVenta ?? '—'),
+      numero_documento: String(cliente?.nro_documento ?? cliente?.numero_documento ?? cliente?.documento ?? '—'),
+      producto: this.repararTextoCiudad(
+        String(item?.descripcion ?? item?.producto ?? item?.Descripcion ?? 'Sin descripción').trim(),
+      ),
+      cantidad,
+      precio: Number(item?.precio_promedio_ponderado ?? item?.precioPromedioPonderado ?? item?.precio_unitario ?? 0) || 0,
+      subtotal,
+      precio_unitario: Number(item?.precio_promedio_ponderado ?? item?.precioPromedioPonderado ?? item?.precio_unitario ?? 0) || 0,
+      subtotal_producto: subtotal,
+    };
   }
 
   protected esAgrupacionPorVendedor(): boolean {
@@ -1142,13 +1543,11 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
   }
 
   get hayMasClientes(): boolean {
-    return this.totalClientesFiltrados > this.clientesVista.length;
+    return this.puedeCargarMasVendedores();
   }
 
   verMasClientes(): void {
-    this.clientesVisibles += this.clientesPageSize;
-    this.actualizarClientesVista();
-    this.cdr.markForCheck();
+    this.cargarMasVendedores();
   }
 
   protected getLimiteProductosCliente(key: string): number {
@@ -1231,11 +1630,16 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
   }
 
   verMasProductos(cliente: any): void {
-    const key = String(cliente?.key ?? '');
-    if (!key) return;
-    this.productosVisiblesPorCliente[key] =
-      this.getLimiteProductosCliente(key) + this.productosPageSize;
-    this.cdr.markForCheck();
+    if (!cliente) return;
+    const clienteKey = String(cliente?.key ?? cliente?.idClienteSucursal ?? '');
+    if (!clienteKey) return;
+    const vendedorGrupo = this.clientesAgrupados.find((v: any) =>
+      Array.isArray(v?.clientes) && v.clientes.some(
+        (c: any) => String(c?.key ?? c?.idClienteSucursal ?? '') === clienteKey,
+      ),
+    );
+    const vendedorKey = String(vendedorGrupo?.key ?? vendedorGrupo?.codVendedor ?? '');
+    this.cargarMasItemsDeCliente(cliente, vendedorKey);
   }
 
   toggleCliente(cliente: any): void {

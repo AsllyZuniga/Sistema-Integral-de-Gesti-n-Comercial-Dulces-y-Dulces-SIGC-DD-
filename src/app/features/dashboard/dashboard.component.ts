@@ -313,11 +313,29 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private resolverRangoInicialConDatos(): void {
+    // OPTIMIZACION: cachear el rango resuelto por sesion (localStorage).
+    // Asi no repetimos hasta 7 llamadas HTTP cada vez que el usuario
+    // navega a /dashboard o recarga la pagina.
+    const CACHE_KEY = 'sigc_dd_rango_inicial';
+    try {
+      const cached = window.localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached) as { inicio: string; fin: string };
+        if (parsed?.inicio && parsed?.fin) {
+          this.inicializarDashboardConRango(parsed.inicio, parsed.fin);
+          return;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     const candidatos = Array.from({ length: 7 }, (_, i) => this.getMonthRangeFromOffset(i));
 
     const intentar = (idx: number): void => {
       if (idx >= candidatos.length) {
         const fallback = candidatos[0] ?? this.getDefaultDateRange();
+        this.guardarRangoInicialCache(fallback.inicio, fallback.fin, CACHE_KEY);
         this.inicializarDashboardConRango(fallback.inicio, fallback.fin);
         return;
       }
@@ -343,6 +361,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           );
 
           if (hayRegistros) {
+            this.guardarRangoInicialCache(rango.inicio, rango.fin, CACHE_KEY);
             this.inicializarDashboardConRango(rango.inicio, rango.fin);
             return;
           }
@@ -356,6 +375,14 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     };
 
     intentar(0);
+  }
+
+  private guardarRangoInicialCache(inicio: string, fin: string, key: string): void {
+    try {
+      window.localStorage.setItem(key, JSON.stringify({ inicio, fin }));
+    } catch {
+      // ignore
+    }
   }
 
   private formatDate(date: Date): string {
@@ -752,6 +779,13 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   private cargarProveedoresFiltros(): void {
     const filtrosCatalogo = this.crearFiltrosCatalogo({ conservarVendedor: true });
 
+    if (this.esSupervisor) {
+      // Para supervisor, los catalogos se cargan en VentasComponent.
+      // Aqui solo dejamos la lista vacia para no disparar N+1 calls.
+      this.aplicarOpcionesProveedores([]);
+      return;
+    }
+
     if (this.esAdmin && !String(this.filtrosActivos.vendedor ?? '').trim()) {
       this.cumplimientoService
         .getLineasAdmin(filtrosCatalogo)
@@ -785,6 +819,19 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
+
+  /**
+   * Carga inicial de catalogos del supervisor (ciudades/lineas) - solo 1 vez.
+   * Si la cache ya esta cargada para las fechas actuales, no hace nada.
+   */
+  private catalogosSupervisorCargadosKey = '';
+  private cargarCatalogosSupervisorLazy(): void {
+    const key = `${this.filtrosActivos?.fechaInicio ?? ''}|${this.filtrosActivos?.fechaFin ?? ''}`;
+    if (this.catalogosSupervisorCargadosKey === key) return;
+    this.catalogosSupervisorCargadosKey = key;
+
+    this.cargarCiudadesYLineasSupervisor();
+  }
 
   private cargarCiudadesYLineasSupervisor(): void {
     const filtrosCatalogo = this.crearFiltrosCatalogo({ conservarProveedor: true, conservarVendedor: true });
@@ -1004,17 +1051,25 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.esAdmin) {
       this.cargarVendedoresFiltrosGlobal();
       this.cargarCiudadesYLineasAdmin();
+      this.cargarProveedoresFiltros();
+      this.cargarCategoriasFiltros();
     } else if (this.esSupervisor) {
+      // OPTIMIZACION supervisor: solo cargamos la lista de vendedores al inicio.
+      // Los catalogos (proveedores/ciudades/categorias) NO se cargan aqui porque
+      // el supervisor los obtiene via endpoints per-vendedor del Postman
+      // (getLineasPorVendedor, getCiudadesPorVendedor, getCuotaCategoriaPorVendedor)
+      // y eso ocurre en VentasComponent cuando el usuario abre cada seccion.
+      // Antes se disparaban N+1 calls por vendor al entrar al dashboard.
       this.cargarVendedoresSupervisor();
-      this.cargarCiudadesYLineasSupervisor();
     } else if (this.codigoVendedor) {
       this.cargarOpcionesVendedor(this.filtrosActivos);
+      this.cargarProveedoresFiltros();
+      this.cargarCategoriasFiltros();
     } else {
       this.resolverCodigoVendedorDesdeApi();
+      this.cargarProveedoresFiltros();
+      this.cargarCategoriasFiltros();
     }
-
-    this.cargarProveedoresFiltros();
-    this.cargarCategoriasFiltros();
   }
 
   private cargarVendedoresSupervisor(): void {
@@ -1110,6 +1165,22 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         return;
       }
 
+      // OPTIMIZACION supervisor: el catalogo de categorias debe usar
+      // SIEMPRE el endpoint per-vendor del Postman:
+      //   GET /api/cuota-categoria/vendedor/:codigo
+      // Pero SOLO se carga:
+      //   - la primera vez que se abre la seccion
+      //   - cuando cambian las fechas
+      //   - cuando se selecciona un proveedor / categoria / vendedor
+      // Antes se ejecutaba en cada ngOnInit y en cada cambio de filtro.
+      if (this.esSupervisor) {
+        // Para supervisor, los catalogos se cargan en VentasComponent.
+        // Aqui solo dejamos la lista vacia para no disparar N+1 calls.
+        this.categoriasList = [];
+        this.cdr.markForCheck();
+        return;
+      }
+
       const peticiones = codigos.map((codigo) =>
         this.cumplimientoService
           .getCumplimientoMesVendedor(filtrosConsulta)
@@ -1133,6 +1204,16 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           },
         });
     });
+  }
+
+  private cargarCategoriasSupervisorLazy(
+    codigos: string[],
+    filtrosConsulta: DashboardFilters,
+    proveedores: string[],
+  ): void {
+    // No se usa actualmente: para supervisor, los catalogos se cargan en
+    // VentasComponent. Este metodo se mantiene por si en el futuro se
+    // quiere cargar catalogos per-vendor desde el DashboardComponent.
   }
 
   private aplicarCategoriasDesdeRespuesta(res: any, proveedores: string[]): void {
@@ -1212,6 +1293,13 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       proveedorNombre: '',
       proveedorNombres: [],
     };
+
+    if (this.esSupervisor) {
+      // Para supervisor, los catalogos se cargan en VentasComponent.
+      this.categoriasList = [];
+      this.cdr.markForCheck();
+      return;
+    }
 
     const peticiones = codigos.map((codigo) =>
       this.cumplimientoService
@@ -1483,17 +1571,33 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
     this.filtrosActivos = { ...filtrosConCodigos };
 
-    // Refresca catálogos según el rol actual. Proveedores/ciudades no se limitan por la ciudad seleccionada;
-    // categorías sí respetan proveedor y vendedor para mostrar solo lo que corresponde.
-    this.cargarProveedoresFiltros();
-    this.cargarCategoriasFiltros();
+    // OPTIMIZACION: solo recargar catalogos si el usuario cambio PROVEEDOR o CATEGORIA.
+    // Si solo cambio la fecha, los catalogos no se invalidan (cacheados).
+    const filtrosAnterior = filtros as DashboardFilters;
+    const cambioProveedor =
+      filtrosAnterior?.proveedor !== filtrosConCodigos.proveedor ||
+      JSON.stringify(filtrosAnterior?.proveedores ?? []) !==
+        JSON.stringify(filtrosConCodigos.proveedores ?? []);
+    const cambioCategoria =
+      filtrosAnterior?.categoria !== filtrosConCodigos.categoria ||
+      JSON.stringify(filtrosAnterior?.categorias ?? []) !==
+        JSON.stringify(filtrosConCodigos.categorias ?? []);
+    const cambioVendedor =
+      filtrosAnterior?.vendedor !== filtrosConCodigos.vendedor;
 
     if (this.esAdmin) {
+      this.cargarProveedoresFiltros();
+      this.cargarCategoriasFiltros();
       this.cargarCiudadesYLineasAdmin();
     } else if (this.esSupervisor) {
-      this.cargarCiudadesYLineasSupervisor();
+      // OPTIMIZACION supervisor: los catalogos per-vendor NO se recargan aqui.
+      // VentasComponent ya recarga los datos de la seccion activa cuando
+      // cambian los filtros (a traves del setter filtros de VentasEstadoBase).
+      // Antes se disparaban N+1 calls por vendor en cada cambio de filtro.
     } else {
       this.cargarOpcionesVendedor({ ...this.filtrosActivos, ciudad: '', ciudadNombre: '' });
+      this.cargarProveedoresFiltros();
+      this.cargarCategoriasFiltros();
     }
 
     // Auto-ajusta fechas si estamos en modo semanal o diaria

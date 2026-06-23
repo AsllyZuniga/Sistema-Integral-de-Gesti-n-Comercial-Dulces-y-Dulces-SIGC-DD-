@@ -54,6 +54,9 @@ import { TableComponent } from '../../../../../shared/components/table/table.com
                       <span class="cliente-meta">Código: {{ vendedor.codVendedor || '—' }}</span>
                       <span class="cliente-total">Total compras {{ getTotalClienteLabel(vendedor) }}</span>
                     </div>
+                    <div class="cliente-meta-row">
+                      <span class="cliente-meta">Clientes: {{ getTotalClientesVendedorLabel(vendedor) }}</span>
+                    </div>
                   </div>
 
                   <span class="cliente-toggle" [class.open]="vendedor.expandido">›</span>
@@ -65,7 +68,7 @@ import { TableComponent } from '../../../../../shared/components/table/table.com
                       @for (cliente of vendedor.clientes; track cliente.key) {
                         <ng-container
                           [ngTemplateOutlet]="clienteCard"
-                          [ngTemplateOutletContext]="{ cliente: cliente }"
+                          [ngTemplateOutletContext]="{ cliente: cliente, vendedor: vendedor }"
                         ></ng-container>
                       }
                     </div>
@@ -117,7 +120,7 @@ import { TableComponent } from '../../../../../shared/components/table/table.com
       }
     </div>
 
-    <ng-template #clienteCard let-cliente="cliente">
+    <ng-template #clienteCard let-cliente="cliente" let-vendedor="vendedor">
       <article class="cliente-card" [class.cliente-card-nested]="agrupaClientesPorVendedor">
         <button class="cliente-head" type="button" (click)="toggleCliente.emit(cliente)">
           <div class="cliente-avatar" aria-hidden="true">{{ cliente.iniciales }}</div>
@@ -144,8 +147,17 @@ import { TableComponent } from '../../../../../shared/components/table/table.com
 
             @if (tieneMasProductos(cliente)) {
               <div class="cliente-actions">
-                <button type="button" class="btn-ver-mas" (click)="verMasProductos.emit(cliente)">
-                  Ver más productos
+                <button
+                  type="button"
+                  class="btn-ver-mas"
+                  (click)="verMasProductos.emit(cliente)"
+                  [disabled]="cargandoProductosPara(cliente)"
+                >
+                  @if (cargandoProductosPara(cliente)) {
+                    <span>Cargando...</span>
+                  } @else {
+                    <span>Ver más productos</span>
+                  }
                 </button>
               </div>
             }
@@ -178,10 +190,14 @@ export class VentasClientesDetalleComponent {
   @Output() buscarCliente = new EventEmitter<string>();
   @Output() toggleCliente = new EventEmitter<any>();
   @Output() verMasClientes = new EventEmitter<void>();
+  @Output() verMasClientesDeVendedor = new EventEmitter<any>();
   @Output() verMasProductos = new EventEmitter<any>();
 
   getProductosClienteVisibles(cliente: any): any[] {
     const productos = Array.isArray(cliente?.productos) ? cliente.productos : [];
+    if (cliente?.paginacionItems && Number(cliente.paginacionItems.total) > 0) {
+      return productos;
+    }
     return productos.slice(0, this.getLimiteProductosCliente(cliente?.key));
   }
 
@@ -209,9 +225,42 @@ export class VentasClientesDetalleComponent {
     return Number.isFinite(total) ? total.toLocaleString('es-CO') : '0';
   }
 
+  getTotalClientesVendedorLabel(vendedor: any): string {
+    const total = Number(
+      vendedor?.paginacionClientes?.total ?? vendedor?.cantidadClientes ?? 0,
+    );
+    const totalLabel = Number.isFinite(total) && total > 0
+      ? total.toLocaleString('es-CO')
+      : '0';
+    return `${totalLabel} ${total === 1 ? 'cliente' : 'clientes'}`;
+  }
+
+  puedeCargarMasClientesParaVendedor(vendedor: any): boolean {
+    if (vendedor?._cargandoMasClientes) return false;
+    const pag = vendedor?.paginacionClientes;
+    if (!pag || Number(pag?.total ?? 0) === 0) return false;
+    const cargados = Array.isArray(vendedor?.clientes) ? vendedor.clientes.length : 0;
+    const total = Number(pag.total);
+    if (!Number.isFinite(total) || total <= 0) return false;
+    return cargados < total;
+  }
+
   tieneMasProductos(cliente: any): boolean {
+    const pag = cliente?.paginacionItems;
+    if (pag && Number(pag?.total) > 0) {
+      const cargados = Array.isArray(cliente?.productos) ? cliente.productos.length : 0;
+      return cargados < Number(pag.total);
+    }
     const total = cliente?.productos?.length ?? 0;
     return total > this.getLimiteProductosCliente(cliente?.key);
+  }
+
+  cargandoClientesParaVendedor(vendedor: any): boolean {
+    return !!vendedor?._cargandoMasClientes;
+  }
+
+  cargandoProductosPara(cliente: any): boolean {
+    return !!cliente?._cargandoMasItems;
   }
 
   private getLimiteProductosCliente(key: string): number {

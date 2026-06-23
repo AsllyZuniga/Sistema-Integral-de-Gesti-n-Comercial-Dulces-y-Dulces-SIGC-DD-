@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, Subject, catchError, map, of, throwError } from 'rxjs';
+import { Observable, Subject, catchError, map, of, shareReplay, throwError } from 'rxjs';
 
 @Injectable({
   providedIn: 'root',
@@ -11,6 +11,7 @@ export class UsuariosService {
     idVendedor: string;
     idSupervisor: string;
   }>();
+  private vendedoresPorSupervisorCache = new Map<string, Observable<any[]>>();
 
   constructor(private http: HttpClient) {}
 
@@ -74,23 +75,50 @@ export class UsuariosService {
 
   /**
    * GET /vendedor/supervisor/{id}
-   * Obtiene vendedores asignados a un supervisor
+   * Obtiene vendedores asignados a un supervisor.
+   * Usa cache por idSupervisor con shareReplay(1) para evitar
+   * multiples llamadas HTTP cuando varios componentes la solicitan
+   * con los mismos parametros en el mismo ciclo.
    */
   obtenerVendedoresDelSupervisor(idSupervisor: string): Observable<any[]> {
-    const url = `${this.apiUrl}/vendedor/supervisor/${idSupervisor}`;
-    console.log(`📡 Llamando endpoint: ${url}`);
-    
-    return this.http.get<any>(url).pipe(
+    const idNormalizado = String(idSupervisor ?? '').trim();
+    if (!idNormalizado) return of([]);
+
+    const cacheado = this.vendedoresPorSupervisorCache.get(idNormalizado);
+    if (cacheado) return cacheado;
+
+    const url = `${this.apiUrl}/vendedor/supervisor/${idNormalizado}`;
+
+    const obs$ = this.http.get<any>(url).pipe(
       map((res) => {
         const vendedores = Array.isArray(res) ? res : (res?.data ?? []);
-        console.log(`✅ Respuesta del endpoint ${url}:`, vendedores);
         return vendedores;
       }),
       catchError((err) => {
-        console.error(`❌ [UsuariosService] Error cargando vendedores del supervisor ${idSupervisor}:`, err);
+        console.error(
+          `❌ [UsuariosService] Error cargando vendedores del supervisor ${idNormalizado}:`,
+          err,
+        );
+        this.vendedoresPorSupervisorCache.delete(idNormalizado);
         return of([]);
       }),
+      shareReplay({ bufferSize: 1, refCount: false }),
     );
+
+    this.vendedoresPorSupervisorCache.set(idNormalizado, obs$);
+    return obs$;
+  }
+
+  /**
+   * Invalida el cache de vendedores del supervisor.
+   * Llamar despues de asignar / desasignar supervisores.
+   */
+  invalidarCacheVendedoresPorSupervisor(idSupervisor?: string): void {
+    if (idSupervisor) {
+      this.vendedoresPorSupervisorCache.delete(String(idSupervisor));
+    } else {
+      this.vendedoresPorSupervisorCache.clear();
+    }
   }
 
   /**
