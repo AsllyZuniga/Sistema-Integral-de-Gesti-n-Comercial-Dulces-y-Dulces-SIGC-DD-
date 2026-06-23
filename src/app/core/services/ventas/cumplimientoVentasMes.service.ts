@@ -27,19 +27,49 @@ export class CumplimientoService {
       ? filtros?.categorias.map((item) => String(item ?? '').trim()).filter(Boolean)
       : [];
 
+    console.debug('[CumplimientoService] aplicarCategoriaParams - categorías:', categorias);
+
     if (categorias.length > 1) {
       const categoriasCsv = categorias.join(',');
+      console.debug('[CumplimientoService] aplicarCategoriaParams - enviando CSV:', categoriasCsv);
       params = params.set('categorias', categoriasCsv);
       return params;
     }
 
     if (categorias.length === 1) {
+      console.debug('[CumplimientoService] aplicarCategoriaParams - enviando categoría única:', categorias[0]);
       params = params.set('categoria', categorias[0]);
       return params;
     }
 
     if (filtros?.categoria) {
+      console.debug('[CumplimientoService] aplicarCategoriaParams - usando filtros.categoria:', filtros.categoria);
       params = params.set('categoria', filtros.categoria);
+    }
+
+    return params;
+  }
+
+  private aplicarProveedorParams(params: HttpParams, filtros?: DashboardFilters): HttpParams {
+    const proveedores = Array.isArray(filtros?.proveedores)
+      ? filtros.proveedores.map((item) => String(item ?? '').trim()).filter(Boolean)
+      : [];
+
+    console.debug('[CumplimientoService] aplicarProveedorParams - proveedores:', proveedores);
+
+    if (proveedores.length > 1) {
+      const proveedoresCsv = proveedores.join(',');
+      console.debug('[CumplimientoService] aplicarProveedorParams - enviando CSV:', proveedoresCsv);
+      params = params.delete('proveedor');
+      params = params.set('proveedores', proveedoresCsv);
+      return params;
+    }
+
+    if (proveedores.length === 1) {
+      console.debug('[CumplimientoService] aplicarProveedorParams - enviando proveedor único:', proveedores[0]);
+      params = params.delete('proveedores');
+      params = params.set('proveedor', proveedores[0]);
+      return params;
     }
 
     return params;
@@ -54,6 +84,7 @@ export class CumplimientoService {
     if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
     if (filtros?.vendedor) params = params.set('vendedor', filtros.vendedor);
     if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
+    params = this.aplicarProveedorParams(params, filtros);
     params = this.aplicarCategoriaParams(params, filtros);
     if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
     if (filtros?.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
@@ -74,6 +105,7 @@ export class CumplimientoService {
     if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
     if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
     if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
+    params = this.aplicarProveedorParams(params, filtros);
     params = this.aplicarCategoriaParams(params, filtros);
     if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
     if (filtros?.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
@@ -94,6 +126,7 @@ export class CumplimientoService {
     if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
     if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
     if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
+    params = this.aplicarProveedorParams(params, filtros);
     params = this.aplicarCategoriaParams(params, filtros);
     if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
     if (filtros?.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
@@ -385,15 +418,22 @@ export class CumplimientoService {
       return of({ detalle: [] });
     }
 
+    console.debug('[CumplimientoService] getCuotaCategoriaPorVendedor - código:', codigo);
+    console.debug('[CumplimientoService] getCuotaCategoriaPorVendedor - filtros:', filtros);
+    console.debug('[CumplimientoService] getCuotaCategoriaPorVendedor - params:', params.toString());
+
     return this.http
       .get<any>(`${this.apiUrl}/cuota-categoria/vendedor/${encodeURIComponent(codigo)}`, {
         params,
       })
       .pipe(
-        map((res) => ({
-          ...(res ?? {}),
-          detalle: Array.isArray(res?.detalle) ? res.detalle : [],
-        })),
+        map((res) => {
+          console.debug('[CumplimientoService] getCuotaCategoriaPorVendedor - respuesta:', res);
+          return {
+            ...(res ?? {}),
+            detalle: Array.isArray(res?.detalle) ? res.detalle : [],
+          };
+        }),
         catchError(() => of({ detalle: [] })),
       );
   }
