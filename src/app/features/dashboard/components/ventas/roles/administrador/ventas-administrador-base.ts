@@ -26,25 +26,14 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
             return;
           }
 
-          const filtrosParaConsulta =
-            Array.isArray(filtrosConsulta.categorias) && filtrosConsulta.categorias.length > 1
-              ? {
-                  ...filtrosConsulta,
-                  categoria: '',
-                  categoriaNombre: '',
-                  categorias: [],
-                  categoriaNombres: [],
-                }
-              : filtrosConsulta;
-
           this.combinarResultadosPorVendedor(
             codigos,
             (codigo) =>
               this.esSemanal
-                ? this.semanaService.getCuotaCategoriaPorVendedor(codigo, filtrosParaConsulta)
+                ? this.semanaService.getCuotaCategoriaPorVendedor(codigo, filtrosConsulta)
                 : this.cumplimientoService.getCuotaCategoriaPorVendedor(
                     codigo,
-                    filtrosParaConsulta,
+                    filtrosConsulta,
                   ),
             (res) => (Array.isArray(res?.detalle) ? res.detalle : []),
           )
@@ -100,17 +89,7 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
           return;
         }
         this.cumplimientoService
-          .getCuotaCategoriaGeneral(
-            Array.isArray(filtrosConsulta.categorias) && filtrosConsulta.categorias.length > 1
-              ? {
-                  ...filtrosConsulta,
-                  categoria: '',
-                  categoriaNombre: '',
-                  categorias: [],
-                  categoriaNombres: [],
-                }
-              : filtrosConsulta,
-          )
+          .getCuotaCategoriaGeneral(filtrosConsulta)
           .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
           .subscribe((res: any) => {
             const pintarCategoria = (detalleRaw: any[]) => {

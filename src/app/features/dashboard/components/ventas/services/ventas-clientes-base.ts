@@ -948,6 +948,12 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
       return;
     }
 
+    // Calcular totales con TODOS los vendedores, no solo top 15
+    const totalAcumuladoTodos = detallePorVendedor.reduce(
+      (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+      0,
+    );
+
     const topVendedores = [...detallePorVendedor]
       .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
       .slice(0, 15);
@@ -957,8 +963,13 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
       0,
     );
 
+    // Guardar el total acumulado de todos los vendedores para mostrar en el dashboard
+    this.totalAcumuladoVendedor = totalAcumuladoTodos;
+
     this.clientesAgrupados = detallePorVendedor;
-    this.clientesVisibles = this.clientesPageSize;
+    // Para administrador: mostrar todos los vendedores sin límite
+    const esAdmin = this.rolId === RoleId.ADMINISTRADOR;
+    this.clientesVisibles = esAdmin ? detallePorVendedor.length : this.clientesPageSize;
     this.actualizarClientesVista();
     this.tableData = detallePorVendedor;
     this.chartData = topVendedores.map((vendedor: any) => ({
@@ -968,6 +979,7 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
 
     this.chartId = 'chart-clientes-admin-' + Date.now();
     this.cargandoClientes = false;
+    this.emitirResumenVista();
     this.cdr.markForCheck();
   }
 
@@ -982,27 +994,34 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
     this.cdr.markForCheck();
 
     const esSupervisor = this.rolId === RoleId.SUPERVISOR;
+    const esAdmin = this.rolId === RoleId.ADMINISTRADOR;
     const endpointLabel = esSupervisor
       ? '/vendedor/supervisor/con-items-comprados'
       : '/vendedor/con-items-comprados';
 
+    // Para administrador: sin límites de paginación (traer todo)
+    // Para supervisor: límites altos pero controlados
+    const paramsPaginacion = esAdmin
+      ? {
+          vendedoresPage: 1,
+          vendedoresLimit: 100000,
+          clientesPage: 1,
+          clientesLimit: 1000000,
+          itemsPage: 1,
+          itemsLimit: 1000000,
+        }
+      : {
+          vendedoresPage: 1,
+          vendedoresLimit: 1000,
+          clientesPage: 1,
+          clientesLimit: 10000,
+          itemsPage: 1,
+          itemsLimit: 10000,
+        };
+
     const detalleClientes$ = esSupervisor
-      ? this.cumplimientoService.getVendedoresConItemsCompradosSupervisor(filtrosConsulta, {
-          vendedoresPage: 1,
-          vendedoresLimit: 1000,
-          clientesPage: 1,
-          clientesLimit: 10000,
-          itemsPage: 1,
-          itemsLimit: 10000,
-        })
-      : this.cumplimientoService.getVendedoresConItemsComprados(filtrosConsulta, {
-          vendedoresPage: 1,
-          vendedoresLimit: 1000,
-          clientesPage: 1,
-          clientesLimit: 10000,
-          itemsPage: 1,
-          itemsLimit: 10000,
-        });
+      ? this.cumplimientoService.getVendedoresConItemsCompradosSupervisor(filtrosConsulta, paramsPaginacion)
+      : this.cumplimientoService.getVendedoresConItemsComprados(filtrosConsulta, paramsPaginacion);
 
     detalleClientes$
       .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
@@ -1082,7 +1101,11 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
         : this.clientesAgrupados;
 
     this.totalClientesFiltrados = filtrados.length;
-    this.clientesVisibles = this.esAgrupacionPorVendedor()
+    
+    // Para administrador: mostrar todos los clientes sin límite de paginación
+    // Para otros roles: aplicar paginación normal
+    const esAdmin = this.rolId === RoleId.ADMINISTRADOR;
+    this.clientesVisibles = this.esAgrupacionPorVendedor() || esAdmin
       ? filtrados.length
       : this.clientesVisibles;
     this.clientesVista = filtrados.slice(0, this.clientesVisibles);
@@ -1108,7 +1131,10 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
 
   onBuscarClienteChange(valor: string): void {
     this.clienteBusqueda = valor;
-    this.clientesVisibles = this.esAgrupacionPorVendedor()
+    
+    // Para administrador: mostrar todos los clientes sin límite de paginación
+    const esAdmin = this.rolId === RoleId.ADMINISTRADOR;
+    this.clientesVisibles = this.esAgrupacionPorVendedor() || esAdmin
       ? this.clientesAgrupados.length
       : this.clientesPageSize;
     this.actualizarClientesVista();
@@ -1126,7 +1152,10 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
   }
 
   protected getLimiteProductosCliente(key: string): number {
-    if (this.esAgrupacionPorVendedor()) {
+    const esAdmin = this.rolId === RoleId.ADMINISTRADOR;
+    
+    // Para administrador o agrupación por vendedor: mostrar todos los productos sin límite
+    if (this.esAgrupacionPorVendedor() || esAdmin) {
       return Number.MAX_SAFE_INTEGER;
     }
 
@@ -1220,8 +1249,12 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
 
     cliente.expandido = !cliente.expandido;
 
+    const esAdmin = this.rolId === RoleId.ADMINISTRADOR;
     if (cliente.expandido && cliente?.key && !this.productosVisiblesPorCliente[cliente.key]) {
-      this.productosVisiblesPorCliente[cliente.key] = this.productosPageSize;
+      // Para administrador: mostrar todos los productos sin límite
+      this.productosVisiblesPorCliente[cliente.key] = esAdmin
+        ? Number.MAX_SAFE_INTEGER
+        : this.productosPageSize;
     }
 
     this.cdr.markForCheck();

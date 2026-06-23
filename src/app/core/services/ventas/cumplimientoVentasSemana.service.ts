@@ -32,6 +32,26 @@ export class CumplimientoSemanaService {
     return params;
   }
 
+  private aplicarProveedorParams(params: HttpParams, filtros?: DashboardFilters): HttpParams {
+    const proveedores = Array.isArray(filtros?.proveedores)
+      ? filtros.proveedores.map((item) => String(item ?? '').trim()).filter(Boolean)
+      : [];
+
+    if (proveedores.length > 1) {
+      params = params.delete('proveedor');
+      params = params.set('proveedores', proveedores.join(','));
+      return params;
+    }
+
+    if (proveedores.length === 1) {
+      params = params.delete('proveedores');
+      params = params.set('proveedor', proveedores[0]);
+      return params;
+    }
+
+    return params;
+  }
+
   private buildParams(filtros?: DashboardFilters): HttpParams {
     let params = new HttpParams();
     if (!filtros) return params;
@@ -39,6 +59,7 @@ export class CumplimientoSemanaService {
     if (filtros.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
     if (filtros.vendedor) params = params.set('vendedor', filtros.vendedor);
     if (filtros.proveedor) params = params.set('proveedor', filtros.proveedor);
+    params = this.aplicarProveedorParams(params, filtros);
     params = this.aplicarCategoriaParams(params, filtros);
     if (filtros.ciudad) params = params.set('ciudad', filtros.ciudad);
     if (filtros.linea) params = params.set('linea', filtros.linea);
@@ -53,6 +74,7 @@ export class CumplimientoSemanaService {
     if (filtros.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
     // DO NOT include vendedor - /me endpoint already knows who the authenticated user is
     if (filtros.proveedor) params = params.set('proveedor', filtros.proveedor);
+    params = this.aplicarProveedorParams(params, filtros);
     params = this.aplicarCategoriaParams(params, filtros);
     if (filtros.ciudad) params = params.set('ciudad', filtros.ciudad);
     if (filtros.linea) params = params.set('linea', filtros.linea);
