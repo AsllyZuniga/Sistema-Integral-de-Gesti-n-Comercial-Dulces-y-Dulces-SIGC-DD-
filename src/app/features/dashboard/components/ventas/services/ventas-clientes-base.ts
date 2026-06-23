@@ -1018,36 +1018,29 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
     this.paginacionItemsPorCliente = new Map();
     this.cdr.markForCheck();
 
-    const esSupervisor = this.rolId === RoleId.SUPERVISOR;
-    const endpointLabel = esSupervisor
-      ? '/vendedor/supervisor/con-items-comprados'
-      : '/vendedor/con-items-comprados';
+    const endpointLabel = '/vendedor/con-items-comprados';
 
-    // Paginación real (server-side) con límites razonables
+    // v1.4.1: el endpoint unificado solo pagina vendedores; clientes e items
+    // se devuelven completos. No se envian clientesPage/clientesLimit/itemsPage/itemsLimit.
     const paramsPaginacion = {
       vendedoresPage: this.vendedoresPageActual,
       vendedoresLimit: this.vendedorItemsPageSize,
-      clientesPage: 1,
-      clientesLimit: this.clienteItemsPageSize,
-      itemsPage: 1,
-      itemsLimit: this.productosItemsPageSize,
     };
 
-    const detalleClientes$ = esSupervisor
-      ? this.cumplimientoService.getVendedoresConItemsCompradosSupervisor(filtrosConsulta, paramsPaginacion)
-      : this.cumplimientoService.getVendedoresConItemsComprados(filtrosConsulta, paramsPaginacion);
+    const detalleClientes$ = this.cumplimientoService.getVendedoresConItemsComprados(
+      filtrosConsulta,
+      paramsPaginacion,
+    );
 
     detalleClientes$
       .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
       .subscribe({
         next: (res: any) => {
-          // Verificar si hay error en la respuesta
           if (res?.data?._error) {
             const errorMsg = res.data._errorMessage || 'Error al cargar los datos';
             console.error('❌ Error cargando detalle de clientes:', errorMsg);
             this.errorClientesMsg = errorMsg;
             this.limpiarDetalleClientesAdmin();
-            // Mostrar error en la UI
             this.tableData = [];
             this.chartData = [];
             this.cargandoClientes = false;
@@ -1076,19 +1069,15 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
     this.cdr.markForCheck();
 
     const filtrosActivos = this.obtenerFiltrosActivos();
-    const esSupervisor = this.rolId === RoleId.SUPERVISOR;
     const paramsPaginacion = {
       vendedoresPage: this.vendedoresPageActual,
       vendedoresLimit: this.vendedorItemsPageSize,
-      clientesPage: 1,
-      clientesLimit: this.clienteItemsPageSize,
-      itemsPage: 1,
-      itemsLimit: this.productosItemsPageSize,
     };
 
-    const detalleClientes$ = esSupervisor
-      ? this.cumplimientoService.getVendedoresConItemsCompradosSupervisor(filtrosActivos, paramsPaginacion)
-      : this.cumplimientoService.getVendedoresConItemsComprados(filtrosActivos, paramsPaginacion);
+    const detalleClientes$ = this.cumplimientoService.getVendedoresConItemsComprados(
+      filtrosActivos,
+      paramsPaginacion,
+    );
 
     detalleClientes$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe({
       next: (res: any) => {
@@ -1146,205 +1135,30 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
     if (!key) return;
     if (this.cargandoMasClientesPorVendedor.has(key)) return;
 
-    const pagActual = this.paginacionClientesPorVendedor.get(key);
-    if (!pagActual) return;
-    if (pagActual.page * pagActual.limit >= pagActual.total) return;
-
+    // v1.4.1: el endpoint unificado devuelve los clientes completos en la
+    // primera peticion, no se soporta paginacion anidada de clientes.
+    if (this.cargandoMasClientesPorVendedor.has(key)) return;
     this.cargandoMasClientesPorVendedor.add(key);
-    vendedor._cargandoMasClientes = true;
     this.cdr.markForCheck();
-
-    const filtrosActivos = this.obtenerFiltrosActivos();
-    const esSupervisor = this.rolId === RoleId.SUPERVISOR;
-    const paginaSiguiente = pagActual.page + 1;
-
-    const posicionVendedor = this.clientesAgrupados.findIndex(
-      (v: any) => String(v?.key ?? v?.codVendedor ?? '') === key,
-    );
-    const vendedoresPage = posicionVendedor >= 0 ? Math.floor(posicionVendedor / this.vendedorItemsPageSize) + 1 : 1;
-
-    const paramsPaginacion = {
-      vendedoresPage,
-      vendedoresLimit: 1,
-      clientesPage: paginaSiguiente,
-      clientesLimit: this.clienteItemsPageSize,
-      itemsPage: 1,
-      itemsLimit: this.productosItemsPageSize,
-    };
-
-    const detalleClientes$ = esSupervisor
-      ? this.cumplimientoService.getVendedoresConItemsCompradosSupervisor(filtrosActivos, paramsPaginacion)
-      : this.cumplimientoService.getVendedoresConItemsComprados(filtrosActivos, paramsPaginacion);
-
-    detalleClientes$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe({
-      next: (res: any) => {
-        if (res?.data?._error) {
-          this.errorClientesMsg = res.data._errorMessage || 'Error al cargar más clientes';
-          this.cargandoMasClientesPorVendedor.delete(key);
-          if (vendedor) vendedor._cargandoMasClientes = false;
-          this.cdr.markForCheck();
-          return;
-        }
-
-        const vendedores = this.obtenerVendedoresDesdeEndpointConItems(res);
-        const vendedorBackend = vendedores[0];
-        if (!vendedorBackend) {
-          this.cargandoMasClientesPorVendedor.delete(key);
-          if (vendedor) vendedor._cargandoMasClientes = false;
-          this.cdr.markForCheck();
-          return;
-        }
-
-        const nuevosClientes = this.obtenerClientesDesdeVendedor(vendedorBackend).map(
-          (clienteRaw: any) => this.mapearClienteConProductos(clienteRaw, vendedorBackend),
-        );
-
-        const pag = this.normalizarPaginacionCliente(vendedorBackend?.paginacionClientes) ?? pagActual;
-        const pagNormalizada = {
-          page: Number(pag?.page ?? paginaSiguiente) || paginaSiguiente,
-          limit: Number(pag?.limit ?? this.clienteItemsPageSize) || this.clienteItemsPageSize,
-          total: Number(pag?.total ?? pagActual.total) || pagActual.total,
-        };
-        this.paginacionClientesPorVendedor.set(key, pagNormalizada);
-
-        nuevosClientes.forEach((c: any) => {
-          const clienteKey = String(c?.key ?? c?.idClienteSucursal ?? '');
-          if (clienteKey && c?.paginacionItems) {
-            this.paginacionItemsPorCliente.set(clienteKey, c.paginacionItems);
-          }
-        });
-
-        const idx = this.clientesAgrupados.findIndex(
-          (v: any) => String(v?.key ?? v?.codVendedor ?? '') === key,
-        );
-        if (idx >= 0) {
-          const destino = this.clientesAgrupados[idx];
-          destino.clientes = [...(destino.clientes ?? []), ...nuevosClientes];
-          destino.cantidadClientes = destino.clientes.length;
-          destino.paginacionClientes = pagNormalizada;
-          destino._cargandoMasClientes = false;
-        }
-
-        this.actualizarClientesVista();
-        this.tableData = this.clientesAgrupados;
-        this.cargandoMasClientesPorVendedor.delete(key);
-        this.cdr.markForCheck();
-      },
-      error: (err) => {
-        this.cargandoMasClientesPorVendedor.delete(key);
-        if (vendedor) vendedor._cargandoMasClientes = false;
-        this.errorClientesMsg = 'Error al cargar más clientes. Intenta nuevamente.';
-        console.error('Error cargando más clientes:', err);
-        this.cdr.markForCheck();
-      },
+    queueMicrotask(() => {
+      this.cargandoMasClientesPorVendedor.delete(key);
+      this.cdr.markForCheck();
     });
   }
 
-  cargarMasItemsDeCliente(cliente: any, vendedorKey: string): void {
+  cargarMasItemsDeCliente(cliente: any, _vendedorKey: string): void {
     if (!cliente) return;
     const clienteKey = String(cliente?.key ?? cliente?.idClienteSucursal ?? '');
     if (!clienteKey) return;
     if (this.cargandoMasItemsPorCliente.has(clienteKey)) return;
 
-    const pagActual = this.paginacionItemsPorCliente.get(clienteKey);
-    if (!pagActual) return;
-    if (pagActual.page * pagActual.limit >= pagActual.total) return;
-
+    // v1.4.1: el endpoint unificado devuelve los items completos por cliente,
+    // no se soporta paginacion anidada de items.
     this.cargandoMasItemsPorCliente.add(clienteKey);
-    cliente._cargandoMasItems = true;
     this.cdr.markForCheck();
-
-    const filtrosActivos = this.obtenerFiltrosActivos();
-    const esSupervisor = this.rolId === RoleId.SUPERVISOR;
-    const paginaSiguiente = pagActual.page + 1;
-
-    const posicionVendedor = this.clientesAgrupados.findIndex(
-      (v: any) => String(v?.key ?? v?.codVendedor ?? '') === vendedorKey,
-    );
-    const vendedoresPage = posicionVendedor >= 0 ? Math.floor(posicionVendedor / this.vendedorItemsPageSize) + 1 : 1;
-
-    let clientesPage = 1;
-    if (posicionVendedor >= 0) {
-      const vendedorGrupo = this.clientesAgrupados[posicionVendedor];
-      const posicionCliente = (vendedorGrupo?.clientes ?? []).findIndex(
-        (c: any) => String(c?.key ?? c?.idClienteSucursal ?? '') === clienteKey,
-      );
-      if (posicionCliente >= 0) {
-        clientesPage = Math.floor(posicionCliente / this.clienteItemsPageSize) + 1;
-      }
-    }
-
-    const paramsPaginacion = {
-      vendedoresPage,
-      vendedoresLimit: 1,
-      clientesPage,
-      clientesLimit: 1,
-      itemsPage: paginaSiguiente,
-      itemsLimit: this.productosItemsPageSize,
-    };
-
-    const detalleClientes$ = esSupervisor
-      ? this.cumplimientoService.getVendedoresConItemsCompradosSupervisor(filtrosActivos, paramsPaginacion)
-      : this.cumplimientoService.getVendedoresConItemsComprados(filtrosActivos, paramsPaginacion);
-
-    detalleClientes$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe({
-      next: (res: any) => {
-        if (res?.data?._error) {
-          this.errorClientesMsg = res.data._errorMessage || 'Error al cargar más productos';
-          this.cargandoMasItemsPorCliente.delete(clienteKey);
-          if (cliente) cliente._cargandoMasItems = false;
-          this.cdr.markForCheck();
-          return;
-        }
-
-        const vendedores = this.obtenerVendedoresDesdeEndpointConItems(res);
-        const vendedorBackend = vendedores[0];
-        const clienteBackend = this.obtenerClientesDesdeVendedor(vendedorBackend)[0];
-        if (!clienteBackend) {
-          this.cargandoMasItemsPorCliente.delete(clienteKey);
-          if (cliente) cliente._cargandoMasItems = false;
-          this.cdr.markForCheck();
-          return;
-        }
-
-        const nuevosItems = this.obtenerItemsDesdeCliente(clienteBackend).map((it: any) =>
-          this.mapearItemProducto(it, clienteBackend),
-        );
-
-        const pagItems = this.normalizarPaginacionCliente(clienteBackend?.paginacionItems) ?? pagActual;
-        const pagItemsNormalizada = {
-          page: Number(pagItems?.page ?? paginaSiguiente) || paginaSiguiente,
-          limit: Number(pagItems?.limit ?? this.productosItemsPageSize) || this.productosItemsPageSize,
-          total: Number(pagItems?.total ?? pagActual.total) || pagActual.total,
-        };
-        this.paginacionItemsPorCliente.set(clienteKey, pagItemsNormalizada);
-
-        if (posicionVendedor >= 0) {
-          const vendedorGrupo = this.clientesAgrupados[posicionVendedor];
-          const idxCliente = (vendedorGrupo?.clientes ?? []).findIndex(
-            (c: any) => String(c?.key ?? c?.idClienteSucursal ?? '') === clienteKey,
-          );
-          if (idxCliente >= 0) {
-            const destino = vendedorGrupo.clientes[idxCliente];
-            destino.productos = [...(destino.productos ?? []), ...nuevosItems];
-            destino.cantidadItems = destino.productos.length;
-            destino.paginacionItems = pagItemsNormalizada;
-            destino._cargandoMasItems = false;
-          }
-        }
-
-        this.actualizarClientesVista();
-        this.tableData = this.clientesAgrupados;
-        this.cargandoMasItemsPorCliente.delete(clienteKey);
-        this.cdr.markForCheck();
-      },
-      error: (err) => {
-        this.cargandoMasItemsPorCliente.delete(clienteKey);
-        if (cliente) cliente._cargandoMasItems = false;
-        this.errorClientesMsg = 'Error al cargar más productos. Intenta nuevamente.';
-        console.error('Error cargando más items:', err);
-        this.cdr.markForCheck();
-      },
+    queueMicrotask(() => {
+      this.cargandoMasItemsPorCliente.delete(clienteKey);
+      this.cdr.markForCheck();
     });
   }
 

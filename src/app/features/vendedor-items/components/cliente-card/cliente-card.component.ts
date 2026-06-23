@@ -23,12 +23,8 @@ export class ClienteCardComponent {
   private readonly service = inject(VendedorItemsService);
 
   @Input({ required: true }) cliente!: ClienteConItems;
-  @Input({ required: true }) vendedorPage = 1;
-  @Input({ required: true }) clientesPage = 1;
 
   readonly expandido = signal(false);
-  readonly itemsPageActual = signal(1);
-  readonly itemsLimit = 10;
 
   readonly items = computed<ItemComprado[]>(() => {
     const id = this.cliente?.id_cliente;
@@ -36,56 +32,11 @@ export class ClienteCardComponent {
     return this.service.itemsPorCliente().get(id) ?? [];
   });
 
-  readonly isLoading = computed(() => this.service.loadingItems() === this.cliente?.id_cliente);
-
-  readonly hasMore = computed(() => {
-    const id = this.cliente?.id_cliente;
-    if (id == null) return false;
-    return this.service.hasMoreItems(id);
-  });
-
-  readonly paginacion = computed(() => {
-    const id = this.cliente?.id_cliente;
-    if (id == null) return null;
-    return this.service.pagItemsPorCliente().get(id) ?? null;
-  });
-
-  readonly cargandoInicial = computed(
-    () => this.expandido() && this.items().length === 0 && this.isLoading(),
-  );
-
-  readonly yaCargado = computed(() => this.items().length > 0);
-
   readonly iniciales = computed(() => this.obtenerIniciales(this.cliente?.razon_social));
 
   toggle(): void {
     if (!this.cliente) return;
-    const nuevoEstado = !this.expandido();
-    this.expandido.set(nuevoEstado);
-
-    if (nuevoEstado && !this.yaCargado()) {
-      this.itemsPageActual.set(1);
-      this.service.loadItemsDeCliente(
-        this.vendedorPage,
-        this.clientesPage,
-        this.cliente.id_cliente,
-        1,
-        this.itemsLimit,
-      );
-    }
-  }
-
-  cargarMas(): void {
-    if (!this.cliente || this.isLoading() || !this.hasMore()) return;
-    const siguiente = this.itemsPageActual() + 1;
-    this.itemsPageActual.set(siguiente);
-    this.service.loadItemsDeCliente(
-      this.vendedorPage,
-      this.clientesPage,
-      this.cliente.id_cliente,
-      siguiente,
-      this.itemsLimit,
-    );
+    this.expandido.set(!this.expandido());
   }
 
   totalLabel(): string {
@@ -94,8 +45,7 @@ export class ClienteCardComponent {
   }
 
   cantidadLabel(): string {
-    const total = this.paginacion()?.total ?? 0;
-    return total.toLocaleString('es-CO');
+    return this.items().length.toLocaleString('es-CO');
   }
 
   private obtenerIniciales(texto: string | undefined | null): string {

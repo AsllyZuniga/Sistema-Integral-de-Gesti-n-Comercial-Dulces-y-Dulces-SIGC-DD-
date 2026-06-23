@@ -27,8 +27,6 @@ export class VendedorCardComponent {
   @Input({ required: true }) vendedorPage = 1;
 
   readonly expandido = signal(false);
-  readonly clientesPageActual = signal(1);
-  readonly clientesLimit = 50;
 
   readonly clientes = computed<ClienteConItems[]>(() => {
     const id = this.vendedor?.id_vendedor;
@@ -36,63 +34,15 @@ export class VendedorCardComponent {
     return this.service.clientesPorVendedor().get(id) ?? [];
   });
 
-  readonly isLoading = computed(
-    () => this.service.loadingClientes() === this.vendedor?.id_vendedor,
-  );
-
-  readonly hasMore = computed(() => {
-    const id = this.vendedor?.id_vendedor;
-    if (id == null) return false;
-    return this.service.hasMoreClientes(id);
-  });
-
-  readonly paginacion = computed(() => {
-    const id = this.vendedor?.id_vendedor;
-    if (id == null) return null;
-    return this.service.pagClientesPorVendedor().get(id) ?? null;
-  });
-
-  readonly cargandoInicial = computed(
-    () => this.expandido() && this.clientes().length === 0 && this.isLoading(),
-  );
-
   readonly yaCargado = computed(() => this.clientes().length > 0);
 
   readonly iniciales = computed(() => this.obtenerIniciales(this.vendedor?.nombre));
 
-  readonly totalClientes = computed(() => this.paginacion()?.total ?? 0);
+  readonly totalClientes = computed(() => this.clientes().length);
 
   toggle(): void {
     if (!this.vendedor) return;
-    const nuevoEstado = !this.expandido();
-    this.expandido.set(nuevoEstado);
-
-    if (nuevoEstado && !this.yaCargado()) {
-      this.clientesPageActual.set(1);
-      this.service.loadClientesDeVendedor(
-        this.vendedorPage,
-        this.vendedor.id_vendedor,
-        1,
-        this.clientesLimit,
-      );
-    }
-  }
-
-  cargarMas(): void {
-    if (!this.vendedor || this.isLoading() || !this.hasMore()) return;
-    const siguiente = this.clientesPageActual() + 1;
-    this.clientesPageActual.set(siguiente);
-    this.service.loadClientesDeVendedor(
-      this.vendedorPage,
-      this.vendedor.id_vendedor,
-      siguiente,
-      this.clientesLimit,
-    );
-  }
-
-  getClientePage(clienteId: number): number {
-    if (!this.vendedor) return 1;
-    return this.service.getClientePageEnVendedor(this.vendedor.id_vendedor, clienteId);
+    this.expandido.set(!this.expandido());
   }
 
   private obtenerIniciales(texto: string | undefined | null): string {

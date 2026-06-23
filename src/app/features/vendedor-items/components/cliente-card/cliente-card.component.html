@@ -25,12 +25,7 @@
 
   @if (expandido()) {
     <div class="cliente-body">
-      @if (cargandoInicial()) {
-        <div class="loading-inline">
-          <span class="spinner" aria-hidden="true"></span>
-          <span>Cargando items...</span>
-        </div>
-      } @else if (items().length === 0) {
+      @if (items().length === 0) {
         <div class="empty-inline">Este cliente aún no tiene items comprados</div>
       } @else {
         <ul class="items-list">
@@ -55,28 +50,6 @@
             </li>
           }
         </ul>
-
-        @if (hasMore()) {
-          <div class="load-more">
-            <button
-              type="button"
-              class="btn-ver-mas"
-              (click)="cargarMas()"
-              [disabled]="isLoading()"
-            >
-              @if (isLoading()) {
-                <span class="spinner spinner-sm" aria-hidden="true"></span>
-                <span>Cargando...</span>
-              } @else {
-                <span>Ver más items</span>
-              }
-            </button>
-          </div>
-        } @else if (paginacion()) {
-          <div class="end-note">
-            Mostrando {{ items().length }} de {{ cantidadLabel() }} items
-          </div>
-        }
       }
     </div>
   }

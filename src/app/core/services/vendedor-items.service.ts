@@ -2,8 +2,6 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, catchError, map, of, timeout } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { SessionService } from '../services/session.service';
-import { RoleId } from '../auth/roles';
 import { ItemComprado } from '../models/item.model';
 import { ClienteConItems } from '../models/cliente.model';
 import { Paginacion } from '../models/paginacion.model';
@@ -11,12 +9,11 @@ import { VendedorConClientes } from '../models/vendedor.model';
 import { VendedorItemsData, VendedorItemsResponse } from '../models/vendedor-items-response.model';
 
 const REQUEST_TIMEOUT_MS = 30_000;
+const ENDPOINT = `${environment.apiUrl}/api/vendedor/con-items-comprados`;
 
 @Injectable({ providedIn: 'root' })
 export class VendedorItemsService {
   private readonly http = inject(HttpClient);
-  private readonly session = inject(SessionService);
-  private readonly baseUrl = environment.apiUrl;
 
   // ───────── Nivel 1: Vendedores ─────────
   readonly vendedores = signal<VendedorConClientes[]>([]);
@@ -25,15 +22,12 @@ export class VendedorItemsService {
   readonly vendedorPagina = signal<ReadonlyMap<number, number>>(new Map());
   readonly firstPageLoaded = signal(false);
 
-  // ───────── Nivel 2: Clientes por vendedor ─────────
+  // ───────── Nivel 2: Clientes por vendedor (completos, no se paginan) ─────────
   readonly clientesPorVendedor = signal<ReadonlyMap<number, ClienteConItems[]>>(new Map());
   readonly pagClientesPorVendedor = signal<ReadonlyMap<number, Paginacion>>(new Map());
   readonly loadingClientes = signal<number | null>(null);
-  readonly clientePaginaPorVendedor = signal<ReadonlyMap<number, Map<number, number>>>(
-    new Map(),
-  );
 
-  // ───────── Nivel 3: Items por cliente ─────────
+  // ───────── Nivel 3: Items por cliente (completos, no se paginan) ─────────
   readonly itemsPorCliente = signal<ReadonlyMap<number, ItemComprado[]>>(new Map());
   readonly pagItemsPorCliente = signal<ReadonlyMap<number, Paginacion>>(new Map());
   readonly loadingItems = signal<number | null>(null);
@@ -45,17 +39,6 @@ export class VendedorItemsService {
 
   // ───────── Generaciones para cancelación ─────────
   private reqVendedoresGen = 0;
-  private reqClientesGen = 0;
-  private reqItemsGen = 0;
-
-  // ───────── URL según rol ─────────
-  private get endpoint(): string {
-    const rolId = this.session.getRoleId();
-    if (rolId === RoleId.SUPERVISOR) {
-      return `${this.baseUrl}/api/vendedor/supervisor/con-items-comprados`;
-    }
-    return `${this.baseUrl}/api/vendedor/con-items-comprados`;
-  }
 
   loadVendedores(page = 1, limit = 10): void {
     const myGen = ++this.reqVendedoresGen;
@@ -64,14 +47,12 @@ export class VendedorItemsService {
 
     let params = new HttpParams()
       .set('vendedoresPage', String(page))
-      .set('vendedoresLimit', String(limit))
-      .set('clientesLimit', '1')
-      .set('itemsLimit', '1');
+      .set('vendedoresLimit', String(limit));
 
     params = this.aplicarFiltrosFechas(params);
 
     this.http
-      .get<VendedorItemsResponse>(this.endpoint, { params })
+      .get<VendedorItemsResponse>(ENDPOINT, { params })
       .pipe(
         timeout(REQUEST_TIMEOUT_MS),
         map((res) => this.normalizarResponse(res)),
@@ -102,142 +83,35 @@ export class VendedorItemsService {
         }
         this.vendedorPagina.set(mapaPaginas);
 
+        this.sincronizarClientesEItemsCompletos(nuevos);
+
         this.pagVendedores.set(pagActual);
         this.loadingVendedores.set(false);
         this.firstPageLoaded.set(true);
       });
   }
 
-  loadClientesDeVendedor(
-    vendedorPage: number,
-    idVendedor: number,
-    page = 1,
-    limit = 5,
-  ): void {
-    const myGen = ++this.reqClientesGen;
-    this.loadingClientes.set(idVendedor);
-    this.error.set(null);
+  /**
+   * Como el backend ahora devuelve clientes e items completos en cada respuesta,
+   * sincronizamos los mapas locales a partir de los vendedores recibidos.
+   */
+  private sincronizarClientesEItemsCompletos(vendedores: VendedorConClientes[]): void {
+    const mapaClientes = new Map<number, ClienteConItems[]>(this.clientesPorVendedor());
+    const mapaItems = new Map<number, ItemComprado[]>(this.itemsPorCliente());
 
-    let params = new HttpParams()
-      .set('vendedoresPage', String(vendedorPage))
-      .set('vendedoresLimit', '1')
-      .set('clientesPage', String(page))
-      .set('clientesLimit', String(limit))
-      .set('itemsLimit', '1');
+    for (const v of vendedores) {
+      const idV = Number(v.id_vendedor);
+      if (!Number.isFinite(idV)) continue;
+      mapaClientes.set(idV, Array.isArray(v.clientes) ? v.clientes : []);
+      for (const c of v.clientes ?? []) {
+        const idC = Number(c?.id_cliente);
+        if (!Number.isFinite(idC)) continue;
+        mapaItems.set(idC, Array.isArray(c.items) ? c.items : []);
+      }
+    }
 
-    params = this.aplicarFiltrosFechas(params);
-
-    this.http
-      .get<VendedorItemsResponse>(this.endpoint, { params })
-      .pipe(
-        timeout(REQUEST_TIMEOUT_MS),
-        map((res) => this.normalizarResponse(res)),
-        catchError((err) => of(this.errorFromHttp(err))),
-      )
-      .subscribe((res) => {
-        if (this.reqClientesGen !== myGen) return;
-
-        if (!res.success) {
-          this.loadingClientes.set(null);
-          this.error.set(res.message || 'No se pudieron obtener los clientes');
-          return;
-        }
-
-        const vendedor = res.data.vendedores[0];
-        const nuevosClientes = vendedor?.clientes ?? [];
-        const pagActual = vendedor?.paginacionClientes ?? null;
-
-        const mapaClientes = new Map<number, ClienteConItems[]>(this.clientesPorVendedor());
-        const mapaPagClientes = new Map<number, Paginacion>(this.pagClientesPorVendedor());
-        const mapaPagCliPorVendedor = new Map<number, Map<number, number>>(
-          this.clientePaginaPorVendedor(),
-        );
-
-        if (page === 1) {
-          mapaClientes.set(idVendedor, nuevosClientes);
-          mapaPagCliPorVendedor.set(idVendedor, new Map<number, number>());
-        } else {
-          const existentes = mapaClientes.get(idVendedor) ?? [];
-          mapaClientes.set(idVendedor, [...existentes, ...nuevosClientes]);
-        }
-
-        if (pagActual) {
-          mapaPagClientes.set(idVendedor, pagActual);
-        }
-
-        const paginasPorCliente =
-          mapaPagCliPorVendedor.get(idVendedor) ?? new Map<number, number>();
-        for (const c of nuevosClientes) {
-          paginasPorCliente.set(c.id_cliente, page);
-        }
-        mapaPagCliPorVendedor.set(idVendedor, paginasPorCliente);
-
-        this.clientesPorVendedor.set(mapaClientes);
-        this.pagClientesPorVendedor.set(mapaPagClientes);
-        this.clientePaginaPorVendedor.set(mapaPagCliPorVendedor);
-        this.loadingClientes.set(null);
-      });
-  }
-
-  loadItemsDeCliente(
-    vendedorPage: number,
-    clientePage: number,
-    idCliente: number,
-    page = 1,
-    limit = 10,
-  ): void {
-    const myGen = ++this.reqItemsGen;
-    this.loadingItems.set(idCliente);
-    this.error.set(null);
-
-    let params = new HttpParams()
-      .set('vendedoresPage', String(vendedorPage))
-      .set('vendedoresLimit', '1')
-      .set('clientesPage', String(clientePage))
-      .set('clientesLimit', '1')
-      .set('itemsPage', String(page))
-      .set('itemsLimit', String(limit));
-
-    params = this.aplicarFiltrosFechas(params);
-
-    this.http
-      .get<VendedorItemsResponse>(this.endpoint, { params })
-      .pipe(
-        timeout(REQUEST_TIMEOUT_MS),
-        map((res) => this.normalizarResponse(res)),
-        catchError((err) => of(this.errorFromHttp(err))),
-      )
-      .subscribe((res) => {
-        if (this.reqItemsGen !== myGen) return;
-
-        if (!res.success) {
-          this.loadingItems.set(null);
-          this.error.set(res.message || 'No se pudieron obtener los items');
-          return;
-        }
-
-        const cliente = res.data.vendedores[0]?.clientes[0];
-        const nuevosItems = cliente?.items ?? [];
-        const pagActual = cliente?.paginacionItems ?? null;
-
-        const mapaItems = new Map(this.itemsPorCliente());
-        const mapaPagItems = new Map(this.pagItemsPorCliente());
-
-        if (page === 1) {
-          mapaItems.set(idCliente, nuevosItems);
-        } else {
-          const existentes = mapaItems.get(idCliente) ?? [];
-          mapaItems.set(idCliente, [...existentes, ...nuevosItems]);
-        }
-
-        if (pagActual) {
-          mapaPagItems.set(idCliente, pagActual);
-        }
-
-        this.itemsPorCliente.set(mapaItems);
-        this.pagItemsPorCliente.set(mapaPagItems);
-        this.loadingItems.set(null);
-      });
+    this.clientesPorVendedor.set(mapaClientes);
+    this.itemsPorCliente.set(mapaItems);
   }
 
   reset(): void {
@@ -248,7 +122,6 @@ export class VendedorItemsService {
 
     this.clientesPorVendedor.set(new Map());
     this.pagClientesPorVendedor.set(new Map());
-    this.clientePaginaPorVendedor.set(new Map());
 
     this.itemsPorCliente.set(new Map());
     this.pagItemsPorCliente.set(new Map());
@@ -258,8 +131,6 @@ export class VendedorItemsService {
     this.error.set(null);
 
     this.reqVendedoresGen++;
-    this.reqClientesGen++;
-    this.reqItemsGen++;
   }
 
   setFiltroFechas(fechaInicio: string | null, fechaFin: string | null): void {
@@ -276,10 +147,6 @@ export class VendedorItemsService {
 
   getVendedorPage(idVendedor: number): number {
     return this.vendedorPagina().get(idVendedor) ?? 1;
-  }
-
-  getClientePageEnVendedor(idVendedor: number, idCliente: number): number {
-    return this.clientePaginaPorVendedor().get(idVendedor)?.get(idCliente) ?? 1;
   }
 
   hasMoreVendedores(): boolean {

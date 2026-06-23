@@ -27,45 +27,14 @@
 
   @if (expandido()) {
     <div class="vendedor-body">
-      @if (cargandoInicial()) {
-        <div class="loading-inline">
-          <span class="spinner" aria-hidden="true"></span>
-          <span>Cargando clientes...</span>
-        </div>
-      } @else if (clientes().length === 0) {
+      @if (clientes().length === 0) {
         <div class="empty-inline">Este vendedor aún no tiene clientes con items</div>
       } @else {
         <div class="clientes-listado">
           @for (cliente of clientes(); track cliente.id_cliente) {
-            <app-cliente-card
-              [cliente]="cliente"
-              [vendedorPage]="vendedorPage"
-              [clientesPage]="getClientePage(cliente.id_cliente)"
-            ></app-cliente-card>
+            <app-cliente-card [cliente]="cliente"></app-cliente-card>
           }
         </div>
-
-        @if (hasMore()) {
-          <div class="load-more">
-            <button
-              type="button"
-              class="btn-ver-mas"
-              (click)="cargarMas()"
-              [disabled]="isLoading()"
-            >
-              @if (isLoading()) {
-                <span class="spinner spinner-sm" aria-hidden="true"></span>
-                <span>Cargando...</span>
-              } @else {
-                <span>Ver más clientes</span>
-              }
-            </button>
-          </div>
-        } @else if (paginacion()) {
-          <div class="end-note">
-            Mostrando {{ clientes().length }} de {{ totalClientes() }} clientes
-          </div>
-        }
       }
     </div>
   }
