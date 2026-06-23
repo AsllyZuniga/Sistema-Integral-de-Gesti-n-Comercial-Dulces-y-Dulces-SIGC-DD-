@@ -161,6 +161,9 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   private respuestaCumplimientoOriginal: any = null;
   private cacheCumplimientoClave: string = '';
 
+  private respuestaCumplimientoOriginal: any = null;
+  private cacheCumplimientoClave: string = '';
+
   totalesVendedor: DashboardTotalesVendedor | null = null;
 
   filtrosActivos: DashboardFilters = {
@@ -1141,10 +1144,6 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       { detalle: detalleNormalizado },
       proveedores,
     );
-
-    // Importante: el dropdown ya pinta la opción "Todas" por separado.
-    // Por eso categoriasList solo debe contener categorías reales del proveedor
-    // seleccionado o categorías generales cuando no hay proveedor seleccionado.
     this.categoriasList = this.construirOpcionesCategorias(categoriasUnicas);
     this.cdr.markForCheck();
   }
@@ -1327,67 +1326,29 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private construirSetProveedoresFlexible(proveedores: string[]): Set<string> {
     const set = new Set<string>();
-
     proveedores.forEach((prov) => {
-      this.obtenerClavesProveedor(prov).forEach((clave) => set.add(clave));
+      const valor = String(prov ?? '').trim();
+      if (!valor) return;
+      set.add(valor);
+      const sinCeros = valor.replace(/^0+/, '');
+      if (sinCeros && sinCeros !== valor) set.add(sinCeros);
     });
-
     return set;
   }
 
   private coincideProveedor(prov: any, proveedoresSet: Set<string>): boolean {
-    const candidatos = [
-      prov?.codigoProveedor,
-      prov?.codigo_proveedor,
-      prov?.codigo,
-      prov?.cod,
-      prov?.idProveedor,
-      prov?.id_proveedor,
-      prov?.nombreProveedor,
-      prov?.nombre_proveedor,
-      prov?.nomProveedor,
-      prov?.proveedor,
-      prov?.nombre,
-      prov?.linea,
-      prov?.reporteProvConObs,
-    ];
+    const codigo = String(prov?.codigoProveedor ?? '').trim();
+    const id = String(prov?.idProveedor ?? '').trim();
 
-    return candidatos.some((candidato) =>
-      this.obtenerClavesProveedor(candidato).some((clave) => proveedoresSet.has(clave)),
-    );
-  }
+    if (codigo) {
+      if (proveedoresSet.has(codigo)) return true;
+      const sinCeros = codigo.replace(/^0+/, '');
+      if (sinCeros && proveedoresSet.has(sinCeros)) return true;
+    }
 
-  private obtenerClavesProveedor(valor: unknown): string[] {
-    const texto = String(valor ?? '').trim();
-    if (!texto) return [];
+    if (id && proveedoresSet.has(id)) return true;
 
-    const claves = new Set<string>();
-    const agregar = (item: string): void => {
-      const limpio = String(item ?? '').trim();
-      if (!limpio) return;
-
-      claves.add(limpio);
-      claves.add(limpio.toLowerCase());
-
-      const sinCeros = limpio.replace(/^0+/, '');
-      if (sinCeros && sinCeros !== limpio) {
-        claves.add(sinCeros);
-        claves.add(sinCeros.toLowerCase());
-      }
-    };
-
-    agregar(texto);
-
-    // Soporta valores que lleguen como "020 - ARCOR" o "060 - LUKER PROCOVAL".
-    // En esos casos el checkbox puede emitir la etiqueta completa, pero el backend
-    // y la respuesta suelen traer solo codigoProveedor = "020" / "060".
-    const codigoInicial = texto.match(/^\s*0*(\d+)/)?.[1];
-    const codigoConCeros = texto.match(/^\s*(\d+)/)?.[1];
-
-    if (codigoConCeros) agregar(codigoConCeros);
-    if (codigoInicial) agregar(codigoInicial);
-
-    return Array.from(claves);
+    return false;
   }
 
   onVendedorChange(vendedor: string): void {
