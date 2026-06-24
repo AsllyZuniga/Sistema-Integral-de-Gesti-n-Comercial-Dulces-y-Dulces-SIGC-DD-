@@ -190,6 +190,17 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     return 'ALL';
   }
 
+  /**
+   * Lista de códigos de vendedor del catálogo del admin, que se pasa a app-ventas
+   * para que las vistas por ciudad/proveedor/categoría iteren por vendedor
+   * en lugar de caer al endpoint "global" que devuelve una única fila "SIN CIUDAD".
+   */
+  get codigosVendedoresAnalisis(): string[] {
+    return (this.catalogoVendedores ?? [])
+      .map((v) => String(v?.codVendedor ?? v?.codigo_vendedor ?? '').trim())
+      .filter(Boolean);
+  }
+
   get labelCuota(): string {
     switch (this.tipoCuota) {
       case 'semanal':

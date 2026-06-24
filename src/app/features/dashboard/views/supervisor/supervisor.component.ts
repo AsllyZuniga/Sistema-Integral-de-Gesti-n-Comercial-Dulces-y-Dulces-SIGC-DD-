@@ -225,7 +225,9 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
         // Re-aplicar filtros solo para la tabla de vendedores asignados.
         // El análisis mantiene el alcance completo del supervisor y se filtra internamente
         // por proveedor/categoría/ciudad, igual que administrador.
-        this.todosLosVendedores = this.aplicarFiltrosSupervisor(this.vendedoresOriginal);
+        this.todosLosVendedores = this.ordenarPorCodigoVendedor(
+          this.aplicarFiltrosSupervisor(this.vendedoresOriginal),
+        );
         this.codigosVendedoresAsignados = [...this.codigosVendedoresTodosAsignados];
         this.sincronizarFiltrosParaAnalisis();
         this.cdr.detectChanges();
@@ -297,6 +299,29 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     }
 
     return Array.from(keys).filter(Boolean);
+  }
+
+  /**
+   * Ordena la lista de vendedores por código de vendedor en orden ascendente.
+   * Si el código es numérico, ordena numéricamente; si no, lexicográficamente.
+   * Estabiliza la relación original cuando los códigos son iguales.
+   */
+  private ordenarPorCodigoVendedor(lista: any[]): any[] {
+    return [...lista].sort((a, b) => {
+      const codA = this.obtenerCodigoVendedor(a);
+      const codB = this.obtenerCodigoVendedor(b);
+
+      const numA = Number(codA);
+      const numB = Number(codB);
+      const aEsNumero = codA !== '' && Number.isFinite(numA);
+      const bEsNumero = codB !== '' && Number.isFinite(numB);
+
+      if (aEsNumero && bEsNumero) {
+        return numA - numB;
+      }
+
+      return codA.localeCompare(codB, 'es', { numeric: true, sensitivity: 'base' });
+    });
   }
 
   private obtenerDetalleCumplimiento() {
@@ -489,9 +514,10 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
             } as VendedorTabla;
           });
 
-          const listaFiltrada = this.aplicarFiltrosSupervisor(lista);
+          const listaOrdenada = this.ordenarPorCodigoVendedor(lista);
+          const listaFiltrada = this.ordenarPorCodigoVendedor(this.aplicarFiltrosSupervisor(lista));
 
-          this.vendedoresOriginal = lista;
+          this.vendedoresOriginal = listaOrdenada;
           this.todosLosVendedores = listaFiltrada;
 
           // Mantener separados los vendedores visibles de la tabla y el alcance real
