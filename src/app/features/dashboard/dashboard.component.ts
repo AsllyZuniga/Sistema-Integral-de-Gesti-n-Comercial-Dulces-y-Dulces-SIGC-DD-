@@ -7,6 +7,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { SessionUser } from '../../core/services/session.service';
 import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../core/services/ventas/cumplimientoVentasSemana.service';
+import { CuotaDiaService, CuotaDiaVendedor } from '../../core/services/ventas/cuotaDia.service';
 import { UsuariosService } from '../../core/services/usuarios.service';
 import {
   FiltersComponent,
@@ -128,6 +129,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     private authService: AuthService,
     private cumplimientoService: CumplimientoService,
     private semanaService: CumplimientoSemanaService,
+    private cuotaDiaService: CuotaDiaService,
     private usuariosService: UsuariosService,
     private cdr: ChangeDetectorRef,
   ) {}
@@ -1600,6 +1602,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
   onAplicarFiltros(filtros: DashboardFilters): void {
     console.debug('[Dashboard] Aplicando filtros:', filtros);
+
+    const filtrosPrevios: DashboardFilters = { ...this.filtrosActivos };
     
     const rangoDefault = this.getDefaultDateRange();
     const fechaInicio = String(filtros.fechaInicio ?? '').trim() || rangoDefault.inicio;
@@ -1659,38 +1663,46 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       filtrosConCodigos.linea = this.lineaMap.get(filtros.linea) ?? filtros.linea;
     }
 
-    this.filtrosActivos = { ...filtrosConCodigos };
-
-    // OPTIMIZACION: solo recargar catalogos si el usuario cambio PROVEEDOR o CATEGORIA.
-    // Si solo cambio la fecha, los catalogos no se invalidan (cacheados).
-    const filtrosAnterior = filtros as DashboardFilters;
+    // Detectar cambios contra los filtros realmente activos ANTES de reemplazarlos.
+    // Antes se comparaba el objeto recién recibido contra filtrosConCodigos; en supervisor,
+    // cuando el proveedor ya venía con el mismo código, cambioProveedor quedaba en false
+    // y no se reconstruía el catálogo de categorías ni se refrescaban las secciones.
     const cambioProveedor =
-      filtrosAnterior?.proveedor !== filtrosConCodigos.proveedor ||
-      JSON.stringify(filtrosAnterior?.proveedores ?? []) !==
+      String(filtrosPrevios?.proveedor ?? '') !== String(filtrosConCodigos.proveedor ?? '') ||
+      JSON.stringify(filtrosPrevios?.proveedores ?? []) !==
         JSON.stringify(filtrosConCodigos.proveedores ?? []);
     const cambioCategoria =
-      filtrosAnterior?.categoria !== filtrosConCodigos.categoria ||
-      JSON.stringify(filtrosAnterior?.categorias ?? []) !==
+      String(filtrosPrevios?.categoria ?? '') !== String(filtrosConCodigos.categoria ?? '') ||
+      JSON.stringify(filtrosPrevios?.categorias ?? []) !==
         JSON.stringify(filtrosConCodigos.categorias ?? []);
     const cambioVendedor =
-      filtrosAnterior?.vendedor !== filtrosConCodigos.vendedor;
+      String(filtrosPrevios?.vendedor ?? '') !== String(filtrosConCodigos.vendedor ?? '');
+    const cambioFechas =
+      String(filtrosPrevios?.fechaInicio ?? '') !== String(filtrosConCodigos.fechaInicio ?? '') ||
+      String(filtrosPrevios?.fechaFin ?? '') !== String(filtrosConCodigos.fechaFin ?? '');
+
+    this.filtrosActivos = { ...filtrosConCodigos };
 
     if (this.esAdmin) {
       this.cargarProveedoresFiltros();
       this.cargarCategoriasFiltros();
       this.cargarCiudadesYLineasAdmin();
     } else if (this.esSupervisor) {
-      // Recargar ciudades/lineas si cambia proveedor o vendedor
-      // (porque el catalogo per-vendor depende de esos filtros).
-      if (cambioProveedor || cambioVendedor) {
+      // Supervisor: el catálogo y las tablas deben reaccionar igual que admin.
+      // Proveedor/Vendedor/Fechas cambian la disponibilidad de ciudades, líneas y categorías.
+      if (cambioProveedor || cambioVendedor || cambioFechas) {
         this.cumplimientoService.invalidarCachePorPrefijo('lineas-');
         this.cargarCiudadesYLineasSupervisor();
       }
-      // Recargar categorias si cambia el proveedor.
-      // Como cacheamos la respuesta COMPLETA (sin filtro de proveedor),
-      // al cambiar proveedor solo re-filtramos en cliente con el mismo
-      // helper que usa el admin. Sin nueva llamada HTTP.
-      if (cambioProveedor) {
+
+      // Al cambiar proveedor se recalculan las categorías disponibles para ese proveedor.
+      // Al cambiar fechas/vendedor se invalida el cache base y se vuelve a cargar.
+      if (cambioProveedor || cambioVendedor || cambioFechas) {
+        if (cambioFechas || cambioVendedor) {
+          this.respuestaCumplimientoCategoriasSupervisor = null;
+          this.categoriasSupervisorCacheKey = '';
+          this.categoriasSupervisorCache = [];
+        }
         this.cargarCategoriasSupervisor();
       }
     } else {
@@ -1722,19 +1734,23 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   private cargarTotalesVendedor(): void {
     const filtros = { ...this.filtrosActivos };
 
+    // ⚠️ SOLO se cambia la rama DIARIA para usar el endpoint específico
+    //    /api/roles/cuota-dia/por-vendedor (rol vendedor). Las ramas
+    //    semanal y mensual se mantienen intactas.
+    if (this.tipoCuota === 'diaria') {
+      this.cargarTotalesVendedorCuotaDiaria(filtros);
+      return;
+    }
+
     const obs$ =
-      this.tipoCuota === 'diaria'
-        ? this.cumplimientoService.getCumplimientoDiaVendedor(filtros)
-        : this.tipoCuota === 'mensual'
-          ? this.cumplimientoService.getCumplimientoMesVendedor(filtros)
-          : this.semanaService.getCumplimientoSemanaVendedor(filtros);
+      this.tipoCuota === 'mensual'
+        ? this.cumplimientoService.getCumplimientoMesVendedor(filtros)
+        : this.semanaService.getCumplimientoSemanaVendedor(filtros);
 
     const campo =
       this.tipoCuota === 'semanal'
         ? 'cuotaSemana'
-        : this.tipoCuota === 'diaria'
-          ? 'cuotaDiaria'
-          : 'cuotaMes';
+        : 'cuotaMes';
 
     obs$.pipe(takeUntil(this.destroy$)).subscribe({
       next: (res: ApiTotalesResponse<DashboardTotalesVendedor> & { totales?: any }) => {
@@ -1779,12 +1795,6 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           raw['cuota_semana'],
           this.tipoCuota === 'semanal' ? raw[campo] : undefined,
         );
-        const cuotaDiariaVal = leerNumero(
-          raw['cuotaDiaria'],
-          raw['cuotaDia'],
-          raw['cuota_dia'],
-          this.tipoCuota === 'diaria' ? raw[campo] : undefined,
-        );
 
         this.totalesVendedor = {
           ventaAcum: Number(d.ventaAcum ?? d.ventaDiaria ?? 0) || 0,
@@ -1796,10 +1806,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           cuotaSemana:
             cuotaSemanaVal ||
             (this.tipoCuota === 'semanal' ? Number(d[campo] ?? 0) : cuotaSemanaVal),
-          cuotaDiaria:
-            cuotaDiariaVal ||
-            Number(d.cuotaDia ?? 0) ||
-            (this.tipoCuota === 'diaria' ? Number(d[campo] ?? 0) : cuotaDiariaVal),
+          cuotaDiaria: Number(d.cuotaDia ?? 0) || 0,
           porcCump: Number(d.porcCump ?? 0) || 0,
           proyeccionVenta: Number(d.proyeccionVenta ?? d.promedioDiario ?? 0) || 0,
         };
@@ -1810,5 +1817,96 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         this.cdr.markForCheck();
       },
     });
+  }
+
+  /**
+   * Carga los totales del vendedor para CUOTA DIARIA usando el endpoint
+   * específico del rol vendedor:
+   *   GET /api/roles/cuota-dia/por-vendedor?fecha_inicio=X&fecha_fin=Y
+   *
+   * Respuesta:
+   *   {
+   *     success, message, vendedor: { id_vendedor, codigo_vendedor, nombre },
+   *     data: [{
+   *       id_cuotaDia, cuota_dia, fecha_inicio, fecha_fin, id_usuario, usuario,
+   *       venta_acumulada_dia, pct_cumplimiento, proye_venta,
+   *       dias_corridos, dias_habiles
+   *     }]
+   *   }
+   *
+   * Errores manejados por el servicio:
+   *   - 401 (Sin token), 403 (Rol ≠ 3), 404 (No existe vendedor asociado)
+   *
+   * Esta rama es INDEPENDIENTE de la lógica mensual / semanal, por lo que
+   * NO afecta otros flujos.
+   */
+  private cargarTotalesVendedorCuotaDiaria(filtros: DashboardFilters): void {
+    const fechaInicio = String(filtros.fechaInicio ?? '').trim();
+    const fechaFin = String(filtros.fechaFin ?? '').trim();
+
+    if (!fechaInicio || !fechaFin) {
+      console.warn('[Dashboard][CuotaDiaria] Fechas vacías, no se cargan totales');
+      this.totalesVendedor = null;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    console.debug('[Dashboard][CuotaDiaria] Solicitando /api/roles/cuota-dia/por-vendedor', {
+      fechaInicio,
+      fechaFin,
+    });
+
+    this.cuotaDiaService
+      .getCuotaDiaVendedor({ fechaInicio, fechaFin })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (cuotas: CuotaDiaVendedor[]) => {
+          const registro = Array.isArray(cuotas) && cuotas.length ? cuotas[0] : null;
+
+          if (!registro) {
+            console.warn('[Dashboard][CuotaDiaria] Sin datos para el rango solicitado');
+            this.totalesVendedor = null;
+            this.cdr.markForCheck();
+            return;
+          }
+
+          const cuotaDiaria = this.parseNumeroFlexible(registro.cuota_dia);
+          const ventaAcum = Number(registro.venta_acumulada_dia ?? 0) || 0;
+          const porcCump = Number(registro.pct_cumplimiento ?? 0) || 0;
+          const proyeccionVenta = Number(registro.proye_venta ?? 0) || 0;
+
+          this.totalesVendedor = {
+            ventaAcum,
+            cuotaMes: 0,
+            cuotaSemana: 0,
+            cuotaDiaria,
+            cuotaDia: cuotaDiaria,
+            porcCump,
+            proyeccionVenta,
+            promedioDiario: proyeccionVenta,
+            codVendedor:
+              registro?.usuario?.vendedor?.codigo_vendedor ??
+              registro?.usuario?.username ??
+              '',
+          };
+
+          console.debug('[Dashboard][CuotaDiaria] Totales cargados:', this.totalesVendedor);
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          this.totalesVendedor = null;
+          this.cdr.markForCheck();
+        },
+      });
+  }
+
+  /**
+   * Convierte un valor (string o number) a número, manejando valores
+   * que pueden llegar como string desde el backend (ej: "18313184").
+   */
+  private parseNumeroFlexible(valor: unknown): number {
+    if (valor === null || valor === undefined) return 0;
+    const numero = Number(valor);
+    return Number.isFinite(numero) ? numero : 0;
   }
 }
