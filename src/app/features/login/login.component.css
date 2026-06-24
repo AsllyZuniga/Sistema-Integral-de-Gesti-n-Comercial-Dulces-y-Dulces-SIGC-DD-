@@ -9,6 +9,12 @@
   --transition: all 0.25s ease;
   --shadow-btn: 0 12px 24px rgba(15, 95, 168, 0.22);
   --shadow-btn-hv: 0 16px 28px rgba(15, 95, 168, 0.3);
+
+  display: block;
+  min-height: 100dvh;
+  width: 100%;
+  background: linear-gradient(180deg, #0f3a68 0%, #0a2746 100%);
+  overflow-x: hidden;
 }
 
 .login-shell {
@@ -18,7 +24,6 @@
   align-items: center;
   justify-content: center;
   background: linear-gradient(180deg, #0f3a68 0%, #0a2746 100%);
-  overflow: hidden;
   contain: layout style paint;
 }
 
@@ -268,6 +273,10 @@
 }
 
 @media (max-width: 980px) {
+  :host {
+    padding: 0;
+  }
+
   .login-shell {
     padding: 16px;
   }
@@ -300,14 +309,21 @@
 }
 
 @media (max-width: 560px) {
+  :host {
+    background: linear-gradient(180deg, #0f3a68 0%, #0a2746 100%);
+  }
+
   .login-shell {
-    padding: 14px;
+    padding: 0;
+    align-items: stretch;
   }
 
   .login-stage {
-    width: min(420px, 100%);
-    min-height: auto;
-    box-shadow: 0 20px 48px rgba(2, 19, 39, 0.34);
+    width: 100%;
+    min-height: 100dvh;
+    border-radius: 0;
+    box-shadow: none;
+    background: #ffffff;
   }
 
   .login-brand-panel {
@@ -315,7 +331,12 @@
   }
 
   .login-form-panel {
-    padding: 24px 18px 22px;
+    padding: 32px 22px 28px;
+    justify-content: center;
+  }
+
+  .login-form-head {
+    margin-bottom: 24px;
   }
 
   .login-form-head p {
@@ -323,12 +344,13 @@
   }
 
   .login-form-head h2 {
-    font-size: 26px;
+    font-size: 28px;
   }
 
   .form-input,
   .btn-login {
-    font-size: 14px;
+    font-size: 15px;
+    padding: 14px 16px;
   }
 
   .brand-content h1 {
