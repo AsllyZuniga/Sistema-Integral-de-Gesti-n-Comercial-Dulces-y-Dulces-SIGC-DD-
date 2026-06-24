@@ -1,0 +1,56 @@
+<article class="cliente-card">
+  <button
+    type="button"
+    class="cliente-head"
+    [class.open]="expandido()"
+    (click)="toggle()"
+    [attr.aria-expanded]="expandido()"
+  >
+    <div class="cliente-avatar" aria-hidden="true">{{ iniciales() }}</div>
+
+    <div class="cliente-identidad">
+      <h4>
+        <span class="cliente-doc">{{ cliente.nro_documento }}</span>
+        <span class="cliente-sep">—</span>
+        <span class="cliente-nombre">{{ cliente.razon_social }}</span>
+      </h4>
+      <div class="cliente-meta-row">
+        <span class="cliente-total">{{ totalLabel() }} compras</span>
+        <span class="cliente-items-count">{{ cantidadLabel() }} items</span>
+      </div>
+    </div>
+
+    <span class="cliente-toggle" [class.open]="expandido()" aria-hidden="true">›</span>
+  </button>
+
+  @if (expandido()) {
+    <div class="cliente-body">
+      @if (items().length === 0) {
+        <div class="empty-inline">Este cliente aún no tiene items comprados</div>
+      } @else {
+        <ul class="items-list">
+          @for (item of items(); track item.id_item) {
+            <li class="item-row">
+              <div class="item-linea-principal">
+                <span class="item-codigo">{{ item.codigo_item }}</span>
+                <span class="item-sep">—</span>
+                <span class="item-descripcion">{{ item.descripcion }}</span>
+              </div>
+              <div class="item-linea-detalles">
+                <span class="item-cantidad">
+                  <strong>{{ item.cantidadTotal }}</strong> × {{ item.veces }}
+                </span>
+                <span class="item-precio">
+                  {{ item.precio_unitario | number:'1.0-0' }}
+                </span>
+                <span class="item-subtotal" [class.negativo]="item.subtotal < 0">
+                  <strong>{{ item.subtotal | number:'1.0-0' }}</strong>
+                </span>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  }
+</article>

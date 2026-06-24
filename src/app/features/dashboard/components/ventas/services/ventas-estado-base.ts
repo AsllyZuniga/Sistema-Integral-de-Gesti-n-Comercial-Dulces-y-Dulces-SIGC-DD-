@@ -201,10 +201,31 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
     const esAdmin = this.rolId === RoleId.ADMINISTRADOR;
     return esAdmin ? Number.MAX_SAFE_INTEGER : 30;
   }
-  
+
   readonly productosPageSize = 25;
   protected clientesVisibles = 30;
   readonly productosVisiblesPorCliente: Record<string, number> = {};
+
+  // Paginación real (server-side) para /vendedor/con-items-comprados
+  // - vendedorItemsPageSize: paginación para vendedores (sí se pagina)
+  // - clienteItemsPageSize: clientes sin paginación (se muestran todos)
+  // - productosItemsPageSize: items sin paginación (se muestran todos)
+  readonly vendedorItemsPageSize = 10;
+  readonly clienteItemsPageSize = 1000;
+  readonly productosItemsPageSize = 1000;
+  protected vendedoresPageActual = 1;
+  protected paginacionVendedores: { page: number; limit: number; total: number } | null = null;
+  protected paginacionClientesPorVendedor = new Map<
+    string,
+    { page: number; limit: number; total: number }
+  >();
+  protected paginacionItemsPorCliente = new Map<
+    string,
+    { page: number; limit: number; total: number }
+  >();
+  protected cargandoMasVendedores = false;
+  protected cargandoMasClientesPorVendedor = new Set<string>();
+  protected cargandoMasItemsPorCliente = new Set<string>();
 
   protected readonly todasLasVistas = VENTAS_VIEWS;
 
@@ -279,7 +300,12 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.iniciado = true;
-    this.cargarMapaCategorias();
+    // OPTIMIZACION: cargarMapaCategorias() ya no se llama aqui.
+    // Se hace lazy en setVentasView() cuando el usuario abre la pestaña "categoria".
+    // Esto evita 1 llamada HTTP por cada instancia de VentasComponent que se monte.
+    if (this.activeVentasView === 'categoria') {
+      this.cargarMapaCategorias();
+    }
     // Hacer carga inicial si hay codigoVendedor O si estamos en modo admin visualizando "todos"
     if (this._codigoVendedor || this.esModoAdminTodos()) {
       this.solicitarCargaVista(true);
@@ -324,6 +350,13 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
     this.cuotasDiariasCache = [];
     this.liderVentasProveedor = '—';
     this.clientesVisibles = this.clientesPageSize;
+    this.vendedoresPageActual = 1;
+    this.paginacionVendedores = null;
+    this.paginacionClientesPorVendedor = new Map();
+    this.paginacionItemsPorCliente = new Map();
+    this.cargandoMasVendedores = false;
+    this.cargandoMasClientesPorVendedor = new Set();
+    this.cargandoMasItemsPorCliente = new Set();
     this.chartId = 'chart-' + this.activeVentasView + '-' + Date.now();
     this.cdr.markForCheck();
   }
@@ -365,6 +398,10 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
     if (this.activeVentasView === view) return;
     this.activeVentasView = view;
     this.guardarVistaActiva(view);
+    // OPTIMIZACION: cargar mapa de categorias solo cuando el usuario abre la pestaña categoria
+    if (view === 'categoria' && this.categoriasPorId.size === 0) {
+      this.cargarMapaCategorias();
+    }
     this.solicitarCargaVista(true);
   }
 

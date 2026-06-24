@@ -1,0 +1,126 @@
+<section class="vendedor-items-page">
+  <header class="page-topbar">
+    <div class="topbar-content">
+      <div class="topbar-title">
+        <span class="material-symbols-rounded" aria-hidden="true">account_tree</span>
+        <div>
+          <h1>Vendedores · Clientes · Items</h1>
+          <p class="subtitle">Árbol jerárquico con paginación anidada por nivel</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="filters-bar">
+    <div class="filter-field">
+      <label for="fecha-inicio">Fecha inicio</label>
+      <input
+        id="fecha-inicio"
+        type="date"
+        [ngModel]="fechaInicioInput()"
+        (ngModelChange)="fechaInicioInput.set($event)"
+      />
+    </div>
+
+    <div class="filter-field">
+      <label for="fecha-fin">Fecha fin</label>
+      <input
+        id="fecha-fin"
+        type="date"
+        [ngModel]="fechaFinInput()"
+        (ngModelChange)="fechaFinInput.set($event)"
+      />
+    </div>
+
+    <div class="filter-actions">
+      <button
+        type="button"
+        class="btn-primary-action"
+        (click)="aplicarFiltros()"
+        [disabled]="cargandoVendedores()"
+      >
+        <span class="material-symbols-rounded" aria-hidden="true">filter_alt</span>
+        <span>Aplicar filtros</span>
+      </button>
+
+      @if (tieneFiltros()) {
+        <button
+          type="button"
+          class="btn-secondary-action"
+          (click)="limpiarFiltros()"
+          [disabled]="cargandoVendedores()"
+        >
+          <span class="material-symbols-rounded" aria-hidden="true">close</span>
+          <span>Limpiar</span>
+        </button>
+      }
+    </div>
+
+    @if (totalVendedores() > 0) {
+      <div class="filter-badge">
+        <span class="material-symbols-rounded" aria-hidden="true">storefront</span>
+        <span>{{ mostrando() }} de {{ totalVendedores() }} vendedores</span>
+      </div>
+    }
+  </div>
+
+  @if (errorMsg() && !cargandoVendedores() && vendedoresActuales().length === 0) {
+    <div class="error-state">
+      <span class="material-symbols-rounded" aria-hidden="true">error</span>
+      <p>{{ errorMsg() }}</p>
+      <button type="button" class="btn-retry" (click)="reintentar()">
+        <span class="material-symbols-rounded" aria-hidden="true">refresh</span>
+        Reintentar
+      </button>
+    </div>
+  } @else if (cargandoVendedores() && vendedoresActuales().length === 0) {
+    <div class="loading-state">
+      <span class="spinner" aria-hidden="true"></span>
+      <p>Cargando vendedores...</p>
+    </div>
+  } @else if (vendedoresActuales().length === 0) {
+    <div class="empty-state">
+      <span class="material-symbols-rounded" aria-hidden="true">inbox</span>
+      <p>No hay vendedores para los filtros seleccionados</p>
+    </div>
+  } @else {
+    <div class="vendedores-listado">
+      @for (vendedor of vendedoresActuales(); track vendedor.id_vendedor) {
+        <app-vendedor-card
+          [vendedor]="vendedor"
+          [vendedorPage]="getVendedorPage(vendedor.id_vendedor)"
+        ></app-vendedor-card>
+      }
+
+      @if (cargandoVendedores() && vendedoresActuales().length > 0) {
+        <div class="loading-inline">
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Cargando más vendedores...</span>
+        </div>
+      }
+
+      @if (hasMoreVendedores()) {
+        <div class="load-more-global">
+          <button
+            type="button"
+            class="btn-ver-mas-global"
+            (click)="cargarMasVendedores()"
+            [disabled]="cargandoVendedores()"
+          >
+            @if (cargandoVendedores()) {
+              <span class="spinner spinner-sm" aria-hidden="true"></span>
+              <span>Cargando...</span>
+            } @else {
+              <span class="material-symbols-rounded" aria-hidden="true">expand_more</span>
+              <span>Ver más vendedores</span>
+            }
+          </button>
+        </div>
+      } @else if (totalVendedores() > 0) {
+        <div class="end-note-global">
+          Has visto todos los vendedores disponibles
+        </div>
+      }
+    </div>
+  }
+</section>

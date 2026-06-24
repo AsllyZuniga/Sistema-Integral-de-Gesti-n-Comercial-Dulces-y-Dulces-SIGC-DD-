@@ -1,0 +1,41 @@
+<article class="vendedor-card">
+  <button
+    type="button"
+    class="vendedor-head"
+    [class.open]="expandido()"
+    (click)="toggle()"
+    [attr.aria-expanded]="expandido()"
+  >
+    <div class="vendedor-avatar" aria-hidden="true">{{ iniciales() }}</div>
+
+    <div class="vendedor-identidad">
+      <h4>
+        <span class="vendedor-codigo">{{ vendedor.codigo_vendedor }}</span>
+        <span class="vendedor-sep">—</span>
+        <span class="vendedor-nombre">{{ vendedor.nombre }}</span>
+      </h4>
+      <div class="vendedor-meta">
+        <span class="vendedor-meta-pill">
+          <span class="material-symbols-rounded" aria-hidden="true">group</span>
+          {{ totalClientes() }} clientes
+        </span>
+      </div>
+    </div>
+
+    <span class="vendedor-toggle" [class.open]="expandido()" aria-hidden="true">›</span>
+  </button>
+
+  @if (expandido()) {
+    <div class="vendedor-body">
+      @if (clientes().length === 0) {
+        <div class="empty-inline">Este vendedor aún no tiene clientes con items</div>
+      } @else {
+        <div class="clientes-listado">
+          @for (cliente of clientes(); track cliente.id_cliente) {
+            <app-cliente-card [cliente]="cliente"></app-cliente-card>
+          }
+        </div>
+      }
+    </div>
+  }
+</article>

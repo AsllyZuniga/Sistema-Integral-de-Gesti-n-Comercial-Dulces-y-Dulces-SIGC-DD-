@@ -18,6 +18,7 @@ import { DashboardFilters } from '../../../../shared/components/filters/filters.
 import { TipoCuota } from '../../../cumplimientos-cuota/cumplimientos.component';
 import { CumplimientoService } from '../../../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../../../core/services/ventas/cumplimientoVentasSemana.service';
+import { SupervisorCacheService } from '../../../../core/services/supervisor-cache.service';
 import { VentasComponent } from '../../components/ventas/ventas.component';
 import {
   VendedorTabla,
@@ -90,6 +91,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
   private authService = inject(AuthService);
   private cumplimientoService = inject(CumplimientoService);
   private semanaService = inject(CumplimientoSemanaService);
+  private supervisorCache = inject(SupervisorCacheService);
   private cdr = inject(ChangeDetectorRef);
 
   @Input() tipoCuota: TipoCuota = 'mensual';
@@ -121,6 +123,9 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
   private idSupervisor = 0;
   private destroy$ = new Subject<void>();
   private initialized = false;
+  // OPTIMIZACION: evita recargar vendedores cuando solo cambia la fecha
+  // ya que el endpoint /vendedor/supervisor/:id no depende de fechas.
+  private ultimaCargaFiltrosKey = '';
 
   get labelCuota(): string {
     switch (this.tipoCuota) {
@@ -163,11 +168,9 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
   ngOnInit(): void {
     const vendedor = this.authService.getVendedor();
     this.idSupervisor = Number(vendedor?.id_usuario ?? vendedor?.idUsuario ?? vendedor?.id ?? 0);
-    
-    console.log('👤 Supervisor ID cargado:', this.idSupervisor);
-    console.log('👤 Usuario completo:', vendedor);
-    
+
     this.initialized = true;
+    this.supervisorCache.setIdSupervisor(this.idSupervisor);
     this.cargarVendedoresSupervisor();
 
     // Escuchar cambios en asignaciones de supervisores
@@ -175,8 +178,9 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
       .onSupervisorAsignado()
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
-        // Recargar vendedores cuando se asigna un supervisor
-        console.log('🔄 Recargando vendedores del supervisor...');
+        // Invalidar cache y recargar vendedores cuando se asigna un supervisor
+        this.supervisorCache.invalidarVendedores(this.idSupervisor);
+        this.usuariosService.invalidarCacheVendedoresPorSupervisor(String(this.idSupervisor));
         this.cargarVendedoresSupervisor();
       });
   }
@@ -185,14 +189,31 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     if (!this.initialized) return;
 
     if (changes['filtrosActivos']) {
-      // Actualizar filtros para el análisis cuando cambien los filtros activos
+      // Actualizar filtros para el análisis
       this.filtrosParaAnalisis = {
         ...this.filtrosActivos,
         codigosVendedores: this.codigosVendedoresAsignados,
       } as DashboardFilters & { codigosVendedores: string[] };
+
+      // OPTIMIZACION: si cambiaron las fechas, recargar el cumplimiento
+      // (los vendors ya estan cacheados, no generan nueva HTTP).
+      const prev = changes['filtrosActivos'].previousValue as DashboardFilters | undefined;
+      const curr = this.filtrosActivos;
+      const cambioFechas =
+        prev?.fechaInicio !== curr?.fechaInicio ||
+        prev?.fechaFin !== curr?.fechaFin ||
+        prev?.vendedor !== curr?.vendedor;
+
+      if (cambioFechas) {
+        // Invalidar cache de cumplimiento solo si fechas cambiaron
+        this.cumplimientoService.invalidarCachePorPrefijo('front-');
+        this.cumplimientoService.invalidarCachePorPrefijo('me-');
+        this.cargarVendedoresSupervisor();
+      }
     }
 
-    if (changes['tipoCuota'] || changes['filtrosActivos']) {
+    // Solo recargar vendedores si cambia el TIPO de cuota (mensual/semanal/diaria)
+    if (changes['tipoCuota'] && !changes['tipoCuota'].firstChange) {
       this.cargarVendedoresSupervisor();
     }
   }
@@ -340,15 +361,28 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
 
   private cargarVendedoresSupervisor(): void {
     if (!this.idSupervisor) {
-      console.warn('⚠️ ID de supervisor no disponible');
       this.todosLosVendedores = [];
       this.totales = null;
       return;
     }
 
-    console.log('🔍 Cargando vendedores para supervisor ID:', this.idSupervisor);
-    this.cargandoVendedores = true;
+    // OPTIMIZACION: si ya tenemos vendedores cargados y solo cambiaron las fechas,
+    // NO recargar /vendedor/supervisor/:id (no depende de fechas).
+    // Solo recargar el cumplimiento (que si depende de fechas).
+    const filtrosKey = `${this.tipoCuota}|${this.filtrosActivos?.fechaInicio ?? ''}|${this.filtrosActivos?.fechaFin ?? ''}`;
+    const yaHayVendedores = this.codigosVendedoresAsignados.length > 0;
+    const keyIgual = this.ultimaCargaFiltrosKey === filtrosKey;
 
+    if (yaHayVendedores && keyIgual) {
+      return;
+    }
+
+    this.cargandoVendedores = true;
+    this.ultimaCargaFiltrosKey = filtrosKey;
+
+    // OPTIMIZACION: solo pedimos los vendors si no los tenemos ya.
+    // UsuariosService ahora tiene cache por idSupervisor con shareReplay(1).
+    // Si los vendors ya estan cacheados, NO se hace nueva llamada HTTP.
     forkJoin({
       asignados: this.usuariosService.obtenerVendedoresDelSupervisor(String(this.idSupervisor)),
       cumplimiento: this.obtenerDetalleCumplimiento(),
@@ -362,9 +396,6 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
           asignados: VendedorApiRow[];
           cumplimiento: CumplimientoResponse;
         }) => {
-          console.log('✅ Vendedores asignados recibidos:', asignados);
-          console.log('✅ Cumplimiento recibido:', cumplimiento?.detalle?.length, 'filas');
-          
           const cumplimientoPorCodigo = new Map<string, any>();
 
           for (const fila of cumplimiento.detalle ?? []) {
@@ -403,23 +434,23 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
           });
 
           const listaFiltrada = this.aplicarFiltrosSupervisor(lista);
-          console.log('📊 Tabla final con filtros aplicados:', listaFiltrada.length, 'vendedores');
-          
+
           this.todosLosVendedores = listaFiltrada;
-          
+
           // Actualizar códigos de vendedores asignados para el análisis
           this.codigosVendedoresAsignados = listaFiltrada
             .map((v) => String(v.codVendedor ?? '').trim())
             .filter(Boolean);
-          
-          console.log('📋 Códigos de vendedores asignados:', this.codigosVendedoresAsignados);
-          
+
           // Preparar filtros para el análisis de ventas (solo vendedores asignados).
           // VentasComponent usa codigosVendedores para que el supervisor NO vea datos de todos los vendedores.
           this.filtrosParaAnalisis = {
             ...this.filtrosActivos,
             codigosVendedores: this.codigosVendedoresAsignados,
           } as DashboardFilters & { codigosVendedores: string[] };
+
+          // OPTIMIZACION: alimentar al cache service
+          this.supervisorCache.setIdSupervisor(this.idSupervisor);
 
           const ventaAcum = listaFiltrada.reduce((s: number, v) => s + (Number(v.ventaAcum) || 0), 0);
           const cuota = listaFiltrada.reduce((s: number, v) => s + (Number(v[this.campoCuota]) || 0), 0);
