@@ -109,6 +109,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
   totales: CumplimientoTotalesSupervisor | null = null;
   cargandoVendedores = false;
   todosLosVendedores: VendedorTabla[] = [];
+  private vendedoresOriginal: VendedorTabla[] = [];
   codigosVendedoresAsignados: string[] = [];
   filtrosParaAnalisis: DashboardFilters = {
     fechaInicio: '',
@@ -195,7 +196,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
         codigosVendedores: this.codigosVendedoresAsignados,
       } as DashboardFilters & { codigosVendedores: string[] };
 
-      // OPTIMIZACION: si cambiaron las fechas, recargar el cumplimiento
+      // OPTIMIZACION: si cambiaron las fechas o el vendedor, recargar el cumplimiento
       // (los vendors ya estan cacheados, no generan nueva HTTP).
       const prev = changes['filtrosActivos'].previousValue as DashboardFilters | undefined;
       const curr = this.filtrosActivos;
@@ -204,11 +205,27 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
         prev?.fechaFin !== curr?.fechaFin ||
         prev?.vendedor !== curr?.vendedor;
 
+      const cambioFiltrosCliente =
+        prev?.proveedor !== curr?.proveedor ||
+        JSON.stringify(prev?.proveedores ?? []) !== JSON.stringify(curr?.proveedores ?? []) ||
+        prev?.categoria !== curr?.categoria ||
+        JSON.stringify(prev?.categorias ?? []) !== JSON.stringify(curr?.categorias ?? []) ||
+        prev?.ciudad !== curr?.ciudad ||
+        (prev?.ciudadNombre ?? '') !== (curr?.ciudadNombre ?? '') ||
+        (prev?.linea ?? '') !== (curr?.linea ?? '');
+
       if (cambioFechas) {
         // Invalidar cache de cumplimiento solo si fechas cambiaron
         this.cumplimientoService.invalidarCachePorPrefijo('front-');
         this.cumplimientoService.invalidarCachePorPrefijo('me-');
         this.cargarVendedoresSupervisor();
+      } else if (cambioFiltrosCliente && this.vendedoresOriginal.length > 0) {
+        // Re-aplicar filtros en cliente sin recargar la lista original
+        this.todosLosVendedores = this.aplicarFiltrosSupervisor(this.vendedoresOriginal);
+        this.codigosVendedoresAsignados = this.todosLosVendedores
+          .map((v) => String(v.codVendedor ?? '').trim())
+          .filter(Boolean);
+        this.cdr.detectChanges();
       }
     }
 
@@ -313,7 +330,13 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
       codVendedorFiltro = String(partes[0] ?? '').trim();
     }
     
-    const proveedorFiltro = this.normalizarTexto(filtros.proveedor);
+    const proveedoresFiltro = Array.isArray(filtros.proveedores) && filtros.proveedores.length
+      ? filtros.proveedores.map((item) => this.normalizarTexto(item)).filter(Boolean)
+      : this.normalizarTexto(filtros.proveedor)
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean);
+
     const categoriasFiltro = Array.isArray(filtros.categorias) && filtros.categorias.length
       ? filtros.categorias.map((item) => this.normalizarTexto(item)).filter(Boolean)
       : [this.normalizarTexto(filtros.categoria)].filter(Boolean);
@@ -329,9 +352,26 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
         }
       }
 
-      if (proveedorFiltro) {
-        const proveedorV = this.normalizarTexto(v.proveedor ?? v.nomProveedor ?? v.nombreProveedor);
-        if (!proveedorV.includes(proveedorFiltro)) return false;
+      if (proveedoresFiltro.length) {
+        const valoresProveedor = [
+          v.proveedor,
+          v.nomProveedor,
+          v.nombreProveedor,
+          (v as any).codigoProveedor,
+          (v as any).codigo_proveedor,
+          (v as any).id_proveedor,
+        ]
+          .map((item) => this.normalizarTexto(item))
+          .filter(Boolean);
+
+        if (valoresProveedor.length) {
+          const coincide = valoresProveedor.some((valorFila) =>
+            proveedoresFiltro.some(
+              (valorFiltro) => valorFila === valorFiltro || valorFila.includes(valorFiltro),
+            ),
+          );
+          if (!coincide) return false;
+        }
       }
 
       if (categoriasFiltro.length) {
@@ -435,6 +475,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
 
           const listaFiltrada = this.aplicarFiltrosSupervisor(lista);
 
+          this.vendedoresOriginal = lista;
           this.todosLosVendedores = listaFiltrada;
 
           // Actualizar códigos de vendedores asignados para el análisis
