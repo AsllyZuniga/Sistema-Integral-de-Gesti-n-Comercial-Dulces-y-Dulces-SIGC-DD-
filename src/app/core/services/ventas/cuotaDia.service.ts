@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpErrorResponse } from '@angular/common/http';
 import { Observable, map, catchError, of, tap } from 'rxjs';
 
 export interface CuotaDiaVendedor {
@@ -129,15 +129,63 @@ export class CuotaDiaService {
 
   /**
    * VENDEDOR: GET /api/roles/cuota-dia/por-vendedor
-   * Solo el vendedor autenticado (extraído del token)
+   * Solo el vendedor autenticado (extraído del token).
+   *
+   * Respuesta exitosa:
+   *   { success, data: CuotaDiaVendedor[], message, vendedor: {...} }
+   *
+   * Errores manejados (no se propagan para no romper UI):
+   *   - 401: Sin token
+   *   - 403: Token válido pero rol ≠ 3
+   *   - 404: No existe vendedor asociado al usuario
    */
   getCuotaDiaVendedor(params: CuotaDiaParams): Observable<CuotaDiaVendedor[]> {
     const httpParams = this.buildParams(params);
 
-    return this.http.get<CuotaDiaResponse>(`${this.apiRoles}/por-vendedor`, { params: httpParams }).pipe(
-      map((res) => (res?.success && Array.isArray(res.data) ? res.data : [])),
-      catchError(() => of([])),
-    );
+    console.debug('[CuotaDiaService] GET /api/roles/cuota-dia/por-vendedor', {
+      fecha_inicio: params.fechaInicio,
+      fecha_fin: params.fechaFin,
+    });
+
+    return this.http
+      .get<CuotaDiaResponse>(`${this.apiRoles}/por-vendedor`, { params: httpParams })
+      .pipe(
+        tap((res: CuotaDiaResponse) => {
+          console.debug('[CuotaDiaService] Respuesta vendedor raw:', {
+            success: res?.success,
+            dataLength: res?.data?.length ?? 0,
+            message: res?.message,
+          });
+        }),
+        map((res: CuotaDiaResponse) => {
+          const data = res?.success && Array.isArray(res.data) ? res.data : [];
+          console.debug('[CuotaDiaService] Data retornada:', data.length, 'registros');
+          return data;
+        }),
+        catchError((err: HttpErrorResponse) => {
+          const status = err?.status;
+          const mensaje = this.obtenerMensajeErrorVendedor(status);
+          console.warn('[CuotaDiaService] Error en getCuotaDiaVendedor:', { status, mensaje });
+          return of([]);
+        }),
+      );
+  }
+
+  /**
+   * Devuelve un mensaje legible para los errores específicos del endpoint
+   * /api/roles/cuota-dia/por-vendedor.
+   */
+  private obtenerMensajeErrorVendedor(status: number | undefined): string {
+    switch (status) {
+      case 401:
+        return 'Sin token de autenticación. Inicia sesión nuevamente.';
+      case 403:
+        return 'Tu rol no tiene permisos para consultar la cuota diaria del vendedor.';
+      case 404:
+        return 'No existe un vendedor asociado al usuario autenticado.';
+      default:
+        return 'Error al obtener la cuota diaria del vendedor.';
+    }
   }
 
   private buildParams(params: CuotaDiaParams): HttpParams {
