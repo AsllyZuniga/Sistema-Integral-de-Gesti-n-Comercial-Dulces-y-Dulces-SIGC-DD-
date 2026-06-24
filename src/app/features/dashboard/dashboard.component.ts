@@ -998,18 +998,65 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
-    this.cumplimientoService
-      .getCiudadesGlobal(filtrosBase)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((res: ApiCiudadesResponse) => {
-        const ciudadesDetalle = Array.isArray(res?.detallePorCiudad) ? res.detallePorCiudad : [];
-        const ciudades = new Set<string>();
-        ciudadesDetalle.forEach((item) => {
-          this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), ciudades);
-        });
-        this.ciudadesList = this.toFilterOptions(Array.from(ciudades));
+    // Sin vendedor seleccionado: iterar por todos los vendors del catálogo
+    // para evitar que el endpoint "global" (que en algunos meses solo devuelve
+    // "SIN CIUDAD") oculte el resto de ciudades en el filtro.
+    this.cargarCiudadesYLineasAdminIterandoCatalogo(filtrosBase);
+  }
+
+  private cargarCiudadesYLineasAdminIterandoCatalogo(filtrosBase: DashboardFilters): void {
+    this.usuariosService
+      .listarDetalleVendedores()
+      .pipe(
+        takeUntil(this.destroy$),
+        catchError(() => of([] as any[])),
+      )
+      .subscribe((detalleVendedores: any[]) => {
+        const codigos = (Array.isArray(detalleVendedores) ? detalleVendedores : [])
+          .map((v) => this.obtenerCodigoVendedorDetalle(v))
+          .filter(Boolean);
+
+        // Si no hay catálogo, fallback al endpoint global para no dejar el
+        // filtro vacío en escenarios de carga inicial.
+        if (!codigos.length) {
+          this.cumplimientoService
+            .getCiudadesGlobal(filtrosBase)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe((res: ApiCiudadesResponse) => {
+              const ciudadesDetalle = Array.isArray(res?.detallePorCiudad) ? res.detallePorCiudad : [];
+              const ciudades = new Set<string>();
+              ciudadesDetalle.forEach((item) => {
+                this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), ciudades);
+              });
+              this.ciudadesList = this.toFilterOptions(Array.from(ciudades));
+            });
+          return;
+        }
+
+        const peticionesCiudades = codigos.map((codigo) =>
+          this.cumplimientoService
+            .getCiudadesPorVendedor(codigo, filtrosBase)
+            .pipe(catchError(() => of({ detallePorCiudad: [] } as ApiCiudadesResponse))),
+        );
+
+        forkJoin(peticionesCiudades)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((respuestas: ApiCiudadesResponse[]) => {
+            const ciudadesUnicas = new Set<string>();
+
+            respuestas.forEach((res) => {
+              const detalle = Array.isArray(res?.detallePorCiudad) ? res.detallePorCiudad : [];
+              detalle.forEach((item: ApiCiudadRow) => {
+                this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), ciudadesUnicas);
+              });
+            });
+
+            this.ciudadesList = this.toFilterOptions(Array.from(ciudadesUnicas));
+          });
       });
 
+    // Las líneas (proveedores) sí se pueden cargar del endpoint admin: ya
+    // está implementado abajo con getLineasAdmin.
     this.cumplimientoService
       .getLineasAdmin(filtrosBase)
       .pipe(takeUntil(this.destroy$))
@@ -1025,6 +1072,18 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         });
         this.lineasList = this.toFilterOptions(Array.from(lineas));
       });
+  }
+
+  private obtenerCodigoVendedorDetalle(v: any): string {
+    return String(
+      v?.codVendedor ??
+        v?.codigo_vendedor ??
+        v?.codigoVendedor ??
+        v?.cod_vendedor ??
+        v?.codigo ??
+        v?.cod ??
+        '',
+    ).trim();
   }
 
   private resolverCodigoVendedorDesdeApi(): void {

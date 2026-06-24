@@ -6,8 +6,11 @@ import { VentasUtilidadesBase } from '../../services/ventas-utilidades-base';
 @Directive()
 export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
   protected cargarVistaAdminTodos(filtrosConsulta: DashboardFilters): void {
-    const filtrosAdmin =
-      this.activeVentasView === 'ciudad' ? { ...filtrosConsulta, vendedor: '' } : filtrosConsulta;
+    // Antes: se borraba `vendedor` cuando la vista era 'ciudad' para que el endpoint
+    // global no lo recibiera. Ahora la iteración per-vendor respeta el filtro
+    // gracias a `filtrarCodigosPorFiltroVendedor`, por lo que el filtro se
+    // mantiene en todos los casos.
+    const filtrosAdmin = filtrosConsulta;
 
     const admin$ = this.esSemanal
       ? this.semanaService.getCumplimientoSemanaAdmin(filtrosAdmin)
@@ -17,7 +20,8 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
       case 'categoria':
         this.chartType = 'bar';
         if (this.tieneCodigosVendedoresPermitidos()) {
-          const codigos = this.filtrarCodigosPermitidos(this._codigosVendedoresPermitidos);
+          const codigosBase = this.filtrarCodigosPermitidos(this._codigosVendedoresPermitidos);
+          const codigos = this.filtrarCodigosPorFiltroVendedor(codigosBase, filtrosConsulta);
 
           if (!codigos.length) {
             this.tableData = [];
@@ -164,7 +168,8 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
       case 'proveedor':
         this.chartType = 'bar';
         if (this.tieneCodigosVendedoresPermitidos()) {
-          const codigos = this.filtrarCodigosPermitidos(this._codigosVendedoresPermitidos);
+          const codigosBase = this.filtrarCodigosPermitidos(this._codigosVendedoresPermitidos);
+          const codigos = this.filtrarCodigosPorFiltroVendedor(codigosBase, filtrosConsulta);
 
           if (!codigos.length) {
             this.tableData = [];
@@ -285,7 +290,8 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
       case 'ciudad':
         this.chartType = 'pie';
         if (this.tieneCodigosVendedoresPermitidos()) {
-          const codigos = this.filtrarCodigosPermitidos(this._codigosVendedoresPermitidos);
+          const codigosBase = this.filtrarCodigosPermitidos(this._codigosVendedoresPermitidos);
+          const codigos = this.filtrarCodigosPorFiltroVendedor(codigosBase, filtrosConsulta);
 
           if (!codigos.length) {
             this.tableData = [];
@@ -740,6 +746,38 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
         proyeccionVenta: Number(cuota.proye_venta ?? 0),
         porcCumProy: Number(cuota.pct_cumplimiento ?? 0),
       };
+    });
+  }
+
+  /**
+   * Si `filtrosConsulta.vendedor` está definido, filtra la lista de códigos
+   * de vendedor para que la iteración per-vendor (Por Proveedor / Por Categoría
+   * / Por Ciudad) SOLO consulte el vendor seleccionado, en lugar de consolidar
+   * los datos de todos los vendors del catálogo.
+   *
+   * Si NO hay filtro de vendor, retorna la lista original sin tocarla.
+   */
+  protected filtrarCodigosPorFiltroVendedor(
+    codigos: string[],
+    filtros: DashboardFilters,
+  ): string[] {
+    const vendedorFiltro = String(filtros?.vendedor ?? '').trim();
+    if (!vendedorFiltro) return codigos;
+
+    // Aceptar "20" cuando la lista tiene "020" y viceversa.
+    const candidatos = new Set<string>([vendedorFiltro]);
+    const numerico = vendedorFiltro.replace(/\D/g, '');
+    if (numerico) {
+      candidatos.add(numerico);
+      candidatos.add(String(Number(numerico)));
+      candidatos.add(numerico.padStart(4, '0'));
+    }
+    const objetivo = this.normalizarCodigoVendedor(vendedorFiltro);
+
+    return (codigos ?? []).filter((c) => {
+      if (!c) return false;
+      if (candidatos.has(c)) return true;
+      return this.normalizarCodigoVendedor(c) === objetivo;
     });
   }
 }
