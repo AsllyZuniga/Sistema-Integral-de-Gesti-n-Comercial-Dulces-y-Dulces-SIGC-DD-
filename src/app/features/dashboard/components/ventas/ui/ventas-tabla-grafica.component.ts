@@ -40,6 +40,8 @@ import { TableComponent } from '../../../../../shared/components/table/table.com
         }
       </div>
 
+      <ng-content select="[ventas-tabla-footer]"></ng-content>
+
       @if (chartData.length > 0) {
         <div class="grafica-container">
           @if (kpiLabel && kpiValue) {

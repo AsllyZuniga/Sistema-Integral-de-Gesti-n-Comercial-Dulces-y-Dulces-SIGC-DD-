@@ -1,5 +1,5 @@
 import { Directive } from '@angular/core';
-import { forkJoin, merge, takeUntil } from 'rxjs';
+import { merge, takeUntil } from 'rxjs';
 import { DashboardFilters } from '../../../../../../shared/components/filters/filters.component';
 import { VentasUtilidadesBase } from '../../services/ventas-utilidades-base';
 
@@ -423,40 +423,34 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
           return;
         }
 
+        // El endpoint /items-vendidos determina el alcance por token:
+        // admin -> todos los items, supervisor -> su equipo, vendedor -> los suyos.
+        this.resetearPaginacionItemsVendidos();
+        this.cargandoMasItemsVendidos = true;
+        this.cdr.markForCheck();
+
         this.cumplimientoService
-          .getVendedores()
+          .getProductosPorVendedor('', filtrosConsulta, {
+            page: this.itemsVendidosPageActual,
+            limit: this.itemsVendidosPorPagina,
+          })
           .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-          .subscribe((vendedores: any[]) => {
-            const codigos = this.filtrarCodigosPermitidos(
-              (Array.isArray(vendedores) ? vendedores : [])
-                .map((v: any) =>
-                  String(v?.codigo_vendedor ?? v?.codVendedor ?? v?.codigo ?? '').trim(),
-                )
-                .filter(Boolean),
-            );
-
-            if (!codigos.length) {
+          .subscribe({
+            next: (res: any) => {
+              const listado = Array.isArray(res?.data) ? res.data : [];
+              this.itemsVendidosPaginacion = res?.paginacion ?? null;
+              const listadoOrdenado = this.ordenarDetalleItemsPorFechaAsc(listado);
+              this.allItemData = listadoOrdenado;
+              this.tableData = [...listadoOrdenado];
+              this.cargandoMasItemsVendidos = false;
+              this.recalcularChart();
+            },
+            error: () => {
+              this.allItemData = [];
               this.tableData = [];
-              this.chartData = [];
+              this.cargandoMasItemsVendidos = false;
               this.cdr.markForCheck();
-              return;
-            }
-
-            const calls = codigos.map((codigo) =>
-              this.cumplimientoService.getProductosPorVendedor(codigo, filtrosConsulta),
-            );
-
-            forkJoin(calls)
-              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-              .subscribe((responses: any[]) => {
-                const listado = responses.flatMap((r: any) =>
-                  Array.isArray(r?.data) ? r.data : [],
-                );
-                const listadoOrdenado = this.ordenarDetalleItemsPorFechaAsc(listado);
-                this.allItemData = listadoOrdenado;
-                this.tableData = [...listadoOrdenado];
-                this.recalcularChart();
-              });
+            },
           });
         return;
 

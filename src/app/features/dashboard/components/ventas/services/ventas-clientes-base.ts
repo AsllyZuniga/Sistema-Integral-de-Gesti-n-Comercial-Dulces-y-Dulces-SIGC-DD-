@@ -1129,6 +1129,48 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
     return pag.page * pag.limit < pag.total;
   }
 
+  /**
+   * Vista 'item': carga la siguiente pagina de /items-vendidos y la concatena
+   * a la lista acumulada de items vendidos.
+   */
+  cargarMasItemsVendidos(filtrosConsulta?: DashboardFilters): void {
+    if (this.cargandoMasItemsVendidos) return;
+    if (!this.puedeCargarMasItemsVendidos()) return;
+
+    this.cargandoMasItemsVendidos = true;
+    this.cdr.markForCheck();
+
+    this.itemsVendidosPageActual += 1;
+    const filtros = filtrosConsulta ?? this.obtenerFiltrosActivos();
+    const opciones = {
+      page: this.itemsVendidosPageActual,
+      limit: this.itemsVendidosPorPagina,
+    };
+
+    const codigo = this._codigoVendedor ?? '';
+    const items$ = this.cumplimientoService.getProductosPorVendedor(codigo, filtros, opciones);
+
+    items$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe({
+      next: (res: any) => {
+        const listado = Array.isArray(res?.data) ? res.data : [];
+        if (res?.paginacion) {
+          this.itemsVendidosPaginacion = res.paginacion;
+        }
+        const acumulado = [...this.allItemData, ...listado];
+        const listadoOrdenado = this.ordenarDetalleItemsPorFechaAsc(acumulado);
+        this.allItemData = listadoOrdenado;
+        this.tableData = [...listadoOrdenado];
+        this.recalcularChart();
+        this.cargandoMasItemsVendidos = false;
+      },
+      error: () => {
+        this.itemsVendidosPageActual = Math.max(1, this.itemsVendidosPageActual - 1);
+        this.cargandoMasItemsVendidos = false;
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
   cargarMasClientesDeVendedor(vendedor: any): void {
     if (!vendedor) return;
     const key = String(vendedor?.key ?? vendedor?.codVendedor ?? '');

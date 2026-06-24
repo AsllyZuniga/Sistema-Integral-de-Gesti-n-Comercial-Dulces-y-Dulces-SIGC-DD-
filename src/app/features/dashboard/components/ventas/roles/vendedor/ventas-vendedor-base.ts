@@ -450,33 +450,58 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
             ? this.construirCandidatosFallback(filtrosConsulta)
             : [filtrosConsulta];
 
-          const intentarItem = (idx: number): void => {
+          this.resetearPaginacionItemsVendidos();
+          this.cargandoMasItemsVendidos = true;
+          this.cdr.markForCheck();
+
+          const intentarItem = (idx: number, resetear: boolean): void => {
             const filtrosActivos = candidatos[idx];
+            const opciones = {
+              page: this.itemsVendidosPageActual,
+              limit: this.itemsVendidosPorPagina,
+            };
             const items$ = this.esSemanal
-              ? this.semanaService.getProductosPorVendedor(this._codigoVendedor, filtrosActivos)
+              ? this.semanaService.getProductosPorVendedor(
+                  this._codigoVendedor,
+                  filtrosActivos,
+                  opciones,
+                )
               : this.cumplimientoService.getProductosPorVendedor(
                   this._codigoVendedor,
                   filtrosActivos,
+                  opciones,
                 );
 
             items$
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-              .subscribe((res: any) => {
-                const listado = res?.data ?? [];
+              .subscribe({
+                next: (res: any) => {
+                  const listado = res?.data ?? [];
 
-                if (!listado.length && idx < candidatos.length - 1) {
-                  intentarItem(idx + 1);
-                  return;
-                }
+                  if (!listado.length && idx < candidatos.length - 1) {
+                    intentarItem(idx + 1, true);
+                    return;
+                  }
 
-                const listadoOrdenado = this.ordenarDetalleItemsPorFechaAsc(listado);
-                this.allItemData = listadoOrdenado;
-                this.tableData = [...listadoOrdenado];
-                this.recalcularChart();
+                  if (res?.paginacion) {
+                    this.itemsVendidosPaginacion = res.paginacion;
+                  }
+
+                  const acumulado = resetear ? listado : [...this.allItemData, ...listado];
+                  const listadoOrdenado = this.ordenarDetalleItemsPorFechaAsc(acumulado);
+                  this.allItemData = listadoOrdenado;
+                  this.tableData = [...listadoOrdenado];
+                  this.cargandoMasItemsVendidos = false;
+                  this.recalcularChart();
+                },
+                error: () => {
+                  this.cargandoMasItemsVendidos = false;
+                  this.cdr.markForCheck();
+                },
               });
           };
 
-          intentarItem(0);
+          intentarItem(0, true);
         }
         break;
 

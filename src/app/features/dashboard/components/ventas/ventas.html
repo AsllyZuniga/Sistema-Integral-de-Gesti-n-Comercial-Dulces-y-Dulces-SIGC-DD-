@@ -112,7 +112,41 @@
           kpiLabel="Suma subtotal top 15"
           [kpiValue]="totalTopItemsSubtotalLabel"
           [showCountBadge]="true"
-        ></app-ventas-tabla-grafica>
+        >
+          <div class="ventas-paginacion" ventas-tabla-footer>
+            <div class="ventas-paginacion-info">
+              <span class="ventas-paginacion-texto">
+                Mostrando <strong>{{ tableData.length }}</strong> de
+                <strong>{{ itemsVendidosPaginacion?.total ?? tableData.length }}</strong> items
+              </span>
+              <span class="ventas-paginacion-pagina">
+                Página <strong>{{ itemsVendidosPageActual }}</strong> de
+                <strong>{{ itemsVendidosTotalPaginas }}</strong>
+              </span>
+            </div>
+            <div class="ventas-paginacion-acciones">
+              <button
+                type="button"
+                class="btn-paginacion btn-paginacion-primario"
+                (click)="cargarMasItemsVendidos()"
+                [disabled]="!puedeCargarMasItemsVendidos() || cargandoMasItemsVendidos"
+                [title]="
+                  puedeCargarMasItemsVendidos()
+                    ? 'Cargar la siguiente página de ' + itemsVendidosPorPagina + ' items'
+                    : 'Ya se cargaron todos los items disponibles'
+                "
+              >
+                @if (cargandoMasItemsVendidos) {
+                  <span>Cargando...</span>
+                } @else if (puedeCargarMasItemsVendidos()) {
+                  <span>Cargar siguiente página (+{{ itemsVendidosPorPagina }})</span>
+                } @else {
+                  <span>Todos los items cargados</span>
+                }
+              </button>
+            </div>
+          </div>
+        </app-ventas-tabla-grafica>
       }
 
       @case ('cliente') {

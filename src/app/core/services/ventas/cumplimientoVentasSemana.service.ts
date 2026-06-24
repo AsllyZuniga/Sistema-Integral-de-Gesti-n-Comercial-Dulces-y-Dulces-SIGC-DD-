@@ -228,27 +228,58 @@ export class CumplimientoSemanaService {
   // ─── PRODUCTOS / ITEMS ───────────────────────────────────────────────────────
 
   /**
-   * GET /semana/cumplimiento/vendedor/:codigoVendedor/productos
-   * Devuelve { data: [...productos] }
+   * GET /items-vendidos?fechaInicio=YYYY-MM-DD&fechaFin=YYYY-MM-DD&page=1&limit=100
+   * Devuelve { data: [Proveedor, Cod_Item, Descripcion, Venta_Unid_Cajas, Cantidad, Subtotal],
+   *            paginacion: { page, limit, total, paginado } }
+   *
+   * El endpoint es único para todos los roles (admin/supervisor/vendedor) y
+   * determina el alcance según el token. El parámetro `codigoVendedor` se
+   * mantiene por compatibilidad con consumidores existentes pero ya no se usa
+   * en la URL.
    */
-  getProductosPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
-    const params = this.buildParams(filtros);
+  getProductosPorVendedor(
+    codigoVendedor: string,
+    filtros?: DashboardFilters,
+    opciones: { page?: number; limit?: number } = {},
+  ): Observable<any> {
+    const page = Number(opciones.page ?? 1) || 1;
+    const limit = Math.min(100, Math.max(1, Number(opciones.limit ?? 100) || 100));
+    const paramsBase = this.buildParams(filtros);
+    const params = paramsBase.set('page', String(page)).set('limit', String(limit));
+
     return this.http
-      .get<any>(`${this.apiUrl}/semana/cumplimiento/vendedor/${codigoVendedor}/productos`, {
-        params,
-      })
+      .get<any>(`${this.apiUrl}/items-vendidos`, { params })
       .pipe(
         map((res) => {
-          if (res?.detallePorProducto) {
-            res.data = Array.isArray(res.detallePorProducto) ? res.detallePorProducto : [];
-          } else if (res?.data) {
-            res.data = Array.isArray(res.data) ? res.data : [];
-          } else {
-            res = { ...res, data: [] };
-          }
-          return res;
+          const body = res?.data ?? res ?? {};
+          const rows = Array.isArray(body.rows) ? body.rows : [];
+
+          const data = rows.map((r: any) => ({
+            ...r,
+            Proveedor: r?.proveedor ?? r?.Proveedor ?? '',
+            Cod_Item:
+              r?.codigo_item ?? r?.Cod_Item ?? r?.cod_item ?? r?.id_item ?? r?.idItem ?? '',
+            Descripcion: r?.descripcion ?? r?.Descripcion ?? r?.producto ?? '',
+            Venta_Unid_Cajas: Number(
+              r?.unidades_cajas ?? r?.Venta_Unid_Cajas ?? r?.cantidad ?? 0,
+            ),
+            Cantidad: Number(r?.unidades_cajas ?? r?.Cantidad ?? r?.cantidad ?? 0),
+            Subtotal: Number(r?.subtotal ?? r?.Subtotal ?? r?.subTotal ?? 0),
+          }));
+
+          const pagRaw = body.paginacion ?? null;
+          const paginacion = pagRaw
+            ? {
+                page: Number(pagRaw.page ?? page) || page,
+                limit: Number(pagRaw.limit ?? limit) || limit,
+                total: Number(pagRaw.total ?? data.length) || 0,
+                paginado: Boolean(pagRaw.paginado ?? true),
+              }
+            : null;
+
+          return { data, paginacion };
         }),
-        catchError(() => of({ data: [] })),
+        catchError(() => of({ data: [], paginacion: null })),
       );
   }
 

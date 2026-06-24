@@ -227,6 +227,17 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
   protected cargandoMasClientesPorVendedor = new Set<string>();
   protected cargandoMasItemsPorCliente = new Set<string>();
 
+  // Paginación real (server-side) para /items-vendidos (vista Detalle por Item)
+  readonly itemsVendidosPorPagina = 100;
+  protected itemsVendidosPageActual = 1;
+  protected itemsVendidosPaginacion: {
+    page: number;
+    limit: number;
+    total: number;
+    paginado: boolean;
+  } | null = null;
+  protected cargandoMasItemsVendidos = false;
+
   protected readonly todasLasVistas = VENTAS_VIEWS;
 
   get ventasViews() {
@@ -272,7 +283,6 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
     'Cod_Item',
     'Descripcion',
     'Venta_Unid_Cajas',
-    'Cantidad',
     'Subtotal',
   ];
   readonly clienteProductosColumns = ['producto', 'cantidad', 'subtotal'];
@@ -357,6 +367,9 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
     this.cargandoMasVendedores = false;
     this.cargandoMasClientesPorVendedor = new Set();
     this.cargandoMasItemsPorCliente = new Set();
+    this.itemsVendidosPageActual = 1;
+    this.itemsVendidosPaginacion = null;
+    this.cargandoMasItemsVendidos = false;
     this.chartId = 'chart-' + this.activeVentasView + '-' + Date.now();
     this.cdr.markForCheck();
   }
@@ -392,6 +405,25 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
       (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? item?.acumulado ?? 0) || 0),
       0,
     );
+  }
+
+  protected resetearPaginacionItemsVendidos(): void {
+    this.itemsVendidosPageActual = 1;
+    this.itemsVendidosPaginacion = null;
+    this.cargandoMasItemsVendidos = false;
+  }
+
+  protected puedeCargarMasItemsVendidos(): boolean {
+    const pag = this.itemsVendidosPaginacion;
+    if (!pag) return false;
+    if (!pag.paginado) return false;
+    return this.itemsVendidosPageActual * pag.limit < pag.total;
+  }
+
+  protected get itemsVendidosTotalPaginas(): number {
+    const pag = this.itemsVendidosPaginacion;
+    if (!pag || !pag.limit) return 1;
+    return Math.max(1, Math.ceil(pag.total / pag.limit));
   }
 
   setVentasView(view: string): void {
