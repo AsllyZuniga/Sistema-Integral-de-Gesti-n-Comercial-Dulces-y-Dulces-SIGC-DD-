@@ -59,14 +59,28 @@
 
 .admin-table.supervisor-table th:nth-child(2),
 .admin-table.supervisor-table td:nth-child(2) {
-  width: 180px;
-  max-width: 180px;
+  width: auto;
+  min-width: 240px;
 }
 
 .admin-table.supervisor-table td.nombre {
-  white-space: nowrap;
+  white-space: normal;
   overflow: visible;
-  text-overflow: clip;
+  word-break: normal;
+  overflow-wrap: break-word;
+  line-height: 1.3;
+}
+
+.admin-table.supervisor-table td.nombre > span.nombre-texto {
+  display: inline;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.admin-table.supervisor-table td.nombre .estado-inline {
+  flex-shrink: 0;
+  margin-left: 6px;
 }
 
 .admin-table td.num {

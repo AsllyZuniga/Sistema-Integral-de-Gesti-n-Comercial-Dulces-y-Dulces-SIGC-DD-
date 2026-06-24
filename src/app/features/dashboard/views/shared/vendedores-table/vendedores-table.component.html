@@ -25,8 +25,8 @@
         @for (v of todosLosVendedores; track v.codVendedor; let i = $index) {
           <tr [class.odd]="i % 2 === 1" [class.inactivo]="v.estado === false">
             <td class="cod">{{ v.codVendedor ?? '—' }}</td>
-            <td class="nombre">
-              <span>{{ v.nombre ?? '—' }}</span>
+            <td class="nombre" [title]="v.nombre">
+              <span class="nombre-texto">{{ v.nombre ?? '—' }}</span>
               @if (v.estado === false) {
                 <span class="estado-inline inactivo">Inactivo</span>
               }
