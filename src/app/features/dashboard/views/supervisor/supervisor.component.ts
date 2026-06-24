@@ -122,6 +122,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
   };
 
   private idSupervisor = 0;
+  private codigosVendedoresTodosAsignados: string[] = [];
   private destroy$ = new Subject<void>();
   private initialized = false;
   // OPTIMIZACION: evita recargar vendedores cuando solo cambia la fecha
@@ -190,11 +191,12 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     if (!this.initialized) return;
 
     if (changes['filtrosActivos']) {
-      // Actualizar filtros para el análisis
-      this.filtrosParaAnalisis = {
-        ...this.filtrosActivos,
-        codigosVendedores: this.codigosVendedoresAsignados,
-      } as DashboardFilters & { codigosVendedores: string[] };
+      // Actualizar filtros para el análisis. Los códigos enviados a app-ventas deben ser
+      // TODOS los vendedores asignados al supervisor; proveedor/categoría/ciudad viajan
+      // como filtros aparte. Si reducimos los códigos por proveedor/categoría aquí,
+      // el análisis puede quedarse vacío porque la lista de vendedores asignados no
+      // siempre trae esos campos de clasificación.
+      this.sincronizarFiltrosParaAnalisis();
 
       // OPTIMIZACION: si cambiaron las fechas o el vendedor, recargar el cumplimiento
       // (los vendors ya estan cacheados, no generan nueva HTTP).
@@ -220,11 +222,12 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
         this.cumplimientoService.invalidarCachePorPrefijo('me-');
         this.cargarVendedoresSupervisor();
       } else if (cambioFiltrosCliente && this.vendedoresOriginal.length > 0) {
-        // Re-aplicar filtros en cliente sin recargar la lista original
+        // Re-aplicar filtros solo para la tabla de vendedores asignados.
+        // El análisis mantiene el alcance completo del supervisor y se filtra internamente
+        // por proveedor/categoría/ciudad, igual que administrador.
         this.todosLosVendedores = this.aplicarFiltrosSupervisor(this.vendedoresOriginal);
-        this.codigosVendedoresAsignados = this.todosLosVendedores
-          .map((v) => String(v.codVendedor ?? '').trim())
-          .filter(Boolean);
+        this.codigosVendedoresAsignados = [...this.codigosVendedoresTodosAsignados];
+        this.sincronizarFiltrosParaAnalisis();
         this.cdr.detectChanges();
       }
     }
@@ -399,9 +402,22 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     });
   }
 
+  private sincronizarFiltrosParaAnalisis(): void {
+    this.filtrosParaAnalisis = {
+      ...this.filtrosActivos,
+      codigosVendedores: this.codigosVendedoresTodosAsignados.length
+        ? [...this.codigosVendedoresTodosAsignados]
+        : [...this.codigosVendedoresAsignados],
+    } as DashboardFilters & { codigosVendedores: string[] };
+  }
+
   private cargarVendedoresSupervisor(): void {
     if (!this.idSupervisor) {
       this.todosLosVendedores = [];
+      this.vendedoresOriginal = [];
+      this.codigosVendedoresAsignados = [];
+      this.codigosVendedoresTodosAsignados = [];
+      this.sincronizarFiltrosParaAnalisis();
       this.totales = null;
       return;
     }
@@ -478,17 +494,17 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
           this.vendedoresOriginal = lista;
           this.todosLosVendedores = listaFiltrada;
 
-          // Actualizar códigos de vendedores asignados para el análisis
-          this.codigosVendedoresAsignados = listaFiltrada
+          // Mantener separados los vendedores visibles de la tabla y el alcance real
+          // del análisis. Proveedor/categoría no deben reducir este arreglo porque
+          // esos filtros se aplican en las consultas/transformaciones de app-ventas.
+          this.codigosVendedoresTodosAsignados = lista
             .map((v) => String(v.codVendedor ?? '').trim())
             .filter(Boolean);
+          this.codigosVendedoresAsignados = [...this.codigosVendedoresTodosAsignados];
 
           // Preparar filtros para el análisis de ventas (solo vendedores asignados).
           // VentasComponent usa codigosVendedores para que el supervisor NO vea datos de todos los vendedores.
-          this.filtrosParaAnalisis = {
-            ...this.filtrosActivos,
-            codigosVendedores: this.codigosVendedoresAsignados,
-          } as DashboardFilters & { codigosVendedores: string[] };
+          this.sincronizarFiltrosParaAnalisis();
 
           // OPTIMIZACION: alimentar al cache service
           this.supervisorCache.setIdSupervisor(this.idSupervisor);
@@ -526,6 +542,8 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
           this.totales = null;
           this.todosLosVendedores = [];
           this.codigosVendedoresAsignados = [];
+          this.codigosVendedoresTodosAsignados = [];
+          this.sincronizarFiltrosParaAnalisis();
           this.cdr.detectChanges();
         },
       });
