@@ -575,33 +575,55 @@
 
 .btn-paginacion {
   border: none;
-  border-radius: 7px;
-  padding: 7px 18px;
-  font-size: 12.5px;
+  border-radius: var(--r-md);
+  padding: 9px 20px;
+  font-size: 13px;
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease,
-    background 0.15s ease;
+  transition: var(--transition);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
   white-space: nowrap;
   letter-spacing: 0.01em;
+  min-height: 38px;
+}
+
+.btn-paginacion .material-symbols-rounded {
+  font-size: 18px;
+  font-variation-settings:
+    'FILL' 1,
+    'wght' 500,
+    'GRAD' 0,
+    'opsz' 20;
+}
+
+.btn-spin {
+  animation: btn-spin-anim 0.9s linear infinite;
+}
+
+@keyframes btn-spin-anim {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .btn-paginacion-primario {
-  background: linear-gradient(135deg, var(--c-primary-mid) 0%, var(--c-primary) 100%);
-  color: #ffffff;
-  box-shadow: 0 1px 3px rgba(28, 99, 184, 0.25);
+  background: linear-gradient(135deg, var(--c-primary-mid), var(--c-primary));
+  color: var(--c-surface);
+  box-shadow: var(--shadow-btn);
 }
 
 .btn-paginacion-primario:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(28, 99, 184, 0.35);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-btn-hv);
 }
 
 .btn-paginacion-primario:active:not(:disabled) {
   transform: translateY(0);
+  box-shadow: var(--shadow-btn);
 }
 
 .btn-paginacion-secundario {

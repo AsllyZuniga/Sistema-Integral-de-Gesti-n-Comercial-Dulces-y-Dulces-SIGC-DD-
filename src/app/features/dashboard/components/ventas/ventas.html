@@ -130,17 +130,15 @@
                 class="btn-paginacion btn-paginacion-primario"
                 (click)="cargarMasItemsVendidos()"
                 [disabled]="!puedeCargarMasItemsVendidos() || cargandoMasItemsVendidos"
-                [title]="
-                  puedeCargarMasItemsVendidos()
-                    ? 'Cargar la siguiente página de ' + itemsVendidosPorPagina + ' items'
-                    : 'Ya se cargaron todos los items disponibles'
-                "
               >
                 @if (cargandoMasItemsVendidos) {
+                  <span class="material-symbols-rounded btn-spin">progress_activity</span>
                   <span>Cargando...</span>
                 } @else if (puedeCargarMasItemsVendidos()) {
-                  <span>Cargar siguiente página (+{{ itemsVendidosPorPagina }})</span>
+                  <span>Siguiente</span>
+                  <span class="material-symbols-rounded">arrow_forward</span>
                 } @else {
+                  <span class="material-symbols-rounded">check_circle</span>
                   <span>Todos los items cargados</span>
                 }
               </button>
