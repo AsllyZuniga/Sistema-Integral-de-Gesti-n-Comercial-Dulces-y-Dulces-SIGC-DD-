@@ -39,16 +39,7 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
 
   @Input() set codigoVendedor(value: string) {
     this._codigoVendedor = this.normalizarCodigoVendedor(value);
-    console.debug(
-      '[Ventas][setter] codigoVendedor set =>',
-      value,
-      'normalized=>',
-      this._codigoVendedor,
-      'iniciado=>',
-      this.iniciado,
-      'esModoAdminTodos=>',
-      this.esModoAdminTodos(),
-    );
+    this.debugLog('Ventas', `codigoVendedor set => ${value} -> ${this._codigoVendedor}`);
     if ((value || this.esModoAdminTodos()) && this.iniciado) {
       this.solicitarCargaVista();
     }
@@ -60,7 +51,7 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
 
   @Input() set modoAdmin(value: boolean) {
     this._modoAdmin = value;
-    console.debug('[Ventas][setter] modoAdmin set =>', value, 'iniciado=>', this.iniciado);
+    this.debugLog('Ventas', `modoAdmin set => ${value} iniciado=> ${this.iniciado}`);
     if (this.iniciado) {
       this.solicitarCargaVista(true);
     }
@@ -97,11 +88,9 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
 
     this._codigosVendedoresPermitidos = normalizados;
 
-    console.debug(
-      '[Ventas][setter] codigosVendedores set =>',
-      normalizados,
-      'iniciado=>',
-      this.iniciado,
+    this.debugLog(
+      'Ventas',
+      `codigosVendedores set => ${normalizados.length} codigos iniciado=> ${this.iniciado}`,
     );
 
     if (cambio && this.iniciado) {
@@ -128,15 +117,10 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
 
   @Input() set filtros(value: DashboardFilters) {
     this._filtros = value;
-    console.debug(
-      '[Ventas][setter] filtros set =>',
-      value,
-      'codigoVendedor=>',
-      this._codigoVendedor,
-      'esModoAdminTodos=>',
-      this.esModoAdminTodos(),
-      'iniciado=>',
-      this.iniciado,
+    this.debugLog(
+      'Ventas',
+      `filtros set => ${value?.fechaInicio ?? ''}..${value?.fechaFin ?? ''} ` +
+        `codigoVendedor=> ${this._codigoVendedor} iniciado=> ${this.iniciado}`,
     );
     if ((this._codigoVendedor || this.esModoAdminTodos()) && this.iniciado) {
       this.solicitarCargaVista(true);
@@ -471,28 +455,36 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
   }
 
   protected construirCargaKey(): string {
-    return JSON.stringify({
-      view: this.activeVentasView,
-      codigoVendedor: this._codigoVendedor,
-      codigosVendedores: this._codigosVendedoresPermitidos,
-      tipoCuota: this._tipoCuota,
-      filtros: this._filtros,
-    });
+    // Construye una clave compacta a partir de los parametros que afectan
+    // la carga. Usa join('|') para arrays y seleccion de campos en lugar
+    // de JSON.stringify(filtros) para evitar O(n) en cada setter.
+    const f = this._filtros ?? {};
+    const codigos = (this._codigosVendedoresPermitidos ?? []).join('|');
+    return [
+      this.activeVentasView,
+      this._tipoCuota,
+      this._codigoVendedor,
+      codigos,
+      f.fechaInicio ?? '',
+      f.fechaFin ?? '',
+      f.vendedor ?? '',
+      f.ciudad ?? '',
+      f.ciudadNombre ?? '',
+      f.linea ?? '',
+      f.categoria ?? '',
+      String(Array.isArray(f.categorias) ? f.categorias.length : 0),
+      String(Array.isArray(f.proveedores) ? f.proveedores.length : 0),
+    ].join('::');
   }
 
   protected solicitarCargaVista(force = false): void {
-    console.debug('[Ventas] solicitarCargaVista called', {
-      codigoVendedor: this._codigoVendedor,
-      esModoAdminTodos: this.esModoAdminTodos(),
-      iniciado: this.iniciado,
-      force,
-    });
+    this.debugLog(
+      'Ventas',
+      `solicitarCargaVista called => codigoVendedor=${this._codigoVendedor} ` +
+        `adminTodos=${this.esModoAdminTodos()} iniciado=${this.iniciado} force=${force}`,
+    );
     if ((!this._codigoVendedor && !this.esModoAdminTodos()) || !this.iniciado) {
-      console.debug('[Ventas] solicitarCargaVista => omitted, condition not met', {
-        codigoVendedor: this._codigoVendedor,
-        esModoAdminTodos: this.esModoAdminTodos(),
-        iniciado: this.iniciado,
-      });
+      this.debugLog('Ventas', 'solicitarCargaVista => omitted, condition not met');
       return;
     }
 

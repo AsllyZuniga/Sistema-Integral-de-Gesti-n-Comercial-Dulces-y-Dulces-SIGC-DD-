@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map, catchError, of, shareReplay, timeout } from 'rxjs';
+import { Observable, map, catchError, of, shareReplay, timeout, throwError } from 'rxjs';
 import { DashboardFilters } from '../../../shared/components/filters/filters.component';
 
 export interface VendedoresConItemsParams {
@@ -26,12 +26,24 @@ export class CumplimientoService {
     return keys.map((k) => `${k}=${params.get(k) ?? ''}`).join('&');
   }
 
+  /**
+   * Normaliza el codigo de vendedor para garantizar una unica clave de cache
+   * y una unica URL por vendedor. Los codigos numericos se rellenan a 4
+   * digitos con ceros a la izquierda (ej. "125" -> "0125") para que
+   * "125" y "0125" apunten al mismo recurso y NO generen 2 entradas
+   * distintas en la cache ni 2 URLs diferentes.
+   */
+  protected normalizarCodigoVendedor(valor: unknown): string {
+    const codigo = String(valor ?? '').trim();
+    if (!codigo) return '';
+    return /^\d+$/.test(codigo) && codigo.length < 4 ? codigo.padStart(4, '0') : codigo;
+  }
+
   private getOrCreateCache(key: string, factory: () => Observable<any>): Observable<any> {
     const cached = this.responseCache.get(key);
     if (cached) return cached;
     const obs$ = factory().pipe(
       shareReplay({ bufferSize: 1, refCount: false }),
-      catchError(() => of(null)),
     );
     this.responseCache.set(key, obs$);
     return obs$;
@@ -286,7 +298,7 @@ export class CumplimientoService {
    * llamadas repetidas cuando varios componentes la solicitan con la misma clave.
    */
   getLineasPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
-    const codigo = String(codigoVendedor ?? '').trim();
+    const codigo = this.normalizarCodigoVendedor(codigoVendedor);
     if (!codigo) return of({ detallePorLinea: [] });
 
     const params = this.buildParams(filtros);
@@ -315,11 +327,14 @@ export class CumplimientoService {
     codigoLinea: string,
     filtros?: DashboardFilters,
   ): Observable<any> {
+    const codigo = this.normalizarCodigoVendedor(codigoVendedor);
+    if (!codigo) return of({ detallePorLinea: [] });
+
     const params = this.buildParams(filtros);
 
     return this.http
       .get<any>(
-        `${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/linea/${codigoLinea}`,
+        `${this.apiUrl}/mes/cumplimiento/vendedor/${codigo}/linea/${codigoLinea}`,
         { params },
       )
       .pipe(
@@ -341,6 +356,9 @@ export class CumplimientoService {
     codigoProveedor: string,
     filtros?: DashboardFilters,
   ): Observable<any> {
+    const codigo = this.normalizarCodigoVendedor(codigoVendedor);
+    if (!codigo) return of(null);
+
     let params = this.buildParams(filtros);
 
     if (params.has('proveedor')) {
@@ -349,7 +367,7 @@ export class CumplimientoService {
 
     return this.http
       .get<any>(
-        `${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/linea/${codigoProveedor}`,
+        `${this.apiUrl}/mes/cumplimiento/vendedor/${codigo}/linea/${codigoProveedor}`,
         { params },
       )
       .pipe(catchError(() => of(null)));
@@ -358,9 +376,12 @@ export class CumplimientoService {
   /**
    * GET /mes/cumplimiento/vendedor/:codigo/ciudades → detallePorCiudad del vendor
    * Cacheado por (codigoVendedor + filtros) con shareReplay(1).
+   * El codigoVendedor se normaliza a 4 dígitos (padStart con ceros) para
+   * que "125" y "0125" apunten al mismo recurso y no generen 2 entradas
+   * distintas en la cache ni 2 URLs diferentes.
    */
   getCiudadesPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
-    const codigo = String(codigoVendedor ?? '').trim();
+    const codigo = this.normalizarCodigoVendedor(codigoVendedor);
     if (!codigo) return of({ detallePorCiudad: [] });
 
     const params = this.buildParams(filtros);
@@ -407,6 +428,9 @@ export class CumplimientoService {
     codigoCiudad: string,
     filtros?: DashboardFilters,
   ): Observable<any> {
+    const codigo = this.normalizarCodigoVendedor(codigoVendedor);
+    if (!codigo) return of(null);
+
     let params = this.buildParams(filtros);
 
     if (params.has('ciudad')) {
@@ -415,7 +439,7 @@ export class CumplimientoService {
 
     return this.http
       .get<any>(
-        `${this.apiUrl}/mes/cumplimiento/vendedor/${codigoVendedor}/ciudad/${codigoCiudad}`,
+        `${this.apiUrl}/mes/cumplimiento/vendedor/${codigo}/ciudad/${codigoCiudad}`,
         { params },
       )
       .pipe(
@@ -502,7 +526,7 @@ export class CumplimientoService {
       params = params.delete('vendedor');
     }
 
-    const codigo = String(codigoVendedor ?? '').trim();
+    const codigo = this.normalizarCodigoVendedor(codigoVendedor);
 
     if (!codigo) {
       return of({ detalle: [] });
@@ -674,7 +698,12 @@ export class CumplimientoService {
     if (!this.vendedoresCache$) {
       this.vendedoresCache$ = this.http.get<any[]>(`${this.apiUrl}/vendedor`).pipe(
         map((res) => (Array.isArray(res) ? res.filter((v: any) => v.status !== false) : [])),
-        catchError(() => of([])),
+        // Si el HTTP falla, NO cacheamos el error: dejamos que el observable
+        // se complete y la proxima llamada vuelva a intentar.
+        catchError((err) => {
+          this.vendedoresCache$ = undefined;
+          return throwError(() => err);
+        }),
         shareReplay(1),
       );
     }
@@ -686,7 +715,11 @@ export class CumplimientoService {
     if (!this.proveedoresCache$) {
       this.proveedoresCache$ = this.http.get<any[]>(`${this.apiUrl}/proveedor`).pipe(
         map((res) => (Array.isArray(res) ? res : [])),
-        catchError(() => of([])),
+        // Si el HTTP falla, NO cacheamos el error.
+        catchError((err) => {
+          this.proveedoresCache$ = undefined;
+          return throwError(() => err);
+        }),
         shareReplay(1),
       );
     }

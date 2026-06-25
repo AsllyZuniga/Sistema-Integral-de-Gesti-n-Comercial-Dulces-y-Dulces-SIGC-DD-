@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map, catchError, of } from 'rxjs';
+import { Observable, map, catchError, of, shareReplay, throwError } from 'rxjs';
 import { DashboardFilters } from '../../../shared/components/filters/filters.component';
 
 @Injectable({
@@ -8,8 +8,40 @@ import { DashboardFilters } from '../../../shared/components/filters/filters.com
 })
 export class CumplimientoSemanaService {
   private apiUrl = '/api';
+  private responseCache = new Map<string, Observable<any>>();
 
   constructor(private http: HttpClient) {}
+
+  private cacheKeyFromParams(params: HttpParams): string {
+    if (!params || !params.keys().length) return 'empty';
+    const keys = params.keys().sort();
+    return keys.map((k) => `${k}=${params.get(k) ?? ''}`).join('&');
+  }
+
+  private getOrCreateCache(key: string, factory: () => Observable<any>): Observable<any> {
+    const cached = this.responseCache.get(key);
+    if (cached) return cached;
+    const obs$ = factory().pipe(
+      shareReplay({ bufferSize: 1, refCount: false }),
+    );
+    this.responseCache.set(key, obs$);
+    return obs$;
+  }
+
+  /**
+   * Invalida respuestas cacheadas por prefijo de clave. Llamar cuando
+   * cambian los filtros que NO estan contemplados en la cache (mes, rol,
+   * supervisor, etc.) para forzar la siguiente llamada a re-peir al backend.
+   */
+  invalidarCachePorPrefijo(prefijo: string): void {
+    for (const key of this.responseCache.keys()) {
+      if (key.startsWith(prefijo)) this.responseCache.delete(key);
+    }
+  }
+
+  invalidarCacheRespuestas(): void {
+    this.responseCache.clear();
+  }
 
   private aplicarCategoriaParams(params: HttpParams, filtros?: DashboardFilters): HttpParams {
     const categorias = Array.isArray(filtros?.categorias)
@@ -64,6 +96,18 @@ export class CumplimientoSemanaService {
     if (filtros.ciudad) params = params.set('ciudad', filtros.ciudad);
     if (filtros.linea) params = params.set('linea', filtros.linea);
     return params;
+  }
+
+  /**
+   * Normaliza el codigo de vendedor para garantizar una unica clave de cache
+   * y una unica URL por vendedor. Los codigos numericos se rellenan a 4
+   * digitos con ceros a la izquierda (ej. "125" -> "0125") para que
+   * "125" y "0125" apunten al mismo recurso.
+   */
+  protected normalizarCodigoVendedor(valor: unknown): string {
+    const codigo = String(valor ?? '').trim();
+    if (!codigo) return '';
+    return /^\d+$/.test(codigo) && codigo.length < 4 ? codigo.padStart(4, '0') : codigo;
   }
 
   /** Params for /me endpoints - excludes vendedor param since /me already knows the authenticated vendor */
@@ -134,20 +178,29 @@ export class CumplimientoSemanaService {
   /**
    * GET /semana/cumplimiento/lineas/:codigoVendedor
    * Devuelve { codigoVendedor, detallePorLinea: [...] }
+   * Cacheado por (codigoVendedor + filtros) para evitar requests repetidos.
    */
   getLineasPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
+    const codigo = this.normalizarCodigoVendedor(codigoVendedor);
+    if (!codigo) return of({ detallePorLinea: [] });
+
     const params = this.buildParams(filtros);
-    return this.http
-      .get<any>(`${this.apiUrl}/semana/cumplimiento/lineas/${codigoVendedor}`, { params })
-      .pipe(
-        map((res) => {
-          if (res?.detallePorLinea) {
-            res.detallePorLinea = Array.isArray(res.detallePorLinea) ? res.detallePorLinea : [];
-          }
-          return res;
-        }),
-        catchError(() => of({ detallePorLinea: [] })),
-      );
+    const cacheKey = this.cacheKeyFromParams(params);
+    return this.getOrCreateCache(
+      `lineas-${codigo}-${cacheKey}`,
+      () =>
+        this.http
+          .get<any>(`${this.apiUrl}/semana/cumplimiento/lineas/${codigo}`, { params })
+          .pipe(
+            map((res) => {
+              if (res?.detallePorLinea) {
+                res.detallePorLinea = Array.isArray(res.detallePorLinea) ? res.detallePorLinea : [];
+              }
+              return res;
+            }),
+            catchError(() => of({ detallePorLinea: [] })),
+          ),
+    );
   }
 
   /**
@@ -180,20 +233,31 @@ export class CumplimientoSemanaService {
   /**
    * GET /semana/cumplimiento/ciudades/:codigoVendedor
    * Devuelve { codigoVendedor, detallePorCiudad: [...] }
+   * Cacheado por (codigoVendedor + filtros) para evitar requests repetidos.
    */
   getCiudadesPorVendedor(codigoVendedor: string, filtros?: DashboardFilters): Observable<any> {
+    const codigo = this.normalizarCodigoVendedor(codigoVendedor);
+    if (!codigo) return of({ detallePorCiudad: [] });
+
     const params = this.buildParams(filtros);
-    return this.http
-      .get<any>(`${this.apiUrl}/semana/cumplimiento/ciudades/${codigoVendedor}`, { params })
-      .pipe(
-        map((res) => {
-          if (res?.detallePorCiudad) {
-            res.detallePorCiudad = Array.isArray(res.detallePorCiudad) ? res.detallePorCiudad : [];
-          }
-          return res;
-        }),
-        catchError(() => of({ detallePorCiudad: [] })),
-      );
+    const cacheKey = this.cacheKeyFromParams(params);
+    return this.getOrCreateCache(
+      `ciudades-${codigo}-${cacheKey}`,
+      () =>
+        this.http
+          .get<any>(`${this.apiUrl}/semana/cumplimiento/ciudades/${codigo}`, { params })
+          .pipe(
+            map((res) => {
+              if (res?.detallePorCiudad) {
+                res.detallePorCiudad = Array.isArray(res.detallePorCiudad)
+                  ? res.detallePorCiudad
+                  : [];
+              }
+              return res;
+            }),
+            catchError(() => of({ detallePorCiudad: [] })),
+          ),
+    );
   }
 
   // ─── CATEGORÍAS ──────────────────────────────────────────────────────────────
@@ -209,7 +273,7 @@ export class CumplimientoSemanaService {
     let params = this.buildParams(filtros);
     if (params.has('vendedor')) params = params.delete('vendedor');
 
-    const codigo = String(codigoVendedor ?? '').trim();
+    const codigo = this.normalizarCodigoVendedor(codigoVendedor);
     if (!codigo) return of({ detalle: [] });
 
     return this.http
@@ -294,11 +358,14 @@ export class CumplimientoSemanaService {
     codigoProveedor: string,
     filtros?: DashboardFilters,
   ): Observable<any> {
+    const codigo = this.normalizarCodigoVendedor(codigoVendedor);
+    if (!codigo) return of(null);
+
     let params = this.buildParams(filtros);
     if (params.has('proveedor')) params = params.delete('proveedor');
     return this.http
       .get<any>(
-        `${this.apiUrl}/semana/cumplimiento/vendedor/${codigoVendedor}/linea/${codigoProveedor}`,
+        `${this.apiUrl}/semana/cumplimiento/vendedor/${codigo}/linea/${codigoProveedor}`,
         { params },
       )
       .pipe(catchError(() => of(null)));

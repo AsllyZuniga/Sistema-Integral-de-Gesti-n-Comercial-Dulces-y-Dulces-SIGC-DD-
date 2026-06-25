@@ -998,92 +998,18 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
-    // Sin vendedor seleccionado: iterar por todos los vendors del catálogo
-    // para evitar que el endpoint "global" (que en algunos meses solo devuelve
-    // "SIN CIUDAD") oculte el resto de ciudades en el filtro.
-    this.cargarCiudadesYLineasAdminIterandoCatalogo(filtrosBase);
-  }
-
-  private cargarCiudadesYLineasAdminIterandoCatalogo(filtrosBase: DashboardFilters): void {
-    this.usuariosService
-      .listarDetalleVendedores()
-      .pipe(
-        takeUntil(this.destroy$),
-        catchError(() => of([] as any[])),
-      )
-      .subscribe((detalleVendedores: any[]) => {
-        const codigos = (Array.isArray(detalleVendedores) ? detalleVendedores : [])
-          .map((v) => this.obtenerCodigoVendedorDetalle(v))
-          .filter(Boolean);
-
-        // Si no hay catálogo, fallback al endpoint global para no dejar el
-        // filtro vacío en escenarios de carga inicial.
-        if (!codigos.length) {
-          this.cumplimientoService
-            .getCiudadesGlobal(filtrosBase)
-            .pipe(takeUntil(this.destroy$))
-            .subscribe((res: ApiCiudadesResponse) => {
-              const ciudadesDetalle = Array.isArray(res?.detallePorCiudad) ? res.detallePorCiudad : [];
-              const ciudades = new Set<string>();
-              ciudadesDetalle.forEach((item) => {
-                this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), ciudades);
-              });
-              this.ciudadesList = this.toFilterOptions(Array.from(ciudades));
-            });
-          return;
-        }
-
-        const peticionesCiudades = codigos.map((codigo) =>
-          this.cumplimientoService
-            .getCiudadesPorVendedor(codigo, filtrosBase)
-            .pipe(catchError(() => of({ detallePorCiudad: [] } as ApiCiudadesResponse))),
-        );
-
-        forkJoin(peticionesCiudades)
-          .pipe(takeUntil(this.destroy$))
-          .subscribe((respuestas: ApiCiudadesResponse[]) => {
-            const ciudadesUnicas = new Set<string>();
-
-            respuestas.forEach((res) => {
-              const detalle = Array.isArray(res?.detallePorCiudad) ? res.detallePorCiudad : [];
-              detalle.forEach((item: ApiCiudadRow) => {
-                this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), ciudadesUnicas);
-              });
-            });
-
-            this.ciudadesList = this.toFilterOptions(Array.from(ciudadesUnicas));
-          });
-      });
-
-    // Las líneas (proveedores) sí se pueden cargar del endpoint admin: ya
-    // está implementado abajo con getLineasAdmin.
+    // Sin vendedor seleccionado: 1 sola llamada al endpoint global.
     this.cumplimientoService
-      .getLineasAdmin(filtrosBase)
+      .getCiudadesGlobal(filtrosBase)
       .pipe(takeUntil(this.destroy$))
-      .subscribe((res: ApiLineasResponse) => {
-        const detalle = Array.isArray(res?.detallePorLinea) ? res.detallePorLinea : [];
-        const lineas = new Set<string>();
-        detalle.forEach((row: ApiLineaRow) => {
-          const linea = this.obtenerNombreProveedorLinea(row);
-          const codigo = this.obtenerCodigoProveedorLinea(row);
-          if (!linea) return;
-          if (codigo) this.lineaMap.set(linea, codigo);
-          lineas.add(linea);
+      .subscribe((res: ApiCiudadesResponse) => {
+        const ciudadesDetalle = Array.isArray(res?.detallePorCiudad) ? res.detallePorCiudad : [];
+        const ciudades = new Set<string>();
+        ciudadesDetalle.forEach((item) => {
+          this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), ciudades);
         });
-        this.lineasList = this.toFilterOptions(Array.from(lineas));
+        this.ciudadesList = this.toFilterOptions(Array.from(ciudades));
       });
-  }
-
-  private obtenerCodigoVendedorDetalle(v: any): string {
-    return String(
-      v?.codVendedor ??
-        v?.codigo_vendedor ??
-        v?.codigoVendedor ??
-        v?.cod_vendedor ??
-        v?.codigo ??
-        v?.cod ??
-        '',
-    ).trim();
   }
 
   private resolverCodigoVendedorDesdeApi(): void {
@@ -1662,6 +1588,19 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   onAplicarFiltros(filtros: DashboardFilters): void {
     console.debug('[Dashboard] Aplicando filtros:', filtros);
 
+    // El cache de "categorias por vendedor" no depende de filtros en
+    // la firma pero SI depende del mes; invalidar para forzar recarga
+    // con las categorias correctas del nuevo rango de fechas.
+    this.cumplimientoService.invalidarCacheMapaCategorias();
+    // Invalidar caches per-filtro del servicio de mes: ciudades, lineas
+    // y cuota-categoria que ya no aplican para los nuevos parametros.
+    this.cumplimientoService.invalidarCachePorPrefijo('ciudades-');
+    this.cumplimientoService.invalidarCachePorPrefijo('lineas-');
+    this.cumplimientoService.invalidarCachePorPrefijo('cuota-cat-');
+    // Invalidar las mismas caches en el servicio de semana.
+    this.semanaService.invalidarCachePorPrefijo('ciudades-');
+    this.semanaService.invalidarCachePorPrefijo('lineas-');
+
     const filtrosPrevios: DashboardFilters = { ...this.filtrosActivos };
     
     const rangoDefault = this.getDefaultDateRange();
@@ -1726,14 +1665,21 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     // Antes se comparaba el objeto recién recibido contra filtrosConCodigos; en supervisor,
     // cuando el proveedor ya venía con el mismo código, cambioProveedor quedaba en false
     // y no se reconstruía el catálogo de categorías ni se refrescaban las secciones.
+    const arraysIguales = (a: readonly unknown[] | null | undefined, b: readonly unknown[] | null | undefined): boolean => {
+      const arrA = Array.isArray(a) ? a : [];
+      const arrB = Array.isArray(b) ? b : [];
+      if (arrA.length !== arrB.length) return false;
+      for (let i = 0; i < arrA.length; i++) {
+        if (arrA[i] !== arrB[i]) return false;
+      }
+      return true;
+    };
     const cambioProveedor =
       String(filtrosPrevios?.proveedor ?? '') !== String(filtrosConCodigos.proveedor ?? '') ||
-      JSON.stringify(filtrosPrevios?.proveedores ?? []) !==
-        JSON.stringify(filtrosConCodigos.proveedores ?? []);
+      !arraysIguales(filtrosPrevios?.proveedores, filtrosConCodigos.proveedores);
     const cambioCategoria =
       String(filtrosPrevios?.categoria ?? '') !== String(filtrosConCodigos.categoria ?? '') ||
-      JSON.stringify(filtrosPrevios?.categorias ?? []) !==
-        JSON.stringify(filtrosConCodigos.categorias ?? []);
+      !arraysIguales(filtrosPrevios?.categorias, filtrosConCodigos.categorias);
     const cambioVendedor =
       String(filtrosPrevios?.vendedor ?? '') !== String(filtrosConCodigos.vendedor ?? '');
     const cambioFechas =

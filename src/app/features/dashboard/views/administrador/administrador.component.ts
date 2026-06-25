@@ -958,12 +958,4 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
         },
       });
   }
-
-  editarVendedor(vendedor: VendedorTabla): void {
-    console.log('Editar vendedor:', vendedor);
-  }
-
-  desactivarVendedor(vendedor: VendedorTabla): void {
-    console.log('Activar/desactivar vendedor:', vendedor);
-  }
 }
