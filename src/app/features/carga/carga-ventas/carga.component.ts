@@ -294,7 +294,11 @@ export class CargaComponent implements OnDestroy {
     const ventasEliminadas = this.extraerNumero(respuestaLimpia?.ventasEliminadas ?? respuestaLimpia?.deleted ?? respuestaLimpia?.eliminadas);
     const detallesEliminados = this.extraerNumero(respuestaLimpia?.detallesEliminados ?? respuestaLimpia?.affected);
 
-    if ((ventasEliminadas ?? 0) === 0 && (detallesEliminados ?? 0) === 0) {
+    // Solo mostrar "no se encontraron ventas" cuando el backend reporto
+    // EXPLICITAMENTE cero. Si los campos estan ausentes (null) no podemos
+    // afirmar que no hubo datos: caemos a los mensajes `message`/`mensaje`
+    // o al mensaje generico de exito.
+    if (ventasEliminadas === 0 && detallesEliminados === 0) {
       return `No se encontraron ventas para eliminar en el período ${this.formatearPeriodo(fechaInicio, fechaFin)}.`;
     }
 
