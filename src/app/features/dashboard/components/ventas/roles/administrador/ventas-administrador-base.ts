@@ -286,10 +286,10 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
             case 'vendedor': {
               this.chartType = this.activeVentasView === 'ventas' ? 'line' : 'bar';
 
-              // Aplicar filtro de vendedor si está seleccionado
-              const codigoVendedorFiltro = String(filtrosConsulta.vendedor ?? '').trim();
-              const vendedoresFiltrados = codigoVendedorFiltro
-                ? this.filtrarVendedores(detalle, codigoVendedorFiltro)
+              // Aplicar filtro de vendedor (soporta array multi o string legacy)
+              const codigosVendedorFiltro = this.normalizarValoresFiltro(filtrosConsulta.vendedores, filtrosConsulta.vendedor);
+              const vendedoresFiltrados = codigosVendedorFiltro.length
+                ? this.filtrarVendedoresMulti(detalle, codigosVendedorFiltro)
                 : detalle;
 
               this.tableData = vendedoresFiltrados;
@@ -327,10 +327,10 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
               this.chartType = 'bar';
               const agrupado = this.agruparAdminPorCampo(detalle, 'linea', 'linea');
 
-              // Aplicar filtro de proveedor si está seleccionado
-              const codigoProveedorFiltro = String(filtrosConsulta.proveedor ?? '').trim();
-              const proveedoresFiltrados = codigoProveedorFiltro
-                ? this.filtrarProveedores(agrupado, codigoProveedorFiltro)
+              // Aplicar filtro de proveedor (array multi o string legacy)
+              const codigosProveedorFiltro = this.normalizarValoresFiltro(filtrosConsulta.proveedores, filtrosConsulta.proveedor);
+              const proveedoresFiltrados = codigosProveedorFiltro.length
+                ? this.filtrarProveedoresMulti(agrupado, codigosProveedorFiltro)
                 : agrupado;
 
               const ordenado = this.ordenarProveedoresPorAlfabeto(proveedoresFiltrados);

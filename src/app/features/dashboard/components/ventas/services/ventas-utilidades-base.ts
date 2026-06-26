@@ -26,17 +26,110 @@ export abstract class VentasUtilidadesBase extends VentasClientesBase {
     return ciudad === 'total' || ciudad === 'totales' || ciudad === 'todas' || ciudad === 'todos';
   }
 
-  protected filtrarPorCiudadSeleccionada(listado: any[]): any[] {
-    const ciudadFiltroRaw = String(this._filtros.ciudadNombre ?? this._filtros.ciudad ?? '').trim();
-    const ciudadFiltro = this.normalizarTexto(ciudadFiltroRaw);
+  /**
+   * Normaliza un valor de filtro que puede llegar como:
+   *   - array (multi-select nuevo: filtros.vendedores[], filtros.proveedores[])
+   *   - string comma-separated (legacy: filtros.vendedor, filtros.proveedor)
+   *   - string simple
+   * Devuelve siempre array de strings limpio.
+   */
+  protected normalizarValoresFiltro(arr: unknown, legacy: unknown): string[] {
+    const fromArr = Array.isArray(arr)
+      ? arr.map((v) => String(v ?? '').trim()).filter(Boolean)
+      : [];
+    if (fromArr.length) return fromArr;
+    const raw = String(legacy ?? '').trim();
+    if (!raw) return [];
+    return raw
+      .split(',')
+      .map((v) => String(v).trim())
+      .filter(Boolean);
+  }
 
+  /**
+   * Filtra una lista de filas por codigo_vendedor (soporta array multi).
+   * El array es OR (la fila pasa si coincide con CUALQUIER codigo).
+   */
+  protected filtrarVendedoresMulti(listado: any[], codigos: string[]): any[] {
+    if (!Array.isArray(codigos) || codigos.length === 0) return listado;
+    return listado.filter((item: any) => {
+      const valoresFila = [
+        item?.codVendedor,
+        item?.codigo_vendedor,
+        item?.codigoVendedor,
+        item?.id_vendedor,
+        item?.idVendedor,
+        item?.idVendedorAsociado,
+      ]
+        .map((valor) => String(valor ?? '').trim())
+        .filter(Boolean);
+
+      return codigos.some((codigo) => {
+        const numerico = String(codigo).replace(/\D/g, '');
+        const codigoNorm = numerico ? numerico.padStart(4, '0') : String(codigo);
+        const sinCeros = numerico ? String(Number(numerico)) : String(codigo);
+
+        return valoresFila.some((vf) => {
+          const vfNum = vf.replace(/\D/g, '');
+          const vfNorm = vfNum ? vfNum.padStart(4, '0') : vf;
+          const vfSinCeros = vfNum ? String(Number(vfNum)) : vf;
+          return vf === codigo || vfNorm === codigoNorm || vfSinCeros === sinCeros;
+        });
+      });
+    });
+  }
+
+  /**
+   * Filtra una lista por linea/proveedor (soporta array multi).
+   * El array es OR (la fila pasa si coincide con CUALQUIER codigo).
+   */
+  protected filtrarProveedoresMulti(listado: any[], codigos: string[]): any[] {
+    if (!Array.isArray(codigos) || codigos.length === 0) return listado;
+    return listado.filter((item: any) => {
+      const idProveedor = String(item?.idProveedor ?? item?.id_proveedor ?? '').trim();
+      const codigoProveedor = String(item?.codigoProveedor ?? item?.codigo_proveedor ?? '').trim();
+      const codigoLinea = String(item?.codigoLinea ?? item?.codigo_linea ?? '').trim();
+      const linea = String(item?.linea ?? '').trim();
+      const reporte = String(item?.reporteProvConObs ?? item?.proveedor ?? '').trim();
+
+      const codigosFilaRaw = [idProveedor, codigoProveedor, codigoLinea, linea, reporte]
+        .map((v) => v.trim())
+        .filter(Boolean);
+
+      return codigos.some((codigo) => {
+        const codigoTrim = String(codigo).trim();
+        if (!codigoTrim) return false;
+        // Match exacto contra cualquiera de las columnas de la fila
+        if (codigosFilaRaw.some((v) => v === codigoTrim)) return true;
+        // Match por código numérico (prefijo "020" de "020 - ARCOR")
+        const codeNum = (codigoTrim.match(/^\d+/) ?? [])[0];
+        if (codeNum && codigosFilaRaw.some((v) => (v.match(/^\d+/) ?? [])[0] === codeNum)) {
+          return true;
+        }
+        // Match por LIKE prefijo (lo que hace el backend)
+        if (reporte && reporte.toLowerCase().startsWith(codigoTrim.toLowerCase())) return true;
+        return false;
+      });
+    });
+  }
+
+  protected filtrarPorCiudadSeleccionada(listado: any[]): any[] {
     const ciudadesValidas = listado.filter((item: any) => !this.esCiudadResumen(item?.ciudad));
 
-    if (!ciudadFiltro || this.esCiudadResumen(ciudadFiltroRaw)) return ciudadesValidas;
+    // Soporta array multi (filtros.ciudades[]) o string legacy singular
+    const ciudadesFiltro = this.normalizarValoresFiltro(
+      this._filtros.ciudades,
+      this._filtros.ciudadNombre ?? this._filtros.ciudad
+    );
+
+    if (ciudadesFiltro.length === 0) return ciudadesValidas;
 
     return ciudadesValidas.filter((item: any) => {
       const ciudadItem = this.normalizarTexto(item?.ciudad ?? '');
-      return ciudadItem === ciudadFiltro;
+      return ciudadesFiltro.some((cf) => {
+        const cfNorm = this.normalizarTexto(this.repararTextoCiudad(cf));
+        return ciudadItem === cfNorm;
+      });
     });
   }
 
