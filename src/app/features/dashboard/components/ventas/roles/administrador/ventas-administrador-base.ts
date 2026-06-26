@@ -99,18 +99,45 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
             const lineas = Array.isArray(res?.detallePorLinea) ? res.detallePorLinea : [];
             const lineasPermitidas = lineas;
 
-            const detalleMapeado = lineasPermitidas.map((item: any) => ({
-              ...item,
-              linea: item?.linea ?? item?.codigoLinea ?? item?.reporteProvConObs ?? 'Sin proveedor',
-              cuotaLinea: Number(item?.cuotaProveedorTotal ?? 0) || 0,
-              ventaAcum: Number(item?.ventaAcum ?? 0) || 0,
-              porcCump: Number(item?.porcCump ?? 0) || 0,
-              proyeccionVenta: Number(item?.proyeccionVenta ?? 0) || 0,
-              porcCumProy: Number(item?.porcCumProy ?? 0) || 0,
-            }));
+            const detalleMapeado = lineasPermitidas.map((item: any) => {
+              const proveedorVisible =
+                item?.reporteProvConObs ??
+                item?.reporte_prov_con_obs ??
+                item?.linea ??
+                item?.codigoLinea ??
+                item?.codigo_linea ??
+                item?.proveedor ??
+                item?.nombreProveedor ??
+                item?.nombre_proveedor ??
+                'Sin proveedor';
 
-            const filtrado = this.filtrarProveedores(detalleMapeado, filtrosConsulta.proveedor);
-            const ordenado = this.ordenarProveedoresPorAlfabeto(filtrado);
+              return {
+                ...item,
+                linea: proveedorVisible,
+                reporteProvConObs: item?.reporteProvConObs ?? item?.reporte_prov_con_obs ?? proveedorVisible,
+                proveedor: item?.proveedor ?? proveedorVisible,
+                cuotaLinea:
+                  Number(item?.cuotaProveedorTotal ?? item?.cuotaProveedor ?? item?.cuotaLinea ?? 0) || 0,
+                ventaAcum: Number(item?.ventaAcum ?? item?.acumulado ?? 0) || 0,
+                porcCump: Number(item?.porcCump ?? item?.cumplimiento ?? 0) || 0,
+                proyeccionVenta: Number(item?.proyeccionVenta ?? item?.proyeccion ?? 0) || 0,
+                porcCumProy: Number(item?.porcCumProy ?? item?.cumplimientoProyeccion ?? 0) || 0,
+              };
+            });
+
+            // Refuerzo front: si el backend devuelve todos los proveedores aunque
+            // se haya enviado proveedor/proveedores, la tabla debe mostrar solo los
+            // proveedores seleccionados. El match es flexible: "535 - ABBOTT"
+            // coincide con filas que lleguen como "535" o solo "ABBOTT".
+            const proveedoresSeleccionados = this.normalizarValoresFiltro(
+              filtrosConsulta.proveedores,
+              filtrosConsulta.proveedor,
+            );
+            const detalleFiltradoPorProveedor = proveedoresSeleccionados.length
+              ? this.filtrarProveedoresMulti(detalleMapeado, proveedoresSeleccionados)
+              : detalleMapeado;
+
+            const ordenado = this.ordenarProveedoresPorAlfabeto(detalleFiltradoPorProveedor);
 
             this.tableData = ordenado;
             this.totalCuotaProveedor = ordenado.reduce(
@@ -179,7 +206,19 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
                 const ventaAcum = Number(row?.ventaAcum ?? 0) || 0;
                 const proyeccionVenta = Number(row?.proyeccionVenta ?? 0) || 0;
 
+                const idCiudad = String(
+                  row?.id_ciudad ??
+                    row?.idCiudad ??
+                    row?.codCiudad ??
+                    row?.codigoCiudad ??
+                    row?.codigo ??
+                    row?.cod ??
+                    '',
+                ).trim();
+
                 return {
+                  ...row,
+                  id_ciudad: idCiudad,
                   ciudad,
                   cuota,
                   ventaAcum,
@@ -327,10 +366,12 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
               this.chartType = 'bar';
               const agrupado = this.agruparAdminPorCampo(detalle, 'linea', 'linea');
 
-              // Aplicar filtro de proveedor (array multi o string legacy)
-              const codigosProveedorFiltro = this.normalizarValoresFiltro(filtrosConsulta.proveedores, filtrosConsulta.proveedor);
-              const proveedoresFiltrados = codigosProveedorFiltro.length
-                ? this.filtrarProveedoresMulti(agrupado, codigosProveedorFiltro)
+              const proveedoresSeleccionados = this.normalizarValoresFiltro(
+                filtrosConsulta.proveedores,
+                filtrosConsulta.proveedor,
+              );
+              const proveedoresFiltrados = proveedoresSeleccionados.length
+                ? this.filtrarProveedoresMulti(agrupado, proveedoresSeleccionados)
                 : agrupado;
 
               const ordenado = this.ordenarProveedoresPorAlfabeto(proveedoresFiltrados);

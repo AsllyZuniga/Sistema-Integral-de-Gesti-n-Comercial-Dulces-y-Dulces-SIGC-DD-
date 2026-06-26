@@ -322,41 +322,92 @@ export abstract class VentasTransformacionesBase extends VentasEstadoBase {
    */
   protected filtrarProveedoresMulti(listado: any[], codigos: string[]): any[] {
     if (!Array.isArray(codigos) || codigos.length === 0) return listado;
-    return listado.filter((item: any) => {
-      const idProveedor = String(item?.idProveedor ?? item?.id_proveedor ?? '').trim();
-      const codigoProveedor = String(item?.codigoProveedor ?? item?.codigo_proveedor ?? '').trim();
-      const codigoLinea = String(item?.codigoLinea ?? item?.codigo_linea ?? '').trim();
-      const linea = String(item?.linea ?? '').trim();
-      const reporte = String(item?.reporteProvConObs ?? item?.proveedor ?? '').trim();
-      const codigoAgrupado = String(item?.codigo ?? '').trim();
 
-      const codigosFilaRaw = [
-        idProveedor,
-        codigoProveedor,
-        codigoLinea,
-        linea,
-        reporte,
-        codigoAgrupado
-      ]
-        .map((v) => v.trim())
-        .filter(Boolean);
-
-      const codigosNumericosFila = new Set(
-        codigosFilaRaw
-          .map((v) => (v.match(/^\d+/) ?? [])[0])
-          .filter(Boolean)
-      );
-
-      return codigos.some((codigo) => {
-        const codigoTrim = String(codigo).trim();
-        if (!codigoTrim) return false;
-        if (codigosFilaRaw.some((v) => v === codigoTrim)) return true;
-        const codeNum = (codigoTrim.match(/^\d+/) ?? [])[0];
-        if (codeNum && codigosNumericosFila.has(codeNum)) return true;
-        if (reporte && reporte.toLowerCase().startsWith(codigoTrim.toLowerCase())) return true;
-        if (codigoAgrupado && codigoAgrupado.toLowerCase().startsWith(codigoTrim.toLowerCase())) return true;
-        return false;
-      });
+    const filtrosSet = new Set<string>();
+    codigos.forEach((codigo) => {
+      this.clavesProveedorComparacion(codigo).forEach((clave) => filtrosSet.add(clave));
     });
+
+    if (filtrosSet.size === 0) return listado;
+
+    return listado.filter((item: any) => {
+      const candidatosFila = [
+        item?.idProveedor,
+        item?.id_proveedor,
+        item?.codigoProveedor,
+        item?.codigo_proveedor,
+        item?.codigoLinea,
+        item?.codigo_linea,
+        item?.codigo,
+        item?.cod,
+        item?.linea,
+        item?.reporteProvConObs,
+        item?.reporte_prov_con_obs,
+        item?.proveedor,
+        item?.nombreProveedor,
+        item?.nombre_proveedor,
+        item?.nomProveedor,
+        item?.nombre,
+      ];
+
+      const clavesFila = new Set<string>();
+      candidatosFila.forEach((candidato) => {
+        this.clavesProveedorComparacion(candidato).forEach((clave) => clavesFila.add(clave));
+      });
+
+      for (const clave of clavesFila) {
+        if (filtrosSet.has(clave)) return true;
+      }
+
+      return false;
+    });
+  }
+
+  /**
+   * Genera claves comparables para proveedor. Soporta valores del filtro como
+   * "535 - ABBOTT" y filas que pueden llegar solo como "ABBOTT", "535",
+   * codigoLinea, reporte_prov_con_obs, etc.
+   */
+  private clavesProveedorComparacion(valor: unknown): string[] {
+    const textoOriginal = String(valor ?? '').trim();
+    if (!textoOriginal) return [];
+
+    const claves = new Set<string>();
+    const agregar = (valorAgregar: unknown): void => {
+      const texto = String(valorAgregar ?? '').trim();
+      if (!texto) return;
+
+      claves.add(texto);
+      claves.add(texto.toLowerCase());
+
+      const normalizado = this.normalizarTexto(texto);
+      if (normalizado) claves.add(normalizado);
+
+      const numeroInicial = texto.match(/^\s*0*(\d+)/)?.[1];
+      const numeroConCeros = texto.match(/^\s*(\d+)/)?.[1];
+      if (numeroInicial) claves.add(numeroInicial);
+      if (numeroConCeros) claves.add(numeroConCeros);
+
+      const sinCeros = texto.replace(/^0+/, '');
+      if (sinCeros && sinCeros !== texto) {
+        claves.add(sinCeros);
+        claves.add(sinCeros.toLowerCase());
+        const sinCerosNorm = this.normalizarTexto(sinCeros);
+        if (sinCerosNorm) claves.add(sinCerosNorm);
+      }
+    };
+
+    agregar(textoOriginal);
+
+    // "535 - ABBOTT" debe coincidir con filas que traen solo "ABBOTT".
+    const partes = textoOriginal.split(/\s+-\s+/).map((parte) => parte.trim()).filter(Boolean);
+    partes.forEach((parte) => agregar(parte));
+    if (partes.length > 1) agregar(partes.slice(1).join(' - '));
+
+    // También soporta "535 ABBOTT" sin guion.
+    const sinCodigoInicial = textoOriginal.replace(/^\s*\d+\s*-?\s*/u, '').trim();
+    if (sinCodigoInicial && sinCodigoInicial !== textoOriginal) agregar(sinCodigoInicial);
+
+    return Array.from(claves).filter(Boolean);
   }
 }

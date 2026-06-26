@@ -23,7 +23,7 @@ export class CumplimientoService {
   private cacheKeyFromParams(params: HttpParams): string {
     if (!params || !params.keys().length) return 'empty';
     const keys = params.keys().sort();
-    return keys.map((k) => `${k}=${params.get(k) ?? ''}`).join('&');
+    return keys.map((k) => `${k}=${(params.getAll(k) ?? []).join('|')}`).join('&');
   }
 
   private getOrCreateCache(key: string, factory: () => Observable<any>): Observable<any> {
@@ -51,54 +51,34 @@ export class CumplimientoService {
     }
   }
 
-  private aplicarCategoriaParams(params: HttpParams, filtros?: DashboardFilters): HttpParams {
-    const categorias = Array.isArray(filtros?.categorias)
-      ? filtros?.categorias.map((item) => String(item ?? '').trim()).filter(Boolean)
+  private valoresFiltro(arr: string[] | undefined | null, legacy: unknown): string[] {
+    const desdeArray = Array.isArray(arr)
+      ? arr.map((item) => String(item ?? '').trim()).filter(Boolean)
       : [];
 
-    console.debug('[CumplimientoService] aplicarCategoriaParams - categorías:', categorias);
+    if (desdeArray.length) return desdeArray;
 
-    if (categorias.length > 1) {
-      const categoriasCsv = categorias.join(',');
-      console.debug('[CumplimientoService] aplicarCategoriaParams - enviando CSV:', categoriasCsv);
-      params = params.set('categorias', categoriasCsv);
-      return params;
-    }
-
-    if (categorias.length === 1) {
-      console.debug('[CumplimientoService] aplicarCategoriaParams - enviando categoría única:', categorias[0]);
-      params = params.set('categoria', categorias[0]);
-      return params;
-    }
-
-    if (filtros?.categoria) {
-      console.debug('[CumplimientoService] aplicarCategoriaParams - usando filtros.categoria:', filtros.categoria);
-      params = params.set('categoria', filtros.categoria);
-    }
-
-    return params;
+    return String(legacy ?? '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
   }
 
-  private aplicarProveedorParams(params: HttpParams, filtros?: DashboardFilters): HttpParams {
-    const proveedores = Array.isArray(filtros?.proveedores)
-      ? filtros.proveedores.map((item) => String(item ?? '').trim()).filter(Boolean)
-      : [];
+  private aplicarValoresMulti(
+    params: HttpParams,
+    csvKey: string,
+    values: string[],
+    repeatedKey?: string,
+  ): HttpParams {
+    const limpios = values.map((item) => String(item ?? '').trim()).filter(Boolean);
+    if (!limpios.length) return params;
 
-    console.debug('[CumplimientoService] aplicarProveedorParams - proveedores:', proveedores);
+    params = params.set(csvKey, limpios.join(','));
 
-    if (proveedores.length > 1) {
-      const proveedoresCsv = proveedores.join(',');
-      console.debug('[CumplimientoService] aplicarProveedorParams - enviando CSV:', proveedoresCsv);
-      params = params.delete('proveedor');
-      params = params.set('proveedores', proveedoresCsv);
-      return params;
-    }
-
-    if (proveedores.length === 1) {
-      console.debug('[CumplimientoService] aplicarProveedorParams - enviando proveedor único:', proveedores[0]);
-      params = params.delete('proveedores');
-      params = params.set('proveedor', proveedores[0]);
-      return params;
+    if (repeatedKey) {
+      limpios.forEach((item) => {
+        params = params.append(repeatedKey, item);
+      });
     }
 
     return params;
@@ -109,15 +89,36 @@ export class CumplimientoService {
 
     if (!filtros) return params;
 
-    if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
-    if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
-    if (filtros?.vendedor) params = params.set('vendedor', filtros.vendedor);
-    if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
-    params = this.aplicarProveedorParams(params, filtros);
-    params = this.aplicarCategoriaParams(params, filtros);
-    if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
-    if (filtros?.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
-    if (filtros?.linea) params = params.set('linea', filtros.linea);
+    if (filtros.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
+    if (filtros.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
+
+    params = this.aplicarValoresMulti(
+      params,
+      'vendedor',
+      this.valoresFiltro(filtros.vendedores, filtros.vendedor),
+      'codVendedor',
+    );
+
+    params = this.aplicarValoresMulti(
+      params,
+      'proveedor',
+      this.valoresFiltro(filtros.proveedores, filtros.proveedor),
+      'codProveedor',
+    );
+
+    const categorias = this.valoresFiltro(filtros.categorias, filtros.categoria);
+    params = this.aplicarValoresMulti(params, 'categorias', categorias, 'codCategoria');
+    if (categorias.length) params = params.set('categoria', categorias.join(','));
+
+    params = this.aplicarValoresMulti(
+      params,
+      'ciudad',
+      this.valoresFiltro(filtros.ciudades, filtros.ciudad),
+      'codCiudad',
+    );
+
+    if (filtros.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
+    if (filtros.linea) params = params.set('linea', filtros.linea);
 
     return params;
   }
@@ -127,19 +128,9 @@ export class CumplimientoService {
    * No envía vendedor porque /me ya reconoce el vendedor autenticado.
    */
   private buildParamsForMe(filtros?: DashboardFilters): HttpParams {
-    let params = new HttpParams();
-
-    if (!filtros) return params;
-
-    if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
-    if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
-    if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
-    params = this.aplicarProveedorParams(params, filtros);
-    params = this.aplicarCategoriaParams(params, filtros);
-    if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
-    if (filtros?.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
-    if (filtros?.linea) params = params.set('linea', filtros.linea);
-
+    let params = this.buildParams(filtros);
+    params = params.delete('vendedor');
+    params = params.delete('codVendedor');
     return params;
   }
 
@@ -148,19 +139,9 @@ export class CumplimientoService {
    * Excludes vendedor because the path already scopes by supervisor.
    */
   private buildParamsForSupervisor(filtros?: DashboardFilters): HttpParams {
-    let params = new HttpParams();
-
-    if (!filtros) return params;
-
-    if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
-    if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
-    if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
-    params = this.aplicarProveedorParams(params, filtros);
-    params = this.aplicarCategoriaParams(params, filtros);
-    if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
-    if (filtros?.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
-    if (filtros?.linea) params = params.set('linea', filtros.linea);
-
+    let params = this.buildParams(filtros);
+    params = params.delete('vendedor');
+    params = params.delete('codVendedor');
     return params;
   }
 
@@ -385,11 +366,7 @@ export class CumplimientoService {
   }
 
   getCiudadesGlobal(filtros?: DashboardFilters): Observable<any> {
-    let params = this.buildParams(filtros);
-
-    if (params.has('vendedor')) {
-      params = params.delete('vendedor');
-    }
+    const params = this.buildParams(filtros);
 
     return this.http.get<any>(`${this.apiUrl}/mes/cumplimiento/ciudades-global`, { params }).pipe(
       map((res) => ({
