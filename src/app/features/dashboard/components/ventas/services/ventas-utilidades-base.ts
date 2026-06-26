@@ -36,19 +36,27 @@ export abstract class VentasUtilidadesBase extends VentasClientesBase {
   protected filtrarPorCiudadSeleccionada(listado: any[]): any[] {
     const ciudadesValidas = listado.filter((item: any) => !this.esCiudadResumen(item?.ciudad));
 
-    // Soporta array multi (filtros.ciudades[]) o string legacy singular
-    const ciudadesFiltro = this.normalizarValoresFiltro(
+    // Soporta array multi por id (filtros.ciudades[]), string legacy y nombres visibles.
+    // Esto evita vaciar la tabla cuando el endpoint ya filtró por id_ciudad=71
+    // pero la respuesta solo trae ciudad='Pasto' sin id_ciudad.
+    const ciudadesPorId = this.normalizarValoresFiltro(
       this._filtros.ciudades,
-      this._filtros.ciudadNombre ?? this._filtros.ciudad
+      this._filtros.ciudad
     );
+    const ciudadesPorNombre = this.normalizarValoresFiltro(
+      this._filtros.ciudadesNombres,
+      this._filtros.ciudadNombre
+    );
+    const ciudadesFiltro = Array.from(new Set([...ciudadesPorId, ...ciudadesPorNombre]));
 
     if (ciudadesFiltro.length === 0) return ciudadesValidas;
 
     return ciudadesValidas.filter((item: any) => {
-      const ciudadItem = this.normalizarTexto(item?.ciudad ?? '');
-      const idItem = String(item?.id_ciudad ?? '').trim();
+      const ciudadItem = this.normalizarTexto(item?.ciudad ?? item?.nomCiudad ?? item?.nombreCiudad ?? '');
+      const idItem = String(item?.id_ciudad ?? item?.idCiudad ?? item?.codCiudad ?? item?.codigoCiudad ?? '').trim();
       return ciudadesFiltro.some((cf) => {
         const cfTrim = String(cf).trim();
+        if (!cfTrim) return false;
         // Match por id (numérico) si ambas partes lo tienen
         if (idItem && cfTrim === idItem) return true;
         // Match por nombre
@@ -412,10 +420,28 @@ export abstract class VentasUtilidadesBase extends VentasClientesBase {
   }
 
   protected mapearCuotaPorLinea(listado: any[]): any[] {
-    return listado.map((item: any) => ({
-      ...item,
-      cuotaLinea: Number(item?.cuotaProveedor ?? item?.cuotaLinea ?? 0),
-    }));
+    return listado.map((item: any) => {
+      const proveedorVisible =
+        item?.reporteProvConObs ??
+        item?.reporte_prov_con_obs ??
+        item?.linea ??
+        item?.codigoLinea ??
+        item?.codigo_linea ??
+        item?.proveedor ??
+        item?.nombreProveedor ??
+        item?.nombre_proveedor ??
+        'Sin proveedor';
+
+      return {
+        ...item,
+        linea: proveedorVisible,
+        reporteProvConObs: item?.reporteProvConObs ?? item?.reporte_prov_con_obs ?? proveedorVisible,
+        proveedor: item?.proveedor ?? proveedorVisible,
+        cuotaLinea: Number(item?.cuotaProveedorTotal ?? item?.cuotaProveedor ?? item?.cuotaLinea ?? 0),
+        ventaAcum: Number(item?.ventaAcum ?? item?.acumulado ?? 0),
+        proyeccionVenta: Number(item?.proyeccionVenta ?? item?.proyeccion ?? 0),
+      };
+    });
   }
 
   protected filtrarProveedores(listado: any[], codigoProveedor: string): any[] {

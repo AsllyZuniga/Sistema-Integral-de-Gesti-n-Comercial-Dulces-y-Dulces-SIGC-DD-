@@ -104,24 +104,20 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
         }
 
         if (tieneProveedor) {
-          // Cuando hay uno o varios proveedores seleccionados, NO usamos
-          // getDetallePorLineaProveedor porque ese endpoint recibe un solo proveedor
-          // en la URL. Si se le envia "020,060" puede devolver solo uno.
-          // Cargamos todas las lineas del vendedor y aplicamos el filtro multiple
-          // en frontend, igual que la vista "Por Proveedor".
-          const filtrosSinProveedor = this.quitarProveedorDeFiltros(filtrosConsulta);
+          // El backend acepta proveedor/proveedores junto con los demás filtros.
+          // No quitamos proveedor ni hacemos doble filtro local para no borrar
+          // resultados válidos por diferencias entre value y label.
           const lineas$ = this.esSemanal
-            ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor)
+            ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, filtrosConsulta)
             : this.cumplimientoService.getLineasPorVendedor(
                 this._codigoVendedor,
-                filtrosSinProveedor,
+                filtrosConsulta,
               );
 
           lineas$
             .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((res: any) => {
-              const detalle = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
-              const filtrado = this.filtrarProveedoresMulti(detalle, codigosProveedorFiltro);
+              const filtrado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
               const listadoTabla = this.ordenarProveedoresPorAlfabeto(filtrado);
               const topProveedores = this.limitarTopProveedores(filtrado);
               this.tableData = listadoTabla;
@@ -132,20 +128,11 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
               this.cdr.markForCheck();
             });
         } else if (tieneCiudad) {
-          // Microtarea B6: vista por ciudad consolidada y role-aware.
-          // Si hay ciudad seleccionada: drill-down con getDetallePorCiudad
-          // (per-vendor per-ciudad). Si no: getCiudadesGlobal (1 sola
-          // llamada, role-aware). Antes: getCiudadesPorVendedor (N+1 si
-          // la ruta del admin heredaba, per-vendor aquí).
-          const ciudades$ = codigosCiudadFiltro.length
-            ? this.cumplimientoService.getDetallePorCiudad(
-                this._codigoVendedor,
-                codigosCiudadFiltro[0],
-                filtrosConsulta,
-              )
-            : this.esSemanal
-              ? this.semanaService.getCiudadesGlobal(filtrosConsulta)
-              : this.cumplimientoService.getCiudadesGlobal(filtrosConsulta);
+          // Usar el endpoint consolidado con todos los filtros activos.
+          // El drill-down por URL solo soportaba una ciudad y podía perder proveedor/categoría.
+          const ciudades$ = this.esSemanal
+            ? this.semanaService.getCiudadesGlobal(filtrosConsulta)
+            : this.cumplimientoService.getCiudadesGlobal(filtrosConsulta);
 
           ciudades$
             .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
@@ -207,26 +194,31 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
 
           const intentarProveedor = (idx: number): void => {
             const filtrosActivos = candidatos[idx];
-            const filtrosSinProveedor = this.quitarProveedorDeFiltros(filtrosActivos);
             const lineas$ = this.esSemanal
-              ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor)
+              ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, filtrosActivos)
               : this.cumplimientoService.getLineasPorVendedor(
                   this._codigoVendedor,
-                  filtrosSinProveedor,
+                  filtrosActivos,
                 );
 
             lineas$
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((res: any) => {
-                const listado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
-                const listadoFiltrado = this.filtrarProveedoresMulti(listado, codigosProveedorFiltro);
+                const listadoMapeado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
+                const proveedoresSeleccionados = this.normalizarValoresFiltro(
+                  filtrosActivos.proveedores,
+                  filtrosActivos.proveedor,
+                );
+                const listadoFiltrado = proveedoresSeleccionados.length
+                  ? this.filtrarProveedoresMulti(listadoMapeado, proveedoresSeleccionados)
+                  : listadoMapeado;
 
                 if (!listadoFiltrado.length && idx < candidatos.length - 1) {
                   intentarProveedor(idx + 1);
                   return;
                 }
 
-                const listadoTabla = this.ordenarProveedoresPorAlfabeto(listado);
+                const listadoTabla = this.ordenarProveedoresPorAlfabeto(listadoFiltrado);
                 const topProveedores = [...listadoFiltrado]
                   .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
                   .slice(0, 12);
@@ -239,9 +231,7 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
                   topProveedores[0]?.linea ?? '—',
                 );
 
-                this.tableData = codigosProveedorFiltro.length
-                  ? this.ordenarProveedoresPorAlfabeto(listadoFiltrado)
-                  : listadoTabla;
+                this.tableData = listadoTabla;
                 this.totalCuotaProveedor = this.tableData.reduce(
                   (sum: number, item: any) => sum + (Number(item?.cuotaLinea ?? 0) || 0),
                   0,
@@ -372,18 +362,12 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
 
           const intentarCiudad = (idx: number): void => {
             const filtrosActivos = candidatos[idx];
-            const codigoCiudadActivo = String(filtrosActivos.ciudad ?? '').trim();
-            // Microtarea B6: 1 sola llamada consolidada role-aware.
-            // Drill-down per-vendor per-ciudad solo si hay ciudad específica.
-            const ciudades$ = codigoCiudadActivo
-              ? this.cumplimientoService.getDetallePorCiudad(
-                  this._codigoVendedor,
-                  codigoCiudadActivo,
-                  filtrosActivos,
-                )
-              : this.esSemanal
-                ? this.semanaService.getCiudadesGlobal(filtrosActivos)
-                : this.cumplimientoService.getCiudadesGlobal(filtrosActivos);
+            // Usar siempre el endpoint consolidado con TODOS los filtros activos.
+            // El backend acepta ciudad/codCiudad y vendedor/proveedor/categorias;
+            // el drill-down por URL solo soportaba una ciudad y podía perder filtros multi.
+            const ciudades$ = this.esSemanal
+              ? this.semanaService.getCiudadesGlobal(filtrosActivos)
+              : this.cumplimientoService.getCiudadesGlobal(filtrosActivos);
 
             ciudades$
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))

@@ -299,6 +299,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       fechaInicio: inicio,
       fechaFin: fin,
     };
+    this.filtrosPendientes = { ...this.filtrosActivos };
 
     this.cargarOpcionesFiltros();
 
@@ -1030,30 +1031,199 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
    * usa `filtrosActivos` (caso apply o carga inicial).
    */
   private cargarOpcionesFiltrosUnificado(filtrosOrigen?: DashboardFilters): void {
-    const fuente = filtrosOrigen ?? this.filtrosActivos;
-    const params = this.filtrosService.fromDashboardFilters(fuente);
+    const fuente = this.normalizarFiltrosDashboard(filtrosOrigen ?? this.filtrosActivos);
+
+    /*
+     * El backend /api/filtros/opciones ya implementa la cascada correcta:
+     * cada lista se filtra por los OTROS filtros, no por sí misma.
+     * Por eso aquí enviamos todos los filtros activos en una sola llamada.
+     *
+     * Ejemplo: si proveedor=535 - ABBOTT y categoria=645, el backend:
+     * - filtra categorias por fecha/vendedor/proveedor/ciudad, pero NO por categoria;
+     * - filtra proveedores por fecha/vendedor/categoria/ciudad, pero NO por proveedor.
+     *
+     * Esto evita que desaparezcan proveedores/categorías válidos al cambiar fechas
+     * o al seleccionar filtros múltiples.
+     */
     this.filtrosService
-      .getOpciones(params)
-      .pipe(takeUntil(this.destroy$))
+      .getOpciones(this.filtrosService.fromDashboardFilters(fuente))
+      .pipe(takeUntil(this.destroy$), catchError(() => of(null)))
       .subscribe((opciones) => {
         if (!opciones) {
-          // Error de red: dejar los arrays vacíos para que la UI lo muestre.
-          this.proveedoresList = [];
+          this.aplicarOpcionesProveedores([]);
           this.categoriasList = [];
           this.ciudadesList = [];
-          this.vendedoresList = [];
+          this.aplicarOpcionesVendedores([]);
+          this.cdr.markForCheck();
           return;
         }
-        this.proveedoresList = Array.isArray(opciones.proveedores) ? opciones.proveedores : [];
-        this.categoriasList = Array.isArray(opciones.categorias) ? opciones.categorias : [];
-        this.ciudadesList = Array.isArray(opciones.ciudades) ? opciones.ciudades : [];
-        if (this.esAdmin || this.esSupervisor) {
-          this.vendedoresList = Array.isArray(opciones.vendedores) ? opciones.vendedores : [];
-        } else {
-          // Rol vendedor: el endpoint devuelve solo su propio código.
-          this.vendedoresList = Array.isArray(opciones.vendedores) ? opciones.vendedores : [];
+
+        const filtrosReferencia = this.normalizarFiltrosDashboard(filtrosOrigen ?? this.filtrosActivos);
+
+        this.aplicarOpcionesProveedores(
+          this.conservarOpcionesSeleccionadas(
+            Array.isArray(opciones.proveedores) ? opciones.proveedores : [],
+            this.normalizarArrayFiltro(filtrosReferencia.proveedores, filtrosReferencia.proveedor),
+            filtrosReferencia.proveedorNombres,
+          ),
+        );
+
+        this.categoriasList = this.conservarOpcionesSeleccionadas(
+          Array.isArray(opciones.categorias) ? opciones.categorias : [],
+          this.normalizarArrayFiltro(filtrosReferencia.categorias, filtrosReferencia.categoria),
+          filtrosReferencia.categoriaNombres,
+        );
+
+        this.ciudadesList = this.conservarOpcionesSeleccionadas(
+          Array.isArray(opciones.ciudades) ? opciones.ciudades : [],
+          this.normalizarArrayFiltro(filtrosReferencia.ciudades, filtrosReferencia.ciudad),
+          filtrosReferencia.ciudadesNombres,
+        );
+
+        this.aplicarOpcionesVendedores(
+          this.conservarOpcionesSeleccionadas(
+            Array.isArray(opciones.vendedores) ? opciones.vendedores : [],
+            this.normalizarArrayFiltro(filtrosReferencia.vendedores, filtrosReferencia.vendedor),
+          ),
+        );
+
+        if (filtrosOrigen) {
+          this.filtrosPendientes = this.normalizarFiltrosDashboard({
+            ...this.filtrosPendientes,
+            proveedores: this.normalizarArrayFiltro(this.filtrosPendientes.proveedores, this.filtrosPendientes.proveedor),
+            categorias: this.normalizarArrayFiltro(this.filtrosPendientes.categorias, this.filtrosPendientes.categoria),
+            ciudades: this.normalizarArrayFiltro(this.filtrosPendientes.ciudades, this.filtrosPendientes.ciudad),
+            vendedores: this.normalizarArrayFiltro(this.filtrosPendientes.vendedores, this.filtrosPendientes.vendedor),
+          });
         }
+
+        this.cdr.markForCheck();
       });
+  }
+
+  private normalizarArrayFiltro(arr: string[] | undefined | null, legacy: unknown): string[] {
+    const desdeArray = Array.isArray(arr)
+      ? arr.map((item) => String(item ?? '').trim()).filter(Boolean)
+      : [];
+
+    if (desdeArray.length) return desdeArray;
+
+    return String(legacy ?? '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  private normalizarFiltrosDashboard(filtros: DashboardFilters): DashboardFilters {
+    const vendedores = this.normalizarArrayFiltro(filtros.vendedores, filtros.vendedor);
+    const proveedores = this.normalizarArrayFiltro(filtros.proveedores, filtros.proveedor);
+    const categorias = this.normalizarArrayFiltro(filtros.categorias, filtros.categoria);
+    const ciudades = this.normalizarArrayFiltro(filtros.ciudades, filtros.ciudad);
+
+    return {
+      ...filtros,
+      vendedor: vendedores.join(','),
+      vendedores,
+      proveedor: proveedores.join(','),
+      proveedores,
+      categoria: categorias.length === 1 ? categorias[0] : '',
+      categorias,
+      ciudad: ciudades.length === 1 ? ciudades[0] : '',
+      ciudades,
+    };
+  }
+
+  private conservarOpcionesSeleccionadas(
+    opciones: FilterOption[],
+    valoresSeleccionados: string[],
+    labelsSeleccionados?: string[],
+  ): FilterOption[] {
+    const mapa = new Map<string, FilterOption>();
+    const normalizar = (valor: unknown): string => String(valor ?? '').trim();
+
+    for (const opcion of Array.isArray(opciones) ? opciones : []) {
+      const value = normalizar(opcion?.value);
+      const label = normalizar(opcion?.label) || value;
+      if (!value && !label) continue;
+      mapa.set(value || label, { value: value || label, label });
+    }
+
+    (Array.isArray(valoresSeleccionados) ? valoresSeleccionados : [])
+      .map((valor) => normalizar(valor))
+      .filter(Boolean)
+      .forEach((valor, index) => {
+        if (mapa.has(valor)) return;
+        const label = normalizar(labelsSeleccionados?.[index]) || valor;
+        mapa.set(valor, { value: valor, label });
+      });
+
+    return Array.from(mapa.values()).sort((a, b) =>
+      a.label.localeCompare(b.label, 'es', { sensitivity: 'base', numeric: true }),
+    );
+  }
+
+  private obtenerLabelsPorValores(opciones: FilterOption[], valores: string[]): string[] {
+    const normalizar = (valor: unknown): string => String(valor ?? '').trim();
+    return (Array.isArray(valores) ? valores : [])
+      .map((valor) => {
+        const valorNormalizado = normalizar(valor);
+        const opcion = (Array.isArray(opciones) ? opciones : []).find(
+          (item) => normalizar(item?.value) === valorNormalizado || normalizar(item?.label) === valorNormalizado,
+        );
+        return normalizar(opcion?.label);
+      })
+      .filter(Boolean);
+  }
+
+  private limpiarFiltrosInvalidosContraOpciones(
+    filtros: DashboardFilters,
+    opciones: {
+      proveedores: FilterOption[];
+      categorias: FilterOption[];
+      ciudades: FilterOption[];
+      vendedores: FilterOption[];
+    },
+  ): DashboardFilters {
+    const contiene = (lista: FilterOption[], valor: string): boolean => {
+      const normalizado = String(valor ?? '').trim();
+      if (!normalizado) return false;
+      return lista.some((opcion) => String(opcion.value ?? '').trim() === normalizado);
+    };
+
+    const filtrar = (valores: string[], lista: FilterOption[]): string[] => {
+      if (!valores.length) return [];
+      if (!Array.isArray(lista) || lista.length === 0) return valores;
+      return valores.filter((valor) => contiene(lista, valor));
+    };
+
+    const vendedores = filtrar(
+      this.normalizarArrayFiltro(filtros.vendedores, filtros.vendedor),
+      opciones.vendedores,
+    );
+    const proveedores = filtrar(
+      this.normalizarArrayFiltro(filtros.proveedores, filtros.proveedor),
+      opciones.proveedores,
+    );
+    const categorias = filtrar(
+      this.normalizarArrayFiltro(filtros.categorias, filtros.categoria),
+      opciones.categorias,
+    );
+    const ciudades = filtrar(
+      this.normalizarArrayFiltro(filtros.ciudades, filtros.ciudad),
+      opciones.ciudades,
+    );
+
+    return {
+      ...filtros,
+      vendedor: vendedores.join(','),
+      vendedores,
+      proveedor: proveedores.join(','),
+      proveedores,
+      categoria: categorias.length === 1 ? categorias[0] : '',
+      categorias,
+      ciudad: ciudades.length === 1 ? ciudades[0] : '',
+      ciudades,
+    };
   }
 
   /**
@@ -1094,7 +1264,21 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
    * de `[filtros]` en app-ventas no dispare recargas innecesarias.
    */
   onFiltroChange(filtros: DashboardFilters): void {
-    this.filtrosPendientes = { ...this.filtrosPendientes, ...filtros };
+    const anterior = { ...this.filtrosPendientes };
+    this.filtrosPendientes = this.normalizarFiltrosDashboard({
+      ...this.filtrosPendientes,
+      ...filtros,
+    });
+
+    const cambioFechas =
+      anterior.fechaInicio !== this.filtrosPendientes.fechaInicio ||
+      anterior.fechaFin !== this.filtrosPendientes.fechaFin;
+
+    if (cambioFechas) {
+      this.filtrosService.invalidarCache();
+      this.cumplimientoService.invalidarCacheRespuestas();
+    }
+
     this.cargarOpcionesFiltrosUnificado(this.filtrosPendientes);
   }
 
@@ -1645,6 +1829,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onAplicarFiltros(filtros: DashboardFilters): void {
+    filtros = this.normalizarFiltrosDashboard(filtros);
     console.debug('[Dashboard] Aplicando filtros:', filtros);
     
     const rangoDefault = this.getDefaultDateRange();
@@ -1652,6 +1837,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     const fechaFin = String(filtros.fechaFin ?? '').trim() || rangoDefault.fin;
 
     let ciudadVisible = String(filtros.ciudad ?? '').trim();
+    const ciudadNombreVisible = String(filtros.ciudadNombre ?? '').trim();
     if (this.esCiudadResumen(ciudadVisible)) {
       ciudadVisible = '';
     }
@@ -1673,8 +1859,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       categoriaNombres: filtros.categoriaNombres ?? [],
       ciudad: '',
       ciudades: [],
-      ciudadNombre: ciudadVisible || '',
-      ciudadesNombres: [],
+      ciudadNombre: ciudadNombreVisible || ciudadVisible || '',
+      ciudadesNombres: filtros.ciudadesNombres ?? [],
       linea: filtros.linea || '',
     };
 
@@ -1708,9 +1894,14 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         (proveedor) => this.proveedorMap.get(proveedor) ?? proveedor,
       );
 
+      const proveedorNombres = Array.isArray(filtros.proveedorNombres) && filtros.proveedorNombres.length
+        ? filtros.proveedorNombres
+        : this.obtenerLabelsPorValores(this.proveedoresList, proveedoresSeleccionados);
+
       filtrosConCodigos.proveedor = proveedoresMapeados.join(',');
       filtrosConCodigos.proveedores = proveedoresMapeados;
-      filtrosConCodigos.proveedorNombres = filtros.proveedorNombres ?? [];
+      filtrosConCodigos.proveedorNombres = proveedorNombres;
+      filtrosConCodigos.proveedorNombre = proveedorNombres.length === 1 ? proveedorNombres[0] : '';
     }
 
     // Ciudades: soporta array multi (nuevo) o string legacy
@@ -1724,9 +1915,14 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       const ciudadesMapeadas = ciudadesSeleccionadas.map(
         (c) => this.ciudadMap.get(c) ?? this.ciudadMap.get(this.normalizarTexto(c)) ?? c,
       );
+      const ciudadesNombres = Array.isArray(filtros.ciudadesNombres) && filtros.ciudadesNombres.length
+        ? filtros.ciudadesNombres
+        : this.obtenerLabelsPorValores(this.ciudadesList, ciudadesSeleccionadas);
+
       filtrosConCodigos.ciudad = ciudadesMapeadas.join(',');
       filtrosConCodigos.ciudades = ciudadesMapeadas;
-      filtrosConCodigos.ciudadesNombres = filtros.ciudadesNombres ?? [];
+      filtrosConCodigos.ciudadNombre = ciudadNombreVisible || (ciudadesNombres.length === 1 ? ciudadesNombres[0] : '');
+      filtrosConCodigos.ciudadesNombres = ciudadesNombres;
     } else if (ciudadVisible) {
       // Fallback: si solo llega el singular ciudad, usarlo
       filtrosConCodigos.ciudad =
@@ -1741,6 +1937,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
     const filtrosAnterior = { ...this.filtrosActivos };
     this.filtrosActivos = { ...filtrosConCodigos };
+    this.filtrosPendientes = { ...this.filtrosActivos };
 
     const cambioFechas =
       filtrosAnterior.fechaInicio !== this.filtrosActivos.fechaInicio ||
@@ -1754,8 +1951,12 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       JSON.stringify(filtrosAnterior.categorias ?? []) !==
         JSON.stringify(this.filtrosActivos.categorias ?? []);
     const cambioVendedor = filtrosAnterior.vendedor !== this.filtrosActivos.vendedor;
+    const cambioCiudad =
+      filtrosAnterior.ciudad !== this.filtrosActivos.ciudad ||
+      JSON.stringify(filtrosAnterior.ciudades ?? []) !==
+        JSON.stringify(this.filtrosActivos.ciudades ?? []);
 
-    if (cambioFechas || cambioProveedor || cambioCategoria || cambioVendedor) {
+    if (cambioFechas || cambioProveedor || cambioCategoria || cambioVendedor || cambioCiudad) {
       this.cumplimientoService.invalidarCacheRespuestas();
     }
 
