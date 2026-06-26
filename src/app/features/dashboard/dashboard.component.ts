@@ -779,44 +779,18 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   private cargarProveedoresFiltros(): void {
     const filtrosCatalogo = this.crearFiltrosCatalogo({ conservarVendedor: true });
 
-    if (this.esSupervisor) {
-      // Para supervisor, los catalogos se cargan en VentasComponent.
-      // Aqui solo dejamos la lista vacia para no disparar N+1 calls.
-      this.aplicarOpcionesProveedores([]);
-      return;
-    }
-
-    if (this.esAdmin && !String(this.filtrosActivos.vendedor ?? '').trim()) {
-      this.cumplimientoService
-        .getLineasAdmin(filtrosCatalogo)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((res: ApiLineasResponse) => {
-          this.aplicarOpcionesProveedores(
-            this.construirOpcionesProveedoresDesdeLineas(res?.detallePorLinea ?? []),
-          );
-        });
-      return;
-    }
-
-    this.codigosParaCatalogosPorRol((codigos) => {
-      if (!codigos.length) {
-        this.aplicarOpcionesProveedores([]);
-        return;
-      }
-
-      const peticiones = codigos.map((codigo) =>
-        this.cumplimientoService
-          .getLineasPorVendedor(codigo, filtrosCatalogo)
-          .pipe(catchError(() => of({ detallePorLinea: [] } as ApiLineasResponse))),
-      );
-
-      forkJoin(peticiones)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((respuestas: ApiLineasResponse[]) => {
-          const lineas = respuestas.flatMap((res) => res?.detallePorLinea ?? []);
-          this.aplicarOpcionesProveedores(this.construirOpcionesProveedoresDesdeLineas(lineas));
-        });
-    });
+    // Microtarea B1: 1 sola llamada al endpoint role-aware /api/mes/cumplimiento/lineas.
+    // El backend filtra por scope JWT: admin ve todo, supervisor ve su
+    // equipo, vendedor ve solo lo suyo. Se eliminó la N+1 que iteraba
+    // per-vendor con forkJoin.
+    this.cumplimientoService
+      .getLineasAdmin(filtrosCatalogo)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((res: ApiLineasResponse) => {
+        this.aplicarOpcionesProveedores(
+          this.construirOpcionesProveedoresDesdeLineas(res?.detallePorLinea ?? []),
+        );
+      });
   }
 
 
@@ -836,57 +810,44 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   private cargarCiudadesYLineasSupervisor(): void {
     const filtrosCatalogo = this.crearFiltrosCatalogo({ conservarProveedor: true, conservarVendedor: true });
 
-    this.codigosParaCatalogosPorRol((codigos) => {
-      if (!codigos.length) {
-        this.ciudadesList = [];
-        this.lineasList = [];
-        this.ciudadMap.clear();
-        this.lineaMap.clear();
-        return;
-      }
+    // Microtarea B2: 2 llamadas a endpoints role-aware (1 ciudades + 1 lineas).
+    // El backend filtra por scope JWT: admin ve todo, supervisor ve su
+    // equipo, vendedor ve solo lo suyo. Antes: 2N llamadas per-vendor.
+    this.ciudadMap.clear();
+    this.lineaMap.clear();
 
-      this.ciudadMap.clear();
-      this.lineaMap.clear();
+    forkJoin({
+      ciudades: this.cumplimientoService
+        .getCiudadesGlobal(filtrosCatalogo)
+        .pipe(catchError(() => of({ detallePorCiudad: [] } as ApiCiudadesResponse))),
+      lineas: this.cumplimientoService
+        .getLineasAdmin(filtrosCatalogo)
+        .pipe(catchError(() => of({ detallePorLinea: [] } as ApiLineasResponse))),
+    })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((resultado: { ciudades: ApiCiudadesResponse; lineas: ApiLineasResponse }) => {
+        const ciudadesUnicas = new Set<string>();
+        const lineasUnicas = new Set<string>();
 
-      const peticiones = codigos.map((codigo) =>
-        forkJoin({
-          ciudades: this.cumplimientoService
-            .getCiudadesPorVendedor(codigo, filtrosCatalogo)
-            .pipe(catchError(() => of({ detallePorCiudad: [] } as ApiCiudadesResponse))),
-          lineas: this.cumplimientoService
-            .getLineasPorVendedor(codigo, filtrosCatalogo)
-            .pipe(catchError(() => of({ detallePorLinea: [] } as ApiLineasResponse))),
-        }),
-      );
+        const ciudades = resultado?.ciudades?.detallePorCiudad ?? [];
+        const lineas = resultado?.lineas?.detallePorLinea ?? [];
 
-      forkJoin(peticiones)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((resultados: Array<{ ciudades: ApiCiudadesResponse; lineas: ApiLineasResponse }>) => {
-          const ciudadesUnicas = new Set<string>();
-          const lineasUnicas = new Set<string>();
-
-          resultados.forEach((resultado) => {
-            const ciudades = resultado?.ciudades?.detallePorCiudad ?? [];
-            const lineas = resultado?.lineas?.detallePorLinea ?? [];
-
-            ciudades.forEach((item: ApiCiudadRow) => {
-              this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), ciudadesUnicas);
-            });
-
-            lineas.forEach((item: ApiLineaRow) => {
-              const linea = this.obtenerNombreProveedorLinea(item);
-              const cod = this.obtenerCodigoProveedorLinea(item);
-              if (!linea) return;
-
-              if (cod) this.lineaMap.set(linea, cod);
-              lineasUnicas.add(linea);
-            });
-          });
-
-          this.ciudadesList = this.toFilterOptions(Array.from(ciudadesUnicas));
-          this.lineasList = this.toFilterOptions(Array.from(lineasUnicas));
+        ciudades.forEach((item: ApiCiudadRow) => {
+          this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), ciudadesUnicas);
         });
-    });
+
+        lineas.forEach((item: ApiLineaRow) => {
+          const linea = this.obtenerNombreProveedorLinea(item);
+          const cod = this.obtenerCodigoProveedorLinea(item);
+          if (!linea) return;
+
+          if (cod) this.lineaMap.set(linea, cod);
+          lineasUnicas.add(linea);
+        });
+
+        this.ciudadesList = this.toFilterOptions(Array.from(ciudadesUnicas));
+        this.lineasList = this.toFilterOptions(Array.from(lineasUnicas));
+      });
   }
 
   private cargarOpcionesVendedor(filtros?: DashboardFilters): void {
@@ -1158,52 +1119,25 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     filtrosConsulta: DashboardFilters,
     proveedores: string[],
   ): void {
-    this.codigosParaCatalogosPorRol((codigos) => {
-      if (!codigos.length) {
-        this.categoriasList = [];
-        this.cdr.markForCheck();
-        return;
-      }
-
-      // OPTIMIZACION supervisor: el catalogo de categorias debe usar
-      // SIEMPRE el endpoint per-vendor del Postman:
-      //   GET /api/cuota-categoria/vendedor/:codigo
-      // Pero SOLO se carga:
-      //   - la primera vez que se abre la seccion
-      //   - cuando cambian las fechas
-      //   - cuando se selecciona un proveedor / categoria / vendedor
-      // Antes se ejecutaba en cada ngOnInit y en cada cambio de filtro.
-      if (this.esSupervisor) {
-        // Para supervisor, los catalogos se cargan en VentasComponent.
-        // Aqui solo dejamos la lista vacia para no disparar N+1 calls.
-        this.categoriasList = [];
-        this.cdr.markForCheck();
-        return;
-      }
-
-      const peticiones = codigos.map((codigo) =>
-        this.cumplimientoService
-          .getCumplimientoMesVendedor(filtrosConsulta)
-          .pipe(catchError(() => of({ detalle: [] } as any))),
-      );
-
-      forkJoin(peticiones)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe({
-          next: (respuestas: any[]) => {
-            const respuestaCompleta = {
-              detalle: respuestas.flatMap((r) => r?.detalle ?? []),
-            };
-            this.respuestaCumplimientoOriginal = respuestaCompleta;
-            this.aplicarCategoriasDesdeRespuesta(respuestaCompleta, proveedores);
-          },
-          error: (err) => {
-            console.error('Error cargando categorías desde cumplimiento por proveedor:', err);
-            this.categoriasList = [];
-            this.cdr.markForCheck();
-          },
-        });
-    });
+    // Microtarea B4: 1 sola llamada al endpoint role-aware /front/me.
+    // A pesar del nombre "getCumplimientoMesVendedor", este método apunta
+    // a /api/mes/cumplimiento/front/me que filtra por scope JWT (admin:
+    // todos, supervisor: equipo, vendor: solo él). Se eliminó la N+1 que
+    // iteraba per-vendor con forkJoin.
+    this.cumplimientoService
+      .getCumplimientoMesVendedor(filtrosConsulta)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res: any) => {
+          this.respuestaCumplimientoOriginal = res;
+          this.aplicarCategoriasDesdeRespuesta(res, proveedores);
+        },
+        error: (err) => {
+          console.error('Error cargando categorías desde cumplimiento por proveedor:', err);
+          this.categoriasList = [];
+          this.cdr.markForCheck();
+        },
+      });
   }
 
   private cargarCategoriasSupervisorLazy(

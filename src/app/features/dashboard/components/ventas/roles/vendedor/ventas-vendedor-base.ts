@@ -130,18 +130,20 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
               this.cdr.markForCheck();
             });
         } else if (tieneCiudad) {
-          const ciudades$ = this.esSemanal
-            ? this.semanaService.getCiudadesPorVendedor(this._codigoVendedor, filtrosConsulta)
-            : codigoCiudad
-              ? this.cumplimientoService.getDetallePorCiudad(
-                  this._codigoVendedor,
-                  codigoCiudad,
-                  filtrosConsulta,
-                )
-              : this.cumplimientoService.getCiudadesPorVendedor(
-                  this._codigoVendedor,
-                  filtrosConsulta,
-                );
+          // Microtarea B6: vista por ciudad consolidada y role-aware.
+          // Si hay ciudad seleccionada: drill-down con getDetallePorCiudad
+          // (per-vendor per-ciudad). Si no: getCiudadesGlobal (1 sola
+          // llamada, role-aware). Antes: getCiudadesPorVendedor (N+1 si
+          // la ruta del admin heredaba, per-vendor aquí).
+          const ciudades$ = codigoCiudad
+            ? this.cumplimientoService.getDetallePorCiudad(
+                this._codigoVendedor,
+                codigoCiudad,
+                filtrosConsulta,
+              )
+            : this.esSemanal
+              ? this.semanaService.getCiudadesGlobal(filtrosConsulta)
+              : this.cumplimientoService.getCiudadesGlobal(filtrosConsulta);
 
           ciudades$
             .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
@@ -369,18 +371,17 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
           const intentarCiudad = (idx: number): void => {
             const filtrosActivos = candidatos[idx];
             const codigoCiudadActivo = String(filtrosActivos.ciudad ?? '').trim();
-            const ciudades$ = this.esSemanal
-              ? this.semanaService.getCiudadesPorVendedor(this._codigoVendedor, filtrosActivos)
-              : codigoCiudadActivo
-                ? this.cumplimientoService.getDetallePorCiudad(
-                    this._codigoVendedor,
-                    codigoCiudadActivo,
-                    filtrosActivos,
-                  )
-                : this.cumplimientoService.getCiudadesPorVendedor(
-                    this._codigoVendedor,
-                    filtrosActivos,
-                  );
+            // Microtarea B6: 1 sola llamada consolidada role-aware.
+            // Drill-down per-vendor per-ciudad solo si hay ciudad específica.
+            const ciudades$ = codigoCiudadActivo
+              ? this.cumplimientoService.getDetallePorCiudad(
+                  this._codigoVendedor,
+                  codigoCiudadActivo,
+                  filtrosActivos,
+                )
+              : this.esSemanal
+                ? this.semanaService.getCiudadesGlobal(filtrosActivos)
+                : this.cumplimientoService.getCiudadesGlobal(filtrosActivos);
 
             ciudades$
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
@@ -451,7 +452,14 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
               .getItemsVendidos(filtrosActivos)
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((res: any) => {
-                const listado = Array.isArray(res?.data) ? res.data : [];
+                // Issue #3 (front): /api/items-vendidos responde
+                // { data: { rows: [...] } }. Soportar ambos shapes.
+                const data = res?.data;
+                const listado = Array.isArray(data)
+                  ? data
+                  : Array.isArray(data?.rows)
+                    ? data.rows
+                    : [];
 
                 if (!listado.length && idx < candidatos.length - 1) {
                   intentarItem(idx + 1);

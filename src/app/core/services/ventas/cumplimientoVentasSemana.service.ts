@@ -200,6 +200,28 @@ export class CumplimientoSemanaService {
   // ─── CIUDADES ────────────────────────────────────────────────────────────────
 
   /**
+   * GET /semana/cumplimiento/ciudades (role-aware, consolidado)
+   * Devuelve { detallePorCiudad: [...], resumen: {...}, periodo: {...} }
+   *
+   * Microtarea B5/B6: equivalente a `getCiudadesGlobal` mensual. Filtra por
+   * scope JWT: admin ve todas, supervisor ve su equipo, vendedor ve solo lo suyo.
+   */
+  getCiudadesGlobal(filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParams(filtros);
+    return this.http
+      .get<any>(`${this.apiUrl}/semana/cumplimiento/ciudades`, { params })
+      .pipe(
+        map((res) => {
+          if (res?.detallePorCiudad) {
+            res.detallePorCiudad = Array.isArray(res.detallePorCiudad) ? res.detallePorCiudad : [];
+          }
+          return res;
+        }),
+        catchError(() => of({ detallePorCiudad: [] })),
+      );
+  }
+
+  /**
    * GET /semana/cumplimiento/ciudades/:codigoVendedor
    * Devuelve { codigoVendedor, detallePorCiudad: [...] }
    */
