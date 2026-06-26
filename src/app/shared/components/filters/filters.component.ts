@@ -45,6 +45,7 @@ export class FiltersComponent implements OnChanges {
   @Input() lineas: FilterOption[] = [];
   @Input() vendedores: FilterOption[] = [];
   @Input() mostrarFiltroVendedor = true;
+  @Input() filtrosActivos: DashboardFilters | null = null;
 
   @Output() apply = new EventEmitter<DashboardFilters>();
   @Output() proveedorChange = new EventEmitter<string>();
@@ -87,21 +88,54 @@ export class FiltersComponent implements OnChanges {
   ciudadesVista: FilterOption[] = [];
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['filtrosActivos'] && this.filtrosActivos) {
+      this.sincronizarFiltrosActivos(this.filtrosActivos);
+    }
+
     if (changes['ciudades']) {
       this.actualizarCiudadesVista(this.ciudades);
     }
 
+    let seLimpioSeleccion = false;
+
     if (changes['proveedores']) {
-      this.limpiarProveedoresSeleccionadosInexistentes();
+      seLimpioSeleccion = this.limpiarProveedoresSeleccionadosInexistentes() || seLimpioSeleccion;
     }
 
     if (changes['categorias']) {
-      this.limpiarCategoriasSeleccionadasInexistentes();
+      seLimpioSeleccion = this.limpiarCategoriasSeleccionadasInexistentes() || seLimpioSeleccion;
     }
 
     if (changes['vendedores']) {
-      this.limpiarVendedoresSeleccionadosInexistentes();
+      seLimpioSeleccion = this.limpiarVendedoresSeleccionadosInexistentes() || seLimpioSeleccion;
     }
+
+    if (seLimpioSeleccion) {
+      this.emitFilterChange();
+    }
+  }
+
+  private sincronizarFiltrosActivos(filtros: DashboardFilters): void {
+    const normalizarArray = (arr: string[] | undefined | null, legacy: unknown): string[] => {
+      const desdeArray = Array.isArray(arr)
+        ? arr.map((item) => String(item ?? '').trim()).filter(Boolean)
+        : [];
+      if (desdeArray.length) return desdeArray;
+      return String(legacy ?? '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    };
+
+    this.filtros = {
+      ...this.filtros,
+      ...filtros,
+      vendedores: normalizarArray(filtros.vendedores, filtros.vendedor),
+      proveedor: String(filtros.proveedor ?? '').trim(),
+      proveedores: normalizarArray(filtros.proveedores, filtros.proveedor),
+      categorias: normalizarArray(filtros.categorias, filtros.categoria),
+      ciudades: normalizarArray(filtros.ciudades, filtros.ciudad),
+    };
   }
 
   get esAdmin(): boolean {
@@ -252,9 +286,8 @@ export class FiltersComponent implements OnChanges {
     this.filtros.proveedorNombre = '';
     this.filtros.proveedorNombres = [];
 
-    // Al cambiar proveedor se limpian categorías anteriores para que el catálogo
-    // se cargue nuevamente con las categorías disponibles de esos proveedores.
-    this.limpiarCategoriasSeleccionadas();
+    // No limpiamos categoría aquí. El backend devuelve categorías filtradas por
+    // los otros filtros y el padre solo elimina las selecciones que ya no existan.
     this.proveedorChange.emit(this.filtros.proveedor);
     this.emitFilterChange();
   }
@@ -264,7 +297,8 @@ export class FiltersComponent implements OnChanges {
     this.filtros.proveedor = '';
     this.filtros.proveedorNombre = '';
     this.filtros.proveedorNombres = [];
-    this.limpiarCategoriasSeleccionadas();
+    // Al limpiar proveedor se conservan las categorías seleccionadas si siguen
+    // siendo válidas para fecha/vendedor/ciudad.
     this.proveedorChange.emit('');
     this.emitFilterChange();
   }
@@ -291,11 +325,15 @@ export class FiltersComponent implements OnChanges {
     this.emitFilterChange();
   }
 
-  limpiarCategoriasSeleccionadas(): void {
+  limpiarCategoriasSeleccionadas(emitirCambio = true): void {
     this.filtros.categorias = [];
     this.filtros.categoria = '';
     this.filtros.categoriaNombre = '';
     this.filtros.categoriaNombres = [];
+
+    if (emitirCambio) {
+      this.emitFilterChange();
+    }
   }
 
   toggleVendedorCheckbox(value: string): void {
@@ -447,57 +485,71 @@ export class FiltersComponent implements OnChanges {
       .filter(Boolean);
   }
 
-  private limpiarProveedoresSeleccionadosInexistentes(): void {
+  private limpiarProveedoresSeleccionadosInexistentes(): boolean {
     const seleccionados = Array.isArray(this.filtros.proveedores)
       ? this.filtros.proveedores
       : [];
 
-    if (!seleccionados.length) return;
+    if (!seleccionados.length) return false;
 
     const valoresPermitidos = new Set(
       this.proveedores.map((item) => this.normalizarTexto(item.value)).filter(Boolean),
     );
 
-    this.filtros.proveedores = seleccionados.filter((value) =>
+    const filtrados = seleccionados.filter((value) =>
       valoresPermitidos.has(this.normalizarTexto(value)),
     );
+
+    const cambio = filtrados.length !== seleccionados.length;
+    this.filtros.proveedores = filtrados;
     this.filtros.proveedor = this.filtros.proveedores.join(',');
+
+    return cambio;
   }
 
-  private limpiarCategoriasSeleccionadasInexistentes(): void {
+  private limpiarCategoriasSeleccionadasInexistentes(): boolean {
     const categoriasSeleccionadas = Array.isArray(this.filtros.categorias)
       ? this.filtros.categorias
       : [];
 
-    if (!categoriasSeleccionadas.length) return;
+    if (!categoriasSeleccionadas.length) return false;
 
     const valoresPermitidos = new Set(
       this.categorias.map((item) => this.normalizarTexto(item.value)).filter(Boolean),
     );
 
-    this.filtros.categorias = categoriasSeleccionadas.filter((value) =>
+    const filtradas = categoriasSeleccionadas.filter((value) =>
       valoresPermitidos.has(this.normalizarTexto(value)),
     );
 
+    const cambio = filtradas.length !== categoriasSeleccionadas.length;
+    this.filtros.categorias = filtradas;
     this.filtros.categoria =
       this.filtros.categorias.length === 1 ? this.filtros.categorias[0] : '';
+
+    return cambio;
   }
 
-  private limpiarVendedoresSeleccionadosInexistentes(): void {
+  private limpiarVendedoresSeleccionadosInexistentes(): boolean {
     const seleccionados = Array.isArray(this.filtros.vendedores)
       ? this.filtros.vendedores
       : [];
 
-    if (!seleccionados.length) return;
+    if (!seleccionados.length) return false;
 
     const valoresPermitidos = new Set(
       this.vendedores.map((item) => this.normalizarTexto(item.value)).filter(Boolean),
     );
 
-    this.filtros.vendedores = seleccionados.filter((value) =>
+    const filtrados = seleccionados.filter((value) =>
       valoresPermitidos.has(this.normalizarTexto(value)),
     );
+
+    const cambio = filtrados.length !== seleccionados.length;
+    this.filtros.vendedores = filtrados;
     this.filtros.vendedor = this.filtros.vendedores.length === 1 ? this.filtros.vendedores[0] : '';
+
+    return cambio;
   }
 
   aplicar(closeFilters = true): void {

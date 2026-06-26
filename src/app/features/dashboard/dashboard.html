@@ -25,9 +25,8 @@
         [lineas]="lineasList"
         [vendedores]="esAdmin || esSupervisor ? vendedoresList : []"
         [mostrarFiltroVendedor]="esAdmin || esSupervisor"
+        [filtrosActivos]="filtrosActivos"
         (apply)="onAplicarFiltros($event)"
-        (vendedorChange)="onVendedorChange($event)"
-        (proveedorChange)="onProveedorChange($event)"
         (filterChange)="onFiltroChange($event)"
       ></app-filters>
     </section>
