@@ -1026,12 +1026,12 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
   /**
    * Repobla los 4 desplegables a partir de los filtros actuales.
-   * Llamar también desde el handler `(filterChange)` del componente
-   * de filtros cuando el usuario cambia cualquier selección, para que
-   * los dropdowns reflejen la cascada sin esperar al "Aplicar".
+   * Si se pasa `filtrosOrigen` (caso filterChange) usa ese; si no,
+   * usa `filtrosActivos` (caso apply o carga inicial).
    */
-  private cargarOpcionesFiltrosUnificado(): void {
-    const params = this.filtrosService.fromDashboardFilters(this.filtrosActivos);
+  private cargarOpcionesFiltrosUnificado(filtrosOrigen?: DashboardFilters): void {
+    const fuente = filtrosOrigen ?? this.filtrosActivos;
+    const params = this.filtrosService.fromDashboardFilters(fuente);
     this.filtrosService
       .getOpciones(params)
       .pipe(takeUntil(this.destroy$))
@@ -1057,13 +1057,45 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   /**
+   * Estado "en progreso" de los filtros: refleja lo que el usuario
+   * está seleccionando en los dropdowns. Se usa SOLO para repoblar
+   * los dropdowns en cascada (no se propaga a `app-ventas` para no
+   * disparar recargas de tablas).
+   *
+   * El estado "aplicado" sigue siendo `this.filtrosActivos`, que solo
+   * se actualiza en `onAplicarFiltros` cuando el usuario hace clic
+   * en "Aplicar Filtros". Así las tablas y KPIs se recargan UNA vez
+   * por click, no cada vez que el usuario marca/desmarca un filtro.
+   */
+  private filtrosPendientes: DashboardFilters = {
+    fechaInicio: '',
+    fechaFin: '',
+    vendedor: '',
+    vendedores: [],
+    proveedor: '',
+    proveedores: [],
+    proveedorNombre: '',
+    proveedorNombres: [],
+    categoria: '',
+    categoriaNombre: '',
+    categorias: [],
+    categoriaNombres: [],
+    ciudad: '',
+    ciudadNombre: '',
+    ciudades: [],
+    ciudadesNombres: [],
+    linea: '',
+  };
+
+  /**
    * Handler del `(filterChange)` del componente de filtros.
-   * Actualiza el estado interno y re-puebla los dropdowns en cascada
-   * (sin recargar las tablas; eso ocurre en `onAplicarFiltros`).
+   * Re-puebla los dropdowns en cascada usando `filtrosPendientes`
+   * (estado en progreso). NO toca `filtrosActivos` para que el setter
+   * de `[filtros]` en app-ventas no dispare recargas innecesarias.
    */
   onFiltroChange(filtros: DashboardFilters): void {
-    this.filtrosActivos = { ...this.filtrosActivos, ...filtros };
-    this.cargarOpcionesFiltrosUnificado();
+    this.filtrosPendientes = { ...this.filtrosPendientes, ...filtros };
+    this.cargarOpcionesFiltrosUnificado(this.filtrosPendientes);
   }
 
   private cargarVendedoresSupervisor(): void {
