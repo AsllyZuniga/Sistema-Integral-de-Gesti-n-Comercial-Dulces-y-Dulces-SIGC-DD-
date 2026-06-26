@@ -362,12 +362,23 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
 
             case 'ciudad': {
               this.chartType = 'pie';
-              const agrupado = this.agruparAdminPorCampo(detalle, 'ciudad', 'ciudad').map(
-                (r: any) => ({
-                  ...r,
-                  ciudad: this.repararTextoCiudad(r?.ciudad),
-                }),
+              // Pre-filtrar por ciudad antes de agrupar para que la cascada
+              // de "selecciona 1 ciudad" conserve el id_ciudad original y
+              // la agrupacion no lo pierda.
+              const detalleFiltradoPorCiudad = this.filtrarDetallePorCiudad(
+                detalle,
+                filtrosConsulta.ciudades,
+                filtrosConsulta.ciudad,
+                filtrosConsulta.ciudadNombre,
               );
+              const agrupado = this.agruparAdminPorCampo(
+                detalleFiltradoPorCiudad,
+                'ciudad',
+                'ciudad',
+              ).map((r: any) => ({
+                ...r,
+                ciudad: this.repararTextoCiudad(r?.ciudad),
+              }));
               const filtrado = this.filtrarPorCiudadSeleccionada(agrupado);
               const ordenado = [...filtrado].sort((a: any, b: any) =>
                 this.repararTextoCiudad(a?.ciudad).localeCompare(

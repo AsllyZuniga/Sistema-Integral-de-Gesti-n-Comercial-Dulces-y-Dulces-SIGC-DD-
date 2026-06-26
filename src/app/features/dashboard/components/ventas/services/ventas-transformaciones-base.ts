@@ -166,9 +166,9 @@ export abstract class VentasTransformacionesBase extends VentasEstadoBase {
   ): void {
     this.chartType = 'bar';
 
-    const codigoVendedorFiltro = String(filtrosConsulta.vendedor ?? '').trim();
-    const vendedoresFiltrados = codigoVendedorFiltro
-      ? this.filtrarVendedores(detalleVendedores, codigoVendedorFiltro)
+    const codigosVendedorFiltro = this.normalizarValoresFiltro(filtrosConsulta.vendedores, filtrosConsulta.vendedor);
+    const vendedoresFiltrados = codigosVendedorFiltro.length
+      ? this.filtrarVendedoresMulti(detalleVendedores, codigosVendedorFiltro)
       : detalleVendedores;
 
     const vendedoresValidos = vendedoresFiltrados.filter(
@@ -234,6 +234,8 @@ export abstract class VentasTransformacionesBase extends VentasEstadoBase {
 
       const actual = agg.get(key) ?? {
         [campoSalida]: key,
+        codigo: String(row?.reporteProvConObs ?? row?.codigoLinea ?? row?.linea ?? '').trim(),
+        idProveedor: row?.idProveedor ?? row?.id_proveedor ?? null,
         cuotaLinea: 0,
         cuota: 0,
         ventaAcum: 0,
@@ -259,5 +261,102 @@ export abstract class VentasTransformacionesBase extends VentasEstadoBase {
       porcCumProy: row.cuotaLinea > 0 ? (row.proyeccionVenta / row.cuotaLinea) * 100 : 0,
       porcentajeCumplimientoProyectado: row.cuota > 0 ? (row.proyeccionVenta / row.cuota) * 100 : 0,
     }));
+  }
+
+  /**
+   * Normaliza un valor de filtro que puede llegar como:
+   *   - array (multi-select nuevo: filtros.vendedores[], filtros.proveedores[])
+   *   - string comma-separated (legacy: filtros.vendedor, filtros.proveedor)
+   *   - string simple
+   * Devuelve siempre array de strings limpio.
+   */
+  protected normalizarValoresFiltro(arr: unknown, legacy: unknown): string[] {
+    const fromArr = Array.isArray(arr)
+      ? arr.map((v) => String(v ?? '').trim()).filter(Boolean)
+      : [];
+    if (fromArr.length) return fromArr;
+    const raw = String(legacy ?? '').trim();
+    if (!raw) return [];
+    return raw
+      .split(',')
+      .map((v) => String(v).trim())
+      .filter(Boolean);
+  }
+
+  /**
+   * Filtra una lista de filas por codigo_vendedor (soporta array multi).
+   * El array es OR (la fila pasa si coincide con CUALQUIER codigo).
+   */
+  protected filtrarVendedoresMulti(listado: any[], codigos: string[]): any[] {
+    if (!Array.isArray(codigos) || codigos.length === 0) return listado;
+    return listado.filter((item: any) => {
+      const valoresFila = [
+        item?.codVendedor,
+        item?.codigo_vendedor,
+        item?.codigoVendedor,
+        item?.id_vendedor,
+        item?.idVendedor,
+        item?.idVendedorAsociado,
+      ]
+        .map((valor) => String(valor ?? '').trim())
+        .filter(Boolean);
+
+      return codigos.some((codigo) => {
+        const numerico = String(codigo).replace(/\D/g, '');
+        const codigoNorm = numerico ? numerico.padStart(4, '0') : String(codigo);
+        const sinCeros = numerico ? String(Number(numerico)) : String(codigo);
+
+        return valoresFila.some((vf) => {
+          const vfNum = vf.replace(/\D/g, '');
+          const vfNorm = vfNum ? vfNum.padStart(4, '0') : vf;
+          const vfSinCeros = vfNum ? String(Number(vfNum)) : vf;
+          return vf === codigo || vfNorm === codigoNorm || vfSinCeros === sinCeros;
+        });
+      });
+    });
+  }
+
+  /**
+   * Filtra una lista por linea/proveedor (soporta array multi).
+   * El array es OR (la fila pasa si coincide con CUALQUIER codigo).
+   */
+  protected filtrarProveedoresMulti(listado: any[], codigos: string[]): any[] {
+    if (!Array.isArray(codigos) || codigos.length === 0) return listado;
+    return listado.filter((item: any) => {
+      const idProveedor = String(item?.idProveedor ?? item?.id_proveedor ?? '').trim();
+      const codigoProveedor = String(item?.codigoProveedor ?? item?.codigo_proveedor ?? '').trim();
+      const codigoLinea = String(item?.codigoLinea ?? item?.codigo_linea ?? '').trim();
+      const linea = String(item?.linea ?? '').trim();
+      const reporte = String(item?.reporteProvConObs ?? item?.proveedor ?? '').trim();
+      const codigoAgrupado = String(item?.codigo ?? '').trim();
+
+      const codigosFilaRaw = [
+        idProveedor,
+        codigoProveedor,
+        codigoLinea,
+        linea,
+        reporte,
+        codigoAgrupado
+      ]
+        .map((v) => v.trim())
+        .filter(Boolean);
+
+      const codigosNumericosFila = new Set(
+        codigosFilaRaw
+          .map((v) => (v.match(/^\d+/) ?? [])[0])
+          .filter(Boolean)
+      );
+
+      return codigos.some((codigo) => {
+        const codigoTrim = String(codigo).trim();
+        if (!codigoTrim) return false;
+        if (codigosFilaRaw.some((v) => v === codigoTrim)) return true;
+        const codeNum = (codigoTrim.match(/^\d+/) ?? [])[0];
+        if (codeNum && codigosNumericosFila.has(codeNum)) return true;
+        if (reporte && reporte.toLowerCase().startsWith(codigoTrim.toLowerCase())) return true;
+        if (codigoAgrupado && codigoAgrupado.toLowerCase().startsWith(codigoTrim.toLowerCase())) return true;
+        return false;
+      });
+    });
   }
 }

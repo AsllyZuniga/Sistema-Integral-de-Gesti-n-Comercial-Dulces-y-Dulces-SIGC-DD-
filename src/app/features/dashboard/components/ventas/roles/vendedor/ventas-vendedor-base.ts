@@ -35,10 +35,10 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
       return;
     }
 
-    const tieneProveedor = !!filtrosConsulta.proveedor;
-    const codigoProveedor = filtrosConsulta.proveedor;
-    const tieneCiudad = !!(filtrosConsulta.ciudad || filtrosConsulta.ciudadNombre);
-    const codigoCiudad = String(filtrosConsulta.ciudad ?? '').trim();
+    const tieneProveedor = this.normalizarValoresFiltro(filtrosConsulta.proveedores, filtrosConsulta.proveedor).length > 0;
+    const codigosProveedorFiltro = this.normalizarValoresFiltro(filtrosConsulta.proveedores, filtrosConsulta.proveedor);
+    const tieneCiudad = this.normalizarValoresFiltro(filtrosConsulta.ciudades, filtrosConsulta.ciudad ?? filtrosConsulta.ciudadNombre).length > 0;
+    const codigosCiudadFiltro = this.normalizarValoresFiltro(filtrosConsulta.ciudades, filtrosConsulta.ciudad ?? filtrosConsulta.ciudadNombre);
 
     switch (this.activeVentasView) {
       case 'vendedor': {
@@ -121,7 +121,7 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
             .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((res: any) => {
               const detalle = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
-              const filtrado = this.filtrarProveedores(detalle, codigoProveedor);
+              const filtrado = this.filtrarProveedoresMulti(detalle, codigosProveedorFiltro);
               const listadoTabla = this.ordenarProveedoresPorAlfabeto(filtrado);
               const topProveedores = this.limitarTopProveedores(filtrado);
               this.tableData = listadoTabla;
@@ -137,10 +137,10 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
           // (per-vendor per-ciudad). Si no: getCiudadesGlobal (1 sola
           // llamada, role-aware). Antes: getCiudadesPorVendedor (N+1 si
           // la ruta del admin heredaba, per-vendor aquí).
-          const ciudades$ = codigoCiudad
+          const ciudades$ = codigosCiudadFiltro.length
             ? this.cumplimientoService.getDetallePorCiudad(
                 this._codigoVendedor,
-                codigoCiudad,
+                codigosCiudadFiltro[0],
                 filtrosConsulta,
               )
             : this.esSemanal
@@ -219,7 +219,7 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((res: any) => {
                 const listado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
-                const listadoFiltrado = this.filtrarProveedores(listado, codigoProveedor);
+                const listadoFiltrado = this.filtrarProveedoresMulti(listado, codigosProveedorFiltro);
 
                 if (!listadoFiltrado.length && idx < candidatos.length - 1) {
                   intentarProveedor(idx + 1);
@@ -239,7 +239,7 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
                   topProveedores[0]?.linea ?? '—',
                 );
 
-                this.tableData = codigoProveedor
+                this.tableData = codigosProveedorFiltro.length
                   ? this.ordenarProveedoresPorAlfabeto(listadoFiltrado)
                   : listadoTabla;
                 this.totalCuotaProveedor = this.tableData.reduce(
