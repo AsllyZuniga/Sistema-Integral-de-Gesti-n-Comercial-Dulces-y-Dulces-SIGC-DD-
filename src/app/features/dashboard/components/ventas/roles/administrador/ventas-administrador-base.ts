@@ -6,8 +6,10 @@ import { VentasUtilidadesBase } from '../../services/ventas-utilidades-base';
 @Directive()
 export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
   protected cargarVistaAdminTodos(filtrosConsulta: DashboardFilters): void {
-    const filtrosAdmin =
-      this.activeVentasView === 'ciudad' ? { ...filtrosConsulta, vendedor: '' } : filtrosConsulta;
+    // Mantener siempre el filtro de vendedor cuando venga seleccionado.
+    // ADMINISTRADOR y SUPERVISOR pueden filtrar por vendedor; VENDEDOR no recibe
+    // este filtro desde la UI y el backend restringe por token.
+    const filtrosAdmin = filtrosConsulta;
 
     const admin$ = this.esSemanal
       ? this.semanaService.getCumplimientoSemanaAdmin(filtrosAdmin)
@@ -176,9 +178,33 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
         // El backend filtra por scope JWT: admin ve todo, supervisor ve su
         // equipo, vendedor ve solo lo suyo. Se eliminó la N+1 que iteraba
         // per-vendor con combinarResultadosPorVendedor.
-        const ciudades$ = this.esSemanal
-          ? this.semanaService.getCiudadesGlobal(filtrosConsulta)
-          : this.cumplimientoService.getCiudadesGlobal(filtrosConsulta);
+        const ciudadesSeleccionadas = this.normalizarValoresFiltro(
+          filtrosConsulta.ciudades,
+          filtrosConsulta.ciudad,
+        );
+
+        // Refuerzo para multi-ciudad: algunos backends/queries de ciudades-global
+        // toman solo la primera ciudad cuando llega ciudad=71,72. Para garantizar
+        // que la tabla muestre TODAS las ciudades seleccionadas, cuando hay más de
+        // una ciudad se consulta una vez por ciudad y luego se consolida en front.
+        const ciudades$ = ciudadesSeleccionadas.length > 1
+          ? forkJoin(
+              ciudadesSeleccionadas.map((codigoCiudad) => {
+                const filtrosCiudad: DashboardFilters = {
+                  ...filtrosConsulta,
+                  ciudad: codigoCiudad,
+                  ciudades: [codigoCiudad],
+                  ciudadNombre: '',
+                  ciudadesNombres: [],
+                };
+                return this.esSemanal
+                  ? this.semanaService.getCiudadesGlobal(filtrosCiudad)
+                  : this.cumplimientoService.getCiudadesGlobal(filtrosCiudad);
+              }),
+            )
+          : this.esSemanal
+            ? this.semanaService.getCiudadesGlobal(filtrosConsulta)
+            : this.cumplimientoService.getCiudadesGlobal(filtrosConsulta);
 
         ciudades$
           .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
@@ -186,7 +212,9 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
             // Microtarea B5 (front): el endpoint /ciudades-global ya filtra
             // por scope JWT. NO aplicar filtrarPorCodigosVendedoresPermitidos
             // aquí porque el detallePorCiudad NO trae codVendedor por fila.
-            const ciudadesRaw = Array.isArray(res?.detallePorCiudad) ? res.detallePorCiudad : [];
+            const ciudadesRaw = Array.isArray(res)
+              ? res.flatMap((item: any) => Array.isArray(item?.detallePorCiudad) ? item.detallePorCiudad : [])
+              : Array.isArray(res?.detallePorCiudad) ? res.detallePorCiudad : [];
             const ciudadesPermitidas = ciudadesRaw;
 
             if (!ciudadesPermitidas.length) {

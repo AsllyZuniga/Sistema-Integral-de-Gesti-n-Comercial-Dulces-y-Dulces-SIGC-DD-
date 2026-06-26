@@ -125,7 +125,7 @@ export class FiltrosService {
     const req$ = this.http
       .get<{ success: boolean; data: OpcionesFiltros }>(this.apiUrl, { params: httpParams })
       .pipe(
-        map((res) => (res?.success ? res.data : null)),
+        map((res) => (res?.success ? this.normalizarRespuesta(res.data) : null)),
         catchError((err) => {
           console.error('[FiltrosService] error:', err);
           return of(null);
@@ -134,6 +134,42 @@ export class FiltrosService {
       );
     this.cache.set(key, req$);
     return req$;
+  }
+
+
+  private normalizarRespuesta(data: OpcionesFiltros | null | undefined): OpcionesFiltros | null {
+    if (!data) return null;
+
+    return {
+      periodo: data.periodo ?? { fechaInicio: '', fechaFin: '' },
+      vendedores: this.normalizarOpciones(data.vendedores, ['value', 'codigo_vendedor', 'codVendedor', 'codigo', 'cod'], ['label', 'nombre', 'nom_vendedor', 'nomVendedor', 'nombreVendedor']),
+      proveedores: this.normalizarOpciones(data.proveedores, ['value', 'reporte_prov_con_obs', 'reporteProvConObs', 'codigo', 'codProveedor', 'proveedor'], ['label', 'nombre', 'nombreProveedor', 'proveedor']),
+      categorias: this.normalizarOpciones(data.categorias, ['value', 'id_categoria', 'idCategoria', 'codCategoria', 'codigo'], ['label', 'categoria', 'nomCategoria', 'nombreCategoria']),
+      ciudades: this.normalizarOpciones(data.ciudades, ['value', 'id_ciudad', 'idCiudad', 'codCiudad', 'codigo', 'cod'], ['label', 'ciudad', 'nomCiudad', 'nombreCiudad']),
+    };
+  }
+
+  private normalizarOpciones(items: any[] | null | undefined, valueKeys: string[], labelKeys: string[]): FilterOption[] {
+    const opciones = new Map<string, FilterOption>();
+    const texto = (valor: unknown): string => String(valor ?? '').trim();
+    const pick = (item: any, keys: string[]): string => {
+      for (const key of keys) {
+        const value = texto(item?.[key]);
+        if (value) return value;
+      }
+      return '';
+    };
+
+    for (const item of Array.isArray(items) ? items : []) {
+      const value = pick(item, valueKeys) || pick(item, labelKeys);
+      const label = pick(item, labelKeys) || value;
+      if (!value || !label) continue;
+      if (!opciones.has(value)) opciones.set(value, { value, label });
+    }
+
+    return Array.from(opciones.values()).sort((a, b) =>
+      a.label.localeCompare(b.label, 'es', { sensitivity: 'base', numeric: true }),
+    );
   }
 
   private cacheKey(params: FiltrosOpcionesParams): string {
