@@ -456,6 +456,32 @@ export class CumplimientoService {
   }
 
   /**
+   * GET /api/items-vendidos
+   * Issue #3: endpoint único y role-aware para la vista "Detalle por Ítem".
+   * El backend filtra por scope desde el JWT:
+   *   - admin (rol 1)      → todos los items
+   *   - supervisor (rol 2) → items de su equipo
+   *   - vendedor (rol 3)   → solo los items que vendió
+   *
+   * Devuelve { data: [rows...] } (lista agregada por proveedor+item).
+   *
+   * NOTA: el mismo endpoint sirve para vista mensual y semanal — el
+   * período se delimita con fechaInicio/fechaFin. No requiere sufijo
+   * "-semana" en la URL.
+   */
+  getItemsVendidos(filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParams(filtros);
+
+    return this.http.get<any>(`${this.apiUrl}/items-vendidos`, { params }).pipe(
+      map((res) => {
+        const rows = Array.isArray(res?.data?.rows) ? res.data.rows : [];
+        return { data: rows };
+      }),
+      catchError(() => of({ data: [] })),
+    );
+  }
+
+  /**
    * NOTA: getCuotaCategoriaPorVendedor eliminado tras consolidación de endpoints
    * (Issue #1 - Vendedor no veía cuotas de categoría). Usar getCuotaCategoriaGeneral()
    * que es role-aware desde el JWT.

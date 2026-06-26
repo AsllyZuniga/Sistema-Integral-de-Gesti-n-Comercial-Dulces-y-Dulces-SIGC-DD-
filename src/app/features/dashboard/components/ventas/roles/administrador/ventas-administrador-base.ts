@@ -276,40 +276,30 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
           return;
         }
 
+        // Issue #3: 1 sola llamada al endpoint role-aware /api/items-vendidos.
+        // El backend filtra por scope JWT: admin ve todo, supervisor ve su
+        // equipo, vendedor ve solo lo suyo. Se eliminó la N+1 que hacía
+        // forkJoin de N llamadas a /vendedor/:cod/productos.
         this.cumplimientoService
-          .getVendedores()
+          .getItemsVendidos(filtrosConsulta)
           .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-          .subscribe((vendedores: any[]) => {
-            const codigos = this.filtrarCodigosPermitidos(
-              (Array.isArray(vendedores) ? vendedores : [])
-                .map((v: any) =>
-                  String(v?.codigo_vendedor ?? v?.codVendedor ?? v?.codigo ?? '').trim(),
-                )
-                .filter(Boolean),
-            );
-
-            if (!codigos.length) {
-              this.tableData = [];
-              this.chartData = [];
-              this.cdr.markForCheck();
-              return;
-            }
-
-            const calls = codigos.map((codigo) =>
-              this.cumplimientoService.getProductosPorVendedor(codigo, filtrosConsulta),
-            );
-
-            forkJoin(calls)
-              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-              .subscribe((responses: any[]) => {
-                const listado = responses.flatMap((r: any) =>
-                  Array.isArray(r?.data) ? r.data : [],
-                );
-                const listadoOrdenado = this.ordenarDetalleItemsPorFechaAsc(listado);
-                this.allItemData = listadoOrdenado;
-                this.tableData = [...listadoOrdenado];
-                this.recalcularChart();
-              });
+          .subscribe((res: any) => {
+            const listado = Array.isArray(res?.data) ? res.data : [];
+            // Mapeo al shape esperado por la vista: el backend devuelve
+            // {proveedor, codigo_item, descripcion, unidades_cajas, subtotal};
+            // la vista usa Cod_Item/Descripcion/Cantidad/Subtotal.
+            const listadoMapeado = listado.map((item: any) => ({
+              ...item,
+              Proveedor: item?.proveedor,
+              Cod_Item: item?.codigo_item,
+              Descripcion: item?.descripcion,
+              Cantidad: Number(item?.unidades_cajas ?? 0),
+              Subtotal: Number(item?.subtotal ?? 0),
+              Venta_Unid_Cajas: Number(item?.unidades_cajas ?? 0),
+            }));
+            this.allItemData = listadoMapeado;
+            this.tableData = [...listadoMapeado];
+            this.recalcularChart();
           });
         return;
 

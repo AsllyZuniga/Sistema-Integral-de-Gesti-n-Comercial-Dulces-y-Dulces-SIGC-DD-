@@ -437,32 +437,41 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
         this.chartType = 'bar';
 
         {
+          // Issue #3: el endpoint único role-aware filtra por scope JWT.
+          // El backend decide si es admin/supervisor/vendedor. La vista
+          // semanal y mensual usan el mismo endpoint (mismo backend, solo
+          // cambia el rango de fechas en filtros).
           const candidatos = this.debeAplicarFallbackAutomatico(filtrosConsulta)
             ? this.construirCandidatosFallback(filtrosConsulta)
             : [filtrosConsulta];
 
           const intentarItem = (idx: number): void => {
             const filtrosActivos = candidatos[idx];
-            const items$ = this.esSemanal
-              ? this.semanaService.getProductosPorVendedor(this._codigoVendedor, filtrosActivos)
-              : this.cumplimientoService.getProductosPorVendedor(
-                  this._codigoVendedor,
-                  filtrosActivos,
-                );
-
-            items$
+            this.cumplimientoService
+              .getItemsVendidos(filtrosActivos)
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((res: any) => {
-                const listado = res?.data ?? [];
+                const listado = Array.isArray(res?.data) ? res.data : [];
 
                 if (!listado.length && idx < candidatos.length - 1) {
                   intentarItem(idx + 1);
                   return;
                 }
 
-                const listadoOrdenado = this.ordenarDetalleItemsPorFechaAsc(listado);
-                this.allItemData = listadoOrdenado;
-                this.tableData = [...listadoOrdenado];
+                // Mapeo al shape esperado por la vista: el backend devuelve
+                // {proveedor, codigo_item, descripcion, unidades_cajas, subtotal};
+                // la vista usa Cod_Item/Descripcion/Cantidad/Subtotal.
+                const listadoMapeado = listado.map((item: any) => ({
+                  ...item,
+                  Proveedor: item?.proveedor,
+                  Cod_Item: item?.codigo_item,
+                  Descripcion: item?.descripcion,
+                  Cantidad: Number(item?.unidades_cajas ?? 0),
+                  Subtotal: Number(item?.subtotal ?? 0),
+                  Venta_Unid_Cajas: Number(item?.unidades_cajas ?? 0),
+                }));
+                this.allItemData = listadoMapeado;
+                this.tableData = [...listadoMapeado];
                 this.recalcularChart();
               });
           };
