@@ -456,42 +456,10 @@ export class CumplimientoService {
   }
 
   /**
-   * GET /cuota-categoria/vendedor/:codigo → detalle de categorias del vendor
-   * Cacheado por (codigoVendedor + filtros) con shareReplay(1).
+   * NOTA: getCuotaCategoriaPorVendedor eliminado tras consolidación de endpoints
+   * (Issue #1 - Vendedor no veía cuotas de categoría). Usar getCuotaCategoriaGeneral()
+   * que es role-aware desde el JWT.
    */
-  getCuotaCategoriaPorVendedor(
-    codigoVendedor: string,
-    filtros?: DashboardFilters,
-  ): Observable<any> {
-    let params = this.buildParams(filtros);
-
-    if (params.has('vendedor')) {
-      params = params.delete('vendedor');
-    }
-
-    const codigo = String(codigoVendedor ?? '').trim();
-
-    if (!codigo) {
-      return of({ detalle: [] });
-    }
-
-    const cacheKey = this.cacheKeyFromParams(params);
-    return this.getOrCreateCache(
-      `cuota-cat-${codigo}-${cacheKey}`,
-      () =>
-        this.http
-          .get<any>(`${this.apiUrl}/cuota-categoria/vendedor/${encodeURIComponent(codigo)}`, {
-            params,
-          })
-          .pipe(
-            map((res) => ({
-              ...(res ?? {}),
-              detalle: Array.isArray(res?.detalle) ? res.detalle : [],
-            })),
-            catchError(() => of({ detalle: [] })),
-          ),
-    );
-  }
 
   getProductosPorCliente(idVendedor: string | number, filtros?: DashboardFilters): Observable<any> {
     let params = this.buildParams(filtros);
@@ -677,25 +645,30 @@ export class CumplimientoService {
     );
   }
 
-  /** GET /cuota-categoria/vendedores → categorías de múltiples vendedores con filtros de fecha.
+  /** GET /cuota-categoria/general → categorías role-aware desde el JWT.
+   *  (Antes: /cuota-categoria/vendedores. Ahora consolidado en /general,
+   *   que devuelve el scope correcto según el rol del usuario autenticado.)
    *  Cacheado con shareReplay(1): no cambia durante la sesion salvo recarga manual.
-   *  Se invalida con invalidarCacheMapaCategorias() al cambiar de mes.
+   *  Se invalida con invalidarCacheMapaCategorias() al cambiar de mes o de rol.
    */
   getCuotaCategoriasPorVendedores(filtros?: DashboardFilters): Observable<any> {
-    if (!this.cuotaCategoriasCache) {
-      this.cuotaCategoriasCache = this.http
-        .get<any>(`${this.apiUrl}/cuota-categoria/vendedores`)
-        .pipe(
-          map((res) => ({
-            ...(res ?? {}),
-            periodo: res?.periodo ?? {},
-            detalle: Array.isArray(res?.detalle) ? res.detalle : [],
-          })),
-          catchError(() => of({ periodo: {}, detalle: [] })),
-          shareReplay({ bufferSize: 1, refCount: false }),
-        );
-    }
-    return this.cuotaCategoriasCache;
+    const params = this.buildParams(filtros);
+    const cacheKey = this.cacheKeyFromParams(params);
+    return this.getOrCreateCache(
+      `cuota-cat-mapa-${cacheKey}`,
+      () =>
+        this.http
+          .get<any>(`${this.apiUrl}/cuota-categoria/general`, { params })
+          .pipe(
+            map((res) => ({
+              ...(res ?? {}),
+              periodo: res?.periodo ?? {},
+              detalle: Array.isArray(res?.detalle) ? res.detalle : [],
+            })),
+            catchError(() => of({ periodo: {}, detalle: [] })),
+            shareReplay({ bufferSize: 1, refCount: false }),
+          ),
+    );
   }
 
   invalidarCacheMapaCategorias(): void {

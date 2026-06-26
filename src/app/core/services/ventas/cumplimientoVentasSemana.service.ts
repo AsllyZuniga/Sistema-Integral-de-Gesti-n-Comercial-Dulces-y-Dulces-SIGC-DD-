@@ -199,31 +199,12 @@ export class CumplimientoSemanaService {
   // ─── CATEGORÍAS ──────────────────────────────────────────────────────────────
 
   /**
-   * GET /semana/cuota-categoria/vendedor/:codigoVendedor
-   * Devuelve { detalle: [...categorías] }
+   * NOTA: getCuotaCategoriaPorVendedor eliminado tras consolidación
+   * (Issue #1). Usar getCuotaCategoriaGeneral() de cumplimientoVentasMes.service.ts
+   * que es role-aware desde el JWT. La vista semanal reutiliza el mismo
+   * endpoint /api/cuota-categoria/general (los filtros de fecha en el
+   * payload delimitan el período).
    */
-  getCuotaCategoriaPorVendedor(
-    codigoVendedor: string,
-    filtros?: DashboardFilters,
-  ): Observable<any> {
-    let params = this.buildParams(filtros);
-    if (params.has('vendedor')) params = params.delete('vendedor');
-
-    const codigo = String(codigoVendedor ?? '').trim();
-    if (!codigo) return of({ detalle: [] });
-
-    return this.http
-      .get<any>(`${this.apiUrl}/semana/cuota-categoria/vendedor/${encodeURIComponent(codigo)}`, {
-        params,
-      })
-      .pipe(
-        map((res) => ({
-          ...(res ?? {}),
-          detalle: Array.isArray(res?.detalle) ? res.detalle : [],
-        })),
-        catchError(() => of({ detalle: [] })),
-      );
-  }
 
   // ─── PRODUCTOS / ITEMS ───────────────────────────────────────────────────────
 

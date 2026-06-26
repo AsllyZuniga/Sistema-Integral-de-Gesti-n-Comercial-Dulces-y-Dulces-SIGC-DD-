@@ -16,148 +16,62 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
     switch (this.activeVentasView) {
       case 'categoria':
         this.chartType = 'bar';
-        if (this.tieneCodigosVendedoresPermitidos()) {
-          const codigos = this.filtrarCodigosPermitidos(this._codigosVendedoresPermitidos);
-
-          if (!codigos.length) {
-            this.tableData = [];
-            this.chartData = [];
-            this.cdr.markForCheck();
-            return;
-          }
-
-          this.combinarResultadosPorVendedor(
-            codigos,
-            (codigo) =>
-              this.esSemanal
-                ? this.semanaService.getCuotaCategoriaPorVendedor(codigo, filtrosConsulta)
-                : this.cumplimientoService.getCuotaCategoriaPorVendedor(
-                    codigo,
-                    filtrosConsulta,
-                  ),
-            (res) => (Array.isArray(res?.detalle) ? res.detalle : []),
-          )
-            .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-            .subscribe((detalleBruto: any[]) => {
-              const categoriasSeleccionadas =
-                Array.isArray(filtrosConsulta.categorias) && filtrosConsulta.categorias.length
-                  ? filtrosConsulta.categorias.filter(Boolean)
-                  : Array.isArray(filtrosConsulta.categoriaNombres)
-                    ? filtrosConsulta.categoriaNombres.filter(Boolean)
-                    : [];
-              const categoriaFiltro = categoriasSeleccionadas.length
-                ? categoriasSeleccionadas
-                : filtrosConsulta.categoria;
-
-              const detalleFiltrado = this.filtrarCategoriasReales(detalleBruto, categoriaFiltro);
-              const detalleConsolidado = this.consolidarPorCategoria(detalleFiltrado);
-              const detalleConNombre = detalleConsolidado.map((item: any) => ({
-                ...item,
-                categoria: this.obtenerNombreCategoria(item) || 'Sin categoría',
-              }));
-              const detalleCompleto = detalleConNombre;
-              const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleCompleto);
-
-              this.tableData = detalleOrdenado;
-              this.totalCuotaCategoria = detalleOrdenado.reduce(
-                (sum: number, item: any) => sum + (Number(item?.cuota ?? 0) || 0),
-                0,
-              );
-              this.totalAcumuladoCategoria = detalleOrdenado.reduce(
-                (sum: number, item: any) =>
-                  sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
-                0,
-              );
-
-              const topCategorias = [...detalleCompleto]
-                .map((i: any) => ({
-                  name: this.obtenerNombreCategoria(i) || 'Sin categoría',
-                  value: Number(i?.acumulado ?? i?.ventaAcum ?? 0),
-                }))
-                .sort((a: any, b: any) => b.value - a.value)
-                .slice(0, 15);
-
-              this.totalTopCategorias = topCategorias.reduce(
-                (sum: number, item: any) => sum + (Number(item?.value ?? 0) || 0),
-                0,
-              );
-              this.chartData = topCategorias;
-              this.chartId = 'chart-categoria-admin-' + Date.now();
-              this.emitirResumenVista();
-              this.cdr.markForCheck();
-            });
-          return;
-        }
+        // Issue #1: usar el endpoint único role-aware. El backend filtra
+        // por scope según el JWT: admin ve todo, supervisor ve su equipo,
+        // vendedor ve solo lo suyo. Ya no hace falta N+1 ni fallback.
         this.cumplimientoService
           .getCuotaCategoriaGeneral(filtrosConsulta)
           .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
           .subscribe((res: any) => {
-            const pintarCategoria = (detalleRaw: any[]) => {
-              const detallePermitido = this.filtrarPorCodigosVendedoresPermitidos(detalleRaw);
-              const categoriasSeleccionadas =
-                Array.isArray(filtrosConsulta.categorias) && filtrosConsulta.categorias.length
-                  ? filtrosConsulta.categorias.filter(Boolean)
-                  : Array.isArray(filtrosConsulta.categoriaNombres)
-                    ? filtrosConsulta.categoriaNombres.filter(Boolean)
-                    : [];
-              const categoriaFiltroInner = categoriasSeleccionadas.length
-                ? categoriasSeleccionadas
-                : filtrosConsulta.categoria;
+            const detallePermitido = this.filtrarPorCodigosVendedoresPermitidos(
+              Array.isArray(res?.detalle) ? res.detalle : [],
+            );
+            const categoriasSeleccionadas =
+              Array.isArray(filtrosConsulta.categorias) && filtrosConsulta.categorias.length
+                ? filtrosConsulta.categorias.filter(Boolean)
+                : Array.isArray(filtrosConsulta.categoriaNombres)
+                  ? filtrosConsulta.categoriaNombres.filter(Boolean)
+                  : [];
+            const categoriaFiltro = categoriasSeleccionadas.length
+              ? categoriasSeleccionadas
+              : filtrosConsulta.categoria;
 
-              const detalleFiltrado = this.filtrarCategoriasReales(
-                detallePermitido,
-                categoriaFiltroInner,
-              );
-              const detalleConsolidado = this.consolidarPorCategoria(detalleFiltrado);
-              const detalleConNombre = detalleConsolidado.map((item: any) => ({
-                ...item,
-                categoria: this.obtenerNombreCategoria(item) || 'Sin categoría',
-              }));
-              const detalleCompleto = detalleConNombre;
-              const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleCompleto);
+            const detalleFiltrado = this.filtrarCategoriasReales(detallePermitido, categoriaFiltro);
+            const detalleConsolidado = this.consolidarPorCategoria(detalleFiltrado);
+            const detalleConNombre = detalleConsolidado.map((item: any) => ({
+              ...item,
+              categoria: this.obtenerNombreCategoria(item) || 'Sin categoría',
+            }));
+            const detalleCompleto = detalleConNombre;
+            const detalleOrdenado = this.ordenarCategoriasPorAlfabeto(detalleCompleto);
 
-              this.tableData = detalleOrdenado;
-              this.totalCuotaCategoria = detalleOrdenado.reduce(
-                (sum: number, item: any) => sum + (Number(item?.cuota ?? 0) || 0),
-                0,
-              );
-              this.totalAcumuladoCategoria = detalleOrdenado.reduce(
-                (sum: number, item: any) =>
-                  sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
-                0,
-              );
+            this.tableData = detalleOrdenado;
+            this.totalCuotaCategoria = detalleOrdenado.reduce(
+              (sum: number, item: any) => sum + (Number(item?.cuota ?? 0) || 0),
+              0,
+            );
+            this.totalAcumuladoCategoria = detalleOrdenado.reduce(
+              (sum: number, item: any) =>
+                sum + (Number(item?.acumulado ?? item?.ventaAcum ?? 0) || 0),
+              0,
+            );
 
-              const topCategorias = [...detalleCompleto]
-                .map((i: any) => ({
-                  name: this.obtenerNombreCategoria(i) || 'Sin categoría',
-                  value: Number(i?.acumulado ?? i?.ventaAcum ?? 0),
-                }))
-                .sort((a: any, b: any) => b.value - a.value)
-                .slice(0, 15);
+            const topCategorias = [...detalleCompleto]
+              .map((i: any) => ({
+                name: this.obtenerNombreCategoria(i) || 'Sin categoría',
+                value: Number(i?.acumulado ?? i?.ventaAcum ?? 0),
+              }))
+              .sort((a: any, b: any) => b.value - a.value)
+              .slice(0, 15);
 
-              this.totalTopCategorias = topCategorias.reduce(
-                (sum: number, item: any) => sum + (Number(item?.value ?? 0) || 0),
-                0,
-              );
-              this.chartData = topCategorias;
-              this.chartId = 'chart-categoria-admin-' + Date.now();
-              this.emitirResumenVista();
-              this.cdr.markForCheck();
-            };
-
-            const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
-            if (detalle.length > 0) {
-              pintarCategoria(detalle);
-              return;
-            }
-
-            this.cumplimientoService
-              .getCuotaCategoriasPorVendedores(filtrosConsulta)
-              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-              .subscribe((fallback: any) => {
-                const detalleFallback = Array.isArray(fallback?.detalle) ? fallback.detalle : [];
-                pintarCategoria(detalleFallback);
-              });
+            this.totalTopCategorias = topCategorias.reduce(
+              (sum: number, item: any) => sum + (Number(item?.value ?? 0) || 0),
+              0,
+            );
+            this.chartData = topCategorias;
+            this.chartId = 'chart-categoria-admin-' + Date.now();
+            this.emitirResumenVista();
+            this.cdr.markForCheck();
           });
         return;
 

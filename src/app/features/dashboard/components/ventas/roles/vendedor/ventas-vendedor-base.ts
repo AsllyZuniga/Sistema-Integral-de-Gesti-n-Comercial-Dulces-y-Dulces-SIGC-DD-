@@ -283,19 +283,10 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
           const intentarCategoria = (idx: number): void => {
             const filtrosActivos = candidatos[idx];
 
-            // OPTIMIZACION: con multiples categorias seleccionadas, hacemos 1 sola
-            // llamada al backend enviando las categorias como CSV (ya soportado
-            // por CumplimientoService.aplicarCategoriaParams). Antes se hacia un
-            // forkJoin de N llamadas HTTP (1 por cada categoria).
-            const categorias$ = this.esSemanal
-              ? this.semanaService.getCuotaCategoriaPorVendedor(
-                  this._codigoVendedor,
-                  filtrosActivos,
-                )
-              : this.cumplimientoService.getCuotaCategoriaPorVendedor(
-                  this._codigoVendedor,
-                  filtrosActivos,
-                );
+            // OPTIMIZACION: 1 sola llamada al endpoint /cuota-categoria/general
+            // (role-aware desde JWT). Antes: getCuotaCategoriaPorVendedor que
+            // devolvía 404 si el vendedor no tenía cuotas explícitas.
+            const categorias$ = this.cumplimientoService.getCuotaCategoriaGeneral(filtrosActivos);
 
             categorias$
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
