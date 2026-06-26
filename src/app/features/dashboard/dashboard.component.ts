@@ -8,6 +8,7 @@ import { SessionUser } from '../../core/services/session.service';
 import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../core/services/ventas/cumplimientoVentasSemana.service';
 import { UsuariosService } from '../../core/services/usuarios.service';
+import { ProveedorService } from '../../core/services/proveedor.service';
 import {
   FiltersComponent,
   DashboardFilters,
@@ -129,6 +130,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     private cumplimientoService: CumplimientoService,
     private semanaService: CumplimientoSemanaService,
     private usuariosService: UsuariosService,
+    private proveedorService: ProveedorService,
     private cdr: ChangeDetectorRef,
   ) {}
 
@@ -160,6 +162,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private respuestaCumplimientoOriginal: any = null;
   private cacheCumplimientoClave: string = '';
+  private categoriasRequestId = 0;
 
   totalesVendedor: DashboardTotalesVendedor | null = null;
 
@@ -1015,13 +1018,10 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       this.cargarProveedoresFiltros();
       this.cargarCategoriasFiltros();
     } else if (this.esSupervisor) {
-      // OPTIMIZACION supervisor: solo cargamos la lista de vendedores al inicio.
-      // Los catalogos (proveedores/ciudades/categorias) NO se cargan aqui porque
-      // el supervisor los obtiene via endpoints per-vendedor del Postman
-      // (getLineasPorVendedor, getCiudadesPorVendedor, getCuotaCategoriaPorVendedor)
-      // y eso ocurre en VentasComponent cuando el usuario abre cada seccion.
-      // Antes se disparaban N+1 calls por vendor al entrar al dashboard.
       this.cargarVendedoresSupervisor();
+      this.cargarProveedoresFiltros();
+      this.cargarCategoriasFiltros();
+      this.cargarCatalogosSupervisorLazy();
     } else if (this.codigoVendedor) {
       this.cargarOpcionesVendedor(this.filtrosActivos);
       this.cargarProveedoresFiltros();
@@ -1061,38 +1061,103 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     const filtrosConsulta = this.crearFiltrosCatalogo({
       conservarProveedor: true,
       conservarVendedor: true,
+      conservarCategoria: false,
     });
 
     const proveedoresSeleccionados = this.obtenerProveedoresSeleccionados();
-    const cacheClave = this.obtenerCacheClave(filtrosConsulta);
 
-    if (
-      this.respuestaCumplimientoOriginal &&
-      this.cacheCumplimientoClave === cacheClave
-    ) {
-      this.aplicarCategoriasDesdeRespuesta(
-        this.respuestaCumplimientoOriginal,
-        proveedoresSeleccionados,
-      );
+    // El catalogo de categorias es dependiente del proveedor:
+    // - Sin proveedor: muestra todas las categorias disponibles para el rol.
+    // - Con proveedor(es): primero consulta la relacion real proveedor -> categorias.
+    // Importante: nunca se conserva la categoria seleccionada al recargar este catalogo,
+    // porque primero cambia el proveedor y luego se deben reconstruir las opciones validas.
+    if (proveedoresSeleccionados.length) {
+      this.cargarCategoriasDeProveedoresSeleccionados(proveedoresSeleccionados, filtrosConsulta);
       return;
     }
 
-    this.cacheCumplimientoClave = cacheClave;
+    this.cargarCategoriasDesdeCuotaCategoria(filtrosConsulta, []);
+  }
 
-    const filtrosIniciales: DashboardFilters = {
-      ...filtrosConsulta,
-      proveedor: '',
-      proveedores: [],
-      proveedorNombre: '',
-      proveedorNombres: [],
-    };
+  private cargarCategoriasDeProveedoresSeleccionados(
+    proveedoresSeleccionados: string[],
+    filtrosConsulta: DashboardFilters,
+  ): void {
+    const requestId = ++this.categoriasRequestId;
+    const proveedoresUnicos = Array.from(
+      new Set(proveedoresSeleccionados.map((p) => String(p ?? '').trim()).filter(Boolean)),
+    );
 
-    if (this.esAdmin && !String(this.filtrosActivos.vendedor ?? '').trim()) {
-      this.cargarCategoriasDesdeCumplimientoAdmin(filtrosIniciales, proveedoresSeleccionados);
-      return;
-    }
+    const peticiones = proveedoresUnicos.map((codigoProveedor) =>
+      this.proveedorService
+        .getCategoriasByCodigo(codigoProveedor)
+        .pipe(catchError(() => of([] as string[]))),
+    );
 
-    this.cargarCategoriasDesdeCumplimientoPorRol(filtrosIniciales, proveedoresSeleccionados);
+    forkJoin(peticiones)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (respuestas: string[][]) => {
+          if (requestId !== this.categoriasRequestId) return;
+
+          const categorias = respuestas
+            .flat()
+            .map((categoria) => String(categoria ?? '').trim())
+            .filter(Boolean)
+            .map((categoria) => ({ categoria }));
+
+          if (categorias.length) {
+            this.categoriasList = this.construirOpcionesCategorias(categorias);
+            this.cdr.markForCheck();
+            return;
+          }
+
+          // Fallback: usar /cuota-categoria/general con los proveedores seleccionados.
+          // Esto mantiene el comportamiento anterior cuando el backend no tiene la ruta
+          // /proveedor/:codigo/categorias.
+          this.cargarCategoriasDesdeCuotaCategoria(
+            filtrosConsulta,
+            proveedoresUnicos,
+            requestId,
+          );
+        },
+        error: () => {
+          if (requestId !== this.categoriasRequestId) return;
+          this.cargarCategoriasDesdeCuotaCategoria(
+            filtrosConsulta,
+            proveedoresUnicos,
+            requestId,
+          );
+        },
+      });
+  }
+
+  private cargarCategoriasDesdeCuotaCategoria(
+    filtrosConsulta: DashboardFilters,
+    proveedoresSeleccionados: string[],
+    requestId = ++this.categoriasRequestId,
+  ): void {
+    this.cumplimientoService
+      .getCuotaCategoriaGeneral(filtrosConsulta)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res: any) => {
+          if (requestId !== this.categoriasRequestId) return;
+
+          const detalle = this.normalizarDetalleParaCategorias(res);
+          const categorias = this.resolverCategoriasPorProveedor(detalle, proveedoresSeleccionados);
+
+          this.categoriasList = this.construirOpcionesCategorias(categorias);
+          this.cdr.markForCheck();
+        },
+        error: (err) => {
+          if (requestId !== this.categoriasRequestId) return;
+
+          console.error('Error cargando categorias filtradas:', err);
+          this.categoriasList = [];
+          this.cdr.markForCheck();
+        },
+      });
   }
 
   private cargarCategoriasDesdeCumplimientoAdmin(
@@ -1192,6 +1257,78 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       String(filtros.vendedor ?? '').trim(),
       this.rolId,
     ].join('|');
+  }
+
+  private resolverCategoriasPorProveedor(
+    detalle: any[],
+    proveedoresSeleccionados: string[],
+  ): ApiCategoriaRow[] {
+    const detalleNormalizado = Array.isArray(detalle) ? detalle : [];
+
+    if (!proveedoresSeleccionados.length) {
+      const categoriasDesdeProveedores = this.extraerCategoriasDeCumplimiento(
+        { detalle: detalleNormalizado },
+        [],
+      );
+
+      return categoriasDesdeProveedores.length
+        ? categoriasDesdeProveedores
+        : this.eliminarCategoriasDuplicadas(detalleNormalizado);
+    }
+
+    const proveedoresSet = this.construirSetProveedoresFlexible(proveedoresSeleccionados);
+
+    // Caso 1: la respuesta trae proveedores con arreglo interno de categorias.
+    // Este es el caso mas confiable para construir el catalogo dependiente.
+    const categoriasDesdeProveedores = this.extraerCategoriasDeCumplimiento(
+      { detalle: detalleNormalizado },
+      proveedoresSeleccionados,
+    );
+
+    if (categoriasDesdeProveedores.length) {
+      return categoriasDesdeProveedores;
+    }
+
+    // Caso 2: la respuesta trae filas planas de categoria con campos del proveedor.
+    // Aqui filtramos las filas antes de construir las opciones del dropdown.
+    const categoriasDirectasFiltradas = detalleNormalizado.filter((item) =>
+      this.filaCategoriaPerteneceAProveedor(item, proveedoresSet),
+    );
+
+    if (categoriasDirectasFiltradas.length) {
+      return this.eliminarCategoriasDuplicadas(categoriasDirectasFiltradas);
+    }
+
+    // Caso 3: algunos endpoints ya devuelven la data filtrada por proveedor pero sin
+    // campos de proveedor en cada fila. En ese escenario no hay mas informacion para
+    // cruzar en frontend, por eso se respetan las filas que devolvio el backend.
+    return this.eliminarCategoriasDuplicadas(detalleNormalizado);
+  }
+
+  private filaCategoriaPerteneceAProveedor(item: any, proveedoresSet: Set<string>): boolean {
+    if (!item || typeof item !== 'object' || !proveedoresSet.size) return false;
+
+    const candidatos = [
+      item?.codigoProveedor,
+      item?.codigo_proveedor,
+      item?.codProveedor,
+      item?.cod_proveedor,
+      item?.idProveedor,
+      item?.id_proveedor,
+      item?.codigoLinea,
+      item?.codigo_linea,
+      item?.linea,
+      item?.reporteProvConObs,
+      item?.nombreProveedor,
+      item?.nombre_proveedor,
+      item?.nomProveedor,
+      item?.proveedor,
+      item?.nombre,
+    ];
+
+    return candidatos.some((candidato) =>
+      this.obtenerClavesProveedor(candidato).some((clave) => proveedoresSet.has(clave)),
+    );
   }
 
   private eliminarCategoriasDuplicadas(categorias: ApiCategoriaRow[]): ApiCategoriaRow[] {
@@ -1503,31 +1640,34 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       filtrosConCodigos.linea = this.lineaMap.get(filtros.linea) ?? filtros.linea;
     }
 
+    const filtrosAnterior = { ...this.filtrosActivos };
     this.filtrosActivos = { ...filtrosConCodigos };
 
-    // OPTIMIZACION: solo recargar catalogos si el usuario cambio PROVEEDOR o CATEGORIA.
-    // Si solo cambio la fecha, los catalogos no se invalidan (cacheados).
-    const filtrosAnterior = filtros as DashboardFilters;
+    const cambioFechas =
+      filtrosAnterior.fechaInicio !== this.filtrosActivos.fechaInicio ||
+      filtrosAnterior.fechaFin !== this.filtrosActivos.fechaFin;
     const cambioProveedor =
-      filtrosAnterior?.proveedor !== filtrosConCodigos.proveedor ||
-      JSON.stringify(filtrosAnterior?.proveedores ?? []) !==
-        JSON.stringify(filtrosConCodigos.proveedores ?? []);
+      filtrosAnterior.proveedor !== this.filtrosActivos.proveedor ||
+      JSON.stringify(filtrosAnterior.proveedores ?? []) !==
+        JSON.stringify(this.filtrosActivos.proveedores ?? []);
     const cambioCategoria =
-      filtrosAnterior?.categoria !== filtrosConCodigos.categoria ||
-      JSON.stringify(filtrosAnterior?.categorias ?? []) !==
-        JSON.stringify(filtrosConCodigos.categorias ?? []);
-    const cambioVendedor =
-      filtrosAnterior?.vendedor !== filtrosConCodigos.vendedor;
+      filtrosAnterior.categoria !== this.filtrosActivos.categoria ||
+      JSON.stringify(filtrosAnterior.categorias ?? []) !==
+        JSON.stringify(this.filtrosActivos.categorias ?? []);
+    const cambioVendedor = filtrosAnterior.vendedor !== this.filtrosActivos.vendedor;
+
+    if (cambioFechas || cambioProveedor || cambioCategoria || cambioVendedor) {
+      this.cumplimientoService.invalidarCacheRespuestas();
+    }
 
     if (this.esAdmin) {
       this.cargarProveedoresFiltros();
       this.cargarCategoriasFiltros();
       this.cargarCiudadesYLineasAdmin();
     } else if (this.esSupervisor) {
-      // OPTIMIZACION supervisor: los catalogos per-vendor NO se recargan aqui.
-      // VentasComponent ya recarga los datos de la seccion activa cuando
-      // cambian los filtros (a traves del setter filtros de VentasEstadoBase).
-      // Antes se disparaban N+1 calls por vendor en cada cambio de filtro.
+      this.cargarProveedoresFiltros();
+      this.cargarCategoriasFiltros();
+      this.cargarCatalogosSupervisorLazy();
     } else {
       this.cargarOpcionesVendedor({ ...this.filtrosActivos, ciudad: '', ciudadNombre: '' });
       this.cargarProveedoresFiltros();

@@ -104,24 +104,26 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
         }
 
         if (tieneProveedor) {
-          const detalleProveedor$ = this.esSemanal
-            ? this.semanaService.getDetallePorLineaProveedor(
+          // Cuando hay uno o varios proveedores seleccionados, NO usamos
+          // getDetallePorLineaProveedor porque ese endpoint recibe un solo proveedor
+          // en la URL. Si se le envia "020,060" puede devolver solo uno.
+          // Cargamos todas las lineas del vendedor y aplicamos el filtro multiple
+          // en frontend, igual que la vista "Por Proveedor".
+          const filtrosSinProveedor = this.quitarProveedorDeFiltros(filtrosConsulta);
+          const lineas$ = this.esSemanal
+            ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor)
+            : this.cumplimientoService.getLineasPorVendedor(
                 this._codigoVendedor,
-                codigoProveedor,
-                filtrosConsulta,
-              )
-            : this.cumplimientoService.getDetallePorLineaProveedor(
-                this._codigoVendedor,
-                codigoProveedor,
-                filtrosConsulta,
+                filtrosSinProveedor,
               );
 
-          detalleProveedor$
+          lineas$
             .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((res: any) => {
               const detalle = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
-              const listadoTabla = this.ordenarProveedoresPorAlfabeto(detalle);
-              const topProveedores = this.limitarTopProveedores(detalle);
+              const filtrado = this.filtrarProveedores(detalle, codigoProveedor);
+              const listadoTabla = this.ordenarProveedoresPorAlfabeto(filtrado);
+              const topProveedores = this.limitarTopProveedores(filtrado);
               this.tableData = listadoTabla;
               this.chartData = topProveedores.map((i: any) => ({
                 name: i.linea,
