@@ -365,14 +365,39 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
             // Usar siempre el endpoint consolidado con TODOS los filtros activos.
             // El backend acepta ciudad/codCiudad y vendedor/proveedor/categorias;
             // el drill-down por URL solo soportaba una ciudad y podía perder filtros multi.
-            const ciudades$ = this.esSemanal
-              ? this.semanaService.getCiudadesGlobal(filtrosActivos)
-              : this.cumplimientoService.getCiudadesGlobal(filtrosActivos);
+            const ciudadesSeleccionadas = this.normalizarValoresFiltro(
+              filtrosActivos.ciudades,
+              filtrosActivos.ciudad,
+            );
+
+            // Refuerzo para multi-ciudad: si el backend solo responde la primera
+            // ciudad al recibir ciudad=71,72, hacemos una llamada por ciudad y
+            // consolidamos para que la tabla muestre todas las seleccionadas.
+            const ciudades$ = ciudadesSeleccionadas.length > 1
+              ? forkJoin(
+                  ciudadesSeleccionadas.map((codigoCiudad) => {
+                    const filtrosCiudad: DashboardFilters = {
+                      ...filtrosActivos,
+                      ciudad: codigoCiudad,
+                      ciudades: [codigoCiudad],
+                      ciudadNombre: '',
+                      ciudadesNombres: [],
+                    };
+                    return this.esSemanal
+                      ? this.semanaService.getCiudadesGlobal(filtrosCiudad)
+                      : this.cumplimientoService.getCiudadesGlobal(filtrosCiudad);
+                  }),
+                )
+              : this.esSemanal
+                ? this.semanaService.getCiudadesGlobal(filtrosActivos)
+                : this.cumplimientoService.getCiudadesGlobal(filtrosActivos);
 
             ciudades$
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((res: any) => {
-                const listadoCompleto = res?.detallePorCiudad ?? [];
+                const listadoCompleto = Array.isArray(res)
+                  ? res.flatMap((item: any) => Array.isArray(item?.detallePorCiudad) ? item.detallePorCiudad : [])
+                  : res?.detallePorCiudad ?? [];
                 const listadoFiltrado = this.filtrarPorCiudadSeleccionada(listadoCompleto);
 
                 if (!listadoFiltrado.length && idx < candidatos.length - 1) {
