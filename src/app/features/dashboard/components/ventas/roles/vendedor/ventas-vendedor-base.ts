@@ -35,10 +35,10 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
       return;
     }
 
-    const tieneProveedor = !!filtrosConsulta.proveedor;
-    const codigoProveedor = filtrosConsulta.proveedor;
-    const tieneCiudad = !!(filtrosConsulta.ciudad || filtrosConsulta.ciudadNombre);
-    const codigoCiudad = String(filtrosConsulta.ciudad ?? '').trim();
+    const tieneProveedor = this.normalizarValoresFiltro(filtrosConsulta.proveedores, filtrosConsulta.proveedor).length > 0;
+    const codigosProveedorFiltro = this.normalizarValoresFiltro(filtrosConsulta.proveedores, filtrosConsulta.proveedor);
+    const tieneCiudad = this.normalizarValoresFiltro(filtrosConsulta.ciudades, filtrosConsulta.ciudad ?? filtrosConsulta.ciudadNombre).length > 0;
+    const codigosCiudadFiltro = this.normalizarValoresFiltro(filtrosConsulta.ciudades, filtrosConsulta.ciudad ?? filtrosConsulta.ciudadNombre);
 
     switch (this.activeVentasView) {
       case 'vendedor': {
@@ -104,24 +104,22 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
         }
 
         if (tieneProveedor) {
-          const detalleProveedor$ = this.esSemanal
-            ? this.semanaService.getDetallePorLineaProveedor(
+          // El backend acepta proveedor/proveedores junto con los demás filtros.
+          // No quitamos proveedor ni hacemos doble filtro local para no borrar
+          // resultados válidos por diferencias entre value y label.
+          const lineas$ = this.esSemanal
+            ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, filtrosConsulta)
+            : this.cumplimientoService.getLineasPorVendedor(
                 this._codigoVendedor,
-                codigoProveedor,
-                filtrosConsulta,
-              )
-            : this.cumplimientoService.getDetallePorLineaProveedor(
-                this._codigoVendedor,
-                codigoProveedor,
                 filtrosConsulta,
               );
 
-          detalleProveedor$
+          lineas$
             .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((res: any) => {
-              const detalle = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
-              const listadoTabla = this.ordenarProveedoresPorAlfabeto(detalle);
-              const topProveedores = this.limitarTopProveedores(detalle);
+              const filtrado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
+              const listadoTabla = this.ordenarProveedoresPorAlfabeto(filtrado);
+              const topProveedores = this.limitarTopProveedores(filtrado);
               this.tableData = listadoTabla;
               this.chartData = topProveedores.map((i: any) => ({
                 name: i.linea,
@@ -130,18 +128,11 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
               this.cdr.markForCheck();
             });
         } else if (tieneCiudad) {
+          // Usar el endpoint consolidado con todos los filtros activos.
+          // El drill-down por URL solo soportaba una ciudad y podía perder proveedor/categoría.
           const ciudades$ = this.esSemanal
-            ? this.semanaService.getCiudadesPorVendedor(this._codigoVendedor, filtrosConsulta)
-            : codigoCiudad
-              ? this.cumplimientoService.getDetallePorCiudad(
-                  this._codigoVendedor,
-                  codigoCiudad,
-                  filtrosConsulta,
-                )
-              : this.cumplimientoService.getCiudadesPorVendedor(
-                  this._codigoVendedor,
-                  filtrosConsulta,
-                );
+            ? this.semanaService.getCiudadesGlobal(filtrosConsulta)
+            : this.cumplimientoService.getCiudadesGlobal(filtrosConsulta);
 
           ciudades$
             .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
@@ -203,26 +194,31 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
 
           const intentarProveedor = (idx: number): void => {
             const filtrosActivos = candidatos[idx];
-            const filtrosSinProveedor = this.quitarProveedorDeFiltros(filtrosActivos);
             const lineas$ = this.esSemanal
-              ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, filtrosSinProveedor)
+              ? this.semanaService.getLineasPorVendedor(this._codigoVendedor, filtrosActivos)
               : this.cumplimientoService.getLineasPorVendedor(
                   this._codigoVendedor,
-                  filtrosSinProveedor,
+                  filtrosActivos,
                 );
 
             lineas$
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((res: any) => {
-                const listado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
-                const listadoFiltrado = this.filtrarProveedores(listado, codigoProveedor);
+                const listadoMapeado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
+                const proveedoresSeleccionados = this.normalizarValoresFiltro(
+                  filtrosActivos.proveedores,
+                  filtrosActivos.proveedor,
+                );
+                const listadoFiltrado = proveedoresSeleccionados.length
+                  ? this.filtrarProveedoresMulti(listadoMapeado, proveedoresSeleccionados)
+                  : listadoMapeado;
 
                 if (!listadoFiltrado.length && idx < candidatos.length - 1) {
                   intentarProveedor(idx + 1);
                   return;
                 }
 
-                const listadoTabla = this.ordenarProveedoresPorAlfabeto(listado);
+                const listadoTabla = this.ordenarProveedoresPorAlfabeto(listadoFiltrado);
                 const topProveedores = [...listadoFiltrado]
                   .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
                   .slice(0, 12);
@@ -235,9 +231,7 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
                   topProveedores[0]?.linea ?? '—',
                 );
 
-                this.tableData = codigoProveedor
-                  ? this.ordenarProveedoresPorAlfabeto(listadoFiltrado)
-                  : listadoTabla;
+                this.tableData = listadoTabla;
                 this.totalCuotaProveedor = this.tableData.reduce(
                   (sum: number, item: any) => sum + (Number(item?.cuotaLinea ?? 0) || 0),
                   0,
@@ -283,19 +277,10 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
           const intentarCategoria = (idx: number): void => {
             const filtrosActivos = candidatos[idx];
 
-            // OPTIMIZACION: con multiples categorias seleccionadas, hacemos 1 sola
-            // llamada al backend enviando las categorias como CSV (ya soportado
-            // por CumplimientoService.aplicarCategoriaParams). Antes se hacia un
-            // forkJoin de N llamadas HTTP (1 por cada categoria).
-            const categorias$ = this.esSemanal
-              ? this.semanaService.getCuotaCategoriaPorVendedor(
-                  this._codigoVendedor,
-                  filtrosActivos,
-                )
-              : this.cumplimientoService.getCuotaCategoriaPorVendedor(
-                  this._codigoVendedor,
-                  filtrosActivos,
-                );
+            // OPTIMIZACION: 1 sola llamada al endpoint /cuota-categoria/general
+            // (role-aware desde JWT). Antes: getCuotaCategoriaPorVendedor que
+            // devolvía 404 si el vendedor no tenía cuotas explícitas.
+            const categorias$ = this.cumplimientoService.getCuotaCategoriaGeneral(filtrosActivos);
 
             categorias$
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
@@ -377,24 +362,42 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
 
           const intentarCiudad = (idx: number): void => {
             const filtrosActivos = candidatos[idx];
-            const codigoCiudadActivo = String(filtrosActivos.ciudad ?? '').trim();
-            const ciudades$ = this.esSemanal
-              ? this.semanaService.getCiudadesPorVendedor(this._codigoVendedor, filtrosActivos)
-              : codigoCiudadActivo
-                ? this.cumplimientoService.getDetallePorCiudad(
-                    this._codigoVendedor,
-                    codigoCiudadActivo,
-                    filtrosActivos,
-                  )
-                : this.cumplimientoService.getCiudadesPorVendedor(
-                    this._codigoVendedor,
-                    filtrosActivos,
-                  );
+            // Usar siempre el endpoint consolidado con TODOS los filtros activos.
+            // El backend acepta ciudad/codCiudad y vendedor/proveedor/categorias;
+            // el drill-down por URL solo soportaba una ciudad y podía perder filtros multi.
+            const ciudadesSeleccionadas = this.normalizarValoresFiltro(
+              filtrosActivos.ciudades,
+              filtrosActivos.ciudad,
+            );
+
+            // Refuerzo para multi-ciudad: si el backend solo responde la primera
+            // ciudad al recibir ciudad=71,72, hacemos una llamada por ciudad y
+            // consolidamos para que la tabla muestre todas las seleccionadas.
+            const ciudades$ = ciudadesSeleccionadas.length > 1
+              ? forkJoin(
+                  ciudadesSeleccionadas.map((codigoCiudad) => {
+                    const filtrosCiudad: DashboardFilters = {
+                      ...filtrosActivos,
+                      ciudad: codigoCiudad,
+                      ciudades: [codigoCiudad],
+                      ciudadNombre: '',
+                      ciudadesNombres: [],
+                    };
+                    return this.esSemanal
+                      ? this.semanaService.getCiudadesGlobal(filtrosCiudad)
+                      : this.cumplimientoService.getCiudadesGlobal(filtrosCiudad);
+                  }),
+                )
+              : this.esSemanal
+                ? this.semanaService.getCiudadesGlobal(filtrosActivos)
+                : this.cumplimientoService.getCiudadesGlobal(filtrosActivos);
 
             ciudades$
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((res: any) => {
-                const listadoCompleto = res?.detallePorCiudad ?? [];
+                const listadoCompleto = Array.isArray(res)
+                  ? res.flatMap((item: any) => Array.isArray(item?.detallePorCiudad) ? item.detallePorCiudad : [])
+                  : res?.detallePorCiudad ?? [];
                 const listadoFiltrado = this.filtrarPorCiudadSeleccionada(listadoCompleto);
 
                 if (!listadoFiltrado.length && idx < candidatos.length - 1) {
@@ -446,32 +449,48 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
         this.chartType = 'bar';
 
         {
+          // Issue #3: el endpoint único role-aware filtra por scope JWT.
+          // El backend decide si es admin/supervisor/vendedor. La vista
+          // semanal y mensual usan el mismo endpoint (mismo backend, solo
+          // cambia el rango de fechas en filtros).
           const candidatos = this.debeAplicarFallbackAutomatico(filtrosConsulta)
             ? this.construirCandidatosFallback(filtrosConsulta)
             : [filtrosConsulta];
 
           const intentarItem = (idx: number): void => {
             const filtrosActivos = candidatos[idx];
-            const items$ = this.esSemanal
-              ? this.semanaService.getProductosPorVendedor(this._codigoVendedor, filtrosActivos)
-              : this.cumplimientoService.getProductosPorVendedor(
-                  this._codigoVendedor,
-                  filtrosActivos,
-                );
-
-            items$
+            this.cumplimientoService
+              .getItemsVendidos(filtrosActivos)
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
               .subscribe((res: any) => {
-                const listado = res?.data ?? [];
+                // Issue #3 (front): /api/items-vendidos responde
+                // { data: { rows: [...] } }. Soportar ambos shapes.
+                const data = res?.data;
+                const listado = Array.isArray(data)
+                  ? data
+                  : Array.isArray(data?.rows)
+                    ? data.rows
+                    : [];
 
                 if (!listado.length && idx < candidatos.length - 1) {
                   intentarItem(idx + 1);
                   return;
                 }
 
-                const listadoOrdenado = this.ordenarDetalleItemsPorFechaAsc(listado);
-                this.allItemData = listadoOrdenado;
-                this.tableData = [...listadoOrdenado];
+                // Mapeo al shape esperado por la vista: el backend devuelve
+                // {proveedor, codigo_item, descripcion, unidades_cajas, subtotal};
+                // la vista usa Cod_Item/Descripcion/Cantidad/Subtotal.
+                const listadoMapeado = listado.map((item: any) => ({
+                  ...item,
+                  Proveedor: item?.proveedor,
+                  Cod_Item: item?.codigo_item,
+                  Descripcion: item?.descripcion,
+                  Cantidad: Number(item?.unidades_cajas ?? 0),
+                  Subtotal: Number(item?.subtotal ?? 0),
+                  Venta_Unid_Cajas: Number(item?.unidades_cajas ?? 0),
+                }));
+                this.allItemData = listadoMapeado;
+                this.tableData = [...listadoMapeado];
                 this.recalcularChart();
               });
           };

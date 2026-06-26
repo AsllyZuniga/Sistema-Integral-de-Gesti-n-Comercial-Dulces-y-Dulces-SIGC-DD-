@@ -12,6 +12,7 @@
         <input
           type="date"
           [(ngModel)]="filtros.fechaInicio"
+          (ngModelChange)="onFechaChange()"
           (focus)="onClickOtroFiltro()"
           (click)="onClickOtroFiltro()"
         />
@@ -19,6 +20,7 @@
         <input
           type="date"
           [(ngModel)]="filtros.fechaFin"
+          (ngModelChange)="onFechaChange()"
           (focus)="onClickOtroFiltro()"
           (click)="onClickOtroFiltro()"
         />
@@ -28,17 +30,45 @@
     @if (mostrarFiltroVendedor) {
       <div class="filter-group">
         <label>Vendedor</label>
-        <select
-          [(ngModel)]="filtros.vendedor"
-          (ngModelChange)="onVendedorChange($event)"
-          (focus)="onClickOtroFiltro()"
-          (click)="onClickOtroFiltro()"
-        >
-          <option value="">Todos</option>
-          @for (v of vendedores; track v.value) {
-            <option [value]="v.value">{{ v.label }}</option>
+
+        <div class="checkbox-dropdown">
+          <button
+            type="button"
+            class="checkbox-dropdown-toggle"
+            (click)="toggleVendedorDropdown()"
+          >
+            <span class="checkbox-dropdown-text">
+              {{ textoVendedoresSeleccionados }}
+            </span>
+
+            <span class="material-symbols-rounded dropdown-icon">expand_more</span>
+          </button>
+
+          @if (mostrarVendedorDropdown) {
+            <div class="checkbox-dropdown-menu">
+              <label class="checkbox-item checkbox-item-all">
+                <input
+                  type="checkbox"
+                  [checked]="vendedoresSeleccionados.length === 0"
+                  (change)="limpiarVendedoresSeleccionados()"
+                />
+                <span>Todos</span>
+              </label>
+
+              @for (v of vendedores; track v.value) {
+                <label class="checkbox-item">
+                  <input
+                    type="checkbox"
+                    [value]="v.value"
+                    [checked]="filtros.vendedores?.includes(v.value) || false"
+                    (change)="toggleVendedorCheckbox(v.value)"
+                  />
+                  <span>{{ v.label }}</span>
+                </label>
+              }
+            </div>
           }
-        </select>
+        </div>
       </div>
     }
 
@@ -130,16 +160,45 @@
 
     <div class="filter-group">
       <label>Ciudad</label>
-      <select
-        [(ngModel)]="filtros.ciudad"
-        (focus)="onClickOtroFiltro()"
-        (click)="onClickOtroFiltro()"
-      >
-        <option value="">Todas</option>
-        @for (ci of ciudadesVista; track ci.value) {
-          <option [value]="ci.value">{{ ci.label }}</option>
+
+      <div class="checkbox-dropdown">
+        <button
+          type="button"
+          class="checkbox-dropdown-toggle"
+          (click)="toggleCiudadDropdown()"
+        >
+          <span class="checkbox-dropdown-text">
+            {{ textoCiudadesSeleccionadas }}
+          </span>
+
+          <span class="material-symbols-rounded dropdown-icon">expand_more</span>
+        </button>
+
+        @if (mostrarCiudadDropdown) {
+          <div class="checkbox-dropdown-menu">
+            <label class="checkbox-item checkbox-item-all">
+              <input
+                type="checkbox"
+                [checked]="ciudadesSeleccionadas.length === 0"
+                (change)="limpiarCiudadesSeleccionadas()"
+              />
+              <span>Todas</span>
+            </label>
+
+            @for (ci of ciudadesVista; track ci.value) {
+              <label class="checkbox-item">
+                <input
+                  type="checkbox"
+                  [value]="ci.value"
+                  [checked]="filtros.ciudades?.includes(ci.value) || false"
+                  (change)="toggleCiudadCheckbox(ci.value)"
+                />
+                <span>{{ ci.label }}</span>
+              </label>
+            }
+          </div>
         }
-      </select>
+      </div>
     </div>
 
     <div class="filter-actions">

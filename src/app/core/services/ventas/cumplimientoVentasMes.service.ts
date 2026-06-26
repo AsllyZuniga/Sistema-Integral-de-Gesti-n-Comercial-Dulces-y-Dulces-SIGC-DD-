@@ -23,7 +23,7 @@ export class CumplimientoService {
   private cacheKeyFromParams(params: HttpParams): string {
     if (!params || !params.keys().length) return 'empty';
     const keys = params.keys().sort();
-    return keys.map((k) => `${k}=${params.get(k) ?? ''}`).join('&');
+    return keys.map((k) => `${k}=${(params.getAll(k) ?? []).join('|')}`).join('&');
   }
 
   private getOrCreateCache(key: string, factory: () => Observable<any>): Observable<any> {
@@ -51,54 +51,34 @@ export class CumplimientoService {
     }
   }
 
-  private aplicarCategoriaParams(params: HttpParams, filtros?: DashboardFilters): HttpParams {
-    const categorias = Array.isArray(filtros?.categorias)
-      ? filtros?.categorias.map((item) => String(item ?? '').trim()).filter(Boolean)
+  private valoresFiltro(arr: string[] | undefined | null, legacy: unknown): string[] {
+    const desdeArray = Array.isArray(arr)
+      ? arr.map((item) => String(item ?? '').trim()).filter(Boolean)
       : [];
 
-    console.debug('[CumplimientoService] aplicarCategoriaParams - categorías:', categorias);
+    if (desdeArray.length) return desdeArray;
 
-    if (categorias.length > 1) {
-      const categoriasCsv = categorias.join(',');
-      console.debug('[CumplimientoService] aplicarCategoriaParams - enviando CSV:', categoriasCsv);
-      params = params.set('categorias', categoriasCsv);
-      return params;
-    }
-
-    if (categorias.length === 1) {
-      console.debug('[CumplimientoService] aplicarCategoriaParams - enviando categoría única:', categorias[0]);
-      params = params.set('categoria', categorias[0]);
-      return params;
-    }
-
-    if (filtros?.categoria) {
-      console.debug('[CumplimientoService] aplicarCategoriaParams - usando filtros.categoria:', filtros.categoria);
-      params = params.set('categoria', filtros.categoria);
-    }
-
-    return params;
+    return String(legacy ?? '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
   }
 
-  private aplicarProveedorParams(params: HttpParams, filtros?: DashboardFilters): HttpParams {
-    const proveedores = Array.isArray(filtros?.proveedores)
-      ? filtros.proveedores.map((item) => String(item ?? '').trim()).filter(Boolean)
-      : [];
+  private aplicarValoresMulti(
+    params: HttpParams,
+    csvKey: string,
+    values: string[],
+    repeatedKey?: string,
+  ): HttpParams {
+    const limpios = values.map((item) => String(item ?? '').trim()).filter(Boolean);
+    if (!limpios.length) return params;
 
-    console.debug('[CumplimientoService] aplicarProveedorParams - proveedores:', proveedores);
+    params = params.set(csvKey, limpios.join(','));
 
-    if (proveedores.length > 1) {
-      const proveedoresCsv = proveedores.join(',');
-      console.debug('[CumplimientoService] aplicarProveedorParams - enviando CSV:', proveedoresCsv);
-      params = params.delete('proveedor');
-      params = params.set('proveedores', proveedoresCsv);
-      return params;
-    }
-
-    if (proveedores.length === 1) {
-      console.debug('[CumplimientoService] aplicarProveedorParams - enviando proveedor único:', proveedores[0]);
-      params = params.delete('proveedores');
-      params = params.set('proveedor', proveedores[0]);
-      return params;
+    if (repeatedKey) {
+      limpios.forEach((item) => {
+        params = params.append(repeatedKey, item);
+      });
     }
 
     return params;
@@ -109,15 +89,36 @@ export class CumplimientoService {
 
     if (!filtros) return params;
 
-    if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
-    if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
-    if (filtros?.vendedor) params = params.set('vendedor', filtros.vendedor);
-    if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
-    params = this.aplicarProveedorParams(params, filtros);
-    params = this.aplicarCategoriaParams(params, filtros);
-    if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
-    if (filtros?.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
-    if (filtros?.linea) params = params.set('linea', filtros.linea);
+    if (filtros.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
+    if (filtros.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
+
+    params = this.aplicarValoresMulti(
+      params,
+      'vendedor',
+      this.valoresFiltro(filtros.vendedores, filtros.vendedor),
+      'codVendedor',
+    );
+
+    params = this.aplicarValoresMulti(
+      params,
+      'proveedor',
+      this.valoresFiltro(filtros.proveedores, filtros.proveedor),
+      'codProveedor',
+    );
+
+    const categorias = this.valoresFiltro(filtros.categorias, filtros.categoria);
+    params = this.aplicarValoresMulti(params, 'categorias', categorias, 'codCategoria');
+    if (categorias.length) params = params.set('categoria', categorias.join(','));
+
+    params = this.aplicarValoresMulti(
+      params,
+      'ciudad',
+      this.valoresFiltro(filtros.ciudades, filtros.ciudad),
+      'codCiudad',
+    );
+
+    if (filtros.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
+    if (filtros.linea) params = params.set('linea', filtros.linea);
 
     return params;
   }
@@ -127,19 +128,9 @@ export class CumplimientoService {
    * No envía vendedor porque /me ya reconoce el vendedor autenticado.
    */
   private buildParamsForMe(filtros?: DashboardFilters): HttpParams {
-    let params = new HttpParams();
-
-    if (!filtros) return params;
-
-    if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
-    if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
-    if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
-    params = this.aplicarProveedorParams(params, filtros);
-    params = this.aplicarCategoriaParams(params, filtros);
-    if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
-    if (filtros?.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
-    if (filtros?.linea) params = params.set('linea', filtros.linea);
-
+    let params = this.buildParams(filtros);
+    params = params.delete('vendedor');
+    params = params.delete('codVendedor');
     return params;
   }
 
@@ -148,19 +139,9 @@ export class CumplimientoService {
    * Excludes vendedor because the path already scopes by supervisor.
    */
   private buildParamsForSupervisor(filtros?: DashboardFilters): HttpParams {
-    let params = new HttpParams();
-
-    if (!filtros) return params;
-
-    if (filtros?.fechaInicio) params = params.set('fechaInicio', filtros.fechaInicio);
-    if (filtros?.fechaFin) params = params.set('fechaFin', filtros.fechaFin);
-    if (filtros?.proveedor) params = params.set('proveedor', filtros.proveedor);
-    params = this.aplicarProveedorParams(params, filtros);
-    params = this.aplicarCategoriaParams(params, filtros);
-    if (filtros?.ciudad) params = params.set('ciudad', filtros.ciudad);
-    if (filtros?.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
-    if (filtros?.linea) params = params.set('linea', filtros.linea);
-
+    let params = this.buildParams(filtros);
+    params = params.delete('vendedor');
+    params = params.delete('codVendedor');
     return params;
   }
 
@@ -385,11 +366,7 @@ export class CumplimientoService {
   }
 
   getCiudadesGlobal(filtros?: DashboardFilters): Observable<any> {
-    let params = this.buildParams(filtros);
-
-    if (params.has('vendedor')) {
-      params = params.delete('vendedor');
-    }
+    const params = this.buildParams(filtros);
 
     return this.http.get<any>(`${this.apiUrl}/mes/cumplimiento/ciudades-global`, { params }).pipe(
       map((res) => ({
@@ -456,42 +433,36 @@ export class CumplimientoService {
   }
 
   /**
-   * GET /cuota-categoria/vendedor/:codigo → detalle de categorias del vendor
-   * Cacheado por (codigoVendedor + filtros) con shareReplay(1).
+   * GET /api/items-vendidos
+   * Issue #3: endpoint único y role-aware para la vista "Detalle por Ítem".
+   * El backend filtra por scope desde el JWT:
+   *   - admin (rol 1)      → todos los items
+   *   - supervisor (rol 2) → items de su equipo
+   *   - vendedor (rol 3)   → solo los items que vendió
+   *
+   * Devuelve { data: [rows...] } (lista agregada por proveedor+item).
+   *
+   * NOTA: el mismo endpoint sirve para vista mensual y semanal — el
+   * período se delimita con fechaInicio/fechaFin. No requiere sufijo
+   * "-semana" en la URL.
    */
-  getCuotaCategoriaPorVendedor(
-    codigoVendedor: string,
-    filtros?: DashboardFilters,
-  ): Observable<any> {
-    let params = this.buildParams(filtros);
+  getItemsVendidos(filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParams(filtros);
 
-    if (params.has('vendedor')) {
-      params = params.delete('vendedor');
-    }
-
-    const codigo = String(codigoVendedor ?? '').trim();
-
-    if (!codigo) {
-      return of({ detalle: [] });
-    }
-
-    const cacheKey = this.cacheKeyFromParams(params);
-    return this.getOrCreateCache(
-      `cuota-cat-${codigo}-${cacheKey}`,
-      () =>
-        this.http
-          .get<any>(`${this.apiUrl}/cuota-categoria/vendedor/${encodeURIComponent(codigo)}`, {
-            params,
-          })
-          .pipe(
-            map((res) => ({
-              ...(res ?? {}),
-              detalle: Array.isArray(res?.detalle) ? res.detalle : [],
-            })),
-            catchError(() => of({ detalle: [] })),
-          ),
+    return this.http.get<any>(`${this.apiUrl}/items-vendidos`, { params }).pipe(
+      map((res) => {
+        const rows = Array.isArray(res?.data?.rows) ? res.data.rows : [];
+        return { data: rows };
+      }),
+      catchError(() => of({ data: [] })),
     );
   }
+
+  /**
+   * NOTA: getCuotaCategoriaPorVendedor eliminado tras consolidación de endpoints
+   * (Issue #1 - Vendedor no veía cuotas de categoría). Usar getCuotaCategoriaGeneral()
+   * que es role-aware desde el JWT.
+   */
 
   getProductosPorCliente(idVendedor: string | number, filtros?: DashboardFilters): Observable<any> {
     let params = this.buildParams(filtros);
@@ -677,25 +648,30 @@ export class CumplimientoService {
     );
   }
 
-  /** GET /cuota-categoria/vendedores → categorías de múltiples vendedores con filtros de fecha.
+  /** GET /cuota-categoria/general → categorías role-aware desde el JWT.
+   *  (Antes: /cuota-categoria/vendedores. Ahora consolidado en /general,
+   *   que devuelve el scope correcto según el rol del usuario autenticado.)
    *  Cacheado con shareReplay(1): no cambia durante la sesion salvo recarga manual.
-   *  Se invalida con invalidarCacheMapaCategorias() al cambiar de mes.
+   *  Se invalida con invalidarCacheMapaCategorias() al cambiar de mes o de rol.
    */
   getCuotaCategoriasPorVendedores(filtros?: DashboardFilters): Observable<any> {
-    if (!this.cuotaCategoriasCache) {
-      this.cuotaCategoriasCache = this.http
-        .get<any>(`${this.apiUrl}/cuota-categoria/vendedores`)
-        .pipe(
-          map((res) => ({
-            ...(res ?? {}),
-            periodo: res?.periodo ?? {},
-            detalle: Array.isArray(res?.detalle) ? res.detalle : [],
-          })),
-          catchError(() => of({ periodo: {}, detalle: [] })),
-          shareReplay({ bufferSize: 1, refCount: false }),
-        );
-    }
-    return this.cuotaCategoriasCache;
+    const params = this.buildParams(filtros);
+    const cacheKey = this.cacheKeyFromParams(params);
+    return this.getOrCreateCache(
+      `cuota-cat-mapa-${cacheKey}`,
+      () =>
+        this.http
+          .get<any>(`${this.apiUrl}/cuota-categoria/general`, { params })
+          .pipe(
+            map((res) => ({
+              ...(res ?? {}),
+              periodo: res?.periodo ?? {},
+              detalle: Array.isArray(res?.detalle) ? res.detalle : [],
+            })),
+            catchError(() => of({ periodo: {}, detalle: [] })),
+            shareReplay({ bufferSize: 1, refCount: false }),
+          ),
+    );
   }
 
   invalidarCacheMapaCategorias(): void {

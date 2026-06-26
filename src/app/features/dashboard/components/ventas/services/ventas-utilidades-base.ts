@@ -26,17 +26,73 @@ export abstract class VentasUtilidadesBase extends VentasClientesBase {
     return ciudad === 'total' || ciudad === 'totales' || ciudad === 'todas' || ciudad === 'todos';
   }
 
+  /**
+   * Normaliza un valor de filtro que puede llegar como:
+   *   - array (multi-select nuevo: filtros.vendedores[], filtros.proveedores[])
+   *   - string comma-separated (legacy: filtros.vendedor, filtros.proveedor)
+   *   - string simple
+   * Devuelve siempre array de strings limpio.
+   */
   protected filtrarPorCiudadSeleccionada(listado: any[]): any[] {
-    const ciudadFiltroRaw = String(this._filtros.ciudadNombre ?? this._filtros.ciudad ?? '').trim();
-    const ciudadFiltro = this.normalizarTexto(ciudadFiltroRaw);
-
     const ciudadesValidas = listado.filter((item: any) => !this.esCiudadResumen(item?.ciudad));
 
-    if (!ciudadFiltro || this.esCiudadResumen(ciudadFiltroRaw)) return ciudadesValidas;
+    // Soporta array multi por id (filtros.ciudades[]), string legacy y nombres visibles.
+    // Esto evita vaciar la tabla cuando el endpoint ya filtró por id_ciudad=71
+    // pero la respuesta solo trae ciudad='Pasto' sin id_ciudad.
+    const ciudadesPorId = this.normalizarValoresFiltro(
+      this._filtros.ciudades,
+      this._filtros.ciudad
+    );
+    const ciudadesPorNombre = this.normalizarValoresFiltro(
+      this._filtros.ciudadesNombres,
+      this._filtros.ciudadNombre
+    );
+    const ciudadesFiltro = Array.from(new Set([...ciudadesPorId, ...ciudadesPorNombre]));
+
+    if (ciudadesFiltro.length === 0) return ciudadesValidas;
 
     return ciudadesValidas.filter((item: any) => {
+      const ciudadItem = this.normalizarTexto(item?.ciudad ?? item?.nomCiudad ?? item?.nombreCiudad ?? '');
+      const idItem = String(item?.id_ciudad ?? item?.idCiudad ?? item?.codCiudad ?? item?.codigoCiudad ?? '').trim();
+      return ciudadesFiltro.some((cf) => {
+        const cfTrim = String(cf).trim();
+        if (!cfTrim) return false;
+        // Match por id (numérico) si ambas partes lo tienen
+        if (idItem && cfTrim === idItem) return true;
+        // Match por nombre
+        const cfNorm = this.normalizarTexto(this.repararTextoCiudad(cf));
+        return ciudadItem === cfNorm;
+      });
+    });
+  }
+
+  /**
+   * Filtra un listado de filas (no agrupado) por las ciudades
+   * seleccionadas. Acepta array (multi) o string singular. Match por
+   * id_ciudad (preferente) o por nombre de ciudad. Se usa ANTES de
+   * agrupar para preservar el id en las filas resultantes.
+   */
+  protected filtrarDetallePorCiudad(
+    listado: any[],
+    ciudadesMulti: string[] | null | undefined,
+    ciudadSingular: string | null | undefined,
+    ciudadNombre: string | null | undefined,
+  ): any[] {
+    const ciudadesFiltro = this.normalizarValoresFiltro(
+      ciudadesMulti,
+      ciudadNombre ?? ciudadSingular
+    );
+    if (ciudadesFiltro.length === 0) return listado;
+
+    return listado.filter((item: any) => {
+      const idItem = String(item?.id_ciudad ?? '').trim();
       const ciudadItem = this.normalizarTexto(item?.ciudad ?? '');
-      return ciudadItem === ciudadFiltro;
+      return ciudadesFiltro.some((cf) => {
+        const cfTrim = String(cf).trim();
+        if (idItem && cfTrim === idItem) return true;
+        const cfNorm = this.normalizarTexto(this.repararTextoCiudad(cf));
+        return ciudadItem === cfNorm;
+      });
     });
   }
 
@@ -247,7 +303,9 @@ export abstract class VentasUtilidadesBase extends VentasClientesBase {
         if (cat && nombreCompletoItem.startsWith(cat + ' ')) return true;
         if (cat && nombreCompletoItem.startsWith(cat + '-')) return true;
 
-        const nombreNormalizado = this.normalizarCategoria(item);
+        const nombreNormalizado = this.normalizarCategoria(
+          this.obtenerNombreCategoria(item) || nombreCompletoItem,
+        );
         const catNormalizado = this.normalizarCategoria(catOriginal);
         if (nombreNormalizado && catNormalizado && nombreNormalizado === catNormalizado) {
           return true;
@@ -362,10 +420,28 @@ export abstract class VentasUtilidadesBase extends VentasClientesBase {
   }
 
   protected mapearCuotaPorLinea(listado: any[]): any[] {
-    return listado.map((item: any) => ({
-      ...item,
-      cuotaLinea: Number(item?.cuotaProveedor ?? item?.cuotaLinea ?? 0),
-    }));
+    return listado.map((item: any) => {
+      const proveedorVisible =
+        item?.reporteProvConObs ??
+        item?.reporte_prov_con_obs ??
+        item?.linea ??
+        item?.codigoLinea ??
+        item?.codigo_linea ??
+        item?.proveedor ??
+        item?.nombreProveedor ??
+        item?.nombre_proveedor ??
+        'Sin proveedor';
+
+      return {
+        ...item,
+        linea: proveedorVisible,
+        reporteProvConObs: item?.reporteProvConObs ?? item?.reporte_prov_con_obs ?? proveedorVisible,
+        proveedor: item?.proveedor ?? proveedorVisible,
+        cuotaLinea: Number(item?.cuotaProveedorTotal ?? item?.cuotaProveedor ?? item?.cuotaLinea ?? 0),
+        ventaAcum: Number(item?.ventaAcum ?? item?.acumulado ?? 0),
+        proyeccionVenta: Number(item?.proyeccionVenta ?? item?.proyeccion ?? 0),
+      };
+    });
   }
 
   protected filtrarProveedores(listado: any[], codigoProveedor: string): any[] {
@@ -377,38 +453,61 @@ export abstract class VentasUtilidadesBase extends VentasClientesBase {
       .split(',')
       .map((v) => String(v ?? '').trim())
       .filter(Boolean)
-      .map((v) => ({
-        raw: v,
-        rawNorm: this.normalizarTexto(v),
-        code: (v.match(/^\d+/)?.[0] ?? v).trim(),
-      }));
+      .map((v) => {
+        const code = (v.match(/^\d+/)?.[0] ?? v).trim();
+        const codeSinCeros = code.replace(/^0+/, '') || code;
+        return {
+          raw: v,
+          rawNorm: this.normalizarTexto(v),
+          code,
+          codeSinCeros,
+        };
+      });
 
     if (!filtros.length) return listado;
 
     return listado.filter((item: any) => {
-      const idProveedor = String(item?.idProveedor ?? '').trim();
-      const codigoLinea = String(item?.codigoLinea ?? '').trim();
+      const idProveedor = String(item?.idProveedor ?? item?.id_proveedor ?? '').trim();
+      const codigoProveedor = String(item?.codigoProveedor ?? item?.codigo_proveedor ?? '').trim();
+      const codigoLinea = String(item?.codigoLinea ?? item?.codigo_linea ?? '').trim();
       const linea = String(item?.linea ?? '').trim();
-      const reporte = String(item?.reporteProvConObs ?? '').trim();
+      const reporte = String(item?.reporteProvConObs ?? item?.proveedor ?? '').trim();
 
       const codigoLineaCode = (codigoLinea.match(/^\d+/)?.[0] ?? '').trim();
       const lineaCode = (linea.match(/^\d+/)?.[0] ?? '').trim();
+      const idProveedorCode = (idProveedor.match(/^\d+/)?.[0] ?? '').trim();
+      const codigoProveedorCode = (codigoProveedor.match(/^\d+/)?.[0] ?? '').trim();
+      const normalizarCodigoProveedor = (valor: string): string =>
+        (valor || '').replace(/^0+/, '') || valor;
 
       const hayCoincidencia = filtros.some((f) => {
         const fCode = f.code;
 
         if (idProveedor && f.raw === idProveedor) return true;
+        if (codigoProveedor && f.raw === codigoProveedor) return true;
         if (codigoLinea && f.raw === codigoLinea) return true;
         if (linea && f.raw === linea) return true;
 
-        if (fCode && codigoLineaCode && fCode === codigoLineaCode) return true;
-        if (fCode && lineaCode && fCode === lineaCode) return true;
+        const codigosFila = [idProveedorCode, codigoProveedorCode, codigoLineaCode, lineaCode]
+          .filter(Boolean)
+          .map((codigo) => ({ original: codigo, sinCeros: normalizarCodigoProveedor(codigo) }));
+
+        if (fCode && codigosFila.some((codigo) => codigo.original === fCode)) return true;
+        if (f.codeSinCeros && codigosFila.some((codigo) => codigo.sinCeros === f.codeSinCeros)) {
+          return true;
+        }
 
         const lineaNorm = this.normalizarTexto(linea);
         const codigoLineaNorm = this.normalizarTexto(codigoLinea);
+        const codigoProveedorNorm = this.normalizarTexto(codigoProveedor);
         const reporteNorm = this.normalizarTexto(reporte);
 
-        if (f.rawNorm && (lineaNorm.includes(f.rawNorm) || codigoLineaNorm.includes(f.rawNorm))) {
+        if (
+          f.rawNorm &&
+          (lineaNorm.includes(f.rawNorm) ||
+            codigoLineaNorm.includes(f.rawNorm) ||
+            codigoProveedorNorm.includes(f.rawNorm))
+        ) {
           return true;
         }
 
@@ -416,7 +515,7 @@ export abstract class VentasUtilidadesBase extends VentasClientesBase {
 
         // Intento extra de coincidencia: comparar con una versión limpia del nombre
         const proveedorLabel = this.normalizarTexto(
-          this.repararTextoCiudad(linea || reporte || idProveedor || ''),
+          this.repararTextoCiudad(linea || reporte || codigoProveedor || idProveedor || ''),
         );
 
         if (f.rawNorm && proveedorLabel.includes(f.rawNorm)) return true;
@@ -467,6 +566,9 @@ export abstract class VentasUtilidadesBase extends VentasClientesBase {
     return {
       ...filtros,
       proveedor: '',
+      proveedorNombre: '',
+      proveedorNombres: [],
+      proveedores: [],
     };
   }
 

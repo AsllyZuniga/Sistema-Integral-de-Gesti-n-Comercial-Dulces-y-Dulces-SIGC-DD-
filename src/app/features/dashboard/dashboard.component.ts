@@ -8,6 +8,8 @@ import { SessionUser } from '../../core/services/session.service';
 import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../core/services/ventas/cumplimientoVentasSemana.service';
 import { UsuariosService } from '../../core/services/usuarios.service';
+import { ProveedorService } from '../../core/services/proveedor.service';
+import { FiltrosService } from '../../core/services/ventas/filtros.service';
 import {
   FiltersComponent,
   DashboardFilters,
@@ -128,7 +130,9 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     private authService: AuthService,
     private cumplimientoService: CumplimientoService,
     private semanaService: CumplimientoSemanaService,
+    private filtrosService: FiltrosService,
     private usuariosService: UsuariosService,
+    private proveedorService: ProveedorService,
     private cdr: ChangeDetectorRef,
   ) {}
 
@@ -160,6 +164,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private respuestaCumplimientoOriginal: any = null;
   private cacheCumplimientoClave: string = '';
+  private categoriasRequestId = 0;
 
   totalesVendedor: DashboardTotalesVendedor | null = null;
 
@@ -229,6 +234,14 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     return this.rolId === 2;
   }
 
+  /**
+   * El filtro por vendedor se muestra únicamente para ADMINISTRADOR y SUPERVISOR.
+   * VENDEDOR no lo ve porque el backend restringe sus datos desde el token.
+   */
+  get mostrarFiltroVendedorPorRol(): boolean {
+    return this.esAdmin || this.esSupervisor;
+  }
+
   get codigoVendedor(): string {
     if (this.codigoVendedorDetectado) {
       return this.codigoVendedorDetectado;
@@ -294,6 +307,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       fechaInicio: inicio,
       fechaFin: fin,
     };
+    this.filtrosPendientes = { ...this.filtrosActivos };
 
     this.cargarOpcionesFiltros();
 
@@ -535,6 +549,68 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       this.vendedorMap.set(opt.label, opt.value);
       this.vendedorMap.set(opt.value, opt.value);
     });
+  }
+
+
+  private aplicarOpcionesCiudades(opciones: FilterOption[]): void {
+    const mapa = new Map<string, FilterOption>();
+    this.ciudadMap.clear();
+
+    const normalizar = (valor: unknown): string => String(valor ?? '').trim();
+
+    for (const opcion of Array.isArray(opciones) ? opciones : []) {
+      const value = normalizar(opcion?.value);
+      const label = this.repararTextoCiudad(opcion?.label || value);
+      if (!value || !label || this.esCiudadResumen(label)) continue;
+
+      if (!mapa.has(value)) {
+        mapa.set(value, { value, label });
+      }
+
+      // Permite aplicar por código, por nombre visible o por nombre normalizado.
+      this.ciudadMap.set(value, value);
+      this.ciudadMap.set(label, value);
+      this.ciudadMap.set(this.normalizarTexto(label), value);
+    }
+
+    this.ciudadesList = Array.from(mapa.values()).sort((a, b) =>
+      a.label.localeCompare(b.label, 'es', { sensitivity: 'base', numeric: true }),
+    );
+  }
+
+  private construirOpcionesCiudadesDesdeDetalle(detalle: any[]): FilterOption[] {
+    const mapa = new Map<string, FilterOption>();
+
+    for (const row of Array.isArray(detalle) ? detalle : []) {
+      const label = this.repararTextoCiudad(row?.ciudad ?? row?.nomCiudad ?? row?.nombreCiudad ?? '');
+      const value = String(
+        row?.id_ciudad ?? row?.idCiudad ?? row?.codCiudad ?? row?.codigoCiudad ?? row?.codigo ?? row?.cod ?? label,
+      ).trim();
+
+      if (!label || this.esCiudadResumen(label) || !value) continue;
+      if (!mapa.has(value)) mapa.set(value, { value, label });
+    }
+
+    return Array.from(mapa.values()).sort((a, b) =>
+      a.label.localeCompare(b.label, 'es', { sensitivity: 'base', numeric: true }),
+    );
+  }
+
+  private cargarCiudadesFallback(filtros: DashboardFilters): void {
+    this.cumplimientoService
+      .getCiudadesGlobal(filtros)
+      .pipe(takeUntil(this.destroy$), catchError(() => of({ detallePorCiudad: [] })))
+      .subscribe((res: any) => {
+        const opciones = this.construirOpcionesCiudadesDesdeDetalle(res?.detallePorCiudad ?? []);
+        this.aplicarOpcionesCiudades(
+          this.conservarOpcionesSeleccionadas(
+            opciones,
+            this.normalizarArrayFiltro(filtros.ciudades, filtros.ciudad),
+            filtros.ciudadesNombres,
+          ),
+        );
+        this.cdr.markForCheck();
+      });
   }
 
   private cargarVendedoresFiltrosGlobal(): void {
@@ -779,44 +855,18 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   private cargarProveedoresFiltros(): void {
     const filtrosCatalogo = this.crearFiltrosCatalogo({ conservarVendedor: true });
 
-    if (this.esSupervisor) {
-      // Para supervisor, los catalogos se cargan en VentasComponent.
-      // Aqui solo dejamos la lista vacia para no disparar N+1 calls.
-      this.aplicarOpcionesProveedores([]);
-      return;
-    }
-
-    if (this.esAdmin && !String(this.filtrosActivos.vendedor ?? '').trim()) {
-      this.cumplimientoService
-        .getLineasAdmin(filtrosCatalogo)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((res: ApiLineasResponse) => {
-          this.aplicarOpcionesProveedores(
-            this.construirOpcionesProveedoresDesdeLineas(res?.detallePorLinea ?? []),
-          );
-        });
-      return;
-    }
-
-    this.codigosParaCatalogosPorRol((codigos) => {
-      if (!codigos.length) {
-        this.aplicarOpcionesProveedores([]);
-        return;
-      }
-
-      const peticiones = codigos.map((codigo) =>
-        this.cumplimientoService
-          .getLineasPorVendedor(codigo, filtrosCatalogo)
-          .pipe(catchError(() => of({ detallePorLinea: [] } as ApiLineasResponse))),
-      );
-
-      forkJoin(peticiones)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((respuestas: ApiLineasResponse[]) => {
-          const lineas = respuestas.flatMap((res) => res?.detallePorLinea ?? []);
-          this.aplicarOpcionesProveedores(this.construirOpcionesProveedoresDesdeLineas(lineas));
-        });
-    });
+    // Microtarea B1: 1 sola llamada al endpoint role-aware /api/mes/cumplimiento/lineas.
+    // El backend filtra por scope JWT: admin ve todo, supervisor ve su
+    // equipo, vendedor ve solo lo suyo. Se eliminó la N+1 que iteraba
+    // per-vendor con forkJoin.
+    this.cumplimientoService
+      .getLineasAdmin(filtrosCatalogo)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((res: ApiLineasResponse) => {
+        this.aplicarOpcionesProveedores(
+          this.construirOpcionesProveedoresDesdeLineas(res?.detallePorLinea ?? []),
+        );
+      });
   }
 
 
@@ -836,57 +886,44 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   private cargarCiudadesYLineasSupervisor(): void {
     const filtrosCatalogo = this.crearFiltrosCatalogo({ conservarProveedor: true, conservarVendedor: true });
 
-    this.codigosParaCatalogosPorRol((codigos) => {
-      if (!codigos.length) {
-        this.ciudadesList = [];
-        this.lineasList = [];
-        this.ciudadMap.clear();
-        this.lineaMap.clear();
-        return;
-      }
+    // Microtarea B2: 2 llamadas a endpoints role-aware (1 ciudades + 1 lineas).
+    // El backend filtra por scope JWT: admin ve todo, supervisor ve su
+    // equipo, vendedor ve solo lo suyo. Antes: 2N llamadas per-vendor.
+    this.ciudadMap.clear();
+    this.lineaMap.clear();
 
-      this.ciudadMap.clear();
-      this.lineaMap.clear();
+    forkJoin({
+      ciudades: this.cumplimientoService
+        .getCiudadesGlobal(filtrosCatalogo)
+        .pipe(catchError(() => of({ detallePorCiudad: [] } as ApiCiudadesResponse))),
+      lineas: this.cumplimientoService
+        .getLineasAdmin(filtrosCatalogo)
+        .pipe(catchError(() => of({ detallePorLinea: [] } as ApiLineasResponse))),
+    })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((resultado: { ciudades: ApiCiudadesResponse; lineas: ApiLineasResponse }) => {
+        const ciudadesUnicas = new Set<string>();
+        const lineasUnicas = new Set<string>();
 
-      const peticiones = codigos.map((codigo) =>
-        forkJoin({
-          ciudades: this.cumplimientoService
-            .getCiudadesPorVendedor(codigo, filtrosCatalogo)
-            .pipe(catchError(() => of({ detallePorCiudad: [] } as ApiCiudadesResponse))),
-          lineas: this.cumplimientoService
-            .getLineasPorVendedor(codigo, filtrosCatalogo)
-            .pipe(catchError(() => of({ detallePorLinea: [] } as ApiLineasResponse))),
-        }),
-      );
+        const ciudades = resultado?.ciudades?.detallePorCiudad ?? [];
+        const lineas = resultado?.lineas?.detallePorLinea ?? [];
 
-      forkJoin(peticiones)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((resultados: Array<{ ciudades: ApiCiudadesResponse; lineas: ApiLineasResponse }>) => {
-          const ciudadesUnicas = new Set<string>();
-          const lineasUnicas = new Set<string>();
-
-          resultados.forEach((resultado) => {
-            const ciudades = resultado?.ciudades?.detallePorCiudad ?? [];
-            const lineas = resultado?.lineas?.detallePorLinea ?? [];
-
-            ciudades.forEach((item: ApiCiudadRow) => {
-              this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), ciudadesUnicas);
-            });
-
-            lineas.forEach((item: ApiLineaRow) => {
-              const linea = this.obtenerNombreProveedorLinea(item);
-              const cod = this.obtenerCodigoProveedorLinea(item);
-              if (!linea) return;
-
-              if (cod) this.lineaMap.set(linea, cod);
-              lineasUnicas.add(linea);
-            });
-          });
-
-          this.ciudadesList = this.toFilterOptions(Array.from(ciudadesUnicas));
-          this.lineasList = this.toFilterOptions(Array.from(lineasUnicas));
+        ciudades.forEach((item: ApiCiudadRow) => {
+          this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), ciudadesUnicas);
         });
-    });
+
+        lineas.forEach((item: ApiLineaRow) => {
+          const linea = this.obtenerNombreProveedorLinea(item);
+          const cod = this.obtenerCodigoProveedorLinea(item);
+          if (!linea) return;
+
+          if (cod) this.lineaMap.set(linea, cod);
+          lineasUnicas.add(linea);
+        });
+
+        this.aplicarOpcionesCiudades(this.toFilterOptions(Array.from(ciudadesUnicas)));
+        this.lineasList = this.toFilterOptions(Array.from(lineasUnicas));
+      });
   }
 
   private cargarOpcionesVendedor(filtros?: DashboardFilters): void {
@@ -953,7 +990,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), unicos);
         });
 
-        this.ciudadesList = this.toFilterOptions(Array.from(unicos));
+        this.aplicarOpcionesCiudades(this.toFilterOptions(Array.from(unicos)));
       });
   }
 
@@ -989,7 +1026,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
             lineasSet.add(linea);
           });
 
-          this.ciudadesList = this.toFilterOptions(Array.from(ciudadesSet));
+          this.aplicarOpcionesCiudades(this.toFilterOptions(Array.from(ciudadesSet)));
           this.lineasList = this.toFilterOptions(Array.from(lineasSet));
         });
       return;
@@ -1004,7 +1041,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         ciudadesDetalle.forEach((item) => {
           this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), ciudades);
         });
-        this.ciudadesList = this.toFilterOptions(Array.from(ciudades));
+        this.aplicarOpcionesCiudades(this.toFilterOptions(Array.from(ciudades)));
       });
 
     this.cumplimientoService
@@ -1048,28 +1085,279 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   cargarOpcionesFiltros(): void {
-    if (this.esAdmin) {
-      this.cargarVendedoresFiltrosGlobal();
-      this.cargarCiudadesYLineasAdmin();
-      this.cargarProveedoresFiltros();
-      this.cargarCategoriasFiltros();
-    } else if (this.esSupervisor) {
-      // OPTIMIZACION supervisor: solo cargamos la lista de vendedores al inicio.
-      // Los catalogos (proveedores/ciudades/categorias) NO se cargan aqui porque
-      // el supervisor los obtiene via endpoints per-vendedor del Postman
-      // (getLineasPorVendedor, getCiudadesPorVendedor, getCuotaCategoriaPorVendedor)
-      // y eso ocurre en VentasComponent cuando el usuario abre cada seccion.
-      // Antes se disparaban N+1 calls por vendor al entrar al dashboard.
-      this.cargarVendedoresSupervisor();
-    } else if (this.codigoVendedor) {
-      this.cargarOpcionesVendedor(this.filtrosActivos);
-      this.cargarProveedoresFiltros();
-      this.cargarCategoriasFiltros();
-    } else {
-      this.resolverCodigoVendedorDesdeApi();
-      this.cargarProveedoresFiltros();
-      this.cargarCategoriasFiltros();
+    // Cascade unificado: 1 sola llamada a /api/filtros/opciones
+    // trae los 4 desplegables (vendedor, proveedor, categoría, ciudad)
+    // ya filtrados por rol, rango de fechas y demás filtros aplicados.
+    // Para rol vendedor, el endpoint ignora el `vendedores` del query
+    // y devuelve solo su propio código; no hace falta
+    // `cargarOpcionesVendedor` / `resolverCodigoVendedorDesdeApi` por
+    // separado.
+    this.cargarOpcionesFiltrosUnificado();
+  }
+
+  /**
+   * Repobla los 4 desplegables a partir de los filtros actuales.
+   * Si se pasa `filtrosOrigen` (caso filterChange) usa ese; si no,
+   * usa `filtrosActivos` (caso apply o carga inicial).
+   */
+  private cargarOpcionesFiltrosUnificado(filtrosOrigen?: DashboardFilters): void {
+    const fuente = this.normalizarFiltrosDashboard(filtrosOrigen ?? this.filtrosActivos);
+
+    /*
+     * El backend /api/filtros/opciones ya implementa la cascada correcta:
+     * cada lista se filtra por los OTROS filtros, no por sí misma.
+     * Por eso aquí enviamos todos los filtros activos en una sola llamada.
+     *
+     * Ejemplo: si proveedor=535 - ABBOTT y categoria=645, el backend:
+     * - filtra categorias por fecha/vendedor/proveedor/ciudad, pero NO por categoria;
+     * - filtra proveedores por fecha/vendedor/categoria/ciudad, pero NO por proveedor.
+     *
+     * Esto evita que desaparezcan proveedores/categorías válidos al cambiar fechas
+     * o al seleccionar filtros múltiples.
+     */
+    this.filtrosService
+      .getOpciones(this.filtrosService.fromDashboardFilters(fuente))
+      .pipe(takeUntil(this.destroy$), catchError(() => of(null)))
+      .subscribe((opciones) => {
+        if (!opciones) {
+          this.aplicarOpcionesProveedores([]);
+          this.categoriasList = [];
+          this.ciudadesList = [];
+          this.aplicarOpcionesVendedores([]);
+          this.cdr.markForCheck();
+          return;
+        }
+
+        const filtrosReferencia = this.normalizarFiltrosDashboard(filtrosOrigen ?? this.filtrosActivos);
+
+        this.aplicarOpcionesProveedores(
+          this.conservarOpcionesSeleccionadas(
+            Array.isArray(opciones.proveedores) ? opciones.proveedores : [],
+            this.normalizarArrayFiltro(filtrosReferencia.proveedores, filtrosReferencia.proveedor),
+            filtrosReferencia.proveedorNombres,
+          ),
+        );
+
+        this.categoriasList = this.conservarOpcionesSeleccionadas(
+          Array.isArray(opciones.categorias) ? opciones.categorias : [],
+          this.normalizarArrayFiltro(filtrosReferencia.categorias, filtrosReferencia.categoria),
+          filtrosReferencia.categoriaNombres,
+        );
+
+        const opcionesCiudades = this.conservarOpcionesSeleccionadas(
+          Array.isArray(opciones.ciudades) ? opciones.ciudades : [],
+          this.normalizarArrayFiltro(filtrosReferencia.ciudades, filtrosReferencia.ciudad),
+          filtrosReferencia.ciudadesNombres,
+        );
+        this.aplicarOpcionesCiudades(opcionesCiudades);
+
+        if (!Array.isArray(opciones.ciudades) || opciones.ciudades.length === 0) {
+          // Fallback defensivo: si /api/filtros/opciones no devuelve ciudades
+          // para una combinación válida, se carga el catálogo desde
+          // /api/mes/cumplimiento/ciudades-global usando los mismos filtros.
+          this.cargarCiudadesFallback(filtrosReferencia);
+        }
+
+        this.aplicarOpcionesVendedores(
+          this.conservarOpcionesSeleccionadas(
+            Array.isArray(opciones.vendedores) ? opciones.vendedores : [],
+            this.normalizarArrayFiltro(filtrosReferencia.vendedores, filtrosReferencia.vendedor),
+          ),
+        );
+
+        if (filtrosOrigen) {
+          this.filtrosPendientes = this.normalizarFiltrosDashboard({
+            ...this.filtrosPendientes,
+            proveedores: this.normalizarArrayFiltro(this.filtrosPendientes.proveedores, this.filtrosPendientes.proveedor),
+            categorias: this.normalizarArrayFiltro(this.filtrosPendientes.categorias, this.filtrosPendientes.categoria),
+            ciudades: this.normalizarArrayFiltro(this.filtrosPendientes.ciudades, this.filtrosPendientes.ciudad),
+            vendedores: this.normalizarArrayFiltro(this.filtrosPendientes.vendedores, this.filtrosPendientes.vendedor),
+          });
+        }
+
+        this.cdr.markForCheck();
+      });
+  }
+
+  private normalizarArrayFiltro(arr: string[] | undefined | null, legacy: unknown): string[] {
+    const desdeArray = Array.isArray(arr)
+      ? arr.map((item) => String(item ?? '').trim()).filter(Boolean)
+      : [];
+
+    if (desdeArray.length) return desdeArray;
+
+    return String(legacy ?? '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  private normalizarFiltrosDashboard(filtros: DashboardFilters): DashboardFilters {
+    const vendedores = this.normalizarArrayFiltro(filtros.vendedores, filtros.vendedor);
+    const proveedores = this.normalizarArrayFiltro(filtros.proveedores, filtros.proveedor);
+    const categorias = this.normalizarArrayFiltro(filtros.categorias, filtros.categoria);
+    const ciudades = this.normalizarArrayFiltro(filtros.ciudades, filtros.ciudad);
+
+    return {
+      ...filtros,
+      vendedor: vendedores.join(','),
+      vendedores,
+      proveedor: proveedores.join(','),
+      proveedores,
+      categoria: categorias.length === 1 ? categorias[0] : '',
+      categorias,
+      ciudad: ciudades.length === 1 ? ciudades[0] : '',
+      ciudades,
+    };
+  }
+
+  private conservarOpcionesSeleccionadas(
+    opciones: FilterOption[],
+    valoresSeleccionados: string[],
+    labelsSeleccionados?: string[],
+  ): FilterOption[] {
+    const mapa = new Map<string, FilterOption>();
+    const normalizar = (valor: unknown): string => String(valor ?? '').trim();
+
+    for (const opcion of Array.isArray(opciones) ? opciones : []) {
+      const value = normalizar(opcion?.value);
+      const label = normalizar(opcion?.label) || value;
+      if (!value && !label) continue;
+      mapa.set(value || label, { value: value || label, label });
     }
+
+    (Array.isArray(valoresSeleccionados) ? valoresSeleccionados : [])
+      .map((valor) => normalizar(valor))
+      .filter(Boolean)
+      .forEach((valor, index) => {
+        if (mapa.has(valor)) return;
+        const label = normalizar(labelsSeleccionados?.[index]) || valor;
+        mapa.set(valor, { value: valor, label });
+      });
+
+    return Array.from(mapa.values()).sort((a, b) =>
+      a.label.localeCompare(b.label, 'es', { sensitivity: 'base', numeric: true }),
+    );
+  }
+
+  private obtenerLabelsPorValores(opciones: FilterOption[], valores: string[]): string[] {
+    const normalizar = (valor: unknown): string => String(valor ?? '').trim();
+    return (Array.isArray(valores) ? valores : [])
+      .map((valor) => {
+        const valorNormalizado = normalizar(valor);
+        const opcion = (Array.isArray(opciones) ? opciones : []).find(
+          (item) => normalizar(item?.value) === valorNormalizado || normalizar(item?.label) === valorNormalizado,
+        );
+        return normalizar(opcion?.label);
+      })
+      .filter(Boolean);
+  }
+
+  private limpiarFiltrosInvalidosContraOpciones(
+    filtros: DashboardFilters,
+    opciones: {
+      proveedores: FilterOption[];
+      categorias: FilterOption[];
+      ciudades: FilterOption[];
+      vendedores: FilterOption[];
+    },
+  ): DashboardFilters {
+    const contiene = (lista: FilterOption[], valor: string): boolean => {
+      const normalizado = String(valor ?? '').trim();
+      if (!normalizado) return false;
+      return lista.some((opcion) => String(opcion.value ?? '').trim() === normalizado);
+    };
+
+    const filtrar = (valores: string[], lista: FilterOption[]): string[] => {
+      if (!valores.length) return [];
+      if (!Array.isArray(lista) || lista.length === 0) return valores;
+      return valores.filter((valor) => contiene(lista, valor));
+    };
+
+    const vendedores = filtrar(
+      this.normalizarArrayFiltro(filtros.vendedores, filtros.vendedor),
+      opciones.vendedores,
+    );
+    const proveedores = filtrar(
+      this.normalizarArrayFiltro(filtros.proveedores, filtros.proveedor),
+      opciones.proveedores,
+    );
+    const categorias = filtrar(
+      this.normalizarArrayFiltro(filtros.categorias, filtros.categoria),
+      opciones.categorias,
+    );
+    const ciudades = filtrar(
+      this.normalizarArrayFiltro(filtros.ciudades, filtros.ciudad),
+      opciones.ciudades,
+    );
+
+    return {
+      ...filtros,
+      vendedor: vendedores.join(','),
+      vendedores,
+      proveedor: proveedores.join(','),
+      proveedores,
+      categoria: categorias.length === 1 ? categorias[0] : '',
+      categorias,
+      ciudad: ciudades.length === 1 ? ciudades[0] : '',
+      ciudades,
+    };
+  }
+
+  /**
+   * Estado "en progreso" de los filtros: refleja lo que el usuario
+   * está seleccionando en los dropdowns. Se usa SOLO para repoblar
+   * los dropdowns en cascada (no se propaga a `app-ventas` para no
+   * disparar recargas de tablas).
+   *
+   * El estado "aplicado" sigue siendo `this.filtrosActivos`, que solo
+   * se actualiza en `onAplicarFiltros` cuando el usuario hace clic
+   * en "Aplicar Filtros". Así las tablas y KPIs se recargan UNA vez
+   * por click, no cada vez que el usuario marca/desmarca un filtro.
+   */
+  private filtrosPendientes: DashboardFilters = {
+    fechaInicio: '',
+    fechaFin: '',
+    vendedor: '',
+    vendedores: [],
+    proveedor: '',
+    proveedores: [],
+    proveedorNombre: '',
+    proveedorNombres: [],
+    categoria: '',
+    categoriaNombre: '',
+    categorias: [],
+    categoriaNombres: [],
+    ciudad: '',
+    ciudadNombre: '',
+    ciudades: [],
+    ciudadesNombres: [],
+    linea: '',
+  };
+
+  /**
+   * Handler del `(filterChange)` del componente de filtros.
+   * Re-puebla los dropdowns en cascada usando `filtrosPendientes`
+   * (estado en progreso). NO toca `filtrosActivos` para que el setter
+   * de `[filtros]` en app-ventas no dispare recargas innecesarias.
+   */
+  onFiltroChange(filtros: DashboardFilters): void {
+    const anterior = { ...this.filtrosPendientes };
+    this.filtrosPendientes = this.normalizarFiltrosDashboard({
+      ...this.filtrosPendientes,
+      ...filtros,
+    });
+
+    const cambioFechas =
+      anterior.fechaInicio !== this.filtrosPendientes.fechaInicio ||
+      anterior.fechaFin !== this.filtrosPendientes.fechaFin;
+
+    if (cambioFechas) {
+      this.filtrosService.invalidarCache();
+      this.cumplimientoService.invalidarCacheRespuestas();
+    }
+
+    this.cargarOpcionesFiltrosUnificado(this.filtrosPendientes);
   }
 
   private cargarVendedoresSupervisor(): void {
@@ -1100,38 +1388,103 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     const filtrosConsulta = this.crearFiltrosCatalogo({
       conservarProveedor: true,
       conservarVendedor: true,
+      conservarCategoria: false,
     });
 
     const proveedoresSeleccionados = this.obtenerProveedoresSeleccionados();
-    const cacheClave = this.obtenerCacheClave(filtrosConsulta);
 
-    if (
-      this.respuestaCumplimientoOriginal &&
-      this.cacheCumplimientoClave === cacheClave
-    ) {
-      this.aplicarCategoriasDesdeRespuesta(
-        this.respuestaCumplimientoOriginal,
-        proveedoresSeleccionados,
-      );
+    // El catalogo de categorias es dependiente del proveedor:
+    // - Sin proveedor: muestra todas las categorias disponibles para el rol.
+    // - Con proveedor(es): primero consulta la relacion real proveedor -> categorias.
+    // Importante: nunca se conserva la categoria seleccionada al recargar este catalogo,
+    // porque primero cambia el proveedor y luego se deben reconstruir las opciones validas.
+    if (proveedoresSeleccionados.length) {
+      this.cargarCategoriasDeProveedoresSeleccionados(proveedoresSeleccionados, filtrosConsulta);
       return;
     }
 
-    this.cacheCumplimientoClave = cacheClave;
+    this.cargarCategoriasDesdeCuotaCategoria(filtrosConsulta, []);
+  }
 
-    const filtrosIniciales: DashboardFilters = {
-      ...filtrosConsulta,
-      proveedor: '',
-      proveedores: [],
-      proveedorNombre: '',
-      proveedorNombres: [],
-    };
+  private cargarCategoriasDeProveedoresSeleccionados(
+    proveedoresSeleccionados: string[],
+    filtrosConsulta: DashboardFilters,
+  ): void {
+    const requestId = ++this.categoriasRequestId;
+    const proveedoresUnicos = Array.from(
+      new Set(proveedoresSeleccionados.map((p) => String(p ?? '').trim()).filter(Boolean)),
+    );
 
-    if (this.esAdmin && !String(this.filtrosActivos.vendedor ?? '').trim()) {
-      this.cargarCategoriasDesdeCumplimientoAdmin(filtrosIniciales, proveedoresSeleccionados);
-      return;
-    }
+    const peticiones = proveedoresUnicos.map((codigoProveedor) =>
+      this.proveedorService
+        .getCategoriasByCodigo(codigoProveedor)
+        .pipe(catchError(() => of([] as string[]))),
+    );
 
-    this.cargarCategoriasDesdeCumplimientoPorRol(filtrosIniciales, proveedoresSeleccionados);
+    forkJoin(peticiones)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (respuestas: string[][]) => {
+          if (requestId !== this.categoriasRequestId) return;
+
+          const categorias = respuestas
+            .flat()
+            .map((categoria) => String(categoria ?? '').trim())
+            .filter(Boolean)
+            .map((categoria) => ({ categoria }));
+
+          if (categorias.length) {
+            this.categoriasList = this.construirOpcionesCategorias(categorias);
+            this.cdr.markForCheck();
+            return;
+          }
+
+          // Fallback: usar /cuota-categoria/general con los proveedores seleccionados.
+          // Esto mantiene el comportamiento anterior cuando el backend no tiene la ruta
+          // /proveedor/:codigo/categorias.
+          this.cargarCategoriasDesdeCuotaCategoria(
+            filtrosConsulta,
+            proveedoresUnicos,
+            requestId,
+          );
+        },
+        error: () => {
+          if (requestId !== this.categoriasRequestId) return;
+          this.cargarCategoriasDesdeCuotaCategoria(
+            filtrosConsulta,
+            proveedoresUnicos,
+            requestId,
+          );
+        },
+      });
+  }
+
+  private cargarCategoriasDesdeCuotaCategoria(
+    filtrosConsulta: DashboardFilters,
+    proveedoresSeleccionados: string[],
+    requestId = ++this.categoriasRequestId,
+  ): void {
+    this.cumplimientoService
+      .getCuotaCategoriaGeneral(filtrosConsulta)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res: any) => {
+          if (requestId !== this.categoriasRequestId) return;
+
+          const detalle = this.normalizarDetalleParaCategorias(res);
+          const categorias = this.resolverCategoriasPorProveedor(detalle, proveedoresSeleccionados);
+
+          this.categoriasList = this.construirOpcionesCategorias(categorias);
+          this.cdr.markForCheck();
+        },
+        error: (err) => {
+          if (requestId !== this.categoriasRequestId) return;
+
+          console.error('Error cargando categorias filtradas:', err);
+          this.categoriasList = [];
+          this.cdr.markForCheck();
+        },
+      });
   }
 
   private cargarCategoriasDesdeCumplimientoAdmin(
@@ -1158,52 +1511,25 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     filtrosConsulta: DashboardFilters,
     proveedores: string[],
   ): void {
-    this.codigosParaCatalogosPorRol((codigos) => {
-      if (!codigos.length) {
-        this.categoriasList = [];
-        this.cdr.markForCheck();
-        return;
-      }
-
-      // OPTIMIZACION supervisor: el catalogo de categorias debe usar
-      // SIEMPRE el endpoint per-vendor del Postman:
-      //   GET /api/cuota-categoria/vendedor/:codigo
-      // Pero SOLO se carga:
-      //   - la primera vez que se abre la seccion
-      //   - cuando cambian las fechas
-      //   - cuando se selecciona un proveedor / categoria / vendedor
-      // Antes se ejecutaba en cada ngOnInit y en cada cambio de filtro.
-      if (this.esSupervisor) {
-        // Para supervisor, los catalogos se cargan en VentasComponent.
-        // Aqui solo dejamos la lista vacia para no disparar N+1 calls.
-        this.categoriasList = [];
-        this.cdr.markForCheck();
-        return;
-      }
-
-      const peticiones = codigos.map((codigo) =>
-        this.cumplimientoService
-          .getCumplimientoMesVendedor(filtrosConsulta)
-          .pipe(catchError(() => of({ detalle: [] } as any))),
-      );
-
-      forkJoin(peticiones)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe({
-          next: (respuestas: any[]) => {
-            const respuestaCompleta = {
-              detalle: respuestas.flatMap((r) => r?.detalle ?? []),
-            };
-            this.respuestaCumplimientoOriginal = respuestaCompleta;
-            this.aplicarCategoriasDesdeRespuesta(respuestaCompleta, proveedores);
-          },
-          error: (err) => {
-            console.error('Error cargando categorías desde cumplimiento por proveedor:', err);
-            this.categoriasList = [];
-            this.cdr.markForCheck();
-          },
-        });
-    });
+    // Microtarea B4: 1 sola llamada al endpoint role-aware /front/me.
+    // A pesar del nombre "getCumplimientoMesVendedor", este método apunta
+    // a /api/mes/cumplimiento/front/me que filtra por scope JWT (admin:
+    // todos, supervisor: equipo, vendor: solo él). Se eliminó la N+1 que
+    // iteraba per-vendor con forkJoin.
+    this.cumplimientoService
+      .getCumplimientoMesVendedor(filtrosConsulta)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res: any) => {
+          this.respuestaCumplimientoOriginal = res;
+          this.aplicarCategoriasDesdeRespuesta(res, proveedores);
+        },
+        error: (err) => {
+          console.error('Error cargando categorías desde cumplimiento por proveedor:', err);
+          this.categoriasList = [];
+          this.cdr.markForCheck();
+        },
+      });
   }
 
   private cargarCategoriasSupervisorLazy(
@@ -1258,6 +1584,78 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       String(filtros.vendedor ?? '').trim(),
       this.rolId,
     ].join('|');
+  }
+
+  private resolverCategoriasPorProveedor(
+    detalle: any[],
+    proveedoresSeleccionados: string[],
+  ): ApiCategoriaRow[] {
+    const detalleNormalizado = Array.isArray(detalle) ? detalle : [];
+
+    if (!proveedoresSeleccionados.length) {
+      const categoriasDesdeProveedores = this.extraerCategoriasDeCumplimiento(
+        { detalle: detalleNormalizado },
+        [],
+      );
+
+      return categoriasDesdeProveedores.length
+        ? categoriasDesdeProveedores
+        : this.eliminarCategoriasDuplicadas(detalleNormalizado);
+    }
+
+    const proveedoresSet = this.construirSetProveedoresFlexible(proveedoresSeleccionados);
+
+    // Caso 1: la respuesta trae proveedores con arreglo interno de categorias.
+    // Este es el caso mas confiable para construir el catalogo dependiente.
+    const categoriasDesdeProveedores = this.extraerCategoriasDeCumplimiento(
+      { detalle: detalleNormalizado },
+      proveedoresSeleccionados,
+    );
+
+    if (categoriasDesdeProveedores.length) {
+      return categoriasDesdeProveedores;
+    }
+
+    // Caso 2: la respuesta trae filas planas de categoria con campos del proveedor.
+    // Aqui filtramos las filas antes de construir las opciones del dropdown.
+    const categoriasDirectasFiltradas = detalleNormalizado.filter((item) =>
+      this.filaCategoriaPerteneceAProveedor(item, proveedoresSet),
+    );
+
+    if (categoriasDirectasFiltradas.length) {
+      return this.eliminarCategoriasDuplicadas(categoriasDirectasFiltradas);
+    }
+
+    // Caso 3: algunos endpoints ya devuelven la data filtrada por proveedor pero sin
+    // campos de proveedor en cada fila. En ese escenario no hay mas informacion para
+    // cruzar en frontend, por eso se respetan las filas que devolvio el backend.
+    return this.eliminarCategoriasDuplicadas(detalleNormalizado);
+  }
+
+  private filaCategoriaPerteneceAProveedor(item: any, proveedoresSet: Set<string>): boolean {
+    if (!item || typeof item !== 'object' || !proveedoresSet.size) return false;
+
+    const candidatos = [
+      item?.codigoProveedor,
+      item?.codigo_proveedor,
+      item?.codProveedor,
+      item?.cod_proveedor,
+      item?.idProveedor,
+      item?.id_proveedor,
+      item?.codigoLinea,
+      item?.codigo_linea,
+      item?.linea,
+      item?.reporteProvConObs,
+      item?.nombreProveedor,
+      item?.nombre_proveedor,
+      item?.nomProveedor,
+      item?.proveedor,
+      item?.nombre,
+    ];
+
+    return candidatos.some((candidato) =>
+      this.obtenerClavesProveedor(candidato).some((clave) => proveedoresSet.has(clave)),
+    );
   }
 
   private eliminarCategoriasDuplicadas(categorias: ApiCategoriaRow[]): ApiCategoriaRow[] {
@@ -1509,6 +1907,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onAplicarFiltros(filtros: DashboardFilters): void {
+    filtros = this.normalizarFiltrosDashboard(filtros);
     console.debug('[Dashboard] Aplicando filtros:', filtros);
     
     const rangoDefault = this.getDefaultDateRange();
@@ -1516,6 +1915,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     const fechaFin = String(filtros.fechaFin ?? '').trim() || rangoDefault.fin;
 
     let ciudadVisible = String(filtros.ciudad ?? '').trim();
+    const ciudadNombreVisible = String(filtros.ciudadNombre ?? '').trim();
     if (this.esCiudadResumen(ciudadVisible)) {
       ciudadVisible = '';
     }
@@ -1526,24 +1926,41 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       fechaInicio,
       fechaFin,
       vendedor: '',
+      vendedores: [],
       proveedor: '',
+      proveedores: [],
+      proveedorNombre: '',
+      proveedorNombres: [],
       categoria: filtros.categoria || '',
       categoriaNombre: filtros.categoriaNombre || '',
       categorias: filtros.categorias ?? [],
       categoriaNombres: filtros.categoriaNombres ?? [],
       ciudad: '',
-      ciudadNombre: ciudadVisible || '',
+      ciudades: [],
+      ciudadNombre: ciudadNombreVisible || ciudadVisible || '',
+      ciudadesNombres: filtros.ciudadesNombres ?? [],
       linea: filtros.linea || '',
     };
 
     console.debug('[Dashboard] Filtros con códigos:', filtrosConCodigos);
     console.debug('[Dashboard] Categorías seleccionadas:', filtrosConCodigos.categorias);
 
-    if (filtros.vendedor) {
-      filtrosConCodigos.vendedor = this.vendedorMap.get(filtros.vendedor) ?? filtros.vendedor;
+    // Vendedores: soporta array multi (nuevo) o string legacy
+    const vendedoresSeleccionados = Array.isArray(filtros.vendedores) && filtros.vendedores.length
+      ? filtros.vendedores.filter(Boolean)
+      : (filtros.vendedor
+          ? [String(filtros.vendedor).trim()].filter(Boolean)
+          : []);
+
+    if (vendedoresSeleccionados.length) {
+      const vendedoresMapeados = vendedoresSeleccionados.map(
+        (v) => this.vendedorMap.get(v) ?? v,
+      );
+      filtrosConCodigos.vendedor = vendedoresMapeados.join(',');
+      filtrosConCodigos.vendedores = vendedoresMapeados;
     }
 
-    const proveedoresSeleccionados = Array.isArray(filtros.proveedores)
+    const proveedoresSeleccionados = Array.isArray(filtros.proveedores) && filtros.proveedores.length
       ? filtros.proveedores.filter(Boolean)
       : String(filtros.proveedor ?? '')
           .split(',')
@@ -1555,50 +1972,81 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         (proveedor) => this.proveedorMap.get(proveedor) ?? proveedor,
       );
 
+      const proveedorNombres = Array.isArray(filtros.proveedorNombres) && filtros.proveedorNombres.length
+        ? filtros.proveedorNombres
+        : this.obtenerLabelsPorValores(this.proveedoresList, proveedoresSeleccionados);
+
       filtrosConCodigos.proveedor = proveedoresMapeados.join(',');
       filtrosConCodigos.proveedores = proveedoresMapeados;
-      filtrosConCodigos.proveedorNombres = filtros.proveedorNombres ?? [];
+      filtrosConCodigos.proveedorNombres = proveedorNombres;
+      filtrosConCodigos.proveedorNombre = proveedorNombres.length === 1 ? proveedorNombres[0] : '';
     }
 
-    if (ciudadVisible) {
+    // Ciudades: soporta array multi (nuevo) o string legacy
+    const ciudadesSeleccionadas = Array.isArray(filtros.ciudades) && filtros.ciudades.length
+      ? filtros.ciudades.filter(Boolean)
+      : (filtros.ciudad
+          ? [String(filtros.ciudad).trim()].filter(Boolean)
+          : []);
+
+    if (ciudadesSeleccionadas.length) {
+      const ciudadesMapeadas = ciudadesSeleccionadas.map(
+        (c) => this.ciudadMap.get(c) ?? this.ciudadMap.get(this.normalizarTexto(c)) ?? c,
+      );
+      const ciudadesNombres = Array.isArray(filtros.ciudadesNombres) && filtros.ciudadesNombres.length
+        ? filtros.ciudadesNombres
+        : this.obtenerLabelsPorValores(this.ciudadesList, ciudadesSeleccionadas);
+      const ciudadesNombresCompletos = ciudadesMapeadas.map((codigo, index) => {
+        const existente = String(ciudadesNombres[index] ?? '').trim();
+        if (existente) return existente;
+        const opcion = this.ciudadesList.find((item) => String(item.value ?? '').trim() === String(codigo).trim());
+        return String(opcion?.label ?? ciudadesSeleccionadas[index] ?? codigo).trim();
+      });
+
+      filtrosConCodigos.ciudad = ciudadesMapeadas.join(',');
+      filtrosConCodigos.ciudades = ciudadesMapeadas;
+      filtrosConCodigos.ciudadNombre = ciudadNombreVisible || (ciudadesNombresCompletos.length === 1 ? ciudadesNombresCompletos[0] : '');
+      filtrosConCodigos.ciudadesNombres = ciudadesNombresCompletos;
+    } else if (ciudadVisible) {
+      // Fallback: si solo llega el singular ciudad, usarlo
       filtrosConCodigos.ciudad =
-        this.ciudadMap.get(ciudadVisible) ?? this.ciudadMap.get(ciudadNormalizada) ?? ciudadVisible;
+        this.ciudadMap.get(ciudadVisible) ??
+        this.ciudadMap.get(ciudadNormalizada) ??
+        ciudadVisible;
     }
 
     if (filtros.linea) {
       filtrosConCodigos.linea = this.lineaMap.get(filtros.linea) ?? filtros.linea;
     }
 
+    const filtrosAnterior = { ...this.filtrosActivos };
     this.filtrosActivos = { ...filtrosConCodigos };
+    this.filtrosPendientes = { ...this.filtrosActivos };
 
-    // OPTIMIZACION: solo recargar catalogos si el usuario cambio PROVEEDOR o CATEGORIA.
-    // Si solo cambio la fecha, los catalogos no se invalidan (cacheados).
-    const filtrosAnterior = filtros as DashboardFilters;
+    const cambioFechas =
+      filtrosAnterior.fechaInicio !== this.filtrosActivos.fechaInicio ||
+      filtrosAnterior.fechaFin !== this.filtrosActivos.fechaFin;
     const cambioProveedor =
-      filtrosAnterior?.proveedor !== filtrosConCodigos.proveedor ||
-      JSON.stringify(filtrosAnterior?.proveedores ?? []) !==
-        JSON.stringify(filtrosConCodigos.proveedores ?? []);
+      filtrosAnterior.proveedor !== this.filtrosActivos.proveedor ||
+      JSON.stringify(filtrosAnterior.proveedores ?? []) !==
+        JSON.stringify(this.filtrosActivos.proveedores ?? []);
     const cambioCategoria =
-      filtrosAnterior?.categoria !== filtrosConCodigos.categoria ||
-      JSON.stringify(filtrosAnterior?.categorias ?? []) !==
-        JSON.stringify(filtrosConCodigos.categorias ?? []);
-    const cambioVendedor =
-      filtrosAnterior?.vendedor !== filtrosConCodigos.vendedor;
+      filtrosAnterior.categoria !== this.filtrosActivos.categoria ||
+      JSON.stringify(filtrosAnterior.categorias ?? []) !==
+        JSON.stringify(this.filtrosActivos.categorias ?? []);
+    const cambioVendedor = filtrosAnterior.vendedor !== this.filtrosActivos.vendedor;
+    const cambioCiudad =
+      filtrosAnterior.ciudad !== this.filtrosActivos.ciudad ||
+      JSON.stringify(filtrosAnterior.ciudades ?? []) !==
+        JSON.stringify(this.filtrosActivos.ciudades ?? []);
 
-    if (this.esAdmin) {
-      this.cargarProveedoresFiltros();
-      this.cargarCategoriasFiltros();
-      this.cargarCiudadesYLineasAdmin();
-    } else if (this.esSupervisor) {
-      // OPTIMIZACION supervisor: los catalogos per-vendor NO se recargan aqui.
-      // VentasComponent ya recarga los datos de la seccion activa cuando
-      // cambian los filtros (a traves del setter filtros de VentasEstadoBase).
-      // Antes se disparaban N+1 calls por vendor en cada cambio de filtro.
-    } else {
-      this.cargarOpcionesVendedor({ ...this.filtrosActivos, ciudad: '', ciudadNombre: '' });
-      this.cargarProveedoresFiltros();
-      this.cargarCategoriasFiltros();
+    if (cambioFechas || cambioProveedor || cambioCategoria || cambioVendedor || cambioCiudad) {
+      this.cumplimientoService.invalidarCacheRespuestas();
     }
+
+    // Re-poblar los 4 desplegables en cascada tras aplicar filtros
+    // (1 sola llamada al endpoint /api/filtros/opciones).
+    this.cargarOpcionesFiltrosUnificado();
 
     // Auto-ajusta fechas si estamos en modo semanal o diaria
     if (this.rolId === 3 && this.tipoCuota !== 'mensual') {
