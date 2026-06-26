@@ -1630,24 +1630,41 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       fechaInicio,
       fechaFin,
       vendedor: '',
+      vendedores: [],
       proveedor: '',
+      proveedores: [],
+      proveedorNombre: '',
+      proveedorNombres: [],
       categoria: filtros.categoria || '',
       categoriaNombre: filtros.categoriaNombre || '',
       categorias: filtros.categorias ?? [],
       categoriaNombres: filtros.categoriaNombres ?? [],
       ciudad: '',
+      ciudades: [],
       ciudadNombre: ciudadVisible || '',
+      ciudadesNombres: [],
       linea: filtros.linea || '',
     };
 
     console.debug('[Dashboard] Filtros con códigos:', filtrosConCodigos);
     console.debug('[Dashboard] Categorías seleccionadas:', filtrosConCodigos.categorias);
 
-    if (filtros.vendedor) {
-      filtrosConCodigos.vendedor = this.vendedorMap.get(filtros.vendedor) ?? filtros.vendedor;
+    // Vendedores: soporta array multi (nuevo) o string legacy
+    const vendedoresSeleccionados = Array.isArray(filtros.vendedores) && filtros.vendedores.length
+      ? filtros.vendedores.filter(Boolean)
+      : (filtros.vendedor
+          ? [String(filtros.vendedor).trim()].filter(Boolean)
+          : []);
+
+    if (vendedoresSeleccionados.length) {
+      const vendedoresMapeados = vendedoresSeleccionados.map(
+        (v) => this.vendedorMap.get(v) ?? v,
+      );
+      filtrosConCodigos.vendedor = vendedoresMapeados.join(',');
+      filtrosConCodigos.vendedores = vendedoresMapeados;
     }
 
-    const proveedoresSeleccionados = Array.isArray(filtros.proveedores)
+    const proveedoresSeleccionados = Array.isArray(filtros.proveedores) && filtros.proveedores.length
       ? filtros.proveedores.filter(Boolean)
       : String(filtros.proveedor ?? '')
           .split(',')
@@ -1664,9 +1681,26 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       filtrosConCodigos.proveedorNombres = filtros.proveedorNombres ?? [];
     }
 
-    if (ciudadVisible) {
+    // Ciudades: soporta array multi (nuevo) o string legacy
+    const ciudadesSeleccionadas = Array.isArray(filtros.ciudades) && filtros.ciudades.length
+      ? filtros.ciudades.filter(Boolean)
+      : (filtros.ciudad
+          ? [String(filtros.ciudad).trim()].filter(Boolean)
+          : []);
+
+    if (ciudadesSeleccionadas.length) {
+      const ciudadesMapeadas = ciudadesSeleccionadas.map(
+        (c) => this.ciudadMap.get(c) ?? this.ciudadMap.get(this.normalizarTexto(c)) ?? c,
+      );
+      filtrosConCodigos.ciudad = ciudadesMapeadas.join(',');
+      filtrosConCodigos.ciudades = ciudadesMapeadas;
+      filtrosConCodigos.ciudadesNombres = filtros.ciudadesNombres ?? [];
+    } else if (ciudadVisible) {
+      // Fallback: si solo llega el singular ciudad, usarlo
       filtrosConCodigos.ciudad =
-        this.ciudadMap.get(ciudadVisible) ?? this.ciudadMap.get(ciudadNormalizada) ?? ciudadVisible;
+        this.ciudadMap.get(ciudadVisible) ??
+        this.ciudadMap.get(ciudadNormalizada) ??
+        ciudadVisible;
     }
 
     if (filtros.linea) {
