@@ -75,84 +75,22 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
           });
         return;
 
-      case 'proveedor':
+      case 'proveedor': {
         this.chartType = 'bar';
-        if (this.tieneCodigosVendedoresPermitidos()) {
-          const codigos = this.filtrarCodigosPermitidos(this._codigosVendedoresPermitidos);
+        // Issue #2: 1 sola llamada al endpoint role-aware (mes o semana).
+        // El backend filtra por scope JWT: admin ve todo, supervisor ve su
+        // equipo, vendedor ve solo lo suyo. Se eliminó la N+1 que antes
+        // iteraba per-vendor y no mostraba datos al supervisor.
+        const lineas$ = this.esSemanal
+          ? this.semanaService.getLineasAdmin(filtrosConsulta)
+          : this.cumplimientoService.getLineasAdmin(filtrosConsulta);
 
-          if (!codigos.length) {
-            this.tableData = [];
-            this.chartData = [];
-            this.cdr.markForCheck();
-            return;
-          }
-
-          this.combinarResultadosPorVendedor(
-            codigos,
-            (codigo) =>
-              this.esSemanal
-                ? this.semanaService.getLineasPorVendedor(codigo, filtrosConsulta)
-                : this.cumplimientoService.getLineasPorVendedor(codigo, filtrosConsulta),
-            (res) => (Array.isArray(res?.detallePorLinea) ? res.detallePorLinea : []),
-          )
-            .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-            .subscribe((lineas: any[]) => {
-              const detalleMapeado = lineas.map((item: any) => ({
-                ...item,
-                linea:
-                  item?.linea ?? item?.codigoLinea ?? item?.reporteProvConObs ?? 'Sin proveedor',
-                cuotaLinea: Number(item?.cuotaProveedorTotal ?? 0) || 0,
-                ventaAcum: Number(item?.ventaAcum ?? 0) || 0,
-                porcCump: Number(item?.porcCump ?? 0) || 0,
-                proyeccionVenta: Number(item?.proyeccionVenta ?? 0) || 0,
-                porcCumProy: Number(item?.porcCumProy ?? 0) || 0,
-              }));
-
-              const detalleConsolidado = this.consolidarPorLinea(detalleMapeado);
-              const filtrado = this.filtrarProveedores(
-                detalleConsolidado,
-                filtrosConsulta.proveedor,
-              );
-              const ordenado = this.ordenarProveedoresPorAlfabeto(filtrado);
-
-              this.tableData = ordenado;
-              this.totalCuotaProveedor = ordenado.reduce(
-                (sum: number, item: any) => sum + (Number(item?.cuotaLinea ?? 0) || 0),
-                0,
-              );
-              this.totalAcumuladoProveedor = ordenado.reduce(
-                (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
-                0,
-              );
-
-              const topProveedores = [...ordenado]
-                .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
-                .slice(0, 12);
-
-              this.totalTopProveedores = topProveedores.reduce(
-                (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
-                0,
-              );
-              this.liderVentasProveedor = topProveedores[0]?.linea ?? '—';
-
-              this.chartData = topProveedores.map((i: any) => ({
-                name: i.linea ?? 'Sin dato',
-                value: Number(i?.ventaAcum ?? 0),
-              }));
-              this.chartId = 'chart-proveedor-admin-' + Date.now();
-              this.emitirResumenVista();
-              this.cdr.markForCheck();
-            });
-          return;
-        }
-        this.cumplimientoService
-          .getLineasAdmin(filtrosConsulta)
+        lineas$
           .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
           .subscribe((res: any) => {
             const lineas = Array.isArray(res?.detallePorLinea) ? res.detallePorLinea : [];
             const lineasPermitidas = this.filtrarPorCodigosVendedoresPermitidos(lineas);
 
-            // Mapear campos del endpoint a formato de tabla
             const detalleMapeado = lineasPermitidas.map((item: any) => ({
               ...item,
               linea: item?.linea ?? item?.codigoLinea ?? item?.reporteProvConObs ?? 'Sin proveedor',
@@ -195,6 +133,7 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
             this.cdr.markForCheck();
           });
         return;
+      }
 
       case 'ciudad':
         this.chartType = 'pie';

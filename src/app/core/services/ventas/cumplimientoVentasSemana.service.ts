@@ -132,6 +132,28 @@ export class CumplimientoSemanaService {
   // ─── LÍNEAS ──────────────────────────────────────────────────────────────────
 
   /**
+   * GET /semana/cumplimiento/lineas (role-aware)
+   * Devuelve { detallePorLinea: [...lineas con cuota y venta] }
+   *
+   * Issue #2: equivalente a `getLineasAdmin` mensual. Filtra por scope JWT:
+   *   - admin ve todas las líneas
+   *   - supervisor ve las de su equipo
+   *   - vendedor ve solo las suyas
+   */
+  getLineasAdmin(filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParams(filtros);
+    return this.http.get<any>(`${this.apiUrl}/semana/cumplimiento/lineas`, { params }).pipe(
+      map((res) => {
+        if (res?.detallePorLinea) {
+          res.detallePorLinea = Array.isArray(res.detallePorLinea) ? res.detallePorLinea : [];
+        }
+        return res;
+      }),
+      catchError(() => of({ detallePorLinea: [] })),
+    );
+  }
+
+  /**
    * GET /semana/cumplimiento/lineas/:codigoVendedor
    * Devuelve { codigoVendedor, detallePorLinea: [...] }
    */
