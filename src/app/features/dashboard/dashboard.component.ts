@@ -234,6 +234,14 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     return this.rolId === 2;
   }
 
+  /**
+   * El filtro por vendedor se muestra únicamente para ADMINISTRADOR y SUPERVISOR.
+   * VENDEDOR no lo ve porque el backend restringe sus datos desde el token.
+   */
+  get mostrarFiltroVendedorPorRol(): boolean {
+    return this.esAdmin || this.esSupervisor;
+  }
+
   get codigoVendedor(): string {
     if (this.codigoVendedorDetectado) {
       return this.codigoVendedorDetectado;
@@ -541,6 +549,68 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       this.vendedorMap.set(opt.label, opt.value);
       this.vendedorMap.set(opt.value, opt.value);
     });
+  }
+
+
+  private aplicarOpcionesCiudades(opciones: FilterOption[]): void {
+    const mapa = new Map<string, FilterOption>();
+    this.ciudadMap.clear();
+
+    const normalizar = (valor: unknown): string => String(valor ?? '').trim();
+
+    for (const opcion of Array.isArray(opciones) ? opciones : []) {
+      const value = normalizar(opcion?.value);
+      const label = this.repararTextoCiudad(opcion?.label || value);
+      if (!value || !label || this.esCiudadResumen(label)) continue;
+
+      if (!mapa.has(value)) {
+        mapa.set(value, { value, label });
+      }
+
+      // Permite aplicar por código, por nombre visible o por nombre normalizado.
+      this.ciudadMap.set(value, value);
+      this.ciudadMap.set(label, value);
+      this.ciudadMap.set(this.normalizarTexto(label), value);
+    }
+
+    this.ciudadesList = Array.from(mapa.values()).sort((a, b) =>
+      a.label.localeCompare(b.label, 'es', { sensitivity: 'base', numeric: true }),
+    );
+  }
+
+  private construirOpcionesCiudadesDesdeDetalle(detalle: any[]): FilterOption[] {
+    const mapa = new Map<string, FilterOption>();
+
+    for (const row of Array.isArray(detalle) ? detalle : []) {
+      const label = this.repararTextoCiudad(row?.ciudad ?? row?.nomCiudad ?? row?.nombreCiudad ?? '');
+      const value = String(
+        row?.id_ciudad ?? row?.idCiudad ?? row?.codCiudad ?? row?.codigoCiudad ?? row?.codigo ?? row?.cod ?? label,
+      ).trim();
+
+      if (!label || this.esCiudadResumen(label) || !value) continue;
+      if (!mapa.has(value)) mapa.set(value, { value, label });
+    }
+
+    return Array.from(mapa.values()).sort((a, b) =>
+      a.label.localeCompare(b.label, 'es', { sensitivity: 'base', numeric: true }),
+    );
+  }
+
+  private cargarCiudadesFallback(filtros: DashboardFilters): void {
+    this.cumplimientoService
+      .getCiudadesGlobal(filtros)
+      .pipe(takeUntil(this.destroy$), catchError(() => of({ detallePorCiudad: [] })))
+      .subscribe((res: any) => {
+        const opciones = this.construirOpcionesCiudadesDesdeDetalle(res?.detallePorCiudad ?? []);
+        this.aplicarOpcionesCiudades(
+          this.conservarOpcionesSeleccionadas(
+            opciones,
+            this.normalizarArrayFiltro(filtros.ciudades, filtros.ciudad),
+            filtros.ciudadesNombres,
+          ),
+        );
+        this.cdr.markForCheck();
+      });
   }
 
   private cargarVendedoresFiltrosGlobal(): void {
@@ -851,7 +921,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           lineasUnicas.add(linea);
         });
 
-        this.ciudadesList = this.toFilterOptions(Array.from(ciudadesUnicas));
+        this.aplicarOpcionesCiudades(this.toFilterOptions(Array.from(ciudadesUnicas)));
         this.lineasList = this.toFilterOptions(Array.from(lineasUnicas));
       });
   }
@@ -920,7 +990,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), unicos);
         });
 
-        this.ciudadesList = this.toFilterOptions(Array.from(unicos));
+        this.aplicarOpcionesCiudades(this.toFilterOptions(Array.from(unicos)));
       });
   }
 
@@ -956,7 +1026,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
             lineasSet.add(linea);
           });
 
-          this.ciudadesList = this.toFilterOptions(Array.from(ciudadesSet));
+          this.aplicarOpcionesCiudades(this.toFilterOptions(Array.from(ciudadesSet)));
           this.lineasList = this.toFilterOptions(Array.from(lineasSet));
         });
       return;
@@ -971,7 +1041,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         ciudadesDetalle.forEach((item) => {
           this.registrarCiudad(item?.ciudad, this.obtenerCiudadCodigo(item), ciudades);
         });
-        this.ciudadesList = this.toFilterOptions(Array.from(ciudades));
+        this.aplicarOpcionesCiudades(this.toFilterOptions(Array.from(ciudades)));
       });
 
     this.cumplimientoService
@@ -1074,11 +1144,19 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           filtrosReferencia.categoriaNombres,
         );
 
-        this.ciudadesList = this.conservarOpcionesSeleccionadas(
+        const opcionesCiudades = this.conservarOpcionesSeleccionadas(
           Array.isArray(opciones.ciudades) ? opciones.ciudades : [],
           this.normalizarArrayFiltro(filtrosReferencia.ciudades, filtrosReferencia.ciudad),
           filtrosReferencia.ciudadesNombres,
         );
+        this.aplicarOpcionesCiudades(opcionesCiudades);
+
+        if (!Array.isArray(opciones.ciudades) || opciones.ciudades.length === 0) {
+          // Fallback defensivo: si /api/filtros/opciones no devuelve ciudades
+          // para una combinación válida, se carga el catálogo desde
+          // /api/mes/cumplimiento/ciudades-global usando los mismos filtros.
+          this.cargarCiudadesFallback(filtrosReferencia);
+        }
 
         this.aplicarOpcionesVendedores(
           this.conservarOpcionesSeleccionadas(
@@ -1918,11 +1996,17 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       const ciudadesNombres = Array.isArray(filtros.ciudadesNombres) && filtros.ciudadesNombres.length
         ? filtros.ciudadesNombres
         : this.obtenerLabelsPorValores(this.ciudadesList, ciudadesSeleccionadas);
+      const ciudadesNombresCompletos = ciudadesMapeadas.map((codigo, index) => {
+        const existente = String(ciudadesNombres[index] ?? '').trim();
+        if (existente) return existente;
+        const opcion = this.ciudadesList.find((item) => String(item.value ?? '').trim() === String(codigo).trim());
+        return String(opcion?.label ?? ciudadesSeleccionadas[index] ?? codigo).trim();
+      });
 
       filtrosConCodigos.ciudad = ciudadesMapeadas.join(',');
       filtrosConCodigos.ciudades = ciudadesMapeadas;
-      filtrosConCodigos.ciudadNombre = ciudadNombreVisible || (ciudadesNombres.length === 1 ? ciudadesNombres[0] : '');
-      filtrosConCodigos.ciudadesNombres = ciudadesNombres;
+      filtrosConCodigos.ciudadNombre = ciudadNombreVisible || (ciudadesNombresCompletos.length === 1 ? ciudadesNombresCompletos[0] : '');
+      filtrosConCodigos.ciudadesNombres = ciudadesNombresCompletos;
     } else if (ciudadVisible) {
       // Fallback: si solo llega el singular ciudad, usarlo
       filtrosConCodigos.ciudad =
