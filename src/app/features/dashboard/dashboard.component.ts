@@ -9,6 +9,7 @@ import { CumplimientoService } from '../../core/services/ventas/cumplimientoVent
 import { CumplimientoSemanaService } from '../../core/services/ventas/cumplimientoVentasSemana.service';
 import { UsuariosService } from '../../core/services/usuarios.service';
 import { ProveedorService } from '../../core/services/proveedor.service';
+import { FiltrosService } from '../../core/services/ventas/filtros.service';
 import {
   FiltersComponent,
   DashboardFilters,
@@ -129,6 +130,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     private authService: AuthService,
     private cumplimientoService: CumplimientoService,
     private semanaService: CumplimientoSemanaService,
+    private filtrosService: FiltrosService,
     private usuariosService: UsuariosService,
     private proveedorService: ProveedorService,
     private cdr: ChangeDetectorRef,
@@ -1012,25 +1014,56 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   cargarOpcionesFiltros(): void {
-    if (this.esAdmin) {
-      this.cargarVendedoresFiltrosGlobal();
-      this.cargarCiudadesYLineasAdmin();
-      this.cargarProveedoresFiltros();
-      this.cargarCategoriasFiltros();
-    } else if (this.esSupervisor) {
-      this.cargarVendedoresSupervisor();
-      this.cargarProveedoresFiltros();
-      this.cargarCategoriasFiltros();
-      this.cargarCatalogosSupervisorLazy();
-    } else if (this.codigoVendedor) {
-      this.cargarOpcionesVendedor(this.filtrosActivos);
-      this.cargarProveedoresFiltros();
-      this.cargarCategoriasFiltros();
-    } else {
-      this.resolverCodigoVendedorDesdeApi();
-      this.cargarProveedoresFiltros();
-      this.cargarCategoriasFiltros();
-    }
+    // Cascade unificado: 1 sola llamada a /api/filtros/opciones
+    // trae los 4 desplegables (vendedor, proveedor, categoría, ciudad)
+    // ya filtrados por rol, rango de fechas y demás filtros aplicados.
+    // Para rol vendedor, el endpoint ignora el `vendedores` del query
+    // y devuelve solo su propio código; no hace falta
+    // `cargarOpcionesVendedor` / `resolverCodigoVendedorDesdeApi` por
+    // separado.
+    this.cargarOpcionesFiltrosUnificado();
+  }
+
+  /**
+   * Repobla los 4 desplegables a partir de los filtros actuales.
+   * Llamar también desde el handler `(filterChange)` del componente
+   * de filtros cuando el usuario cambia cualquier selección, para que
+   * los dropdowns reflejen la cascada sin esperar al "Aplicar".
+   */
+  private cargarOpcionesFiltrosUnificado(): void {
+    const params = this.filtrosService.fromDashboardFilters(this.filtrosActivos);
+    this.filtrosService
+      .getOpciones(params)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((opciones) => {
+        if (!opciones) {
+          // Error de red: dejar los arrays vacíos para que la UI lo muestre.
+          this.proveedoresList = [];
+          this.categoriasList = [];
+          this.ciudadesList = [];
+          this.vendedoresList = [];
+          return;
+        }
+        this.proveedoresList = Array.isArray(opciones.proveedores) ? opciones.proveedores : [];
+        this.categoriasList = Array.isArray(opciones.categorias) ? opciones.categorias : [];
+        this.ciudadesList = Array.isArray(opciones.ciudades) ? opciones.ciudades : [];
+        if (this.esAdmin || this.esSupervisor) {
+          this.vendedoresList = Array.isArray(opciones.vendedores) ? opciones.vendedores : [];
+        } else {
+          // Rol vendedor: el endpoint devuelve solo su propio código.
+          this.vendedoresList = Array.isArray(opciones.vendedores) ? opciones.vendedores : [];
+        }
+      });
+  }
+
+  /**
+   * Handler del `(filterChange)` del componente de filtros.
+   * Actualiza el estado interno y re-puebla los dropdowns en cascada
+   * (sin recargar las tablas; eso ocurre en `onAplicarFiltros`).
+   */
+  onFiltroChange(filtros: DashboardFilters): void {
+    this.filtrosActivos = { ...this.filtrosActivos, ...filtros };
+    this.cargarOpcionesFiltrosUnificado();
   }
 
   private cargarVendedoresSupervisor(): void {
@@ -1660,19 +1693,9 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       this.cumplimientoService.invalidarCacheRespuestas();
     }
 
-    if (this.esAdmin) {
-      this.cargarProveedoresFiltros();
-      this.cargarCategoriasFiltros();
-      this.cargarCiudadesYLineasAdmin();
-    } else if (this.esSupervisor) {
-      this.cargarProveedoresFiltros();
-      this.cargarCategoriasFiltros();
-      this.cargarCatalogosSupervisorLazy();
-    } else {
-      this.cargarOpcionesVendedor({ ...this.filtrosActivos, ciudad: '', ciudadNombre: '' });
-      this.cargarProveedoresFiltros();
-      this.cargarCategoriasFiltros();
-    }
+    // Re-poblar los 4 desplegables en cascada tras aplicar filtros
+    // (1 sola llamada al endpoint /api/filtros/opciones).
+    this.cargarOpcionesFiltrosUnificado();
 
     // Auto-ajusta fechas si estamos en modo semanal o diaria
     if (this.rolId === 3 && this.tipoCuota !== 'mensual') {
