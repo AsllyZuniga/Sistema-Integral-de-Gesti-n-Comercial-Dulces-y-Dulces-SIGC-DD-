@@ -15,6 +15,9 @@ import {
   DashboardFilters,
 } from '../../shared/components/filters/filters.component';
 import { FilterOption } from '../../shared/components/filters/filters.component';
+import { enriquecerOpcionesSinDuplicadosVisuales } from '../../shared/utils/filter-options.util';
+import { normalizarTextoFiltro } from '../../shared/utils/text-normalization.util';
+import { repararNombreMunicipio } from '../../shared/utils/narino-municipios.util';
 import { SidebarComponent } from '../../shared/components/sidebar/sidebar.component';
 import { TopbarComponent } from '../../shared/components/topbar/topbar.component';
 import { VentasComponent } from '../dashboard/components/ventas/ventas.component';
@@ -501,7 +504,11 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     const txt = String(valor ?? '').trim();
     if (!txt) return '';
 
-    return txt.replace(/◊/g, 'ñ').replace(/Ø/g, 'Ñ').replace(/\s+/g, ' ').trim();
+    const saneado = normalizarTextoFiltro(
+      txt.replace(/◊/g, 'ñ').replace(/Ø/g, 'Ñ'),
+    );
+
+    return repararNombreMunicipio(saneado);
   }
 
   private normalizarCodVendedor(valor: unknown): string {
@@ -559,7 +566,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     const normalizar = (valor: unknown): string => String(valor ?? '').trim();
 
     for (const opcion of Array.isArray(opciones) ? opciones : []) {
-      const value = normalizar(opcion?.value);
+      const value = normalizarTextoFiltro(opcion?.value);
       const label = this.repararTextoCiudad(opcion?.label || value);
       if (!value || !label || this.esCiudadResumen(label)) continue;
 
@@ -573,8 +580,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       this.ciudadMap.set(this.normalizarTexto(label), value);
     }
 
-    this.ciudadesList = Array.from(mapa.values()).sort((a, b) =>
-      a.label.localeCompare(b.label, 'es', { sensitivity: 'base', numeric: true }),
+    this.ciudadesList = enriquecerOpcionesSinDuplicadosVisuales(
+      Array.from(mapa.values()),
     );
   }
 
@@ -583,17 +590,17 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
     for (const row of Array.isArray(detalle) ? detalle : []) {
       const label = this.repararTextoCiudad(row?.ciudad ?? row?.nomCiudad ?? row?.nombreCiudad ?? '');
-      const value = String(
-        row?.id_ciudad ?? row?.idCiudad ?? row?.codCiudad ?? row?.codigoCiudad ?? row?.codigo ?? row?.cod ?? label,
-      ).trim();
+      const value = normalizarTextoFiltro(
+        String(
+          row?.id_ciudad ?? row?.idCiudad ?? row?.codCiudad ?? row?.codigoCiudad ?? row?.codigo ?? row?.cod ?? label,
+        ).trim(),
+      );
 
       if (!label || this.esCiudadResumen(label) || !value) continue;
       if (!mapa.has(value)) mapa.set(value, { value, label });
     }
 
-    return Array.from(mapa.values()).sort((a, b) =>
-      a.label.localeCompare(b.label, 'es', { sensitivity: 'base', numeric: true }),
-    );
+    return enriquecerOpcionesSinDuplicadosVisuales(Array.from(mapa.values()));
   }
 
   private cargarCiudadesFallback(filtros: DashboardFilters): void {
@@ -743,8 +750,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     const mapa = new Map<string, FilterOption>();
 
     (Array.isArray(lineas) ? lineas : []).forEach((item) => {
-      const label = this.obtenerNombreProveedorLinea(item);
-      const value = this.obtenerCodigoProveedorLinea(item);
+      const label = normalizarTextoFiltro(this.obtenerNombreProveedorLinea(item));
+      const value = normalizarTextoFiltro(this.obtenerCodigoProveedorLinea(item));
       if (!label && !value) return;
 
       const opcion: FilterOption = {
@@ -758,48 +765,37 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     });
 
-    return Array.from(mapa.values()).sort((a, b) =>
-      a.label.localeCompare(b.label, 'es', {
-        sensitivity: 'base',
-        numeric: true,
-      }),
-    );
+    return enriquecerOpcionesSinDuplicadosVisuales(Array.from(mapa.values()));
   }
 
   private construirOpcionesCategorias(detalle: ApiCategoriaRow[]): FilterOption[] {
-    console.debug('[Dashboard] construyendo opciones de categorías desde:', detalle);
-    
-    const unicas = new Map<string, string>();
+    const unicas = new Map<string, FilterOption>();
 
     (Array.isArray(detalle) ? detalle : []).forEach((item) => {
       const categoriaRaw = this.obtenerNombreCategoria(item);
-      console.debug('[Dashboard] Categoría raw:', categoriaRaw, 'desde item:', item);
-      
-      if (!categoriaRaw) {
-        console.debug('[Dashboard] Categoría vacía, omitiendo');
-        return;
-      }
+      if (!categoriaRaw) return;
 
-      const categoriaLimpia = this.limpiarNombreCategoria(categoriaRaw);
-      console.debug('[Dashboard] Categoría limpia:', categoriaLimpia);
-      
-      if (!categoriaLimpia) {
-        console.debug('[Dashboard] Categoría limpia vacía, omitiendo');
-        return;
-      }
+      const categoriaNormalizada = normalizarTextoFiltro(categoriaRaw);
+      if (!categoriaNormalizada) return;
 
-      if (!unicas.has(categoriaLimpia)) {
-        unicas.set(categoriaLimpia, categoriaRaw);
-      }
+      const categoriaLimpia = this.limpiarNombreCategoria(categoriaNormalizada);
+      if (!categoriaLimpia) return;
+
+      const codigo = normalizarTextoFiltro(
+        String(
+          item.id_categoria ?? item.idCategoria ?? item.categoria_id ?? '',
+        ).trim(),
+      );
+
+      // Dedup por código (no por label) para que dos categorías distintas
+      // con el mismo nombre no se colapsen en una sola entrada.
+      const value = codigo || categoriaLimpia;
+      if (unicas.has(value)) return;
+
+      unicas.set(value, { value, label: categoriaRaw });
     });
 
-    const opciones = Array.from(unicas.entries())
-      .map(([label, value]) => ({ label, value }))
-      .sort((a, b) => a.label.localeCompare(b.label, 'es', { numeric: true, sensitivity: 'base' }));
-    
-    console.debug('[Dashboard] Opciones de categorías finales:', opciones);
-    
-    return opciones;
+    return enriquecerOpcionesSinDuplicadosVisuales(Array.from(unicas.values()));
   }
 
   private obtenerIdSupervisorActual(): string {
