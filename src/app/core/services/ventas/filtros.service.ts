@@ -2,6 +2,8 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map, shareReplay, of, catchError } from 'rxjs';
 import { DashboardFilters, FilterOption } from '../../../shared/components/filters/filters.component';
+import { enriquecerOpcionesSinDuplicadosVisuales } from '../../../shared/utils/filter-options.util';
+import { normalizarTextoFiltro } from '../../../shared/utils/text-normalization.util';
 
 export interface OpcionesFiltros {
   periodo: { fechaInicio: string; fechaFin: string };
@@ -151,6 +153,7 @@ export class FiltrosService {
 
   private normalizarOpciones(items: any[] | null | undefined, valueKeys: string[], labelKeys: string[]): FilterOption[] {
     const opciones = new Map<string, FilterOption>();
+    const tempList: FilterOption[] = [];
     const texto = (valor: unknown): string => String(valor ?? '').trim();
     const pick = (item: any, keys: string[]): string => {
       for (const key of keys) {
@@ -161,15 +164,21 @@ export class FiltrosService {
     };
 
     for (const item of Array.isArray(items) ? items : []) {
-      const value = pick(item, valueKeys) || pick(item, labelKeys);
-      const label = pick(item, labelKeys) || value;
+      // Normalizamos tanto el value como el label a UTF-8 limpio.
+      // El backend puede enviar nombres con U+FFFD (�) por mismatch de
+      // charset en la respuesta HTTP. Si dejamos el value sucio, el
+      // filtro no matchea contra la base de datos (que sí está en UTF-8).
+      const value = normalizarTextoFiltro(pick(item, valueKeys) || pick(item, labelKeys));
+      const label = normalizarTextoFiltro(pick(item, labelKeys) || value);
       if (!value || !label) continue;
-      if (!opciones.has(value)) opciones.set(value, { value, label });
+      if (!opciones.has(value)) {
+        const opcion: FilterOption = { value, label };
+        opciones.set(value, opcion);
+        tempList.push(opcion);
+      }
     }
 
-    return Array.from(opciones.values()).sort((a, b) =>
-      a.label.localeCompare(b.label, 'es', { sensitivity: 'base', numeric: true }),
-    );
+    return enriquecerOpcionesSinDuplicadosVisuales(tempList);
   }
 
   private cacheKey(params: FiltrosOpcionesParams): string {
