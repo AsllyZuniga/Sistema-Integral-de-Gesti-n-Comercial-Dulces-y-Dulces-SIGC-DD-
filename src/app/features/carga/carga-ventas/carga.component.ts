@@ -651,7 +651,15 @@ export class CargaComponent implements OnDestroy {
   private parsearDatosDesdeTexto(texto: string): ImportVentasResponse | null {
     if (!texto) return null;
 
-    const textoLimpio = texto.replace(/[\u0080-\uFFFF]/g, ' ');
+    // NO reemplazar caracteres acentuados: los mensajes de confirmación
+    // del backend pueden contener nombres de proveedores/categorías con
+    // tildes (ej. "García", "Niño") y el matching posterior depende de
+    // que se preserven. Solo se eliminan los caracteres de control
+    // corruptos (los que mete el mismatching de encoding) y el carácter
+    // de reemplazo U+FFFD.
+    const textoLimpio = texto
+      .replace(/\uFFFD/g, '')
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ');
 
     const resultado: ImportVentasResponse = {};
 
