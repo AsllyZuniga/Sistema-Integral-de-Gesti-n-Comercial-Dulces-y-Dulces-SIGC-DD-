@@ -7,6 +7,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { SessionUser } from '../../core/services/session.service';
 import { CumplimientoService } from '../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../core/services/ventas/cumplimientoVentasSemana.service';
+import { CuotaDiaService, CuotaDiaVendedor } from '../../core/services/ventas/cuotaDia.service';
 import { UsuariosService } from '../../core/services/usuarios.service';
 import { ProveedorService } from '../../core/services/proveedor.service';
 import { FiltrosService } from '../../core/services/ventas/filtros.service';
@@ -15,6 +16,9 @@ import {
   DashboardFilters,
 } from '../../shared/components/filters/filters.component';
 import { FilterOption } from '../../shared/components/filters/filters.component';
+import { enriquecerOpcionesSinDuplicadosVisuales } from '../../shared/utils/filter-options.util';
+import { normalizarTextoFiltro } from '../../shared/utils/text-normalization.util';
+import { repararNombreMunicipio } from '../../shared/utils/narino-municipios.util';
 import { SidebarComponent } from '../../shared/components/sidebar/sidebar.component';
 import { TopbarComponent } from '../../shared/components/topbar/topbar.component';
 import { VentasComponent } from '../dashboard/components/ventas/ventas.component';
@@ -130,6 +134,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     private authService: AuthService,
     private cumplimientoService: CumplimientoService,
     private semanaService: CumplimientoSemanaService,
+    private cuotaDiaService: CuotaDiaService,
     private filtrosService: FiltrosService,
     private usuariosService: UsuariosService,
     private proveedorService: ProveedorService,
@@ -501,7 +506,11 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     const txt = String(valor ?? '').trim();
     if (!txt) return '';
 
-    return txt.replace(/◊/g, 'ñ').replace(/Ø/g, 'Ñ').replace(/\s+/g, ' ').trim();
+    const saneado = normalizarTextoFiltro(
+      txt.replace(/◊/g, 'ñ').replace(/Ø/g, 'Ñ'),
+    );
+
+    return repararNombreMunicipio(saneado);
   }
 
   private normalizarCodVendedor(valor: unknown): string {
@@ -559,7 +568,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     const normalizar = (valor: unknown): string => String(valor ?? '').trim();
 
     for (const opcion of Array.isArray(opciones) ? opciones : []) {
-      const value = normalizar(opcion?.value);
+      const value = normalizarTextoFiltro(opcion?.value);
       const label = this.repararTextoCiudad(opcion?.label || value);
       if (!value || !label || this.esCiudadResumen(label)) continue;
 
@@ -573,8 +582,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       this.ciudadMap.set(this.normalizarTexto(label), value);
     }
 
-    this.ciudadesList = Array.from(mapa.values()).sort((a, b) =>
-      a.label.localeCompare(b.label, 'es', { sensitivity: 'base', numeric: true }),
+    this.ciudadesList = enriquecerOpcionesSinDuplicadosVisuales(
+      Array.from(mapa.values()),
     );
   }
 
@@ -583,17 +592,17 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
     for (const row of Array.isArray(detalle) ? detalle : []) {
       const label = this.repararTextoCiudad(row?.ciudad ?? row?.nomCiudad ?? row?.nombreCiudad ?? '');
-      const value = String(
-        row?.id_ciudad ?? row?.idCiudad ?? row?.codCiudad ?? row?.codigoCiudad ?? row?.codigo ?? row?.cod ?? label,
-      ).trim();
+      const value = normalizarTextoFiltro(
+        String(
+          row?.id_ciudad ?? row?.idCiudad ?? row?.codCiudad ?? row?.codigoCiudad ?? row?.codigo ?? row?.cod ?? label,
+        ).trim(),
+      );
 
       if (!label || this.esCiudadResumen(label) || !value) continue;
       if (!mapa.has(value)) mapa.set(value, { value, label });
     }
 
-    return Array.from(mapa.values()).sort((a, b) =>
-      a.label.localeCompare(b.label, 'es', { sensitivity: 'base', numeric: true }),
-    );
+    return enriquecerOpcionesSinDuplicadosVisuales(Array.from(mapa.values()));
   }
 
   private cargarCiudadesFallback(filtros: DashboardFilters): void {
@@ -743,8 +752,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     const mapa = new Map<string, FilterOption>();
 
     (Array.isArray(lineas) ? lineas : []).forEach((item) => {
-      const label = this.obtenerNombreProveedorLinea(item);
-      const value = this.obtenerCodigoProveedorLinea(item);
+      const label = normalizarTextoFiltro(this.obtenerNombreProveedorLinea(item));
+      const value = normalizarTextoFiltro(this.obtenerCodigoProveedorLinea(item));
       if (!label && !value) return;
 
       const opcion: FilterOption = {
@@ -758,48 +767,37 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     });
 
-    return Array.from(mapa.values()).sort((a, b) =>
-      a.label.localeCompare(b.label, 'es', {
-        sensitivity: 'base',
-        numeric: true,
-      }),
-    );
+    return enriquecerOpcionesSinDuplicadosVisuales(Array.from(mapa.values()));
   }
 
   private construirOpcionesCategorias(detalle: ApiCategoriaRow[]): FilterOption[] {
-    console.debug('[Dashboard] construyendo opciones de categorías desde:', detalle);
-    
-    const unicas = new Map<string, string>();
+    const unicas = new Map<string, FilterOption>();
 
     (Array.isArray(detalle) ? detalle : []).forEach((item) => {
       const categoriaRaw = this.obtenerNombreCategoria(item);
-      console.debug('[Dashboard] Categoría raw:', categoriaRaw, 'desde item:', item);
-      
-      if (!categoriaRaw) {
-        console.debug('[Dashboard] Categoría vacía, omitiendo');
-        return;
-      }
+      if (!categoriaRaw) return;
 
-      const categoriaLimpia = this.limpiarNombreCategoria(categoriaRaw);
-      console.debug('[Dashboard] Categoría limpia:', categoriaLimpia);
-      
-      if (!categoriaLimpia) {
-        console.debug('[Dashboard] Categoría limpia vacía, omitiendo');
-        return;
-      }
+      const categoriaNormalizada = normalizarTextoFiltro(categoriaRaw);
+      if (!categoriaNormalizada) return;
 
-      if (!unicas.has(categoriaLimpia)) {
-        unicas.set(categoriaLimpia, categoriaRaw);
-      }
+      const categoriaLimpia = this.limpiarNombreCategoria(categoriaNormalizada);
+      if (!categoriaLimpia) return;
+
+      const codigo = normalizarTextoFiltro(
+        String(
+          item.id_categoria ?? item.idCategoria ?? item.categoria_id ?? '',
+        ).trim(),
+      );
+
+      // Dedup por código (no por label) para que dos categorías distintas
+      // con el mismo nombre no se colapsen en una sola entrada.
+      const value = codigo || categoriaLimpia;
+      if (unicas.has(value)) return;
+
+      unicas.set(value, { value, label: categoriaRaw });
     });
 
-    const opciones = Array.from(unicas.entries())
-      .map(([label, value]) => ({ label, value }))
-      .sort((a, b) => a.label.localeCompare(b.label, 'es', { numeric: true, sensitivity: 'base' }));
-    
-    console.debug('[Dashboard] Opciones de categorías finales:', opciones);
-    
-    return opciones;
+    return enriquecerOpcionesSinDuplicadosVisuales(Array.from(unicas.values()));
   }
 
   private obtenerIdSupervisorActual(): string {
@@ -2071,19 +2069,23 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   private cargarTotalesVendedor(): void {
     const filtros = { ...this.filtrosActivos };
 
+    // Para cuota diaria usamos el mismo endpoint que el componente de
+    // análisis de ventas (`/api/roles/cuota-dia/por-vendedor`).
+    // Esto garantiza que las cards y la sección de análisis muestren
+    // exactamente los mismos datos cuando el rol vendedor selecciona
+    // "Cuota Diaria / Venta Diaria".
+    if (this.tipoCuota === 'diaria') {
+      this.cargarTotalesVendedorCuotaDiaria(filtros);
+      return;
+    }
+
     const obs$ =
-      this.tipoCuota === 'diaria'
-        ? this.cumplimientoService.getCumplimientoDiaVendedor(filtros)
-        : this.tipoCuota === 'mensual'
-          ? this.cumplimientoService.getCumplimientoMesVendedor(filtros)
-          : this.semanaService.getCumplimientoSemanaVendedor(filtros);
+      this.tipoCuota === 'mensual'
+        ? this.cumplimientoService.getCumplimientoMesVendedor(filtros)
+        : this.semanaService.getCumplimientoSemanaVendedor(filtros);
 
     const campo =
-      this.tipoCuota === 'semanal'
-        ? 'cuotaSemana'
-        : this.tipoCuota === 'diaria'
-          ? 'cuotaDiaria'
-          : 'cuotaMes';
+      this.tipoCuota === 'semanal' ? 'cuotaSemana' : 'cuotaMes';
 
     obs$.pipe(takeUntil(this.destroy$)).subscribe({
       next: (res: ApiTotalesResponse<DashboardTotalesVendedor> & { totales?: any }) => {
@@ -2128,12 +2130,6 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           raw['cuota_semana'],
           this.tipoCuota === 'semanal' ? raw[campo] : undefined,
         );
-        const cuotaDiariaVal = leerNumero(
-          raw['cuotaDiaria'],
-          raw['cuotaDia'],
-          raw['cuota_dia'],
-          this.tipoCuota === 'diaria' ? raw[campo] : undefined,
-        );
 
         this.totalesVendedor = {
           ventaAcum: Number(d.ventaAcum ?? d.ventaDiaria ?? 0) || 0,
@@ -2145,10 +2141,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           cuotaSemana:
             cuotaSemanaVal ||
             (this.tipoCuota === 'semanal' ? Number(d[campo] ?? 0) : cuotaSemanaVal),
-          cuotaDiaria:
-            cuotaDiariaVal ||
-            Number(d.cuotaDia ?? 0) ||
-            (this.tipoCuota === 'diaria' ? Number(d[campo] ?? 0) : cuotaDiariaVal),
+          cuotaDiaria: Number(d.cuotaDiaria ?? d.cuotaDia ?? 0) || 0,
           porcCump: Number(d.porcCump ?? 0) || 0,
           proyeccionVenta: Number(d.proyeccionVenta ?? d.promedioDiario ?? 0) || 0,
         };
@@ -2159,5 +2152,64 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         this.cdr.markForCheck();
       },
     });
+  }
+
+  /**
+   * Carga las cards (totalesVendedor) usando el mismo endpoint que el
+   * componente de análisis de ventas para cuota diaria.
+   *
+   * Antes: usaba `cumplimientoService.getCumplimientoDiaVendedor` que apuntaba
+   * a `/api/dia/cumplimiento/front/me`. Ese endpoint no devolvía la data
+   * esperada para el rol vendedor y las cards se quedaban en $0.
+   *
+   * Ahora: usa `cuotaDiaService.getCuotaDiaVendedor` que apunta a
+   * `/api/roles/cuota-dia/por-vendedor`, el mismo endpoint que ya pintaba
+   * correctamente la sección "Análisis de Ventas".
+   */
+  private cargarTotalesVendedorCuotaDiaria(filtros: DashboardFilters): void {
+    const fechaInicio = String(filtros.fechaInicio ?? '').trim();
+    const fechaFin = String(filtros.fechaFin ?? '').trim();
+
+    if (!fechaInicio || !fechaFin) {
+      this.totalesVendedor = null;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    this.cuotaDiaService
+      .getCuotaDiaVendedor({ fechaInicio, fechaFin })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (cuotas: CuotaDiaVendedor[]) => {
+          if (!Array.isArray(cuotas) || !cuotas.length) {
+            this.totalesVendedor = null;
+            this.cdr.markForCheck();
+            return;
+          }
+
+          const cuota = cuotas[0];
+          const cuotaDiaria = Number(cuota.cuota_dia ?? 0) || 0;
+          const ventaAcum = Number(cuota.venta_acumulada_dia ?? 0) || 0;
+          const porcCump = Number(cuota.pct_cumplimiento ?? 0) || 0;
+          const proyeccionVenta = Number(cuota.proye_venta ?? 0) || 0;
+
+          this.totalesVendedor = {
+            ventaAcum,
+            // Cuando la cuota activa es diaria, los 3 "slots" de cuota
+            // (mes / semana / dia) muestran el mismo valor de cuota del día
+            // para que el template no muestre $0 en ningún modo.
+            cuotaDiaria,
+            cuotaMes: cuotaDiaria,
+            cuotaSemana: cuotaDiaria,
+            porcCump,
+            proyeccionVenta,
+          };
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          this.totalesVendedor = null;
+          this.cdr.markForCheck();
+        },
+      });
   }
 }

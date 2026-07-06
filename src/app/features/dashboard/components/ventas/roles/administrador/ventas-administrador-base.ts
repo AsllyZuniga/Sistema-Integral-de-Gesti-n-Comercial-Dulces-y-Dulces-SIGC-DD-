@@ -231,7 +231,7 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
                 );
                 const cuota =
                   Number(row?.cuotaCiudad ?? row?.cuotaCiudadTotal ?? row?.cuota ?? 0) || 0;
-                const ventaAcum = Number(row?.ventaAcum ?? 0) || 0;
+                const ventaAcum = Number(row?.ventaAcum ?? row?.venta ?? 0) || 0;
                 const proyeccionVenta = Number(row?.proyeccionVenta ?? 0) || 0;
 
                 const idCiudad = String(

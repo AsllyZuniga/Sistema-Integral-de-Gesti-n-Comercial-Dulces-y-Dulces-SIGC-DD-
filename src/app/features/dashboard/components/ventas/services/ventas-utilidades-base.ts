@@ -2,6 +2,8 @@ import { Directive } from '@angular/core';
 import { takeUntil } from 'rxjs';
 import { DashboardFilters } from '../../../../../shared/components/filters/filters.component';
 import { VentasClientesBase } from './ventas-clientes-base';
+import { normalizarTextoFiltro } from '../../../../../shared/utils/text-normalization.util';
+import { repararNombreMunicipio } from '../../../../../shared/utils/narino-municipios.util';
 
 @Directive()
 export abstract class VentasUtilidadesBase extends VentasClientesBase {
@@ -10,7 +12,16 @@ export abstract class VentasUtilidadesBase extends VentasClientesBase {
     const txt = String(valor ?? '').trim();
     if (!txt) return '';
 
-    return txt.replace(/◊/g, 'ñ').replace(/Ø/g, 'Ñ').replace(/\s+/g, ' ').trim();
+    const saneado = normalizarTextoFiltro(
+      txt.replace(/◊/g, 'ñ').replace(/Ø/g, 'Ñ'),
+    );
+
+    // El backend entrega los municipios sin tildes a partir de febrero
+    // (enero sí viene bien). El util `repararNombreMunicipio` los repara
+    // contra el diccionario canónico de Nariño con fuzzy match Levenshtein.
+    // Si el valor no matchea con ningún municipio conocido (categoría,
+    // línea, etc.) lo devuelve saneado tal cual.
+    return repararNombreMunicipio(saneado);
   }
 
   protected normalizarTexto(valor: unknown): string {

@@ -15,6 +15,8 @@ import { CardComponent } from '../../../../shared/components/card/card.component
 import { UsuariosService } from '../../../../core/services/usuarios.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
+import { normalizarTextoFiltro } from '../../../../shared/utils/text-normalization.util';
+import { repararNombreMunicipio } from '../../../../shared/utils/narino-municipios.util';
 import { TipoCuota } from '../../../cumplimientos-cuota/cumplimientos.component';
 import { CumplimientoService } from '../../../../core/services/ventas/cumplimientoVentasMes.service';
 import { CumplimientoSemanaService } from '../../../../core/services/ventas/cumplimientoVentasSemana.service';
@@ -231,10 +233,12 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
   }
 
   private repararTexto(valor: unknown): string {
-    return String(valor ?? '')
-      .replace(/◊/g, 'ñ')
-      .replace(/Ø/g, 'Ñ')
-      .trim();
+    const saneado = normalizarTextoFiltro(
+      String(valor ?? '')
+        .replace(/◊/g, 'ñ')
+        .replace(/Ø/g, 'Ñ'),
+    );
+    return repararNombreMunicipio(saneado);
   }
 
   private leerCuota(valor: number | CuotaDetalle | null | undefined, clave: keyof CuotaDetalle): number {
