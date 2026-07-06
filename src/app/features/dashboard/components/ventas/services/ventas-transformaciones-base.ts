@@ -99,12 +99,12 @@ export abstract class VentasTransformacionesBase extends VentasEstadoBase {
           ...item,
           ciudad,
           cuota: Number(item?.cuota ?? item?.cuotaCiudad ?? 0),
-          ventaAcum: Number(item?.ventaAcum ?? 0),
+          ventaAcum: Number(item?.ventaAcum ?? item?.venta ?? 0),
           proyeccionVenta: Number(item?.proyeccionVenta ?? 0),
         });
       } else {
         existente.cuota += Number(item?.cuota ?? item?.cuotaCiudad ?? 0);
-        existente.ventaAcum += Number(item?.ventaAcum ?? 0);
+        existente.ventaAcum += Number(item?.ventaAcum ?? item?.venta ?? 0);
         existente.proyeccionVenta += Number(item?.proyeccionVenta ?? 0);
       }
     }
