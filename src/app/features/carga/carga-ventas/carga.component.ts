@@ -334,10 +334,14 @@ export class CargaComponent implements OnDestroy {
       if (data.status === 'completed') {
         const v = data.ventasEliminadas ?? 0;
         const d = data.detallesEliminados ?? 0;
-        this.mensajeOperacion =
-          v || d
-            ? `✅ Se eliminaron ${v} venta${v === 1 ? '' : 's'} y ${d} detalle${d === 1 ? '' : 's'}.`
-            : `ℹ️ No se encontraron ventas para eliminar.`;
+        const fv = data.factVentasEliminados ?? 0;
+        const partes: string[] = [];
+        if (v) partes.push(`${v} venta${v === 1 ? '' : 's'}`);
+        if (d) partes.push(`${d} detalle${d === 1 ? '' : 's'}`);
+        if (fv) partes.push(`${fv} fact${fv === 1 ? '' : ''}`);
+        this.mensajeOperacion = partes.length
+          ? `✅ Se eliminaron ${partes.join(', ')}.`
+          : `ℹ️ No se encontraron ventas para eliminar.`;
         this.tipoOperacion = 'success';
         this.previewResult = null;
       } else if (data.status === 'failed') {
