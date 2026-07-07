@@ -254,7 +254,7 @@ export class CargaComponent implements OnDestroy {
           const jobId = parsed?.data?.jobId;
 
           if (jobId) {
-            this.mensajeOperacion = '⏳ Eliminación iniciada (0%)...';
+            this.mensajeOperacion = 'Eliminación iniciada (0%)...';
             this.tipoOperacion = null;
             this.cd.detectChanges();
             this.startPolling(jobId);
@@ -295,7 +295,7 @@ export class CargaComponent implements OnDestroy {
   }
 
   private startPolling(jobId: string): void {
-    const MAX_RETRIES = 150;
+    const MAX_RETRIES = 1800;
     let retries = 0;
 
     this.pollingSub = interval(2000).pipe(
@@ -307,7 +307,7 @@ export class CargaComponent implements OnDestroy {
       map((r) => r.data),
       tap((data) => {
         if (data.status === 'running') {
-          this.mensajeOperacion = `⏳ Eliminando... ${data.progress ?? retries}%`;
+          this.mensajeOperacion = `Eliminando... ${data.progress ?? retries}%`;
           this.cd.detectChanges();
         }
         retries++;
@@ -322,7 +322,7 @@ export class CargaComponent implements OnDestroy {
       catchError((err) => {
         this.mensajeOperacion =
           err.status === 404
-            ? '⚠️ Job expiró. Verifica manualmente.'
+            ? 'El job expiró. Verifica manualmente.'
             : `Error al consultar progreso: ${err.message ?? err.status}`;
         this.tipoOperacion = 'error';
         this.cd.detectChanges();
@@ -340,15 +340,15 @@ export class CargaComponent implements OnDestroy {
         if (d) partes.push(`${d} detalle${d === 1 ? '' : 's'}`);
         if (fv) partes.push(`${fv} fact${fv === 1 ? '' : ''}`);
         this.mensajeOperacion = partes.length
-          ? `✅ Se eliminaron ${partes.join(', ')}.`
-          : `ℹ️ No se encontraron ventas para eliminar.`;
+          ? `Se eliminaron ${partes.join(', ')}.`
+          : `No se encontraron ventas para eliminar.`;
         this.tipoOperacion = 'success';
         this.previewResult = null;
       } else if (data.status === 'failed') {
-        this.mensajeOperacion = `❌ Error: ${data.error ?? 'desconocido'}`;
+        this.mensajeOperacion = `Error: ${data.error ?? 'desconocido'}`;
         this.tipoOperacion = 'error';
       } else if (retries >= MAX_RETRIES) {
-        this.mensajeOperacion = `⏰ Tiempo agotado. Job en estado "${data.status}". Verifica manualmente.`;
+        this.mensajeOperacion = `La operación está tomando más de lo esperado. Job "${data.status}". Verifica manualmente.`;
         this.tipoOperacion = 'error';
       }
       this.cd.detectChanges();
