@@ -5,7 +5,8 @@ import { FormsModule } from '@angular/forms';
 import { SidebarComponent } from '../../../shared/components/sidebar/sidebar.component';
 import { TopbarComponent } from '../../../shared/components/topbar/topbar.component';
 import { AuthService } from '../../../core/services/auth.service';
-import { timeout } from 'rxjs/operators';
+import { interval, of, Subscription } from 'rxjs';
+import { switchMap, catchError, takeWhile, tap, map, timeout } from 'rxjs/operators';
 
 type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
 type TipoError = 'formato' | 'columnas' | 'datos' | 'servidor' | 'desconocido';
@@ -61,6 +62,8 @@ export class CargaComponent implements OnDestroy {
 
   showConfirmModal = false;
   confirmInput = '';
+
+  private pollingSub: Subscription | null = null;
 
   constructor(
     private http: HttpClient,
@@ -247,12 +250,21 @@ export class CargaComponent implements OnDestroy {
           this.confirmInput = '';
           this.previewResult = null;
 
-          this.mensajeOperacion =
-            this.formatearMensajeEliminacion(res, fechaIsoInicio, fechaIsoFin) ||
-            `Se eliminaron las ventas del período ${this.formatearPeriodo(fechaIsoInicio, fechaIsoFin)}.`;
+          const parsed = this.intentarParsearJson(res);
+          const jobId = parsed?.data?.jobId;
 
-          this.tipoOperacion = 'success';
-          this.cd.detectChanges();
+          if (jobId) {
+            this.mensajeOperacion = '⏳ Eliminación iniciada (0%)...';
+            this.tipoOperacion = null;
+            this.cd.detectChanges();
+            this.startPolling(jobId);
+          } else {
+            this.mensajeOperacion =
+              this.formatearMensajeEliminacion(res, fechaIsoInicio, fechaIsoFin) ||
+              `Se eliminaron las ventas del período ${this.formatearPeriodo(fechaIsoInicio, fechaIsoFin)}.`;
+            this.tipoOperacion = 'success';
+            this.cd.detectChanges();
+          }
         },
         error: (err: HttpErrorResponse) => {
           this.eliminando = false;
@@ -280,6 +292,63 @@ export class CargaComponent implements OnDestroy {
 
   private formatearPeriodo(fechaInicio: string, fechaFin: string): string {
     return `${fechaInicio} al ${fechaFin}`;
+  }
+
+  private startPolling(jobId: string): void {
+    const MAX_RETRIES = 150;
+    let retries = 0;
+
+    this.pollingSub = interval(2000).pipe(
+      switchMap(() =>
+        this.http.get<{ success: boolean; data: any }>(
+          `${this.adminVentasUrl}/admin/ventas/job/${jobId}`
+        )
+      ),
+      map((r) => r.data),
+      tap((data) => {
+        if (data.status === 'running') {
+          this.mensajeOperacion = `⏳ Eliminando... ${data.progress ?? retries}%`;
+          this.cd.detectChanges();
+        }
+        retries++;
+      }),
+      takeWhile(
+        (data) => {
+          if (retries >= MAX_RETRIES) return false;
+          return data.status !== 'completed' && data.status !== 'failed';
+        },
+        true
+      ),
+      catchError((err) => {
+        this.mensajeOperacion =
+          err.status === 404
+            ? '⚠️ Job expiró. Verifica manualmente.'
+            : `Error al consultar progreso: ${err.message ?? err.status}`;
+        this.tipoOperacion = 'error';
+        this.cd.detectChanges();
+        return of(null);
+      })
+    ).subscribe((data) => {
+      if (!data) return;
+
+      if (data.status === 'completed') {
+        const v = data.ventasEliminadas ?? 0;
+        const d = data.detallesEliminados ?? 0;
+        this.mensajeOperacion =
+          v || d
+            ? `✅ Se eliminaron ${v} venta${v === 1 ? '' : 's'} y ${d} detalle${d === 1 ? '' : 's'}.`
+            : `ℹ️ No se encontraron ventas para eliminar.`;
+        this.tipoOperacion = 'success';
+        this.previewResult = null;
+      } else if (data.status === 'failed') {
+        this.mensajeOperacion = `❌ Error: ${data.error ?? 'desconocido'}`;
+        this.tipoOperacion = 'error';
+      } else if (retries >= MAX_RETRIES) {
+        this.mensajeOperacion = `⏰ Tiempo agotado. Job en estado "${data.status}". Verifica manualmente.`;
+        this.tipoOperacion = 'error';
+      }
+      this.cd.detectChanges();
+    });
   }
 
   private formatearMensajeEliminacion(
@@ -646,7 +715,9 @@ export class CargaComponent implements OnDestroy {
     this.auth.logout();
   }
 
-  ngOnDestroy(): void {}
+  ngOnDestroy(): void {
+    this.pollingSub?.unsubscribe();
+  }
 
   private parsearDatosDesdeTexto(texto: string): ImportVentasResponse | null {
     if (!texto) return null;
