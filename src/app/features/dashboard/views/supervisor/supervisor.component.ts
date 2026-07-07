@@ -164,7 +164,11 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
 
   get codigoVendedorAnalisis(): string {
     const codigo = String(this.filtrosActivos?.vendedor ?? '').trim();
-    return codigo || 'ALL';
+    // Selección múltiple (CSV) debe tratarse como 'ALL' para que el
+    // análisis use el flujo admin-todos (filtra localmente por los
+    // códigos seleccionados) en vez del flujo de un solo vendedor.
+    if (!codigo || codigo.includes(',')) return 'ALL';
+    return codigo;
   }
 
   ngOnInit(): void {
