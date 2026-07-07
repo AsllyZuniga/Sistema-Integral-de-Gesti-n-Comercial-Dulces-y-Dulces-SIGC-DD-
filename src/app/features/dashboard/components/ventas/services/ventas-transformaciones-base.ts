@@ -324,13 +324,19 @@ export abstract class VentasTransformacionesBase extends VentasEstadoBase {
     if (!Array.isArray(codigos) || codigos.length === 0) return listado;
 
     const filtrosSet = new Set<string>();
+    const idsFiltro = new Set<string>();
     codigos.forEach((codigo) => {
       this.clavesProveedorComparacion(codigo).forEach((clave) => filtrosSet.add(clave));
+      const valor = String(codigo ?? '').trim();
+      if (valor) idsFiltro.add(valor);
     });
 
-    if (filtrosSet.size === 0) return listado;
+    if (filtrosSet.size === 0 && idsFiltro.size === 0) return listado;
 
     return listado.filter((item: any) => {
+      const idProveedor = String(item?.idProveedor ?? item?.id_proveedor ?? '').trim();
+      if (idProveedor && idsFiltro.has(idProveedor)) return true;
+
       const candidatosFila = [
         item?.idProveedor,
         item?.id_proveedor,
