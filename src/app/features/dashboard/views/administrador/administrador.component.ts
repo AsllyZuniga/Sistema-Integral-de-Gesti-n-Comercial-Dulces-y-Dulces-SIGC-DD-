@@ -250,13 +250,16 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     const raw = String(valor ?? '').trim();
     if (!raw) return '';
 
-    // Soporta valores como "0002" o "0002 - MENESES GUERRERO VICTOR HUGO".
-    const match = raw.match(/^\s*(\d+)/);
-    if (match?.[1]) {
-      return match[1].padStart(4, '0');
-    }
-
-    return raw;
+    // Soporta valores como "0002", "0002 - MENESES GUERRERO VICTOR HUGO",
+    // o selección múltiple CSV "0001,0002 - NOMBRE,0003".
+    return raw
+      .split(',')
+      .map((parte) => {
+        const match = parte.trim().match(/^\s*(\d+)/);
+        return match?.[1] ? match[1].padStart(4, '0') : parte.trim();
+      })
+      .filter(Boolean)
+      .join(',');
   }
 
   private actualizarFiltrosAnalisis(): void {
