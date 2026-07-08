@@ -111,7 +111,10 @@ export abstract class VentasUtilidadesBase extends VentasClientesBase {
     let nombre = this.repararTextoCiudad(valor);
     if (!nombre) return '';
 
-    nombre = nombre.replace(/^\d+\s*-\s*/u, '');
+    // Algunas categorías llegan con doble código antepuesto, ej.
+    // "0101 - 1000-COMPOTAS" (código de categoría + código de línea/grupo).
+    // Se quitan todos los prefijos numéricos con guion, con o sin espacios.
+    nombre = nombre.replace(/^(\s*\d+\s*-\s*)+/u, '');
     return nombre.trim();
   }
 
@@ -406,7 +409,7 @@ export abstract class VentasUtilidadesBase extends VentasClientesBase {
   protected nombreProveedorCard(lineaRaw: unknown): string {
     const linea = String(lineaRaw ?? '').trim();
     if (!linea) return '—';
-    const sinCodigo = linea.replace(/^\d+\s*-\s*/u, '').trim();
+    const sinCodigo = linea.replace(/^(\s*\d+\s*-\s*)+/u, '').trim();
     return sinCodigo || linea;
   }
 

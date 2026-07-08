@@ -1,12 +1,14 @@
 import { FilterOption } from '../components/filters/filters.component';
 
 /**
- * Quita un código de reporte antepuesto tipo "1132 - TONING" o
- * "1132-TONING", dejando solo el nombre.
+ * Quita códigos antepuestos tipo "1132 - TONING" o "1132-TONING". Algunas
+ * categorías llegan con doble código, ej. "0101 - 1000-COMPOTAS" (código
+ * de categoría + código de línea/grupo) — se quitan todos los prefijos
+ * numéricos con guion, con o sin espacios, no solo el primero.
  */
 function quitarCodigoAntepuesto(valor: string): string {
   return String(valor ?? '')
-    .replace(/^\s*\d+\s*-\s*/u, '')
+    .replace(/^(\s*\d+\s*-\s*)+/u, '')
     .trim();
 }
 

@@ -794,7 +794,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       const value = codigo || categoriaLimpia;
       if (unicas.has(value)) return;
 
-      unicas.set(value, { value, label: categoriaRaw });
+      unicas.set(value, { value, label: categoriaLimpia });
     });
 
     return enriquecerOpcionesSinDuplicadosVisuales(Array.from(unicas.values()));
