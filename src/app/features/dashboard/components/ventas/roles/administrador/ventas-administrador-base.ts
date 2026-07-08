@@ -32,12 +32,12 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
             // todo y deja la tabla vacía para el supervisor. Solo el caso
             // legacy de admin "default" (cumplimientoMesAdmin) lo requiere.
             const detallePermitido = Array.isArray(res?.detalle) ? res.detalle : [];
-            const categoriasSeleccionadas =
-              Array.isArray(filtrosConsulta.categorias) && filtrosConsulta.categorias.length
-                ? filtrosConsulta.categorias.filter(Boolean)
-                : Array.isArray(filtrosConsulta.categoriaNombres)
-                  ? filtrosConsulta.categoriaNombres.filter(Boolean)
-                  : [];
+            const categoriasSeleccionadas = this.normalizarValoresFiltro(
+              filtrosConsulta.categorias && filtrosConsulta.categorias.length
+                ? filtrosConsulta.categorias
+                : filtrosConsulta.categoriaNombres,
+              null,
+            );
             const categoriaFiltro = categoriasSeleccionadas.length
               ? categoriasSeleccionadas
               : filtrosConsulta.categoria;

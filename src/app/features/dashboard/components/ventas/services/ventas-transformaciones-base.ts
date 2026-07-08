@@ -281,8 +281,12 @@ export abstract class VentasTransformacionesBase extends VentasEstadoBase {
    * Devuelve siempre array de strings limpio.
    */
   protected normalizarValoresFiltro(arr: unknown, legacy: unknown): string[] {
+    // Cada elemento puede a su vez traer varios códigos separados por coma
+    // (ej. una opción de filtro fusionada como "1132,1167" para un mismo
+    // proveedor con dos códigos de reporte) — se expanden todos a valores
+    // individuales.
     const fromArr = Array.isArray(arr)
-      ? arr.map((v) => String(v ?? '').trim()).filter(Boolean)
+      ? arr.flatMap((v) => String(v ?? '').split(',')).map((v) => v.trim()).filter(Boolean)
       : [];
     if (fromArr.length) return fromArr;
     const raw = String(legacy ?? '').trim();
