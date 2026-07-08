@@ -139,7 +139,12 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
               ? this.filtrarProveedoresMulti(detalleMapeado, proveedoresSeleccionados)
               : detalleMapeado;
 
-            const ordenado = this.ordenarProveedoresPorAlfabeto(detalleFiltradoPorProveedor);
+            // Fusionar filas del mismo proveedor que llegaron con distinto
+            // código de reporte ("535 - ABBOTT" / "536 - ABBOTT") y quitar
+            // el código antepuesto del nombre mostrado.
+            const detalleConsolidado = this.consolidarPorLinea(detalleFiltradoPorProveedor);
+
+            const ordenado = this.ordenarProveedoresPorAlfabeto(detalleConsolidado);
 
             this.tableData = ordenado;
             this.totalCuotaProveedor = ordenado.reduce(

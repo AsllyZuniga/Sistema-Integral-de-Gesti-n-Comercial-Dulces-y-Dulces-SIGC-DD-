@@ -587,8 +587,9 @@ export abstract class VentasUtilidadesBase extends VentasClientesBase {
     const linea = String(item?.linea ?? '').trim();
     if (!linea) return '';
 
-    const partes = linea.split('-');
-    const nombre = partes.length > 1 ? partes.slice(1).join('-') : linea;
+    // El nombre ya llega sin código antepuesto (ver nombreProveedorCard),
+    // pero se limpia aquí también por si algún caller pasa el valor crudo.
+    const nombre = this.nombreProveedorCard(linea);
 
     return nombre
       .trim()

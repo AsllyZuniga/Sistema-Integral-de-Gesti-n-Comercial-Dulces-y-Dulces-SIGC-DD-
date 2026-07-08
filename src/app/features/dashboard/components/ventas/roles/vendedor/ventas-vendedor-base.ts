@@ -118,8 +118,9 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
             .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((res: any) => {
               const filtrado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
-              const listadoTabla = this.ordenarProveedoresPorAlfabeto(filtrado);
-              const topProveedores = this.limitarTopProveedores(filtrado);
+              const consolidado = this.consolidarPorLinea(filtrado);
+              const listadoTabla = this.ordenarProveedoresPorAlfabeto(consolidado);
+              const topProveedores = this.limitarTopProveedores(consolidado);
               this.tableData = listadoTabla;
               this.chartData = topProveedores.map((i: any) => ({
                 name: i.linea,
@@ -218,8 +219,11 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
                   return;
                 }
 
-                const listadoTabla = this.ordenarProveedoresPorAlfabeto(listadoFiltrado);
-                const topProveedores = [...listadoFiltrado]
+                // Fusionar filas del mismo proveedor con distinto código de
+                // reporte y quitar el código antepuesto del nombre mostrado.
+                const listadoConsolidado = this.consolidarPorLinea(listadoFiltrado);
+                const listadoTabla = this.ordenarProveedoresPorAlfabeto(listadoConsolidado);
+                const topProveedores = [...listadoConsolidado]
                   .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
                   .slice(0, 12);
 

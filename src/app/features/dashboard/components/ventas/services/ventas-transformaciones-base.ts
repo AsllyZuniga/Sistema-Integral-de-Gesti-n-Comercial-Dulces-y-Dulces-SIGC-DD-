@@ -11,18 +11,28 @@ export abstract class VentasTransformacionesBase extends VentasEstadoBase {
   protected abstract esCiudadResumen(valor: unknown): boolean;
   protected abstract normalizarTexto(valor: unknown): string;
   protected abstract filtrarVendedores(listado: any[], codigoVendedor: string): any[];
+  protected abstract nombreProveedorCard(lineaRaw: unknown): string;
 
+  /**
+   * Agrupa filas de proveedor por nombre limpio (sin código de reporte
+   * antepuesto), para que "535 - ABBOTT" y "536 - ABBOTT" se fusionen en
+   * una sola fila "ABBOTT" con los montos sumados, en vez de aparecer
+   * como proveedores distintos por traer un código de reporte distinto.
+   */
   protected consolidarPorLinea(lineas: any[]): any[] {
     const mapa = new Map<string, any>();
 
     for (const item of lineas) {
-      const linea = String(item?.linea ?? '').trim();
-      if (!linea) continue;
+      const nombreLimpio = this.nombreProveedorCard(item?.linea ?? item?.reporteProvConObs ?? '');
+      if (!nombreLimpio || nombreLimpio === '—') continue;
 
-      const existente = mapa.get(linea);
+      const existente = mapa.get(nombreLimpio);
       if (!existente) {
-        mapa.set(linea, {
+        mapa.set(nombreLimpio, {
           ...item,
+          linea: nombreLimpio,
+          reporteProvConObs: nombreLimpio,
+          proveedor: nombreLimpio,
           cuotaLinea: Number(item?.cuotaLinea ?? 0),
           ventaAcum: Number(item?.ventaAcum ?? 0),
           proyeccionVenta: Number(item?.proyeccionVenta ?? 0),
