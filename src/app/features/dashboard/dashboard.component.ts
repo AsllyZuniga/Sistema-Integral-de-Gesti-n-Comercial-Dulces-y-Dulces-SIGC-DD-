@@ -707,10 +707,14 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private obtenerCodigoProveedorLinea(item: ApiLineaRow | any): string {
+    // idProveedor/id_proveedor es el id numérico real de la tabla
+    // `proveedor`, el único valor que el backend acepta en el filtro
+    // (`it.id_proveedor IN (...)`). codigoLinea/codigo_linea NO es un
+    // código: el backend lo llena con el nombre completo del proveedor
+    // ("1200 - ALDOR"), así que priorizarlo mandaba ese texto como value
+    // del filtro y el backend nunca matcheaba (0 resultados).
     const codigo = String(
-      item?.codigoLinea ??
-        item?.codigo_linea ??
-        item?.idProveedor ??
+      item?.idProveedor ??
         item?.id_proveedor ??
         item?.codigoProveedor ??
         item?.codigo ??
