@@ -537,16 +537,13 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       if (!codigo || !nombre) continue;
 
       mapa.set(codigo, {
-        label: `${codigo} - ${nombre}`,
+        label: `${codigo} ${nombre}`,
         value: codigo,
       });
     }
 
-    return Array.from(mapa.values()).sort((a, b) =>
-      a.label.localeCompare(b.label, 'es', {
-        sensitivity: 'base',
-        numeric: true,
-      }),
+    return Array.from(mapa.values()).sort(
+      (a, b) => Number(a.value) - Number(b.value),
     );
   }
 
@@ -558,6 +555,10 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       this.vendedorMap.set(opt.label, opt.value);
       this.vendedorMap.set(opt.value, opt.value);
     });
+  }
+
+  private ordenarVendedoresPorCodigo(opciones: FilterOption[]): FilterOption[] {
+    return [...opciones].sort((a, b) => Number(a.value) - Number(b.value));
   }
 
 
@@ -1161,9 +1162,11 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         }
 
         this.aplicarOpcionesVendedores(
-          this.conservarOpcionesSeleccionadas(
-            Array.isArray(opciones.vendedores) ? opciones.vendedores : [],
-            this.normalizarArrayFiltro(filtrosReferencia.vendedores, filtrosReferencia.vendedor),
+          this.ordenarVendedoresPorCodigo(
+            this.conservarOpcionesSeleccionadas(
+              Array.isArray(opciones.vendedores) ? opciones.vendedores : [],
+              this.normalizarArrayFiltro(filtrosReferencia.vendedores, filtrosReferencia.vendedor),
+            ),
           ),
         );
 
