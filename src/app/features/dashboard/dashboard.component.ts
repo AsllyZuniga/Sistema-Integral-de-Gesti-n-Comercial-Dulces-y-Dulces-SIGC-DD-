@@ -524,7 +524,9 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private obtenerNombreVendedorRow(vendedor: ApiVendedorRow): string {
-    return String(vendedor.nombre ?? vendedor.nom_vendedor ?? vendedor.nomVendedor ?? '').trim();
+    let nombre = String(vendedor.nombre ?? vendedor.nom_vendedor ?? vendedor.nomVendedor ?? '').trim();
+    nombre = nombre.replace(/^\d+\s*-\s*/u, '').trim();
+    return nombre;
   }
 
   private construirOpcionesVendedores(vendedores: ApiVendedorRow[]): FilterOption[] {

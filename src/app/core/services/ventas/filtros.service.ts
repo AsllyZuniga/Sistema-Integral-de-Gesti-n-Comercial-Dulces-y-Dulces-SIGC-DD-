@@ -169,8 +169,10 @@ export class FiltrosService {
 
     for (const item of Array.isArray(items) ? items : []) {
       const rawValue = normalizarTextoFiltro(pick(item, valueKeys) || pick(item, labelKeys));
-      const nombre = normalizarTextoFiltro(pick(item, labelKeys) || rawValue);
+      let nombre = normalizarTextoFiltro(pick(item, labelKeys) || rawValue);
       if (!rawValue || !nombre) continue;
+
+      nombre = nombre.replace(/^\d+\s*-\s*/u, '').trim();
 
       const codigo = this.zeroPadCodigo(rawValue);
       if (!opciones.has(codigo)) {
