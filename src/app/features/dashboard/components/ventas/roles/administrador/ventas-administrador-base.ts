@@ -403,6 +403,209 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
 
   // ─── CUOTA DIARIA ADMIN ──────────────────────────────────────────────────────────────
 
+  /**
+   * Helper: extrae el valor numérico de la cuota diaria desde un campo que
+   * puede llegar como `number` plano o como objeto `{ cuota_dia: N }`
+   * (shape que entrega `/dia/cumplimiento/front` para cuotaDia/cuotaDiaria).
+   */
+  private leerCuotaDiariaNumero(valor: any): number {
+    if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
+    if (valor && typeof valor === 'object') {
+      return Number(valor.cuota_dia ?? valor.cuota_mes ?? valor.cuota_semana ?? 0) || 0;
+    }
+    return Number(valor ?? 0) || 0;
+  }
+
+  /**
+   * FIX: repara nombres de proveedores que llegan con el carácter de
+   * reemplazo Unicode (U+FFFD) por mal encoding del backend
+   * (típicamente Windows-1252/UTF-8 mojibake). El backend entrega
+   * p.ej. "OCA\uFFFDA" cuando debería ser "OCAÑA". La regla usada
+   * en el resto del proyecto (`normalizarTextoFiltro`) solo ELIMINA
+   * el U+FFFD, perdiendo la letra Ñ. Aquí lo re-mapeamos a Ñ.
+   */
+  private repararNombreVendedorEncoding(nombre: unknown): string {
+    let txt = String(nombre ?? '').trim();
+    if (!txt) return '';
+    // Caso típico: \uFFFD antes de A, E, I, O, U, S, Z, etc. → restaurar Ñ.
+    // (U+FFFD antes de cualquier letra = la letra Ñ mal decodificada.)
+    txt = txt.replace(/\uFFFD(?=[A-Za-zÁÉÍÓÚáéíóúÑñ])/g, 'Ñ');
+    // También eliminar U+FFFD sueltos (no seguidos de letra) por si acaso.
+    txt = txt.replace(/\uFFFD/g, '');
+    return txt;
+  }
+
+  /**
+   * Mapea el detalle de `/dia/cumplimiento/front` (shape de cumplimiento
+   * que ya alimenta las cards) al shape interno de cuota diaria usado por
+   * la tabla y los charts. Esto garantiza que la card "Venta Diaria" y
+   * el total acumulado de la tabla coincidan exactamente.
+   */
+  protected mapearCuotaDiariaDataDesdeCumplimiento(filas: any[]): any[] {
+    if (!Array.isArray(filas)) return [];
+    return filas
+      .filter((fila) => fila != null)
+      .map((fila: any) => ({
+        codVendedor: String(
+          fila?.codigo_vendedor ?? fila?.codVendedor ?? fila?.codigoVendedor ?? fila?.cod ?? '',
+        ).trim(),
+        nombre: this.repararNombreVendedorEncoding(
+          fila?.nombre ?? fila?.nom_vendedor ?? '',
+        ),
+        cuotaDiaria: this.leerCuotaDiariaNumero(fila?.cuotaDiaria ?? fila?.cuotaDia),
+        ventaAcum:
+          Number(
+            fila?.ventaAcum ?? fila?.ventaDiaria ?? fila?.venta_acumulada_dia ?? 0,
+          ) || 0,
+        porcCump: Number(fila?.porcCump ?? fila?.cumplimiento ?? fila?.pct_cumplimiento ?? 0) || 0,
+        proyeccionVenta:
+          Number(
+            fila?.proyeccionVenta ??
+              fila?.proyeccion ??
+              fila?.proye_venta ??
+              fila?.promedioDiario ??
+              0,
+          ) || 0,
+        porcCumProy:
+          Number(
+            fila?.porcCumProy ??
+              fila?.cumplimientoProyectado ??
+              fila?.pct_cumplimiento ??
+              fila?.porcCump ??
+              0,
+          ) || 0,
+      }));
+  }
+
+  /**
+   * FIX: deduplica el detalle de `/dia/cumplimiento/front` por código de
+   * vendedor. El endpoint puede devolver varias filas para el mismo
+   * vendedor (ej. "0001" con datos y "1" con ceros) y solo nos interesa
+   * la fila con datos reales. Misma lógica que
+   * `AdministradorComponent.normalizarDetalleCuotaDiaria`.
+   */
+  private puntajeFilaCuotaDiaria(fila: any): number {
+    if (!fila) return 0;
+    return [
+      this.leerCuotaDiariaNumero(fila?.cuotaDiaria ?? fila?.cuotaDia),
+      Number(fila?.ventaAcum ?? fila?.ventaDiaria ?? fila?.venta_acumulada_dia ?? 0) || 0,
+      Number(fila?.porcCump ?? fila?.cumplimiento ?? 0) || 0,
+      Number(
+        fila?.proyeccionVenta ?? fila?.proyeccion ?? fila?.proye_venta ?? 0,
+      ) || 0,
+    ].reduce((suma, valor) => suma + Math.abs(valor), 0);
+  }
+
+  private esMejorFilaCuotaDiaria(candidata: any, actual: any): boolean {
+    if (!actual) return true;
+    const puntajeCandidata = this.puntajeFilaCuotaDiaria(candidata);
+    const puntajeActual = this.puntajeFilaCuotaDiaria(actual);
+    if (puntajeCandidata !== puntajeActual) return puntajeCandidata > puntajeActual;
+    const ventaCandidata =
+      Number(candidata?.ventaAcum ?? candidata?.ventaDiaria ?? 0) || 0;
+    const ventaActual = Number(actual?.ventaAcum ?? actual?.ventaDiaria ?? 0) || 0;
+    if (ventaCandidata !== ventaActual) return ventaCandidata > ventaActual;
+    const cuotaCandidata = this.leerCuotaDiariaNumero(
+      candidata?.cuotaDiaria ?? candidata?.cuotaDia,
+    );
+    const cuotaActual = this.leerCuotaDiariaNumero(actual?.cuotaDiaria ?? actual?.cuotaDia);
+    return cuotaCandidata > cuotaActual;
+  }
+
+  /**
+   * Genera todas las variantes de un código de vendedor (con/sin ceros)
+   * para que el match funcione tanto para "0001" como para "1".
+   */
+  private generarClavesCodigoVendedor(codigoRaw: unknown): string[] {
+    const codigo = String(codigoRaw ?? '').trim();
+    if (!codigo) return [];
+    const claves = new Set<string>([codigo]);
+    const numerico = codigo.replace(/\D/g, '');
+    if (numerico) {
+      claves.add(numerico);
+      claves.add(String(Number(numerico)));
+      claves.add(numerico.padStart(4, '0'));
+      claves.add(numerico.replace(/^0+/, '') || numerico);
+    }
+    return Array.from(claves).filter(Boolean);
+  }
+
+  private dedupeCuotaDiariaPorCodigo(detalle: any[]): any[] {
+    if (!Array.isArray(detalle)) return [];
+    // clave normalizada (con padding "0001") → mejor fila vista.
+    // Guardamos también la fila bajo sus otras variantes de clave para
+    // que el lookup las encuentre; al final deduplicamos los values
+    // para no devolver la misma fila N veces (una por cada key alias).
+    const porCodigo = new Map<string, any>();
+
+    detalle.forEach((fila) => {
+      const codigo = String(
+        fila?.codigo_vendedor ??
+          fila?.codVendedor ??
+          fila?.codigoVendedor ??
+          fila?.codigo ??
+          fila?.cod ??
+          '',
+      ).trim();
+
+      // FIX: descartar filas sin código (ej. "—" / "SIN NOMBRE") y filas
+      // marcadas como TOTALES que no se filtraron en el paso previo.
+      if (!codigo || codigo === '—' || codigo === '-') return;
+
+      const claves = this.generarClavesCodigoVendedor(codigo);
+
+      // Buscar si alguna variante de este código ya está registrada.
+      let conflicto: any = null;
+      for (const clave of claves) {
+        const encontrada = porCodigo.get(clave);
+        if (encontrada) {
+          conflicto = encontrada;
+          break;
+        }
+      }
+
+      if (this.esMejorFilaCuotaDiaria(fila, conflicto)) {
+        // Guardar la fila bajo TODAS las variantes de clave para que
+        // futuras filas con códigos equivalentes (ej. "1" vs "0001")
+        // la encuentren en el lookup.
+        for (const clave of claves) {
+          porCodigo.set(clave, fila);
+        }
+      }
+    });
+
+    // Dedupe: como cada fila se guarda bajo N keys, el values() las
+    // devuelve N veces. Filtramos por referencia.
+    const valoresUnicos: any[] = [];
+    const vistos = new Set<any>();
+    for (const valor of porCodigo.values()) {
+      if (!vistos.has(valor)) {
+        vistos.add(valor);
+        valoresUnicos.push(valor);
+      }
+    }
+
+    return valoresUnicos;
+  }
+
+  /**
+   * Procesa la respuesta cruda de `/dia/cumplimiento/front` (o
+   * `/dia/cumplimiento/supervisor/:id`):
+   * 1) quita la fila TOTALES,
+   * 2) deduplica por código de vendedor (varios códigos para el mismo vendor),
+   * 3) mapea al shape interno de cuota diaria.
+   */
+  protected mapearCuotaDiariaAdminDesdeCumplimiento(res: any): any[] {
+    const detalleBruto = Array.isArray(res?.detalle) ? res.detalle : [];
+    const detalleSinTotales = detalleBruto.filter(
+      (v: any) =>
+        String(v?.codVendedor ?? v?.codigo_vendedor ?? '').trim().toUpperCase() !== 'TOTALES' &&
+        String(v?.nombre ?? v?.nom_vendedor ?? '').trim().toUpperCase() !== 'TOTALES',
+    );
+    const detalleDeduplicado = this.dedupeCuotaDiariaPorCodigo(detalleSinTotales);
+    return this.mapearCuotaDiariaDataDesdeCumplimiento(detalleDeduplicado);
+  }
+
   protected cargarVistaAdminCuotaDiaria(filtrosConsulta: DashboardFilters): void {
     const fechaInicio = String(filtrosConsulta.fechaInicio ?? '').trim();
     const fechaFin = String(filtrosConsulta.fechaFin ?? '').trim();
@@ -418,28 +621,41 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
       return;
     }
 
-    this.cuotaDiaService
-      .getCuotaDiaAdmin({ fechaInicio, fechaFin })
+    // FIX: usar el MISMO endpoint que las cards (cumplimientoService
+    // /dia/cumplimiento/front) para que la card "Venta Diaria" y el
+    // total acumulado de la tabla coincidan exactamente. Antes este
+    // método llamaba a /api/cuota-dia/por-dia (cuotaDiaService) que
+    // devolvía un cálculo distinto para la misma fecha.
+    this.cumplimientoService
+      .getCumplimientoDiaAdmin(filtrosConsulta)
       .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-      .subscribe((cuotas: any[]) => {
-        console.debug('[Admin CuotaDiaria] Respuesta del endpoint:', {
-          totalRegistros: cuotas?.length ?? 0,
-          primerRegistro: cuotas?.[0] ?? null,
+      .subscribe((res: any) => {
+        const detalleBruto = Array.isArray(res?.detalle) ? res.detalle : [];
+        const totalesApi = res?.totales ?? null;
+
+        console.debug('[Admin CuotaDiaria] Respuesta del endpoint cumplimiento:', {
+          totalRegistros: detalleBruto.length,
+          totales: totalesApi,
         });
 
-        this.cuotasDiariasCache = cuotas;
+        // FIX: dedup + map en un solo paso (helper compartido con
+        // supervisor y vendedor para mantener la misma lógica).
+        const cuotasMapeadas = this.mapearCuotaDiariaAdminDesdeCumplimiento(res);
+        console.debug('[Admin CuotaDiaria] Datos mapeados (post-dedup):', {
+          total: cuotasMapeadas.length,
+        });
 
-        if (!cuotas.length) {
+        this.cuotasDiariasCache = cuotasMapeadas as any;
+
+        if (!cuotasMapeadas.length) {
           console.warn('[Admin CuotaDiaria] Endpoint retornó 0 registros');
           this.tableData = [];
           this.chartData = [];
           this.totalCuotaDiaria = 0;
+          this.emitirResumenVista();
           this.cdr.markForCheck();
           return;
         }
-
-        const cuotasMapeadas = this.mapearCuotaDiariaData(cuotas);
-        console.debug('[Admin CuotaDiaria] Datos mapeados:', { total: cuotasMapeadas.length });
 
         const cuotasFiltradas = this.filtrarPorCodigosVendedoresPermitidos(cuotasMapeadas);
         console.debug('[Admin CuotaDiaria] Datos después de filtrar:', {
@@ -464,20 +680,21 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
               0,
             );
 
+            const ventaAcumFuenteUnica = this.obtenerVentaAcumUnificadaCuotaDiaria(
+              vendedoresFiltrados,
+              totalesApi,
+            );
+
+            this.totalAcumuladoVentas = ventaAcumFuenteUnica;
+
             this.chartData = [
               { name: 'Cuota Diaria', value: this.totalCuotaDiaria },
-              {
-                name: 'Venta Acumulada',
-                value: vendedoresFiltrados.reduce(
-                  (s: number, i: any) => s + (Number(i.ventaAcum ?? 0) || 0),
-                  0,
-                ),
-              },
+              { name: 'Venta Acumulada', value: ventaAcumFuenteUnica },
               {
                 name: 'Proyección',
-                value: vendedoresFiltrados.reduce(
-                  (s: number, i: any) => s + (Number(i.proyeccionVenta ?? 0) || 0),
-                  0,
+                value: this.obtenerProyeccionUnificadaCuotaDiaria(
+                  vendedoresFiltrados,
+                  totalesApi,
                 ),
               },
             ];
@@ -505,9 +722,12 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
             );
 
             this.totalCuotaVendedor = this.totalCuotaDiaria;
-            this.totalAcumuladoVendedor = vendedoresFiltrados.reduce(
-              (sum: number, item: any) => sum + (Number(item.ventaAcum ?? 0) || 0),
-              0,
+
+            // FIX: usar la misma fuente única que la card (totales.totalVenta
+            // si existe, si no la suma de las filas) para que coincida.
+            this.totalAcumuladoVendedor = this.obtenerVentaAcumUnificadaCuotaDiaria(
+              vendedoresFiltrados,
+              totalesApi,
             );
 
             const topVendedores = [...vendedoresFiltrados]
@@ -538,8 +758,41 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
             break;
         }
 
+        this.emitirResumenVista();
         this.cdr.markForCheck();
       });
+  }
+
+  /**
+   * FIX: calcula la "Venta Acumulada" usando el mismo origen que la card
+   * KPI del administrador. Prioriza `totales.totalVenta` /
+   * `totales.ventaDiaria` del backend (que es lo que muestra la card) y
+   * solo si no existe, usa la suma de las filas de la tabla. Esto
+   * garantiza que card y chart sumen exactamente lo mismo.
+   */
+  protected obtenerVentaAcumUnificadaCuotaDiaria(filas: any[], totalesApi: any): number {
+    const desdeTotales = Number(
+      totalesApi?.totalVenta ?? totalesApi?.ventaDiaria ?? totalesApi?.ventaAcum ?? NaN,
+    );
+    if (Number.isFinite(desdeTotales) && desdeTotales > 0) return desdeTotales;
+    return filas.reduce(
+      (sum: number, item: any) => sum + (Number(item.ventaAcum ?? 0) || 0),
+      0,
+    );
+  }
+
+  protected obtenerProyeccionUnificadaCuotaDiaria(filas: any[], totalesApi: any): number {
+    const desdeTotales = Number(
+      totalesApi?.proyeccionVenta ??
+        totalesApi?.promedioDiario ??
+        totalesApi?.proyeccion ??
+        NaN,
+    );
+    if (Number.isFinite(desdeTotales) && desdeTotales > 0) return desdeTotales;
+    return filas.reduce(
+      (sum: number, item: any) => sum + (Number(item.proyeccionVenta ?? 0) || 0),
+      0,
+    );
   }
 
   protected mapearCuotaDiariaData(cuotas: any[]): any[] {

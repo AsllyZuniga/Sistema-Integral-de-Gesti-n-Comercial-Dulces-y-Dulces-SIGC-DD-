@@ -190,6 +190,10 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
   // Totales adicionales solicitados
   totalCuotaVendedor = 0;
   totalAcumuladoVendedor = 0;
+  // FIX: total unificado para la vista 'ventas' (especialmente cuota diaria).
+  // La card KPI consume este valor vía emitirResumenVista() para que coincida
+  // con el chart y con la suma del card del dashboard padre.
+  totalAcumuladoVentas = 0;
   totalCuotaCiudad = 0;
   liderVentasProveedor = '—';
   protected categoriasPorId = new Map<string, string>();
@@ -345,6 +349,7 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
     this.totalAcumuladoCiudad = 0;
     this.totalCuotaVendedor = 0;
     this.totalAcumuladoVendedor = 0;
+    this.totalAcumuladoVentas = 0;
     this.totalCuotaCiudad = 0;
     this.totalCuotaDiaria = 0;
     this.cuotasDiariasCache = [];
@@ -381,6 +386,14 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
       case 'ciudad':
         return this.totalAcumuladoCiudad;
       case 'ventas':
+        // FIX: en cuota diaria el chart usa el agregado del backend
+        // (totales.totalVenta / totales.ventaDiaria) para coincidir con
+        // la card KPI. Reutilizamos ese mismo valor para que el evento
+        // resumenCambio (que actualiza la card del dashboard padre)
+        // también coincida con el chart y con la card de cuota diaria.
+        if (this._tipoCuota === 'diaria' && this.totalAcumuladoVentas > 0) {
+          return this.totalAcumuladoVentas;
+        }
         return this.calcularVentaAcumVisible();
       default:
         return null;
