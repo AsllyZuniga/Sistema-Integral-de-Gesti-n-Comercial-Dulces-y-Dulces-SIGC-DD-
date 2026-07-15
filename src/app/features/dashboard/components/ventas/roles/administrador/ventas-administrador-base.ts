@@ -364,7 +364,11 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
                 ? this.filtrarVendedoresMulti(detalle, codigosVendedorFiltro)
                 : detalle;
 
-              this.tableData = vendedoresFiltrados;
+              this.tableData = [...vendedoresFiltrados].sort((a: any, b: any) => {
+                const codigoA = this.normalizarCodigoVendedor(a?.codVendedor ?? '');
+                const codigoB = this.normalizarCodigoVendedor(b?.codVendedor ?? '');
+                return codigoA.localeCompare(codigoB, 'es', { numeric: true, sensitivity: 'base' });
+              });
               const venta = vendedoresFiltrados.reduce(
                 (s: number, r: any) => s + (Number(r?.ventaAcum ?? 0) || 0),
                 0,

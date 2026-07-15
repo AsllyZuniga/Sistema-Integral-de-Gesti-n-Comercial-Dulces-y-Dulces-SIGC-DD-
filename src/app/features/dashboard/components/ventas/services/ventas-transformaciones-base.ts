@@ -1,5 +1,4 @@
 import { Directive } from '@angular/core';
-import { RoleId } from '../../../../../core/auth/roles';
 import { DashboardFilters } from '../../../../../shared/components/filters/filters.component';
 import { VentasEstadoBase } from './ventas-estado-base';
 
@@ -186,15 +185,9 @@ export abstract class VentasTransformacionesBase extends VentasEstadoBase {
     );
 
     this.tableData = [...vendedoresValidos].sort((a: any, b: any) => {
-      if (this.rolId === RoleId.ADMINISTRADOR) {
-        const codigoA = this.normalizarCodigoVendedor(a?.codVendedor ?? a?.codigo_vendedor ?? a?.codigo ?? '');
-        const codigoB = this.normalizarCodigoVendedor(b?.codVendedor ?? b?.codigo_vendedor ?? b?.codigo ?? '');
-        return codigoA.localeCompare(codigoB, 'es', { numeric: true, sensitivity: 'base' });
-      }
-
-      const nombreA = String(a?.nombre ?? a?.codVendedor ?? '').trim();
-      const nombreB = String(b?.nombre ?? b?.codVendedor ?? '').trim();
-      return nombreA.localeCompare(nombreB, 'es', { sensitivity: 'base', numeric: true });
+      const codigoA = this.normalizarCodigoVendedor(a?.codVendedor ?? a?.codigo_vendedor ?? a?.codigo ?? '');
+      const codigoB = this.normalizarCodigoVendedor(b?.codVendedor ?? b?.codigo_vendedor ?? b?.codigo ?? '');
+      return codigoA.localeCompare(codigoB, 'es', { numeric: true, sensitivity: 'base' });
     });
 
     const topVendedores = [...vendedoresValidos]

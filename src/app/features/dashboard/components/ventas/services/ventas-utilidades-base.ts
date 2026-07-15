@@ -112,9 +112,12 @@ export abstract class VentasUtilidadesBase extends VentasClientesBase {
     if (!nombre) return '';
 
     // Algunas categorías llegan con doble código antepuesto, ej.
-    // "0101 - 1000-COMPOTAS" (código de categoría + código de línea/grupo).
-    // Se quitan todos los prefijos numéricos con guion, con o sin espacios.
+    // "0101 - 1000-COMPOTAS" (código de categoría + código de línea/grupo)
+    // o "7710 0601 ALIVIO Y PROTECCION" (segundo código sin guion). Se
+    // quitan los prefijos numéricos con guion y, si queda uno suelto sin
+    // guion, también.
     nombre = nombre.replace(/^(\s*\d+\s*-\s*)+/u, '');
+    nombre = nombre.replace(/^\d+\s+/u, '');
     return nombre.trim();
   }
 

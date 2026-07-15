@@ -310,6 +310,17 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     );
   }
 
+  private ordenarPorCodigoVendedor(lista: VendedorTabla[]): VendedorTabla[] {
+    return [...lista].sort((a, b) => {
+      const codigoA = Number(String(a.codVendedor ?? '').trim());
+      const codigoB = Number(String(b.codVendedor ?? '').trim());
+      if (!isNaN(codigoA) && !isNaN(codigoB)) return codigoA - codigoB;
+      return String(a.codVendedor ?? '').localeCompare(String(b.codVendedor ?? ''), 'es', {
+        numeric: true,
+      });
+    });
+  }
+
   private aplicarFiltrosSupervisor(lista: VendedorTabla[]): VendedorTabla[] {
     const filtros = this.filtrosActivos ?? ({} as DashboardFilters);
 
@@ -443,7 +454,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
 
           const listaFiltrada = this.aplicarFiltrosSupervisor(lista);
 
-          this.todosLosVendedores = listaFiltrada;
+          this.todosLosVendedores = this.ordenarPorCodigoVendedor(listaFiltrada);
 
           // Actualizar códigos de vendedores asignados para el análisis
           this.codigosVendedoresAsignados = listaFiltrada
