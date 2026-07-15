@@ -201,8 +201,12 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
         codigosVendedores: this.codigosVendedoresAsignados,
       } as DashboardFilters & { codigosVendedores: string[] };
 
-      // OPTIMIZACION: si cambiaron las fechas, recargar el cumplimiento
-      // (los vendors ya estan cacheados, no generan nueva HTTP).
+      // OPTIMIZACION: si cambiaron las fechas o el vendedor, recargar el
+      // cumplimiento contra el backend (los vendors ya estan cacheados, no
+      // generan nueva HTTP). Para el resto de filtros (ciudad, proveedor,
+      // categoria, linea) alcanza con recalcular localmente sobre los datos
+      // ya cargados, vía aplicarFiltrosSupervisor dentro de
+      // cargarVendedoresSupervisor.
       const prev = changes['filtrosActivos'].previousValue as DashboardFilters | undefined;
       const curr = this.filtrosActivos;
       const cambioFechas =
@@ -210,11 +214,21 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
         prev?.fechaFin !== curr?.fechaFin ||
         prev?.vendedor !== curr?.vendedor;
 
+      const cambioFiltrosLocales =
+        prev?.proveedor !== curr?.proveedor ||
+        prev?.ciudad !== curr?.ciudad ||
+        prev?.ciudadNombre !== curr?.ciudadNombre ||
+        prev?.categoria !== curr?.categoria ||
+        prev?.linea !== curr?.linea ||
+        JSON.stringify(prev?.categorias ?? []) !== JSON.stringify(curr?.categorias ?? []);
+
       if (cambioFechas) {
-        // Invalidar cache de cumplimiento solo si fechas cambiaron
+        // Invalidar cache de cumplimiento solo si fechas/vendedor cambiaron
         this.cumplimientoService.invalidarCachePorPrefijo('front-');
         this.cumplimientoService.invalidarCachePorPrefijo('me-');
         this.cargarVendedoresSupervisor();
+      } else if (cambioFiltrosLocales) {
+        this.cargarVendedoresSupervisor(true);
       }
     }
 
@@ -378,7 +392,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     });
   }
 
-  private cargarVendedoresSupervisor(): void {
+  private cargarVendedoresSupervisor(forzarRecalculo = false): void {
     if (!this.idSupervisor) {
       this.todosLosVendedores = [];
       this.totales = null;
@@ -388,11 +402,14 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     // OPTIMIZACION: si ya tenemos vendedores cargados y solo cambiaron las fechas,
     // NO recargar /vendedor/supervisor/:id (no depende de fechas).
     // Solo recargar el cumplimiento (que si depende de fechas).
+    // forzarRecalculo se usa cuando cambió un filtro local (ciudad,
+    // proveedor, categoria, linea): no requiere nueva llamada HTTP (los
+    // servicios ya cachean), pero sí recalcular listaFiltrada/totales.
     const filtrosKey = `${this.tipoCuota}|${this.filtrosActivos?.fechaInicio ?? ''}|${this.filtrosActivos?.fechaFin ?? ''}`;
     const yaHayVendedores = this.codigosVendedoresAsignados.length > 0;
     const keyIgual = this.ultimaCargaFiltrosKey === filtrosKey;
 
-    if (yaHayVendedores && keyIgual) {
+    if (yaHayVendedores && keyIgual && !forzarRecalculo) {
       return;
     }
 
