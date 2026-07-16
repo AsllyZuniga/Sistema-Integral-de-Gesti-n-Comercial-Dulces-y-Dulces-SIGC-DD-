@@ -210,9 +210,29 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
                   filtrosActivos.proveedores,
                   filtrosActivos.proveedor,
                 );
-                const listadoFiltrado = proveedoresSeleccionados.length
+                let listadoFiltrado = proveedoresSeleccionados.length
                   ? this.filtrarProveedoresMulti(listadoMapeado, proveedoresSeleccionados)
                   : listadoMapeado;
+
+                // FIX: getLineasPorVendedor devuelve TODOS los proveedores con
+                // cuota asignada al vendedor (venta=0 si no vendió bajo el
+                // filtro de categoria/ciudad aplicado), en vez de solo los que
+                // realmente tuvieron venta bajo ese filtro. Si hay categoria o
+                // ciudad seleccionada, se descartan las filas sin venta real
+                // para que la tabla muestre solo los proveedores que aplican.
+                const categoriasSeleccionadas = this.normalizarValoresFiltro(
+                  filtrosActivos.categorias,
+                  filtrosActivos.categoria,
+                );
+                const ciudadesSeleccionadas = this.normalizarValoresFiltro(
+                  filtrosActivos.ciudades,
+                  filtrosActivos.ciudad ?? filtrosActivos.ciudadNombre,
+                );
+                if (categoriasSeleccionadas.length || ciudadesSeleccionadas.length) {
+                  listadoFiltrado = listadoFiltrado.filter(
+                    (item: any) => Number(item?.ventaAcum ?? 0) !== 0,
+                  );
+                }
 
                 if (!listadoFiltrado.length && idx < candidatos.length - 1) {
                   intentarProveedor(idx + 1);
