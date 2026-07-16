@@ -602,13 +602,20 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
       return;
     }
 
-    this.cuotaDiaService
-      .getCuotaDiaVendedor({ fechaInicio, fechaFin })
+    // FIX: cuotaDiaService.getCuotaDiaVendedor no soporta proveedor/categoria/
+    // ciudad, por lo que la tabla/chart nunca reflejaban esos filtros para el
+    // rol vendedor. getCumplimientoDiaVendedor (/dia/cumplimiento/front/me)
+    // sí los soporta y devuelve un objeto plano para el vendedor autenticado.
+    this.cumplimientoService
+      .getCumplimientoDiaVendedor(filtros)
       .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-      .subscribe((cuotas: CuotaDiaVendedor[]) => {
-        this.cuotasDiariasCache = cuotas;
+      .subscribe((res: any) => {
+        const cuotaDia = Number(res?.cuotaDia ?? 0) || 0;
+        const ventaDiaria = Number(res?.ventaDiaria ?? 0) || 0;
+        const proyeccion = Number(res?.proyeccion ?? 0) || 0;
 
-        if (!cuotas.length) {
+        if (!cuotaDia && !ventaDiaria) {
+          this.cuotasDiariasCache = [];
           this.tableData = [];
           this.chartData = [];
           this.totalCuotaDiaria = 0;
@@ -616,19 +623,24 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
           return;
         }
 
-        const cuotasMapeadas = this.mapearCuotaDiariaData(cuotas);
+        const filaMapeada = {
+          codVendedor: res?.codigoVendedor ?? this._codigoVendedor,
+          nombre: res?.nombre ?? '',
+          cuotaDiaria: cuotaDia,
+          ventaAcum: ventaDiaria,
+          porcCump: Number(res?.cumplimiento ?? 0) || 0,
+          proyeccionVenta: proyeccion,
+          porcCumProy: Number(res?.cumplimientoProyectado ?? 0) || 0,
+        };
+        this.cuotasDiariasCache = [filaMapeada] as any;
 
-        this.tableData = cuotasMapeadas;
-
-        this.totalCuotaDiaria = cuotasMapeadas.reduce(
-          (sum, item) => sum + (Number(item.cuotaDiaria ?? 0) || 0),
-          0,
-        );
+        this.tableData = [filaMapeada];
+        this.totalCuotaDiaria = cuotaDia;
 
         this.chartData = [
-          { name: 'Cuota Diaria', value: this.totalCuotaDiaria },
-          { name: 'Venta Acumulada', value: cuotasMapeadas.reduce((s, i) => s + (Number(i.ventaAcum ?? 0) || 0), 0) },
-          { name: 'Proyección', value: cuotasMapeadas.reduce((s, i) => s + (Number(i.proyeccionVenta ?? 0) || 0), 0) },
+          { name: 'Cuota Diaria', value: cuotaDia },
+          { name: 'Venta Acumulada', value: ventaDiaria },
+          { name: 'Proyección', value: proyeccion },
         ];
 
         this.cdr.markForCheck();
@@ -647,13 +659,18 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
       return;
     }
 
-    this.cuotaDiaService
-      .getCuotaDiaVendedor({ fechaInicio, fechaFin })
+    // FIX: cuotaDiaService.getCuotaDiaVendedor no soporta proveedor/categoria/
+    // ciudad. getCumplimientoDiaVendedor (/dia/cumplimiento/front/me) sí, y
+    // devuelve un objeto plano (siempre 1 vendedor: el autenticado).
+    this.cumplimientoService
+      .getCumplimientoDiaVendedor(filtros)
       .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-      .subscribe((cuotas: CuotaDiaVendedor[]) => {
-        this.cuotasDiariasCache = cuotas;
+      .subscribe((res: any) => {
+        const cuotaDia = Number(res?.cuotaDia ?? 0) || 0;
+        const ventaDiaria = Number(res?.ventaDiaria ?? 0) || 0;
 
-        if (!cuotas.length) {
+        if (!cuotaDia && !ventaDiaria) {
+          this.cuotasDiariasCache = [];
           this.tableData = [];
           this.chartData = [];
           this.totalCuotaDiaria = 0;
@@ -661,36 +678,29 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
           return;
         }
 
-        const cuotasMapeadas = this.mapearCuotaDiariaData(cuotas);
+        const filaMapeada = {
+          codVendedor: res?.codigoVendedor ?? this._codigoVendedor,
+          nombre: res?.nombre ?? '',
+          cuotaDiaria: cuotaDia,
+          ventaAcum: ventaDiaria,
+          porcCump: Number(res?.cumplimiento ?? 0) || 0,
+          proyeccionVenta: Number(res?.proyeccion ?? 0) || 0,
+          porcCumProy: Number(res?.cumplimientoProyectado ?? 0) || 0,
+        };
+        this.cuotasDiariasCache = [filaMapeada] as any;
 
-        const cuotasFiltradas = this.filtrarPorCodigosVendedoresPermitidos(cuotasMapeadas);
+        this.tableData = [filaMapeada];
+        this.totalCuotaDiaria = cuotaDia;
+        this.totalCuotaVendedor = cuotaDia;
+        this.totalAcumuladoVendedor = ventaDiaria;
+        this.totalTopVendedores = ventaDiaria;
 
-        this.tableData = cuotasFiltradas;
-
-        this.totalCuotaDiaria = cuotasFiltradas.reduce(
-          (sum, item) => sum + (Number(item.cuotaDiaria ?? 0) || 0),
-          0,
-        );
-
-        this.totalCuotaVendedor = this.totalCuotaDiaria;
-        this.totalAcumuladoVendedor = cuotasFiltradas.reduce(
-          (sum, item) => sum + (Number(item.ventaAcum ?? 0) || 0),
-          0,
-        );
-
-        const topVendedores = [...cuotasFiltradas]
-          .sort((a, b) => Number(b.ventaAcum ?? 0) - Number(a.ventaAcum ?? 0))
-          .slice(0, 15);
-
-        this.totalTopVendedores = topVendedores.reduce(
-          (sum, item) => sum + (Number(item.ventaAcum ?? 0) || 0),
-          0,
-        );
-
-        this.chartData = topVendedores.map((item) => ({
-          name: item.nombre ?? item.codVendedor,
-          value: Number(item.ventaAcum ?? 0),
-        }));
+        this.chartData = [
+          {
+            name: filaMapeada.nombre || filaMapeada.codVendedor,
+            value: ventaDiaria,
+          },
+        ];
 
         this.cdr.markForCheck();
       });
