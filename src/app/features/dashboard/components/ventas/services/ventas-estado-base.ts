@@ -35,7 +35,12 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
   protected cdr = inject(ChangeDetectorRef);
 
   protected readonly activeViewStorageKey = VENTAS_VIEW_STORAGE_KEY;
-  @Output() resumenCambio = new EventEmitter<{ ventaAcum: number }>();
+  @Output() resumenCambio = new EventEmitter<{
+    ventaAcum: number;
+    cuota?: number;
+    porcCump?: number;
+    proyeccionVenta?: number;
+  }>();
 
   @Input() set codigoVendedor(value: string) {
     this._codigoVendedor = this.normalizarCodigoVendedor(value);
@@ -370,9 +375,35 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
     const ventaAcum = this.obtenerVentaAcumVistaActiva();
     if (ventaAcum === null) return;
 
+    const cuota = Number(this.obtenerCuotaVistaActiva() ?? 0) || 0;
+    const venta = Number(ventaAcum ?? 0) || 0;
+    const proyeccion = this.tableData.reduce(
+      (sum: number, item: any) => sum + (Number(item?.proyeccionVenta ?? 0) || 0),
+      0,
+    );
+
     this.resumenCambio.emit({
-      ventaAcum: Number(ventaAcum ?? 0) || 0,
+      ventaAcum: venta,
+      cuota,
+      porcCump: cuota > 0 ? (venta / cuota) * 100 : 0,
+      proyeccionVenta: proyeccion,
     });
+  }
+
+  // FIX: mismo total ya calculado por pestaña (Total Cuota que ve la
+  // tabla/chart) para alimentar la card KPI "Cuota Semana/Mes" del
+  // dashboard padre cuando se filtra por proveedor/categoria/ciudad.
+  protected obtenerCuotaVistaActiva(): number | null {
+    switch (this.activeVentasView) {
+      case 'proveedor':
+        return this.totalCuotaProveedor;
+      case 'vendedor':
+        return this.totalCuotaVendedor;
+      case 'categoria':
+        return this.totalCuotaCategoria;
+      default:
+        return null;
+    }
   }
 
   protected obtenerVentaAcumVistaActiva(): number | null {

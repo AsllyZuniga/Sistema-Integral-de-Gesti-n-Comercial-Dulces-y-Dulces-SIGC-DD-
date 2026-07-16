@@ -110,6 +110,9 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
 
   totales: CumplimientoTotalesSupervisor | null = null;
   ventaMesVista: number | null = null;
+  cuotaVista: number | null = null;
+  porcCumpVista: number | null = null;
+  proyeccionVista: number | null = null;
   cargandoVendedores = false;
   todosLosVendedores: VendedorTabla[] = [];
   codigosVendedoresAsignados: string[] = [];
@@ -172,9 +175,20 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     return codigo;
   }
 
-  onResumenCambio(resumen: { ventaAcum?: number }): void {
+  onResumenCambio(resumen: {
+    ventaAcum?: number;
+    cuota?: number;
+    porcCump?: number;
+    proyeccionVenta?: number;
+  }): void {
     const venta = Number(resumen?.ventaAcum ?? 0);
     this.ventaMesVista = Number.isFinite(venta) ? venta : null;
+    const cuota = Number(resumen?.cuota ?? 0);
+    this.cuotaVista = cuota > 0 ? cuota : null;
+    const porcCump = Number(resumen?.porcCump ?? 0);
+    this.porcCumpVista = Number.isFinite(porcCump) ? porcCump : null;
+    const proyeccion = Number(resumen?.proyeccionVenta ?? 0);
+    this.proyeccionVista = proyeccion > 0 ? proyeccion : null;
     this.cdr.detectChanges();
   }
 
@@ -494,10 +508,6 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
 
           const listaFiltrada = this.aplicarFiltrosSupervisor(lista);
 
-          console.debug('[Supervisor DEBUG] lista.length', lista.length, 'listaFiltrada.length', listaFiltrada.length);
-          console.debug('[Supervisor DEBUG] lista sample', lista.slice(0, 3).map(v => ({ cod: v.codVendedor, cuotaMes: v.cuotaMes, cuotaSemana: v.cuotaSemana, ventaAcum: v.ventaAcum, proveedor: v.proveedor })));
-          console.debug('[Supervisor DEBUG] cumplimiento.detalle sample', (cumplimiento.detalle ?? []).slice(0, 3));
-
           this.todosLosVendedores = this.ordenarPorCodigoVendedor(listaFiltrada);
 
           // Actualizar códigos de vendedores asignados para el análisis
@@ -529,17 +539,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
               Number(totalesApi?.totalVenta ?? totalesApi?.ventaDiaria ?? ventaAcum) || ventaAcum,
             cuotaMes:
               Number(totalesApi?.cuotaMes ?? totalesApi?.cuotaDia ?? cuota) || cuota,
-            cuotaSemana: (() => {
-              const desdeApi = Number(totalesApi?.cuotaSemana ?? 0);
-              if (this.tipoCuota === 'semanal') {
-                // FIX: el total del backend no aplica los filtros locales
-                // (proveedor/categoria/ciudad/linea); si viene 0 o no coincide
-                // con el filtro aplicado, usar la suma ya filtrada en front
-                // (misma que ve la tabla), igual que AdministradorComponent.
-                return desdeApi > 0 ? desdeApi : cuota;
-              }
-              return desdeApi > 0 ? desdeApi : undefined;
-            })(),
+            cuotaSemana: Number(totalesApi?.cuotaSemana ?? 0) || undefined,
             cuotaDiaria: Number(totalesApi?.cuotaDiaria ?? totalesApi?.cuotaDia ?? 0) || undefined,
             cuotaDia: Number(totalesApi?.cuotaDia ?? 0) || undefined,
             ventaDiaria: Number(totalesApi?.ventaDiaria ?? 0) || undefined,
