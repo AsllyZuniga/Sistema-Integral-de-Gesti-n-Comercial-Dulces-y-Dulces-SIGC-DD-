@@ -454,25 +454,30 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.tipoCuota === tipo) return;
     this.tipoCuota = tipo;
 
-    if (this.rolId === 3) {
-      // Auto-ajusta fechas según el nuevo tipoCuota
-      const pivotDate = this.filtrosActivos.fechaInicio || this.formatDate(new Date());
-      const newRange = this.adjustDateRangeForTipoCuota(tipo, pivotDate);
-      // FIX: reasignar el objeto (no mutar in place) para que el setter
-      // @Input filtros de <app-ventas> detecte el cambio de referencia y
-      // recargue con las fechas nuevas; mutar dejaba _filtros desactualizado
-      // dentro de VentasEstadoBase y la vista seguía consultando con las
-      // fechas viejas al cambiar entre mensual/semanal/diaria.
-      this.filtrosActivos = {
-        ...this.filtrosActivos,
-        fechaInicio: newRange.inicio,
-        fechaFin: newRange.fin,
-      };
+    // Auto-ajusta fechas según el nuevo tipoCuota para TODOS los roles.
+    // FIX: antes esto solo corría para rolId === 3 (vendedor). Admin y
+    // supervisor conservaban el rango de fechas anterior (mes/semana
+    // completos) al pasar a "diaria", por lo que las cards y tablas de
+    // categoría/proveedor seguían consultando ese rango completo en vez
+    // del día puntual, mostrando cuotas/datos que no correspondían al día.
+    const pivotDate = this.filtrosActivos.fechaInicio || this.formatDate(new Date());
+    const newRange = this.adjustDateRangeForTipoCuota(tipo, pivotDate);
+    // FIX: reasignar el objeto (no mutar in place) para que el setter
+    // @Input filtros de <app-ventas> detecte el cambio de referencia y
+    // recargue con las fechas nuevas; mutar dejaba _filtros desactualizado
+    // dentro de VentasEstadoBase y la vista seguía consultando con las
+    // fechas viejas al cambiar entre mensual/semanal/diaria.
+    this.filtrosActivos = {
+      ...this.filtrosActivos,
+      fechaInicio: newRange.inicio,
+      fechaFin: newRange.fin,
+    };
 
+    if (this.rolId === 3) {
       this.totalesVendedor = null;
       this.cargarTotalesVendedor();
-      this.ventasRef?.reloadView(true);
     }
+    this.ventasRef?.reloadView(true);
   }
 
   onToggleSidebar(collapsed: boolean): void {
