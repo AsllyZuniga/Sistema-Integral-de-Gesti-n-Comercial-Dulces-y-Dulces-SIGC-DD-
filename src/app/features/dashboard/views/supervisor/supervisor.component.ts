@@ -109,6 +109,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
   };
 
   totales: CumplimientoTotalesSupervisor | null = null;
+  ventaMesVista: number | null = null;
   cargandoVendedores = false;
   todosLosVendedores: VendedorTabla[] = [];
   codigosVendedoresAsignados: string[] = [];
@@ -169,6 +170,12 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     // códigos seleccionados) en vez del flujo de un solo vendedor.
     if (!codigo || codigo.includes(',')) return 'ALL';
     return codigo;
+  }
+
+  onResumenCambio(resumen: { ventaAcum?: number }): void {
+    const venta = Number(resumen?.ventaAcum ?? 0);
+    this.ventaMesVista = Number.isFinite(venta) ? venta : null;
+    this.cdr.detectChanges();
   }
 
   ngOnInit(): void {
@@ -463,6 +470,22 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
               cuotaDiaria: this.leerCuota(filaCumplimiento?.cuotaDiaria ?? v.cuotaDia, 'cuota_dia'),
               nombreSupervisor: v.supervisor?.username ?? v.supervisor?.nombre ?? 'Sin asignar',
               id_supervisor: v.id_supervisor ?? v.idSupervisor ?? null,
+              // FIX: copiar proveedor/categoria/ciudad/linea desde el detalle de
+              // cumplimiento (igual que AdministradorComponent.cargarDesdeEndpointAdmin).
+              // Sin esto, aplicarFiltrosSupervisor() nunca encuentra coincidencia
+              // porque estos campos no vienen en /vendedor/supervisor/:id.
+              proveedor: filaCumplimiento?.proveedor ?? v.proveedor,
+              nomProveedor: filaCumplimiento?.nomProveedor ?? v.nomProveedor,
+              nombreProveedor: filaCumplimiento?.nombreProveedor ?? v.nombreProveedor,
+              categoria: filaCumplimiento?.categoria ?? v.categoria,
+              nomCategoria: filaCumplimiento?.nomCategoria ?? v.nomCategoria,
+              nombreCategoria: filaCumplimiento?.nombreCategoria ?? v.nombreCategoria,
+              ciudad: filaCumplimiento?.ciudad ?? v.ciudad,
+              nomCiudad: filaCumplimiento?.nomCiudad ?? v.nomCiudad,
+              nombreCiudad: filaCumplimiento?.nombreCiudad ?? v.nombreCiudad,
+              linea: filaCumplimiento?.linea ?? v.linea,
+              nomLinea: filaCumplimiento?.nomLinea ?? v.nomLinea,
+              nombreLinea: filaCumplimiento?.nombreLinea ?? v.nombreLinea,
               ventaAcum: Number(filaCumplimiento?.ventaAcum ?? v.ventaAcum ?? 0),
               porcCump: Number(filaCumplimiento?.porcCump ?? v.porcCump ?? 0),
               proyeccionVenta: Number(filaCumplimiento?.proyeccionVenta ?? v.proyeccionVenta ?? 0),
@@ -512,6 +535,9 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
               proyeccionVenta,
             promedioDiario: Number(totalesApi?.promedioDiario ?? 0) || undefined,
           };
+          if (this.ventaMesVista === null) {
+            this.ventaMesVista = this.totales.ventaAcum;
+          }
           this.cargandoVendedores = false;
           this.cdr.detectChanges();
         },
