@@ -48,13 +48,13 @@ export abstract class VentasSupervisorBase extends VentasAdministradorBase {
       idSupervisor,
     });
 
-    // FIX: usar el MISMO endpoint que las cards del supervisor
-    // (cumplimientoService /dia/cumplimiento/supervisor/:id) en lugar
-    // de cuotaDiaService /api/roles/cuota-dia/por-supervisor. Esto
-    // garantiza que la card "Venta Diaria" del supervisor y el total
-    // acumulado de la tabla coincidan exactamente para la misma fecha.
+    // FIX: /dia/cumplimiento/supervisor/:id devuelve un timeseries por DIA
+    // (fecha, cuotaDia, ventaDiaria), sin codVendedor por fila, por lo que
+    // la tabla "Por Vendedor" siempre quedaba vacía. /dia/cumplimiento/front
+    // es role-aware por JWT (admin todos, supervisor su equipo, vendedor
+    // solo el suyo) y sí devuelve una fila por vendedor, igual que admin.
     this.cumplimientoService
-      .getCumplimientoDiaSupervisor(idSupervisor, filtrosConsulta)
+      .getCumplimientoDiaAdmin(filtrosConsulta)
       .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
       .subscribe((res: any) => {
         const detalleBruto = Array.isArray(res?.detalle) ? res.detalle : [];

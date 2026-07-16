@@ -324,8 +324,13 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
 
   private obtenerDetalleCumplimiento() {
     const obs$ =
+      // FIX: /dia/cumplimiento/supervisor/:id devuelve un timeseries por
+      // DIA (sin codVendedor por fila), por lo que el merge con `asignados`
+      // nunca encontraba coincidencia y la tabla quedaba vacía/en cero.
+      // /dia/cumplimiento/front es role-aware por JWT y devuelve una fila
+      // por vendedor, igual que semanal/mensual.
       this.tipoCuota === 'diaria'
-        ? this.cumplimientoService.getCumplimientoDiaSupervisor(this.idSupervisor, this.filtrosActivos)
+        ? this.cumplimientoService.getCumplimientoDiaAdmin(this.filtrosActivos)
         : this.tipoCuota === 'semanal'
         ? this.semanaService.getCumplimientoSemanaAdmin(this.filtrosActivos)
         : this.cumplimientoService.getCumplimientoMesAdmin(this.filtrosActivos);
