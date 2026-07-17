@@ -109,6 +109,10 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
   };
 
   totales: CumplimientoTotalesSupervisor | null = null;
+  ventaMesVista: number | null = null;
+  cuotaVista: number | null = null;
+  porcCumpVista: number | null = null;
+  proyeccionVista: number | null = null;
   cargandoVendedores = false;
   todosLosVendedores: VendedorTabla[] = [];
   codigosVendedoresAsignados: string[] = [];
@@ -164,7 +168,34 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
 
   get codigoVendedorAnalisis(): string {
     const codigo = String(this.filtrosActivos?.vendedor ?? '').trim();
-    return codigo || 'ALL';
+    // Selección múltiple (CSV) debe tratarse como 'ALL' para que el
+    // análisis use el flujo admin-todos (filtra localmente por los
+    // códigos seleccionados) en vez del flujo de un solo vendedor.
+    if (!codigo || codigo.includes(',')) return 'ALL';
+    return codigo;
+  }
+
+  onResumenCambio(resumen: {
+    ventaAcum?: number;
+    cuota?: number;
+    porcCump?: number;
+    proyeccionVenta?: number;
+  }): void {
+    const venta = Number(resumen?.ventaAcum ?? 0);
+    this.ventaMesVista = Number.isFinite(venta) ? venta : null;
+    // FIX: cuando la vista activa (categoría/proveedor/vendedor) no tiene
+    // cuota asignada, el total real es 0 y la card KPI debe mostrar 0.
+    // Antes "cuota > 0 ? cuota : null" descartaba el 0 real y el template
+    // caía al fallback de `totales` (cuota general diaria del equipo, sin
+    // relación a la categoría/proveedor filtrado), mostrando un monto que
+    // no correspondía a la pestaña activa.
+    const cuota = Number(resumen?.cuota ?? 0);
+    this.cuotaVista = Number.isFinite(cuota) ? cuota : null;
+    const porcCump = Number(resumen?.porcCump ?? 0);
+    this.porcCumpVista = Number.isFinite(porcCump) ? porcCump : null;
+    const proyeccion = Number(resumen?.proyeccionVenta ?? 0);
+    this.proyeccionVista = Number.isFinite(proyeccion) ? proyeccion : null;
+    this.cdr.detectChanges();
   }
 
   ngOnInit(): void {
@@ -197,8 +228,12 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
         codigosVendedores: this.codigosVendedoresAsignados,
       } as DashboardFilters & { codigosVendedores: string[] };
 
-      // OPTIMIZACION: si cambiaron las fechas, recargar el cumplimiento
-      // (los vendors ya estan cacheados, no generan nueva HTTP).
+      // OPTIMIZACION: si cambiaron las fechas o el vendedor, recargar el
+      // cumplimiento contra el backend (los vendors ya estan cacheados, no
+      // generan nueva HTTP). Para el resto de filtros (ciudad, proveedor,
+      // categoria, linea) alcanza con recalcular localmente sobre los datos
+      // ya cargados, vía aplicarFiltrosSupervisor dentro de
+      // cargarVendedoresSupervisor.
       const prev = changes['filtrosActivos'].previousValue as DashboardFilters | undefined;
       const curr = this.filtrosActivos;
       const cambioFechas =
@@ -206,11 +241,21 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
         prev?.fechaFin !== curr?.fechaFin ||
         prev?.vendedor !== curr?.vendedor;
 
+      const cambioFiltrosLocales =
+        prev?.proveedor !== curr?.proveedor ||
+        prev?.ciudad !== curr?.ciudad ||
+        prev?.ciudadNombre !== curr?.ciudadNombre ||
+        prev?.categoria !== curr?.categoria ||
+        prev?.linea !== curr?.linea ||
+        JSON.stringify(prev?.categorias ?? []) !== JSON.stringify(curr?.categorias ?? []);
+
       if (cambioFechas) {
-        // Invalidar cache de cumplimiento solo si fechas cambiaron
+        // Invalidar cache de cumplimiento solo si fechas/vendedor cambiaron
         this.cumplimientoService.invalidarCachePorPrefijo('front-');
         this.cumplimientoService.invalidarCachePorPrefijo('me-');
         this.cargarVendedoresSupervisor();
+      } else if (cambioFiltrosLocales) {
+        this.cargarVendedoresSupervisor(true);
       }
     }
 
@@ -285,8 +330,13 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
 
   private obtenerDetalleCumplimiento() {
     const obs$ =
+      // FIX: /dia/cumplimiento/supervisor/:id devuelve un timeseries por
+      // DIA (sin codVendedor por fila), por lo que el merge con `asignados`
+      // nunca encontraba coincidencia y la tabla quedaba vacía/en cero.
+      // /dia/cumplimiento/front es role-aware por JWT y devuelve una fila
+      // por vendedor, igual que semanal/mensual.
       this.tipoCuota === 'diaria'
-        ? this.cumplimientoService.getCumplimientoDiaSupervisor(this.idSupervisor, this.filtrosActivos)
+        ? this.cumplimientoService.getCumplimientoDiaAdmin(this.filtrosActivos)
         : this.tipoCuota === 'semanal'
         ? this.semanaService.getCumplimientoSemanaAdmin(this.filtrosActivos)
         : this.cumplimientoService.getCumplimientoMesAdmin(this.filtrosActivos);
@@ -304,6 +354,17 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
       })),
       catchError(() => of<CumplimientoResponse>({ detalle: [] })),
     );
+  }
+
+  private ordenarPorCodigoVendedor(lista: VendedorTabla[]): VendedorTabla[] {
+    return [...lista].sort((a, b) => {
+      const codigoA = Number(String(a.codVendedor ?? '').trim());
+      const codigoB = Number(String(b.codVendedor ?? '').trim());
+      if (!isNaN(codigoA) && !isNaN(codigoB)) return codigoA - codigoB;
+      return String(a.codVendedor ?? '').localeCompare(String(b.codVendedor ?? ''), 'es', {
+        numeric: true,
+      });
+    });
   }
 
   private aplicarFiltrosSupervisor(lista: VendedorTabla[]): VendedorTabla[] {
@@ -363,7 +424,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     });
   }
 
-  private cargarVendedoresSupervisor(): void {
+  private cargarVendedoresSupervisor(forzarRecalculo = false): void {
     if (!this.idSupervisor) {
       this.todosLosVendedores = [];
       this.totales = null;
@@ -373,11 +434,14 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     // OPTIMIZACION: si ya tenemos vendedores cargados y solo cambiaron las fechas,
     // NO recargar /vendedor/supervisor/:id (no depende de fechas).
     // Solo recargar el cumplimiento (que si depende de fechas).
+    // forzarRecalculo se usa cuando cambió un filtro local (ciudad,
+    // proveedor, categoria, linea): no requiere nueva llamada HTTP (los
+    // servicios ya cachean), pero sí recalcular listaFiltrada/totales.
     const filtrosKey = `${this.tipoCuota}|${this.filtrosActivos?.fechaInicio ?? ''}|${this.filtrosActivos?.fechaFin ?? ''}`;
     const yaHayVendedores = this.codigosVendedoresAsignados.length > 0;
     const keyIgual = this.ultimaCargaFiltrosKey === filtrosKey;
 
-    if (yaHayVendedores && keyIgual) {
+    if (yaHayVendedores && keyIgual && !forzarRecalculo) {
       return;
     }
 
@@ -431,6 +495,22 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
               cuotaDiaria: this.leerCuota(filaCumplimiento?.cuotaDiaria ?? v.cuotaDia, 'cuota_dia'),
               nombreSupervisor: v.supervisor?.username ?? v.supervisor?.nombre ?? 'Sin asignar',
               id_supervisor: v.id_supervisor ?? v.idSupervisor ?? null,
+              // FIX: copiar proveedor/categoria/ciudad/linea desde el detalle de
+              // cumplimiento (igual que AdministradorComponent.cargarDesdeEndpointAdmin).
+              // Sin esto, aplicarFiltrosSupervisor() nunca encuentra coincidencia
+              // porque estos campos no vienen en /vendedor/supervisor/:id.
+              proveedor: filaCumplimiento?.proveedor ?? v.proveedor,
+              nomProveedor: filaCumplimiento?.nomProveedor ?? v.nomProveedor,
+              nombreProveedor: filaCumplimiento?.nombreProveedor ?? v.nombreProveedor,
+              categoria: filaCumplimiento?.categoria ?? v.categoria,
+              nomCategoria: filaCumplimiento?.nomCategoria ?? v.nomCategoria,
+              nombreCategoria: filaCumplimiento?.nombreCategoria ?? v.nombreCategoria,
+              ciudad: filaCumplimiento?.ciudad ?? v.ciudad,
+              nomCiudad: filaCumplimiento?.nomCiudad ?? v.nomCiudad,
+              nombreCiudad: filaCumplimiento?.nombreCiudad ?? v.nombreCiudad,
+              linea: filaCumplimiento?.linea ?? v.linea,
+              nomLinea: filaCumplimiento?.nomLinea ?? v.nomLinea,
+              nombreLinea: filaCumplimiento?.nombreLinea ?? v.nombreLinea,
               ventaAcum: Number(filaCumplimiento?.ventaAcum ?? v.ventaAcum ?? 0),
               porcCump: Number(filaCumplimiento?.porcCump ?? v.porcCump ?? 0),
               proyeccionVenta: Number(filaCumplimiento?.proyeccionVenta ?? v.proyeccionVenta ?? 0),
@@ -439,7 +519,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
 
           const listaFiltrada = this.aplicarFiltrosSupervisor(lista);
 
-          this.todosLosVendedores = listaFiltrada;
+          this.todosLosVendedores = this.ordenarPorCodigoVendedor(listaFiltrada);
 
           // Actualizar códigos de vendedores asignados para el análisis
           this.codigosVendedoresAsignados = listaFiltrada
@@ -480,6 +560,9 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
               proyeccionVenta,
             promedioDiario: Number(totalesApi?.promedioDiario ?? 0) || undefined,
           };
+          if (this.ventaMesVista === null) {
+            this.ventaMesVista = this.totales.ventaAcum;
+          }
           this.cargandoVendedores = false;
           this.cdr.detectChanges();
         },

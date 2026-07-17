@@ -111,7 +111,13 @@ export abstract class VentasUtilidadesBase extends VentasClientesBase {
     let nombre = this.repararTextoCiudad(valor);
     if (!nombre) return '';
 
-    nombre = nombre.replace(/^\d+\s*-\s*/u, '');
+    // Algunas categorías llegan con doble código antepuesto, ej.
+    // "0101 - 1000-COMPOTAS" (código de categoría + código de línea/grupo)
+    // o "7710 0601 ALIVIO Y PROTECCION" (segundo código sin guion). Se
+    // quitan los prefijos numéricos con guion y, si queda uno suelto sin
+    // guion, también.
+    nombre = nombre.replace(/^(\s*\d+\s*-\s*)+/u, '');
+    nombre = nombre.replace(/^\d+\s+/u, '');
     return nombre.trim();
   }
 
@@ -406,7 +412,7 @@ export abstract class VentasUtilidadesBase extends VentasClientesBase {
   protected nombreProveedorCard(lineaRaw: unknown): string {
     const linea = String(lineaRaw ?? '').trim();
     if (!linea) return '—';
-    const sinCodigo = linea.replace(/^\d+\s*-\s*/u, '').trim();
+    const sinCodigo = linea.replace(/^(\s*\d+\s*-\s*)+/u, '').trim();
     return sinCodigo || linea;
   }
 
@@ -587,8 +593,9 @@ export abstract class VentasUtilidadesBase extends VentasClientesBase {
     const linea = String(item?.linea ?? '').trim();
     if (!linea) return '';
 
-    const partes = linea.split('-');
-    const nombre = partes.length > 1 ? partes.slice(1).join('-') : linea;
+    // El nombre ya llega sin código antepuesto (ver nombreProveedorCard),
+    // pero se limpia aquí también por si algún caller pasa el valor crudo.
+    const nombre = this.nombreProveedorCard(linea);
 
     return nombre
       .trim()

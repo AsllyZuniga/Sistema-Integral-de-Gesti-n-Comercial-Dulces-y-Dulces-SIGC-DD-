@@ -700,8 +700,8 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
     return Number.isFinite(num) ? num : 0;
   }
 
-  protected vendedorCoincideConFiltro(vendedor: any, vendedorFiltro: string): boolean {
-    if (!vendedorFiltro) return true;
+  protected vendedorCoincideConFiltro(vendedor: any, vendedoresFiltro: string[]): boolean {
+    if (!vendedoresFiltro || vendedoresFiltro.length === 0) return true;
 
     const valores = [
       vendedor?.codVendedor,
@@ -716,17 +716,29 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
       .map((valor) => this.normalizarCodigoVendedor(valor))
       .filter(Boolean);
 
-    const filtroNormalizado = this.normalizarCodigoVendedor(vendedorFiltro);
-    const filtroSinCeros = filtroNormalizado.replace(/^0+/, '') || filtroNormalizado;
+    return vendedoresFiltro.some((filtro) => {
+      const filtroNormalizado = this.normalizarCodigoVendedor(filtro);
+      const filtroSinCeros = filtroNormalizado.replace(/^0+/, '') || filtroNormalizado;
 
-    return valores.some((valor) => {
-      const valorSinCeros = valor.replace(/^0+/, '') || valor;
-      return valor === filtroNormalizado || valorSinCeros === filtroSinCeros;
+      return valores.some((valor) => {
+        const valorSinCeros = valor.replace(/^0+/, '') || valor;
+        return valor === filtroNormalizado || valorSinCeros === filtroSinCeros;
+      });
     });
   }
 
+  protected extraerCodigosDesdeTexto(valor: unknown): string[] {
+    const raw = String(valor ?? '').trim();
+    if (!raw) return [];
+
+    return raw
+      .split(',')
+      .map((v) => this.extraerCodigoDesdeTexto(v))
+      .filter(Boolean);
+  }
+
   protected mapearVendedoresConItemsComprados(res: any, filtrosConsulta: DashboardFilters): any[] {
-    const vendedorFiltro = this.extraerCodigoDesdeTexto(filtrosConsulta?.vendedor);
+    const vendedoresFiltro = this.extraerCodigosDesdeTexto(filtrosConsulta?.vendedor);
     const vendedoresRaw = this.obtenerVendedoresDesdeEndpointConItems(res);
 
     console.debug('📊 [mapearVendedoresConItemsComprados] Datos recibidos:', {
@@ -736,7 +748,7 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
     });
 
     const vendedores = vendedoresRaw
-      .filter((vendedor: any) => this.vendedorCoincideConFiltro(vendedor, vendedorFiltro))
+      .filter((vendedor: any) => this.vendedorCoincideConFiltro(vendedor, vendedoresFiltro))
       .filter((vendedor: any) => {
         if (!this.tieneCodigosVendedoresPermitidos()) return true;
 

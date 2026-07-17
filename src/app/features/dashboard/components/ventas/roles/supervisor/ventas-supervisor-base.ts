@@ -3,7 +3,7 @@ import { merge, takeUntil } from 'rxjs';
 import { RoleId } from '../../../../../../core/auth/roles';
 import { DashboardFilters } from '../../../../../../shared/components/filters/filters.component';
 import { VentasAdministradorBase } from '../administrador/ventas-administrador-base';
-import { CuotaDiaVendedor, CuotaDiaSupervisorResponse } from '../../../../../../core/services/ventas/cuotaDia.service';
+import { CuotaDiaVendedor } from '../../../../../../core/services/ventas/cuotaDia.service';
 
 /**
  * Base para lógica compartida del rol supervisor.
@@ -48,37 +48,37 @@ export abstract class VentasSupervisorBase extends VentasAdministradorBase {
       idSupervisor,
     });
 
-    this.cuotaDiaService
-      .getCuotaDiaSupervisor({ fechaInicio, fechaFin, idSupervisor })
+    // FIX: /dia/cumplimiento/supervisor/:id devuelve un timeseries por DIA
+    // (fecha, cuotaDia, ventaDiaria), sin codVendedor por fila, por lo que
+    // la tabla "Por Vendedor" siempre quedaba vacía. /dia/cumplimiento/front
+    // es role-aware por JWT (admin todos, supervisor su equipo, vendedor
+    // solo el suyo) y sí devuelve una fila por vendedor, igual que admin.
+    this.cumplimientoService
+      .getCumplimientoDiaAdmin(filtrosConsulta)
       .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-      .subscribe((response: CuotaDiaSupervisorResponse) => {
-        console.debug('[Supervisor CuotaDiaria] Respuesta:', {
-          success: response?.success,
-          totalRegistros: response?.data?.length ?? 0,
-          message: response?.message,
-          supervisor: response?.supervisor,
-          totalVendedores: response?.total_vendedores,
+      .subscribe((res: any) => {
+        const detalleBruto = Array.isArray(res?.detalle) ? res.detalle : [];
+        const totalesApi = res?.totales ?? null;
+
+        console.debug('[Supervisor CuotaDiaria] Respuesta cumplimiento:', {
+          totalRegistros: detalleBruto.length,
+          totales: totalesApi,
+          periodo: res?.periodo,
         });
 
-        if (!response?.success || !Array.isArray(response.data) || !response.data.length) {
-          console.warn('[Supervisor CuotaDiaria] Sin datos o error:', response?.message);
+        // FIX: dedup + map en un solo paso.
+        const cuotasMapeadas = this.mapearCuotaDiariaAdminDesdeCumplimiento(res);
+        this.cuotasDiariasCache = cuotasMapeadas as any;
+
+        if (!cuotasMapeadas.length) {
+          console.warn('[Supervisor CuotaDiaria] Endpoint retornó 0 registros');
           this.tableData = [];
           this.chartData = [];
           this.totalCuotaDiaria = 0;
+          this.emitirResumenVista();
           this.cdr.markForCheck();
           return;
         }
-
-        const cuotas = response.data;
-        this.cuotasDiariasCache = cuotas;
-
-        const supervisorInfo = response.supervisor;
-        const totalVendedores = response.total_vendedores ?? 0;
-
-        console.debug('[Supervisor CuotaDiaria] Info supervisor:', supervisorInfo);
-        console.debug('[Supervisor CuotaDiaria] Total vendedores:', totalVendedores);
-
-        const cuotasMapeadas = this.mapearCuotaDiariaData(cuotas);
 
         const cuotasFiltradas = this.filtrarPorCodigosVendedoresPermitidos(cuotasMapeadas);
 
@@ -98,10 +98,22 @@ export abstract class VentasSupervisorBase extends VentasAdministradorBase {
               0,
             );
 
+            // FIX: usar la misma fuente única que la card.
+            const ventaAcumFuenteUnica = this.obtenerVentaAcumUnificadaCuotaDiaria(
+              vendedoresFiltrados,
+              totalesApi,
+            );
+            const proyeccionFuenteUnica = this.obtenerProyeccionUnificadaCuotaDiaria(
+              vendedoresFiltrados,
+              totalesApi,
+            );
+
+            this.totalAcumuladoVentas = ventaAcumFuenteUnica;
+
             this.chartData = [
               { name: 'Cuota Diaria', value: this.totalCuotaDiaria },
-              { name: 'Venta Acumulada', value: vendedoresFiltrados.reduce((s: number, i: any) => s + (Number(i.ventaAcum ?? 0) || 0), 0) },
-              { name: 'Proyección', value: vendedoresFiltrados.reduce((s: number, i: any) => s + (Number(i.proyeccionVenta ?? 0) || 0), 0) },
+              { name: 'Venta Acumulada', value: ventaAcumFuenteUnica },
+              { name: 'Proyección', value: proyeccionFuenteUnica },
             ];
             break;
           }
@@ -126,9 +138,10 @@ export abstract class VentasSupervisorBase extends VentasAdministradorBase {
             );
 
             this.totalCuotaVendedor = this.totalCuotaDiaria;
-            this.totalAcumuladoVendedor = vendedoresFiltrados.reduce(
-              (sum: number, item: any) => sum + (Number(item.ventaAcum ?? 0) || 0),
-              0,
+            // FIX: usar la misma fuente única que la card.
+            this.totalAcumuladoVendedor = this.obtenerVentaAcumUnificadaCuotaDiaria(
+              vendedoresFiltrados,
+              totalesApi,
             );
 
             const topVendedores = [...vendedoresFiltrados]
@@ -159,6 +172,7 @@ export abstract class VentasSupervisorBase extends VentasAdministradorBase {
             break;
         }
 
+        this.emitirResumenVista();
         this.cdr.markForCheck();
       });
   }

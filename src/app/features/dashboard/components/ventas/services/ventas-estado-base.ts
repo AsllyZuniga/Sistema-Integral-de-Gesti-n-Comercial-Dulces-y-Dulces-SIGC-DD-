@@ -35,7 +35,12 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
   protected cdr = inject(ChangeDetectorRef);
 
   protected readonly activeViewStorageKey = VENTAS_VIEW_STORAGE_KEY;
-  @Output() resumenCambio = new EventEmitter<{ ventaAcum: number }>();
+  @Output() resumenCambio = new EventEmitter<{
+    ventaAcum: number;
+    cuota?: number;
+    porcCump?: number;
+    proyeccionVenta?: number;
+  }>();
 
   @Input() set codigoVendedor(value: string) {
     this._codigoVendedor = this.normalizarCodigoVendedor(value);
@@ -190,6 +195,10 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
   // Totales adicionales solicitados
   totalCuotaVendedor = 0;
   totalAcumuladoVendedor = 0;
+  // FIX: total unificado para la vista 'ventas' (especialmente cuota diaria).
+  // La card KPI consume este valor vía emitirResumenVista() para que coincida
+  // con el chart y con la suma del card del dashboard padre.
+  totalAcumuladoVentas = 0;
   totalCuotaCiudad = 0;
   liderVentasProveedor = '—';
   protected categoriasPorId = new Map<string, string>();
@@ -345,6 +354,7 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
     this.totalAcumuladoCiudad = 0;
     this.totalCuotaVendedor = 0;
     this.totalAcumuladoVendedor = 0;
+    this.totalAcumuladoVentas = 0;
     this.totalCuotaCiudad = 0;
     this.totalCuotaDiaria = 0;
     this.cuotasDiariasCache = [];
@@ -365,9 +375,49 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
     const ventaAcum = this.obtenerVentaAcumVistaActiva();
     if (ventaAcum === null) return;
 
+    const cuota = Number(this.obtenerCuotaVistaActiva() ?? 0) || 0;
+    const venta = Number(ventaAcum ?? 0) || 0;
+    const proyeccion = this.tableData.reduce(
+      (sum: number, item: any) => sum + (Number(item?.proyeccionVenta ?? 0) || 0),
+      0,
+    );
+
     this.resumenCambio.emit({
-      ventaAcum: Number(ventaAcum ?? 0) || 0,
+      ventaAcum: venta,
+      cuota,
+      porcCump: cuota > 0 ? (venta / cuota) * 100 : 0,
+      proyeccionVenta: proyeccion,
     });
+  }
+
+  // FIX: mismo total ya calculado por pestaña (Total Cuota que ve la
+  // tabla/chart) para alimentar la card KPI "Cuota Semana/Mes" del
+  // dashboard padre cuando se filtra por proveedor/categoria/ciudad.
+  protected obtenerCuotaVistaActiva(): number | null {
+    switch (this.activeVentasView) {
+      case 'proveedor':
+        // Fallback: si el proveedor filtrado no tiene cuota propia asignada
+        // (exactamente 0), la card debe mostrar la cuota del vendedor
+        // filtrado en vez de 0. Un valor > 0 (aunque sea $1) nunca se
+        // reemplaza.
+        return this.totalCuotaProveedor > 0 ? this.totalCuotaProveedor : this.totalCuotaVendedor;
+      case 'vendedor':
+        return this.totalCuotaVendedor;
+      case 'categoria':
+        // Fallback: si la categoría filtrada no tiene cuota propia asignada
+        // (exactamente 0), la card debe mostrar la cuota del vendedor
+        // filtrado en vez de 0. Un valor > 0 (aunque sea $1) nunca se
+        // reemplaza.
+        return this.totalCuotaCategoria > 0 ? this.totalCuotaCategoria : this.totalCuotaVendedor;
+      case 'ciudad':
+      case 'cliente':
+      case 'item':
+        // Ciudad/Cliente/Item no tienen cuota propia: siempre mostrar la
+        // cuota del/los vendedor(es) filtrado(s).
+        return this.totalCuotaVendedor;
+      default:
+        return null;
+    }
   }
 
   protected obtenerVentaAcumVistaActiva(): number | null {
@@ -380,7 +430,18 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
         return this.totalAcumuladoCategoria;
       case 'ciudad':
         return this.totalAcumuladoCiudad;
+      case 'cliente':
+      case 'item':
+        return this.totalAcumuladoVendedor;
       case 'ventas':
+        // FIX: en cuota diaria el chart usa el agregado del backend
+        // (totales.totalVenta / totales.ventaDiaria) para coincidir con
+        // la card KPI. Reutilizamos ese mismo valor para que el evento
+        // resumenCambio (que actualiza la card del dashboard padre)
+        // también coincida con el chart y con la card de cuota diaria.
+        if (this._tipoCuota === 'diaria' && this.totalAcumuladoVentas > 0) {
+          return this.totalAcumuladoVentas;
+        }
         return this.calcularVentaAcumVisible();
       default:
         return null;

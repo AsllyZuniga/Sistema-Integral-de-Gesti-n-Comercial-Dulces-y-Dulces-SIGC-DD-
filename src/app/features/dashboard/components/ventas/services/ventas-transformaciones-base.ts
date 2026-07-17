@@ -1,5 +1,4 @@
 import { Directive } from '@angular/core';
-import { RoleId } from '../../../../../core/auth/roles';
 import { DashboardFilters } from '../../../../../shared/components/filters/filters.component';
 import { VentasEstadoBase } from './ventas-estado-base';
 
@@ -11,18 +10,28 @@ export abstract class VentasTransformacionesBase extends VentasEstadoBase {
   protected abstract esCiudadResumen(valor: unknown): boolean;
   protected abstract normalizarTexto(valor: unknown): string;
   protected abstract filtrarVendedores(listado: any[], codigoVendedor: string): any[];
+  protected abstract nombreProveedorCard(lineaRaw: unknown): string;
 
+  /**
+   * Agrupa filas de proveedor por nombre limpio (sin código de reporte
+   * antepuesto), para que "535 - ABBOTT" y "536 - ABBOTT" se fusionen en
+   * una sola fila "ABBOTT" con los montos sumados, en vez de aparecer
+   * como proveedores distintos por traer un código de reporte distinto.
+   */
   protected consolidarPorLinea(lineas: any[]): any[] {
     const mapa = new Map<string, any>();
 
     for (const item of lineas) {
-      const linea = String(item?.linea ?? '').trim();
-      if (!linea) continue;
+      const nombreLimpio = this.nombreProveedorCard(item?.linea ?? item?.reporteProvConObs ?? '');
+      if (!nombreLimpio || nombreLimpio === '—') continue;
 
-      const existente = mapa.get(linea);
+      const existente = mapa.get(nombreLimpio);
       if (!existente) {
-        mapa.set(linea, {
+        mapa.set(nombreLimpio, {
           ...item,
+          linea: nombreLimpio,
+          reporteProvConObs: nombreLimpio,
+          proveedor: nombreLimpio,
           cuotaLinea: Number(item?.cuotaLinea ?? 0),
           ventaAcum: Number(item?.ventaAcum ?? 0),
           proyeccionVenta: Number(item?.proyeccionVenta ?? 0),
@@ -176,15 +185,9 @@ export abstract class VentasTransformacionesBase extends VentasEstadoBase {
     );
 
     this.tableData = [...vendedoresValidos].sort((a: any, b: any) => {
-      if (this.rolId === RoleId.ADMINISTRADOR) {
-        const codigoA = this.normalizarCodigoVendedor(a?.codVendedor ?? a?.codigo_vendedor ?? a?.codigo ?? '');
-        const codigoB = this.normalizarCodigoVendedor(b?.codVendedor ?? b?.codigo_vendedor ?? b?.codigo ?? '');
-        return codigoA.localeCompare(codigoB, 'es', { numeric: true, sensitivity: 'base' });
-      }
-
-      const nombreA = String(a?.nombre ?? a?.codVendedor ?? '').trim();
-      const nombreB = String(b?.nombre ?? b?.codVendedor ?? '').trim();
-      return nombreA.localeCompare(nombreB, 'es', { sensitivity: 'base', numeric: true });
+      const codigoA = this.normalizarCodigoVendedor(a?.codVendedor ?? a?.codigo_vendedor ?? a?.codigo ?? '');
+      const codigoB = this.normalizarCodigoVendedor(b?.codVendedor ?? b?.codigo_vendedor ?? b?.codigo ?? '');
+      return codigoA.localeCompare(codigoB, 'es', { numeric: true, sensitivity: 'base' });
     });
 
     const topVendedores = [...vendedoresValidos]
@@ -271,8 +274,12 @@ export abstract class VentasTransformacionesBase extends VentasEstadoBase {
    * Devuelve siempre array de strings limpio.
    */
   protected normalizarValoresFiltro(arr: unknown, legacy: unknown): string[] {
+    // Cada elemento puede a su vez traer varios códigos separados por coma
+    // (ej. una opción de filtro fusionada como "1132,1167" para un mismo
+    // proveedor con dos códigos de reporte) — se expanden todos a valores
+    // individuales.
     const fromArr = Array.isArray(arr)
-      ? arr.map((v) => String(v ?? '').trim()).filter(Boolean)
+      ? arr.flatMap((v) => String(v ?? '').split(',')).map((v) => v.trim()).filter(Boolean)
       : [];
     if (fromArr.length) return fromArr;
     const raw = String(legacy ?? '').trim();
@@ -324,13 +331,19 @@ export abstract class VentasTransformacionesBase extends VentasEstadoBase {
     if (!Array.isArray(codigos) || codigos.length === 0) return listado;
 
     const filtrosSet = new Set<string>();
+    const idsFiltro = new Set<string>();
     codigos.forEach((codigo) => {
       this.clavesProveedorComparacion(codigo).forEach((clave) => filtrosSet.add(clave));
+      const valor = String(codigo ?? '').trim();
+      if (valor) idsFiltro.add(valor);
     });
 
-    if (filtrosSet.size === 0) return listado;
+    if (filtrosSet.size === 0 && idsFiltro.size === 0) return listado;
 
     return listado.filter((item: any) => {
+      const idProveedor = String(item?.idProveedor ?? item?.id_proveedor ?? '').trim();
+      if (idProveedor && idsFiltro.has(idProveedor)) return true;
+
       const candidatosFila = [
         item?.idProveedor,
         item?.id_proveedor,

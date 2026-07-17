@@ -118,8 +118,9 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
             .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
             .subscribe((res: any) => {
               const filtrado = this.mapearCuotaPorLinea(res?.detallePorLinea ?? []);
-              const listadoTabla = this.ordenarProveedoresPorAlfabeto(filtrado);
-              const topProveedores = this.limitarTopProveedores(filtrado);
+              const consolidado = this.consolidarPorLinea(filtrado);
+              const listadoTabla = this.ordenarProveedoresPorAlfabeto(consolidado);
+              const topProveedores = this.limitarTopProveedores(consolidado);
               this.tableData = listadoTabla;
               this.chartData = topProveedores.map((i: any) => ({
                 name: i.linea,
@@ -209,17 +210,40 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
                   filtrosActivos.proveedores,
                   filtrosActivos.proveedor,
                 );
-                const listadoFiltrado = proveedoresSeleccionados.length
+                let listadoFiltrado = proveedoresSeleccionados.length
                   ? this.filtrarProveedoresMulti(listadoMapeado, proveedoresSeleccionados)
                   : listadoMapeado;
+
+                // FIX: getLineasPorVendedor devuelve TODOS los proveedores con
+                // cuota asignada al vendedor (venta=0 si no vendió bajo el
+                // filtro de categoria/ciudad aplicado), en vez de solo los que
+                // realmente tuvieron venta bajo ese filtro. Si hay categoria o
+                // ciudad seleccionada, se descartan las filas sin venta real
+                // para que la tabla muestre solo los proveedores que aplican.
+                const categoriasSeleccionadas = this.normalizarValoresFiltro(
+                  filtrosActivos.categorias,
+                  filtrosActivos.categoria,
+                );
+                const ciudadesSeleccionadas = this.normalizarValoresFiltro(
+                  filtrosActivos.ciudades,
+                  filtrosActivos.ciudad ?? filtrosActivos.ciudadNombre,
+                );
+                if (categoriasSeleccionadas.length || ciudadesSeleccionadas.length) {
+                  listadoFiltrado = listadoFiltrado.filter(
+                    (item: any) => Number(item?.ventaAcum ?? 0) !== 0,
+                  );
+                }
 
                 if (!listadoFiltrado.length && idx < candidatos.length - 1) {
                   intentarProveedor(idx + 1);
                   return;
                 }
 
-                const listadoTabla = this.ordenarProveedoresPorAlfabeto(listadoFiltrado);
-                const topProveedores = [...listadoFiltrado]
+                // Fusionar filas del mismo proveedor con distinto código de
+                // reporte y quitar el código antepuesto del nombre mostrado.
+                const listadoConsolidado = this.consolidarPorLinea(listadoFiltrado);
+                const listadoTabla = this.ordenarProveedoresPorAlfabeto(listadoConsolidado);
+                const topProveedores = [...listadoConsolidado]
                   .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
                   .slice(0, 12);
 
@@ -254,6 +278,20 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
                   name: i.linea,
                   value: Number(i.ventaAcum ?? 0),
                 }));
+
+                // FIX: Proveedor nunca sincronizaba la card de cuota para
+                // Supervisor filtrando un vendedor específico (mismo bug
+                // que Cliente/Item). Solo se corrige para Supervisor:
+                // Vendedor no se toca (su card usa cuotaVistaVendedor en
+                // dashboard.component.ts).
+                if (this.rolId === RoleId.SUPERVISOR) {
+                  if (this.totalCuotaProveedor > 0) {
+                    this.emitirResumenVista();
+                  } else {
+                    this.refrescarCuotaVendedorFiltrado(filtrosActivos, true);
+                  }
+                }
+
                 this.cdr.markForCheck();
               });
           };
@@ -492,6 +530,14 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
                 this.allItemData = listadoMapeado;
                 this.tableData = [...listadoMapeado];
                 this.recalcularChart();
+
+                // FIX: Item Detail nunca sincronizaba la card de cuota
+                // (emitirResumenVista no se llamaba en esta vista), dejando
+                // la card en 0 para Supervisor. Solo se corrige para
+                // Supervisor: Vendedor no se toca.
+                if (this.rolId === RoleId.SUPERVISOR) {
+                  this.refrescarCuotaVendedorFiltrado(filtrosActivos);
+                }
               });
           };
 
@@ -501,6 +547,18 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
 
       case 'cliente':
         this.chartType = 'bar';
+
+        // FIX: para Supervisor filtrando un vendedor específico de su
+        // equipo, obtenerIdVendedorSesion() devuelve el id del propio
+        // supervisor (no el del vendedor filtrado), dejando la vista y la
+        // card de cuota en 0. Usar el mismo flujo role-aware que ya
+        // funciona para "todos los vendedores" (esModoAdminTodos), que
+        // respeta el filtro de vendedor vía filtrosConsulta.
+        if (this.rolId === RoleId.SUPERVISOR) {
+          this.cargarDetalleClientesAdministrador(filtrosConsulta);
+          this.refrescarCuotaVendedorFiltrado(filtrosConsulta, true);
+          break;
+        }
 
         const idVendedor = this.obtenerIdVendedorSesion();
         if (!idVendedor) {
@@ -598,13 +656,20 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
       return;
     }
 
-    this.cuotaDiaService
-      .getCuotaDiaVendedor({ fechaInicio, fechaFin })
+    // FIX: cuotaDiaService.getCuotaDiaVendedor no soporta proveedor/categoria/
+    // ciudad, por lo que la tabla/chart nunca reflejaban esos filtros para el
+    // rol vendedor. getCumplimientoDiaVendedor (/dia/cumplimiento/front/me)
+    // sí los soporta y devuelve un objeto plano para el vendedor autenticado.
+    this.cumplimientoService
+      .getCumplimientoDiaVendedor(filtros)
       .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-      .subscribe((cuotas: CuotaDiaVendedor[]) => {
-        this.cuotasDiariasCache = cuotas;
+      .subscribe((res: any) => {
+        const cuotaDia = Number(res?.cuotaDia ?? 0) || 0;
+        const ventaDiaria = Number(res?.ventaDiaria ?? 0) || 0;
+        const proyeccion = Number(res?.proyeccion ?? 0) || 0;
 
-        if (!cuotas.length) {
+        if (!cuotaDia && !ventaDiaria) {
+          this.cuotasDiariasCache = [];
           this.tableData = [];
           this.chartData = [];
           this.totalCuotaDiaria = 0;
@@ -612,19 +677,24 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
           return;
         }
 
-        const cuotasMapeadas = this.mapearCuotaDiariaData(cuotas);
+        const filaMapeada = {
+          codVendedor: res?.codigoVendedor ?? this._codigoVendedor,
+          nombre: res?.nombre ?? '',
+          cuotaDiaria: cuotaDia,
+          ventaAcum: ventaDiaria,
+          porcCump: Number(res?.cumplimiento ?? 0) || 0,
+          proyeccionVenta: proyeccion,
+          porcCumProy: Number(res?.cumplimientoProyectado ?? 0) || 0,
+        };
+        this.cuotasDiariasCache = [filaMapeada] as any;
 
-        this.tableData = cuotasMapeadas;
-
-        this.totalCuotaDiaria = cuotasMapeadas.reduce(
-          (sum, item) => sum + (Number(item.cuotaDiaria ?? 0) || 0),
-          0,
-        );
+        this.tableData = [filaMapeada];
+        this.totalCuotaDiaria = cuotaDia;
 
         this.chartData = [
-          { name: 'Cuota Diaria', value: this.totalCuotaDiaria },
-          { name: 'Venta Acumulada', value: cuotasMapeadas.reduce((s, i) => s + (Number(i.ventaAcum ?? 0) || 0), 0) },
-          { name: 'Proyección', value: cuotasMapeadas.reduce((s, i) => s + (Number(i.proyeccionVenta ?? 0) || 0), 0) },
+          { name: 'Cuota Diaria', value: cuotaDia },
+          { name: 'Venta Acumulada', value: ventaDiaria },
+          { name: 'Proyección', value: proyeccion },
         ];
 
         this.cdr.markForCheck();
@@ -643,13 +713,18 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
       return;
     }
 
-    this.cuotaDiaService
-      .getCuotaDiaVendedor({ fechaInicio, fechaFin })
+    // FIX: cuotaDiaService.getCuotaDiaVendedor no soporta proveedor/categoria/
+    // ciudad. getCumplimientoDiaVendedor (/dia/cumplimiento/front/me) sí, y
+    // devuelve un objeto plano (siempre 1 vendedor: el autenticado).
+    this.cumplimientoService
+      .getCumplimientoDiaVendedor(filtros)
       .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-      .subscribe((cuotas: CuotaDiaVendedor[]) => {
-        this.cuotasDiariasCache = cuotas;
+      .subscribe((res: any) => {
+        const cuotaDia = Number(res?.cuotaDia ?? 0) || 0;
+        const ventaDiaria = Number(res?.ventaDiaria ?? 0) || 0;
 
-        if (!cuotas.length) {
+        if (!cuotaDia && !ventaDiaria) {
+          this.cuotasDiariasCache = [];
           this.tableData = [];
           this.chartData = [];
           this.totalCuotaDiaria = 0;
@@ -657,36 +732,29 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
           return;
         }
 
-        const cuotasMapeadas = this.mapearCuotaDiariaData(cuotas);
+        const filaMapeada = {
+          codVendedor: res?.codigoVendedor ?? this._codigoVendedor,
+          nombre: res?.nombre ?? '',
+          cuotaDiaria: cuotaDia,
+          ventaAcum: ventaDiaria,
+          porcCump: Number(res?.cumplimiento ?? 0) || 0,
+          proyeccionVenta: Number(res?.proyeccion ?? 0) || 0,
+          porcCumProy: Number(res?.cumplimientoProyectado ?? 0) || 0,
+        };
+        this.cuotasDiariasCache = [filaMapeada] as any;
 
-        const cuotasFiltradas = this.filtrarPorCodigosVendedoresPermitidos(cuotasMapeadas);
+        this.tableData = [filaMapeada];
+        this.totalCuotaDiaria = cuotaDia;
+        this.totalCuotaVendedor = cuotaDia;
+        this.totalAcumuladoVendedor = ventaDiaria;
+        this.totalTopVendedores = ventaDiaria;
 
-        this.tableData = cuotasFiltradas;
-
-        this.totalCuotaDiaria = cuotasFiltradas.reduce(
-          (sum, item) => sum + (Number(item.cuotaDiaria ?? 0) || 0),
-          0,
-        );
-
-        this.totalCuotaVendedor = this.totalCuotaDiaria;
-        this.totalAcumuladoVendedor = cuotasFiltradas.reduce(
-          (sum, item) => sum + (Number(item.ventaAcum ?? 0) || 0),
-          0,
-        );
-
-        const topVendedores = [...cuotasFiltradas]
-          .sort((a, b) => Number(b.ventaAcum ?? 0) - Number(a.ventaAcum ?? 0))
-          .slice(0, 15);
-
-        this.totalTopVendedores = topVendedores.reduce(
-          (sum, item) => sum + (Number(item.ventaAcum ?? 0) || 0),
-          0,
-        );
-
-        this.chartData = topVendedores.map((item) => ({
-          name: item.nombre ?? item.codVendedor,
-          value: Number(item.ventaAcum ?? 0),
-        }));
+        this.chartData = [
+          {
+            name: filaMapeada.nombre || filaMapeada.codVendedor,
+            value: ventaDiaria,
+          },
+        ];
 
         this.cdr.markForCheck();
       });
@@ -704,24 +772,34 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
       return;
     }
 
-    this.cuotaDiaService
-      .getCuotaDiaAdmin({ fechaInicio, fechaFin })
+    // FIX: usar el MISMO endpoint que las cards del administrador
+    // (cumplimientoService /dia/cumplimiento/front) en lugar de
+    // cuotaDiaService /api/cuota-dia/por-dia. Garantiza que la card
+    // "Venta Diaria" y el total acumulado de la tabla coincidan.
+    this.cumplimientoService
+      .getCumplimientoDiaAdmin(filtros)
       .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-      .subscribe((cuotas: CuotaDiaVendedor[]) => {
-        this.cuotasDiariasCache = cuotas;
+      .subscribe((res: any) => {
+        const totalesApi = res?.totales ?? null;
+        const cuotasMapeadas = this.mapearCuotaDiariaAdminDesdeCumplimiento(res);
+        this.cuotasDiariasCache = cuotasMapeadas as any;
 
-        if (!cuotas.length) {
+        if (!cuotasMapeadas.length) {
           this.tableData = [];
           this.chartData = [];
           this.totalCuotaDiaria = 0;
+          this.emitirResumenVista();
           this.cdr.markForCheck();
           return;
         }
 
-        const cuotasMapeadas = this.mapearCuotaDiariaData(cuotas);
         const cuotasFiltradas = this.filtrarPorCodigosVendedoresPermitidos(cuotasMapeadas);
 
-        this.tableData = cuotasFiltradas;
+        this.tableData = [...cuotasFiltradas].sort((a: any, b: any) => {
+          const codigoA = this.normalizarCodigoVendedor(a?.codVendedor ?? '');
+          const codigoB = this.normalizarCodigoVendedor(b?.codVendedor ?? '');
+          return codigoA.localeCompare(codigoB, 'es', { numeric: true, sensitivity: 'base' });
+        });
 
         this.totalCuotaDiaria = cuotasFiltradas.reduce(
           (sum, item) => sum + (Number(item.cuotaDiaria ?? 0) || 0),
@@ -729,9 +807,10 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
         );
 
         this.totalCuotaVendedor = this.totalCuotaDiaria;
-        this.totalAcumuladoVendedor = cuotasFiltradas.reduce(
-          (sum, item) => sum + (Number(item.ventaAcum ?? 0) || 0),
-          0,
+        // FIX: misma fuente única que la card.
+        this.totalAcumuladoVendedor = this.obtenerVentaAcumUnificadaCuotaDiaria(
+          cuotasFiltradas,
+          totalesApi,
         );
 
         const topVendedores = [...cuotasFiltradas]
@@ -748,6 +827,7 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
           value: Number(item.ventaAcum ?? 0),
         }));
 
+        this.emitirResumenVista();
         this.cdr.markForCheck();
       });
   }
@@ -774,25 +854,35 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
       return;
     }
 
-    this.cuotaDiaService
-      .getCuotaDiaSupervisor({ fechaInicio, fechaFin, idSupervisor })
+    // FIX: /dia/cumplimiento/supervisor/:id devuelve un timeseries por DIA
+    // (sin codVendedor por fila), por lo que mapearCuotaDiariaAdminDesdeCumplimiento
+    // no encontraba ningún vendedor y la tabla quedaba vacía. /dia/cumplimiento/front
+    // es role-aware por JWT (admin todos, supervisor su equipo) y devuelve
+    // una fila por vendedor, igual que admin.
+    this.cumplimientoService
+      .getCumplimientoDiaAdmin(filtros)
       .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-      .subscribe((response) => {
-        const cuotas = response?.success && Array.isArray(response.data) ? response.data : [];
-        this.cuotasDiariasCache = cuotas;
+      .subscribe((res: any) => {
+        const totalesApi = res?.totales ?? null;
+        const cuotasMapeadas = this.mapearCuotaDiariaAdminDesdeCumplimiento(res);
+        this.cuotasDiariasCache = cuotasMapeadas as any;
 
-        if (!cuotas.length) {
+        if (!cuotasMapeadas.length) {
           this.tableData = [];
           this.chartData = [];
           this.totalCuotaDiaria = 0;
+          this.emitirResumenVista();
           this.cdr.markForCheck();
           return;
         }
 
-        const cuotasMapeadas = this.mapearCuotaDiariaData(cuotas);
         const cuotasFiltradas = this.filtrarPorCodigosVendedoresPermitidos(cuotasMapeadas);
 
-        this.tableData = cuotasFiltradas;
+        this.tableData = [...cuotasFiltradas].sort((a: any, b: any) => {
+          const codigoA = this.normalizarCodigoVendedor(a?.codVendedor ?? '');
+          const codigoB = this.normalizarCodigoVendedor(b?.codVendedor ?? '');
+          return codigoA.localeCompare(codigoB, 'es', { numeric: true, sensitivity: 'base' });
+        });
 
         this.totalCuotaDiaria = cuotasFiltradas.reduce(
           (sum, item) => sum + (Number(item.cuotaDiaria ?? 0) || 0),
@@ -800,9 +890,10 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
         );
 
         this.totalCuotaVendedor = this.totalCuotaDiaria;
-        this.totalAcumuladoVendedor = cuotasFiltradas.reduce(
-          (sum, item) => sum + (Number(item.ventaAcum ?? 0) || 0),
-          0,
+        // FIX: misma fuente única que la card.
+        this.totalAcumuladoVendedor = this.obtenerVentaAcumUnificadaCuotaDiaria(
+          cuotasFiltradas,
+          totalesApi,
         );
 
         const topVendedores = [...cuotasFiltradas]
@@ -819,6 +910,7 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
           value: Number(item.ventaAcum ?? 0),
         }));
 
+        this.emitirResumenVista();
         this.cdr.markForCheck();
       });
   }

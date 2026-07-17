@@ -291,6 +291,44 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  /**
+   * Cuota mostrada en la card KPI del Vendedor: debe reflejar la pestaña
+   * activa dentro de `<app-ventas>` (Proveedor/Categoría), no solo el
+   * tipoCuota. Ciudad/Cliente/Item no tienen cuota propia y ya usan la
+   * cuota del vendedor (totalesVendedor) como fallback, sin cambios.
+   */
+  get cuotaVistaVendedor(): number | null {
+    const vista = this.ventasRef?.activeVentasView;
+
+    if (vista === 'proveedor') {
+      const cuotaProveedor = Number(this.ventasRef?.totalCuotaProveedor ?? 0) || 0;
+      if (cuotaProveedor > 0) return cuotaProveedor;
+      // Proveedor sin cuota propia (0 exacto): fallback a la cuota del
+      // vendedor autenticado para el período activo.
+      return this.cuotaVendedorPorPeriodo();
+    }
+
+    if (vista === 'categoria') {
+      const cuotaCategoria = Number(this.ventasRef?.totalCuotaCategoria ?? 0) || 0;
+      if (cuotaCategoria > 0) return cuotaCategoria;
+      // Categoría sin cuota propia (0 exacto): fallback a la cuota del
+      // vendedor autenticado para el período activo.
+      return this.cuotaVendedorPorPeriodo();
+    }
+
+    return null;
+  }
+
+  private cuotaVendedorPorPeriodo(): number {
+    if (this.tipoCuota === 'diaria') {
+      return Number(this.totalesVendedor?.cuotaDiaria ?? this.totalesVendedor?.cuotaMes ?? 0) || 0;
+    }
+    if (this.tipoCuota === 'semanal') {
+      return Number(this.totalesVendedor?.cuotaSemana ?? this.totalesVendedor?.cuotaMes ?? 0) || 0;
+    }
+    return Number(this.totalesVendedor?.cuotaMes ?? 0) || 0;
+  }
+
   private getDefaultDateRange(): { inicio: string; fin: string } {
     const hoy = new Date();
     return {
@@ -454,17 +492,30 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.tipoCuota === tipo) return;
     this.tipoCuota = tipo;
 
-    if (this.rolId === 3) {
-      // Auto-ajusta fechas según el nuevo tipoCuota
-      const pivotDate = this.filtrosActivos.fechaInicio || this.formatDate(new Date());
-      const newRange = this.adjustDateRangeForTipoCuota(tipo, pivotDate);
-      this.filtrosActivos.fechaInicio = newRange.inicio;
-      this.filtrosActivos.fechaFin = newRange.fin;
+    // Auto-ajusta fechas según el nuevo tipoCuota para TODOS los roles.
+    // FIX: antes esto solo corría para rolId === 3 (vendedor). Admin y
+    // supervisor conservaban el rango de fechas anterior (mes/semana
+    // completos) al pasar a "diaria", por lo que las cards y tablas de
+    // categoría/proveedor seguían consultando ese rango completo en vez
+    // del día puntual, mostrando cuotas/datos que no correspondían al día.
+    const pivotDate = this.filtrosActivos.fechaInicio || this.formatDate(new Date());
+    const newRange = this.adjustDateRangeForTipoCuota(tipo, pivotDate);
+    // FIX: reasignar el objeto (no mutar in place) para que el setter
+    // @Input filtros de <app-ventas> detecte el cambio de referencia y
+    // recargue con las fechas nuevas; mutar dejaba _filtros desactualizado
+    // dentro de VentasEstadoBase y la vista seguía consultando con las
+    // fechas viejas al cambiar entre mensual/semanal/diaria.
+    this.filtrosActivos = {
+      ...this.filtrosActivos,
+      fechaInicio: newRange.inicio,
+      fechaFin: newRange.fin,
+    };
 
+    if (this.rolId === 3) {
       this.totalesVendedor = null;
       this.cargarTotalesVendedor();
-      this.ventasRef?.reloadView(true);
     }
+    this.ventasRef?.reloadView(true);
   }
 
   onToggleSidebar(collapsed: boolean): void {
@@ -524,7 +575,9 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private obtenerNombreVendedorRow(vendedor: ApiVendedorRow): string {
-    return String(vendedor.nombre ?? vendedor.nom_vendedor ?? vendedor.nomVendedor ?? '').trim();
+    let nombre = String(vendedor.nombre ?? vendedor.nom_vendedor ?? vendedor.nomVendedor ?? '').trim();
+    nombre = nombre.replace(/^\d+\s*-\s*/u, '').trim();
+    return nombre;
   }
 
   private construirOpcionesVendedores(vendedores: ApiVendedorRow[]): FilterOption[] {
@@ -537,16 +590,13 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       if (!codigo || !nombre) continue;
 
       mapa.set(codigo, {
-        label: `${codigo} - ${nombre}`,
+        label: `${codigo} ${nombre}`,
         value: codigo,
       });
     }
 
-    return Array.from(mapa.values()).sort((a, b) =>
-      a.label.localeCompare(b.label, 'es', {
-        sensitivity: 'base',
-        numeric: true,
-      }),
+    return Array.from(mapa.values()).sort(
+      (a, b) => Number(a.value) - Number(b.value),
     );
   }
 
@@ -558,6 +608,10 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       this.vendedorMap.set(opt.label, opt.value);
       this.vendedorMap.set(opt.value, opt.value);
     });
+  }
+
+  private ordenarVendedoresPorCodigo(opciones: FilterOption[]): FilterOption[] {
+    return [...opciones].sort((a, b) => Number(a.value) - Number(b.value));
   }
 
 
@@ -707,10 +761,14 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private obtenerCodigoProveedorLinea(item: ApiLineaRow | any): string {
+    // idProveedor/id_proveedor es el id numérico real de la tabla
+    // `proveedor`, el único valor que el backend acepta en el filtro
+    // (`it.id_proveedor IN (...)`). codigoLinea/codigo_linea NO es un
+    // código: el backend lo llena con el nombre completo del proveedor
+    // ("1200 - ALDOR"), así que priorizarlo mandaba ese texto como value
+    // del filtro y el backend nunca matcheaba (0 resultados).
     const codigo = String(
-      item?.codigoLinea ??
-        item?.codigo_linea ??
-        item?.idProveedor ??
+      item?.idProveedor ??
         item?.id_proveedor ??
         item?.codigoProveedor ??
         item?.codigo ??
@@ -794,7 +852,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       const value = codigo || categoriaLimpia;
       if (unicas.has(value)) return;
 
-      unicas.set(value, { value, label: categoriaRaw });
+      unicas.set(value, { value, label: categoriaLimpia });
     });
 
     return enriquecerOpcionesSinDuplicadosVisuales(Array.from(unicas.values()));
@@ -1157,9 +1215,11 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         }
 
         this.aplicarOpcionesVendedores(
-          this.conservarOpcionesSeleccionadas(
-            Array.isArray(opciones.vendedores) ? opciones.vendedores : [],
-            this.normalizarArrayFiltro(filtrosReferencia.vendedores, filtrosReferencia.vendedor),
+          this.ordenarVendedoresPorCodigo(
+            this.conservarOpcionesSeleccionadas(
+              Array.isArray(opciones.vendedores) ? opciones.vendedores : [],
+              this.normalizarArrayFiltro(filtrosReferencia.vendedores, filtrosReferencia.vendedor),
+            ),
           ),
         );
 
@@ -2046,15 +2106,13 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     // (1 sola llamada al endpoint /api/filtros/opciones).
     this.cargarOpcionesFiltrosUnificado();
 
-    // Auto-ajusta fechas si estamos en modo semanal o diaria
-    if (this.rolId === 3 && this.tipoCuota !== 'mensual') {
-      const newRange = this.adjustDateRangeForTipoCuota(
-        this.tipoCuota,
-        this.filtrosActivos.fechaInicio,
-      );
-      this.filtrosActivos.fechaInicio = newRange.inicio;
-      this.filtrosActivos.fechaFin = newRange.fin;
-    }
+    // FIX: antes se re-ajustaban (snap a semana/día) las fechas en CADA
+    // apply de filtros para el vendedor cuando tipoCuota no era mensual,
+    // aunque el usuario solo hubiera cambiado ciudad/proveedor/categoria.
+    // Eso pisaba el rango de fechas elegido por el usuario y lo hacía
+    // "saltar" con cualquier filtro. El auto-ajuste de fechas al cambiar
+    // de tipoCuota ya lo maneja onCambiarTipoCuota(); aquí no debe tocarse
+    // el rango de fechas que el usuario seleccionó explícitamente.
 
     if (this.rolId === 3) {
       this.cargarTotalesVendedor();
@@ -2069,11 +2127,6 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   private cargarTotalesVendedor(): void {
     const filtros = { ...this.filtrosActivos };
 
-    // Para cuota diaria usamos el mismo endpoint que el componente de
-    // análisis de ventas (`/api/roles/cuota-dia/por-vendedor`).
-    // Esto garantiza que las cards y la sección de análisis muestren
-    // exactamente los mismos datos cuando el rol vendedor selecciona
-    // "Cuota Diaria / Venta Diaria".
     if (this.tipoCuota === 'diaria') {
       this.cargarTotalesVendedorCuotaDiaria(filtros);
       return;
@@ -2158,13 +2211,12 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
    * Carga las cards (totalesVendedor) usando el mismo endpoint que el
    * componente de análisis de ventas para cuota diaria.
    *
-   * Antes: usaba `cumplimientoService.getCumplimientoDiaVendedor` que apuntaba
-   * a `/api/dia/cumplimiento/front/me`. Ese endpoint no devolvía la data
-   * esperada para el rol vendedor y las cards se quedaban en $0.
-   *
-   * Ahora: usa `cuotaDiaService.getCuotaDiaVendedor` que apunta a
-   * `/api/roles/cuota-dia/por-vendedor`, el mismo endpoint que ya pintaba
-   * correctamente la sección "Análisis de Ventas".
+   * FIX: `cuotaDiaService.getCuotaDiaVendedor` (/api/roles/cuota-dia/por-vendedor)
+   * no soporta proveedor/categoria/ciudad, por lo que las cards nunca
+   * reflejaban esos filtros para el rol vendedor. `getCumplimientoDiaVendedor`
+   * (/api/dia/cumplimiento/front/me) ya soporta todos los filtros (igual que
+   * el resto de endpoints /front) y ahora también aplica proveedor/categoria/
+   * ciudad en el backend. Devuelve un objeto plano (no {detalle, totales}).
    */
   private cargarTotalesVendedorCuotaDiaria(filtros: DashboardFilters): void {
     const fechaInicio = String(filtros.fechaInicio ?? '').trim();
@@ -2176,22 +2228,21 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
-    this.cuotaDiaService
-      .getCuotaDiaVendedor({ fechaInicio, fechaFin })
+    this.cumplimientoService
+      .getCumplimientoDiaVendedor(filtros)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (cuotas: CuotaDiaVendedor[]) => {
-          if (!Array.isArray(cuotas) || !cuotas.length) {
+        next: (res: any) => {
+          const cuotaDiaria = Number(res?.cuotaDia ?? 0) || 0;
+          const ventaAcum = Number(res?.ventaDiaria ?? 0) || 0;
+          const porcCump = Number(res?.cumplimiento ?? 0) || 0;
+          const proyeccionVenta = Number(res?.proyeccion ?? 0) || 0;
+
+          if (!cuotaDiaria && !ventaAcum) {
             this.totalesVendedor = null;
             this.cdr.markForCheck();
             return;
           }
-
-          const cuota = cuotas[0];
-          const cuotaDiaria = Number(cuota.cuota_dia ?? 0) || 0;
-          const ventaAcum = Number(cuota.venta_acumulada_dia ?? 0) || 0;
-          const porcCump = Number(cuota.pct_cumplimiento ?? 0) || 0;
-          const proyeccionVenta = Number(cuota.proye_venta ?? 0) || 0;
 
           this.totalesVendedor = {
             ventaAcum,

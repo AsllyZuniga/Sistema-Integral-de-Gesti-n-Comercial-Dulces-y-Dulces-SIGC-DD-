@@ -142,13 +142,53 @@ export class FiltrosService {
   private normalizarRespuesta(data: OpcionesFiltros | null | undefined): OpcionesFiltros | null {
     if (!data) return null;
 
+    const vendedores = this.normalizarOpcionesVendedores(data.vendedores);
+
     return {
       periodo: data.periodo ?? { fechaInicio: '', fechaFin: '' },
-      vendedores: this.normalizarOpciones(data.vendedores, ['value', 'codigo_vendedor', 'codVendedor', 'codigo', 'cod'], ['label', 'nombre', 'nom_vendedor', 'nomVendedor', 'nombreVendedor']),
+      vendedores,
       proveedores: this.normalizarOpciones(data.proveedores, ['value', 'reporte_prov_con_obs', 'reporteProvConObs', 'codigo', 'codProveedor', 'proveedor'], ['label', 'nombre', 'nombreProveedor', 'proveedor']),
       categorias: this.normalizarOpciones(data.categorias, ['value', 'id_categoria', 'idCategoria', 'codCategoria', 'codigo'], ['label', 'categoria', 'nomCategoria', 'nombreCategoria']),
       ciudades: this.normalizarOpciones(data.ciudades, ['value', 'id_ciudad', 'idCiudad', 'codCiudad', 'codigo', 'cod'], ['label', 'ciudad', 'nomCiudad', 'nombreCiudad']),
     };
+  }
+
+  private normalizarOpcionesVendedores(items: any[] | null | undefined): FilterOption[] {
+    const opciones = new Map<string, FilterOption>();
+    const texto = (valor: unknown): string => String(valor ?? '').trim();
+    const pick = (item: any, keys: string[]): string => {
+      for (const key of keys) {
+        const value = texto(item?.[key]);
+        if (value) return value;
+      }
+      return '';
+    };
+
+    const valueKeys = ['value', 'codigo_vendedor', 'codVendedor', 'codigo', 'cod'];
+    const labelKeys = ['label', 'nombre', 'nom_vendedor', 'nomVendedor', 'nombreVendedor'];
+
+    for (const item of Array.isArray(items) ? items : []) {
+      const rawValue = normalizarTextoFiltro(pick(item, valueKeys) || pick(item, labelKeys));
+      let nombre = normalizarTextoFiltro(pick(item, labelKeys) || rawValue);
+      if (!rawValue || !nombre) continue;
+
+      nombre = nombre.replace(/^\d+\s*-\s*/u, '').trim();
+
+      const codigo = this.zeroPadCodigo(rawValue);
+      if (!opciones.has(codigo)) {
+        opciones.set(codigo, { value: codigo, label: `${codigo} ${nombre}` });
+      }
+    }
+
+    return Array.from(opciones.values()).sort(
+      (a, b) => Number(a.value) - Number(b.value),
+    );
+  }
+
+  private zeroPadCodigo(valor: string): string {
+    const codigo = valor.trim();
+    if (!codigo) return '';
+    return /^\d+$/.test(codigo) && codigo.length < 4 ? codigo.padStart(4, '0') : codigo;
   }
 
   private normalizarOpciones(items: any[] | null | undefined, valueKeys: string[], labelKeys: string[]): FilterOption[] {
