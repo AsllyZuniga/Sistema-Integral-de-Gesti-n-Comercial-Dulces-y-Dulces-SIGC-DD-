@@ -516,6 +516,14 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
                 this.allItemData = listadoMapeado;
                 this.tableData = [...listadoMapeado];
                 this.recalcularChart();
+
+                // FIX: Item Detail nunca sincronizaba la card de cuota
+                // (emitirResumenVista no se llamaba en esta vista), dejando
+                // la card en 0 para Supervisor. Solo se corrige para
+                // Supervisor: Vendedor no se toca.
+                if (this.rolId === RoleId.SUPERVISOR) {
+                  this.refrescarCuotaVendedorFiltrado(filtrosActivos);
+                }
               });
           };
 
@@ -525,6 +533,18 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
 
       case 'cliente':
         this.chartType = 'bar';
+
+        // FIX: para Supervisor filtrando un vendedor específico de su
+        // equipo, obtenerIdVendedorSesion() devuelve el id del propio
+        // supervisor (no el del vendedor filtrado), dejando la vista y la
+        // card de cuota en 0. Usar el mismo flujo role-aware que ya
+        // funciona para "todos los vendedores" (esModoAdminTodos), que
+        // respeta el filtro de vendedor vía filtrosConsulta.
+        if (this.rolId === RoleId.SUPERVISOR) {
+          this.cargarDetalleClientesAdministrador(filtrosConsulta);
+          this.refrescarCuotaVendedorFiltrado(filtrosConsulta, true);
+          break;
+        }
 
         const idVendedor = this.obtenerIdVendedorSesion();
         if (!idVendedor) {
