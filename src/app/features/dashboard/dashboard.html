@@ -52,11 +52,12 @@
         <app-card
           [title]="labelCuota"
           [value]="
-            tipoCuota === 'diaria'
+            cuotaVistaVendedor ??
+            (tipoCuota === 'diaria'
               ? (totalesVendedor?.cuotaDiaria ?? totalesVendedor?.cuotaMes ?? 0)
               : tipoCuota === 'semanal'
                 ? (totalesVendedor?.cuotaSemana ?? totalesVendedor?.cuotaMes ?? 0)
-                : (totalesVendedor?.cuotaMes ?? 0)
+                : (totalesVendedor?.cuotaMes ?? 0))
           "
         ></app-card>
         <app-card title="Cumplimiento" [value]="totalesVendedor?.porcCump ?? 0"></app-card>

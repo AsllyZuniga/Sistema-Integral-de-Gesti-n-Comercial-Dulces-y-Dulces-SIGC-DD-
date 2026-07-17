@@ -291,6 +291,40 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  /**
+   * Cuota mostrada en la card KPI del Vendedor: debe reflejar la pestaña
+   * activa dentro de `<app-ventas>` (Proveedor/Categoría), no solo el
+   * tipoCuota. Ciudad/Cliente/Item no tienen cuota propia y ya usan la
+   * cuota del vendedor (totalesVendedor) como fallback, sin cambios.
+   */
+  get cuotaVistaVendedor(): number | null {
+    const vista = this.ventasRef?.activeVentasView;
+
+    if (vista === 'proveedor') {
+      return Number(this.ventasRef?.totalCuotaProveedor ?? 0) || 0;
+    }
+
+    if (vista === 'categoria') {
+      const cuotaCategoria = Number(this.ventasRef?.totalCuotaCategoria ?? 0) || 0;
+      if (cuotaCategoria > 0) return cuotaCategoria;
+      // Categoría sin cuota propia (0 exacto): fallback a la cuota del
+      // vendedor autenticado para el período activo.
+      return this.cuotaVendedorPorPeriodo();
+    }
+
+    return null;
+  }
+
+  private cuotaVendedorPorPeriodo(): number {
+    if (this.tipoCuota === 'diaria') {
+      return Number(this.totalesVendedor?.cuotaDiaria ?? this.totalesVendedor?.cuotaMes ?? 0) || 0;
+    }
+    if (this.tipoCuota === 'semanal') {
+      return Number(this.totalesVendedor?.cuotaSemana ?? this.totalesVendedor?.cuotaMes ?? 0) || 0;
+    }
+    return Number(this.totalesVendedor?.cuotaMes ?? 0) || 0;
+  }
+
   private getDefaultDateRange(): { inicio: string; fin: string } {
     const hoy = new Date();
     return {
