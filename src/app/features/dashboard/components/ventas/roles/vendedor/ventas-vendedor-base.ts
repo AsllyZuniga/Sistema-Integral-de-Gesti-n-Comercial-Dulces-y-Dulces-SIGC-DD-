@@ -278,6 +278,20 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
                   name: i.linea,
                   value: Number(i.ventaAcum ?? 0),
                 }));
+
+                // FIX: Proveedor nunca sincronizaba la card de cuota para
+                // Supervisor filtrando un vendedor específico (mismo bug
+                // que Cliente/Item). Solo se corrige para Supervisor:
+                // Vendedor no se toca (su card usa cuotaVistaVendedor en
+                // dashboard.component.ts).
+                if (this.rolId === RoleId.SUPERVISOR) {
+                  if (this.totalCuotaProveedor > 0) {
+                    this.emitirResumenVista();
+                  } else {
+                    this.refrescarCuotaVendedorFiltrado(filtrosActivos, true);
+                  }
+                }
+
                 this.cdr.markForCheck();
               });
           };

@@ -181,7 +181,17 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
               value: Number(i?.ventaAcum ?? 0),
             }));
             this.chartId = 'chart-proveedor-admin-' + Date.now();
-            this.emitirResumenVista();
+
+            if (this.totalCuotaProveedor > 0) {
+              this.emitirResumenVista();
+            } else {
+              // Proveedor sin cuota propia (0 exacto): la card debe caer al
+              // fallback de cuota del vendedor filtrado, que puede no estar
+              // disponible aún si el usuario no visitó la pestaña Vendedor.
+              // soloCuota=true: la venta acumulada de Proveedor ya se
+              // calculó arriba (totalAcumuladoProveedor).
+              this.refrescarCuotaVendedorFiltrado(filtrosConsulta, true);
+            }
             this.cdr.markForCheck();
           });
         return;

@@ -396,7 +396,11 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
   protected obtenerCuotaVistaActiva(): number | null {
     switch (this.activeVentasView) {
       case 'proveedor':
-        return this.totalCuotaProveedor;
+        // Fallback: si el proveedor filtrado no tiene cuota propia asignada
+        // (exactamente 0), la card debe mostrar la cuota del vendedor
+        // filtrado en vez de 0. Un valor > 0 (aunque sea $1) nunca se
+        // reemplaza.
+        return this.totalCuotaProveedor > 0 ? this.totalCuotaProveedor : this.totalCuotaVendedor;
       case 'vendedor':
         return this.totalCuotaVendedor;
       case 'categoria':

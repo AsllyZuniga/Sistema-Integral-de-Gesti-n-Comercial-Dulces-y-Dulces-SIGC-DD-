@@ -301,7 +301,11 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     const vista = this.ventasRef?.activeVentasView;
 
     if (vista === 'proveedor') {
-      return Number(this.ventasRef?.totalCuotaProveedor ?? 0) || 0;
+      const cuotaProveedor = Number(this.ventasRef?.totalCuotaProveedor ?? 0) || 0;
+      if (cuotaProveedor > 0) return cuotaProveedor;
+      // Proveedor sin cuota propia (0 exacto): fallback a la cuota del
+      // vendedor autenticado para el período activo.
+      return this.cuotaVendedorPorPeriodo();
     }
 
     if (vista === 'categoria') {
