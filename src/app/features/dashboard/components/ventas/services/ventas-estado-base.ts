@@ -400,7 +400,17 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
       case 'vendedor':
         return this.totalCuotaVendedor;
       case 'categoria':
-        return this.totalCuotaCategoria;
+        // Fallback: si la categoría filtrada no tiene cuota propia asignada
+        // (exactamente 0), la card debe mostrar la cuota del vendedor
+        // filtrado en vez de 0. Un valor > 0 (aunque sea $1) nunca se
+        // reemplaza.
+        return this.totalCuotaCategoria > 0 ? this.totalCuotaCategoria : this.totalCuotaVendedor;
+      case 'ciudad':
+      case 'cliente':
+      case 'item':
+        // Ciudad/Cliente/Item no tienen cuota propia: siempre mostrar la
+        // cuota del/los vendedor(es) filtrado(s).
+        return this.totalCuotaVendedor;
       default:
         return null;
     }
@@ -416,6 +426,9 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
         return this.totalAcumuladoCategoria;
       case 'ciudad':
         return this.totalAcumuladoCiudad;
+      case 'cliente':
+      case 'item':
+        return this.totalAcumuladoVendedor;
       case 'ventas':
         // FIX: en cuota diaria el chart usa el agregado del backend
         // (totales.totalVenta / totales.ventaDiaria) para coincidir con

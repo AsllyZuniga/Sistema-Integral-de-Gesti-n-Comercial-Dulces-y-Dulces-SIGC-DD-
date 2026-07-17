@@ -76,7 +76,17 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
             );
             this.chartData = topCategorias;
             this.chartId = 'chart-categoria-admin-' + Date.now();
-            this.emitirResumenVista();
+
+            if (this.totalCuotaCategoria > 0) {
+              this.emitirResumenVista();
+            } else {
+              // Categoría sin cuota propia (0 exacto): la card debe caer al
+              // fallback de cuota del vendedor filtrado, que puede no estar
+              // disponible aún si el usuario no visitó la pestaña Vendedor.
+              // soloCuota=true: la venta acumulada de Categoría ya se
+              // calculó arriba (totalAcumuladoCategoria).
+              this.refrescarCuotaVendedorFiltrado(filtrosConsulta, true);
+            }
             this.cdr.markForCheck();
           });
         return;
@@ -292,7 +302,11 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
               value: Number(i?.ventaAcum ?? 0),
             }));
             this.chartId = 'chart-ciudad-admin-' + Date.now();
-            this.emitirResumenVista();
+            // Ciudad no tiene cuota propia: la card debe mostrar la cuota
+            // del/los vendedor(es) filtrado(s). soloCuota=true porque la
+            // venta acumulada de Ciudad ya se calculó arriba
+            // (totalAcumuladoCiudad).
+            this.refrescarCuotaVendedorFiltrado(filtrosConsulta, true);
             this.cdr.markForCheck();
           });
         return;
@@ -304,6 +318,11 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
 
         if (this.activeVentasView === 'cliente') {
           this.cargarDetalleClientesAdministrador(filtrosConsulta);
+          // Cliente no tiene cuota propia: la card debe mostrar la cuota
+          // del/los vendedor(es) filtrado(s). soloCuota=true porque la
+          // venta acumulada de esta vista ya la calcula
+          // cargarDetalleClientesAdministrador con su propio total.
+          this.refrescarCuotaVendedorFiltrado(filtrosConsulta, true);
           return;
         }
 
@@ -339,6 +358,9 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
             this.allItemData = listadoMapeado;
             this.tableData = [...listadoMapeado];
             this.recalcularChart();
+            // Item no tiene cuota propia: la card debe mostrar la cuota
+            // del/los vendedor(es) filtrado(s).
+            this.refrescarCuotaVendedorFiltrado(filtrosConsulta);
           });
         return;
 
@@ -811,6 +833,86 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
         proyeccionVenta: Number(cuota.proye_venta ?? 0),
         porcCumProy: Number(cuota.pct_cumplimiento ?? 0),
       };
+    });
+  }
+
+  /**
+   * Refresca `totalCuotaVendedor`/`totalAcumuladoVendedor` para las vistas
+   * que no tienen cuota propia (Ciudad, Cliente, Item) y necesitan mostrar
+   * en la card la cuota del/los vendedor(es) filtrado(s), sin depender de
+   * que el usuario haya visitado antes la pestaña Vendedor. No toca
+   * `tableData`/`chartData` de la vista actual: solo alimenta los totales
+   * que consume `obtenerCuotaVistaActiva()`/`obtenerVentaAcumVistaActiva()`.
+   */
+  protected refrescarCuotaVendedorFiltrado(
+    filtrosConsulta: DashboardFilters,
+    soloCuota = false,
+  ): void {
+    const vistaAlSolicitar = this.activeVentasView;
+
+    if (this._tipoCuota === 'diaria') {
+      this.cumplimientoService
+        .getCumplimientoDiaAdmin(filtrosConsulta)
+        .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+        .subscribe((res: any) => {
+          if (this.activeVentasView !== vistaAlSolicitar) return;
+
+          const cuotasMapeadas = this.mapearCuotaDiariaAdminDesdeCumplimiento(res);
+          const cuotasFiltradas = this.filtrarPorCodigosVendedoresPermitidos(cuotasMapeadas);
+          const codigoVendedorFiltro = String(filtrosConsulta.vendedor ?? '').trim();
+          const vendedoresFiltrados = codigoVendedorFiltro
+            ? this.filtrarVendedores(cuotasFiltradas, codigoVendedorFiltro)
+            : cuotasFiltradas;
+
+          this.totalCuotaVendedor = vendedoresFiltrados.reduce(
+            (sum: number, item: any) => sum + (Number(item?.cuotaDiaria ?? 0) || 0),
+            0,
+          );
+          // Para 'cliente' no se sobrescribe la venta acumulada: esa vista
+          // ya calcula su propio total (agrupado por vendedor con items
+          // comprados) que es más preciso que este endpoint de cumplimiento.
+          if (!soloCuota) {
+            this.totalAcumuladoVendedor = this.obtenerVentaAcumUnificadaCuotaDiaria(
+              vendedoresFiltrados,
+              res?.totales ?? null,
+            );
+          }
+
+          this.emitirResumenVista();
+        });
+      return;
+    }
+
+    const admin$ = this.esSemanal
+      ? this.semanaService.getCumplimientoSemanaAdmin(filtrosConsulta)
+      : this.cumplimientoService.getCumplimientoMesAdmin(filtrosConsulta);
+
+    admin$.pipe(takeUntil(merge(this.destroy$, this.recargarVista$))).subscribe((res: any) => {
+      if (this.activeVentasView !== vistaAlSolicitar) return;
+
+      const detalle = this.filtrarPorCodigosVendedoresPermitidos(
+        this.mapearDetalleAdminAVendedores(res?.detalle ?? []),
+      );
+      const codigosVendedorFiltro = this.normalizarValoresFiltro(
+        filtrosConsulta.vendedores,
+        filtrosConsulta.vendedor,
+      );
+      const vendedoresFiltrados = codigosVendedorFiltro.length
+        ? this.filtrarVendedoresMulti(detalle, codigosVendedorFiltro)
+        : detalle;
+
+      this.totalCuotaVendedor = vendedoresFiltrados.reduce(
+        (sum: number, item: any) => sum + (Number(item?.[this.cuotaColumn] ?? 0) || 0),
+        0,
+      );
+      if (!soloCuota) {
+        this.totalAcumuladoVendedor = vendedoresFiltrados.reduce(
+          (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+          0,
+        );
+      }
+
+      this.emitirResumenVista();
     });
   }
 }

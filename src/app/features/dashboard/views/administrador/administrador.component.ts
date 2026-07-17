@@ -167,6 +167,9 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     ventaDiaria?: number;
   } | null = null;
   ventaMesVista: number | null = null;
+  cuotaVista: number | null = null;
+  porcCumpVista: number | null = null;
+  proyeccionVista: number | null = null;
   cargandoVendedores = false;
   catalogoVendedores: VendedorTabla[] = [];
   todosLosVendedores: VendedorTabla[] = [];
@@ -852,9 +855,24 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  onResumenCambio(resumen: { ventaAcum?: number }): void {
+  onResumenCambio(resumen: {
+    ventaAcum?: number;
+    cuota?: number;
+    porcCump?: number;
+    proyeccionVenta?: number;
+  }): void {
     const venta = Number(resumen?.ventaAcum ?? 0);
     this.ventaMesVista = Number.isFinite(venta) ? venta : null;
+    // La cuota mostrada en la card debe reflejar la vista/tabla activa
+    // (Proveedor/Categoría/Ciudad/Cliente/Item), no solo tipoCuota. Un
+    // valor de 0 real (categoría sin cuota propia, ya resuelto con
+    // fallback a vendedor en el hijo) no debe descartarse.
+    const cuota = Number(resumen?.cuota ?? 0);
+    this.cuotaVista = Number.isFinite(cuota) ? cuota : null;
+    const porcCump = Number(resumen?.porcCump ?? 0);
+    this.porcCumpVista = Number.isFinite(porcCump) ? porcCump : null;
+    const proyeccion = Number(resumen?.proyeccionVenta ?? 0);
+    this.proyeccionVista = Number.isFinite(proyeccion) ? proyeccion : null;
     this.cdr.detectChanges();
   }
 
