@@ -430,9 +430,12 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
                 ? this.semanaService.getCiudadesGlobal(filtrosActivos)
                 : this.cumplimientoService.getCiudadesGlobal(filtrosActivos);
 
-            ciudades$
+            forkJoin({
+              res: ciudades$,
+              cuotaTotalVendedores: this.calcularCuotaTotalVendedores$(filtrosActivos),
+            })
               .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-              .subscribe((res: any) => {
+              .subscribe(({ res, cuotaTotalVendedores }: any) => {
                 const listadoCompleto = Array.isArray(res)
                   ? res.flatMap((item: any) => Array.isArray(item?.detallePorCiudad) ? item.detallePorCiudad : [])
                   : res?.detallePorCiudad ?? [];
@@ -443,7 +446,15 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
                   return;
                 }
 
-                const consolidado = this.consolidarPorCiudad(listadoFiltrado);
+                // El "Cumpl. %"/"Cumpl. Proy. %" de cada ciudad representa qué
+                // parte de la cuota total del/los vendedor(es) filtrado(s) se
+                // vendió/proyecta en esa ciudad (Ciudad no tiene cuota propia).
+                const cuotaTotal = Number(cuotaTotalVendedores ?? 0) || 0;
+                const consolidado = this.consolidarPorCiudad(listadoFiltrado).map((row: any) => ({
+                  ...row,
+                  porcCump: cuotaTotal > 0 ? (row.ventaAcum / cuotaTotal) * 100 : 0,
+                  porcCumProy: cuotaTotal > 0 ? (row.proyeccionVenta / cuotaTotal) * 100 : 0,
+                }));
                 const listadoMapeado = consolidado.map((i: any) => ({
                   ...i,
                   ciudad: this.repararTextoCiudad(i.ciudad),

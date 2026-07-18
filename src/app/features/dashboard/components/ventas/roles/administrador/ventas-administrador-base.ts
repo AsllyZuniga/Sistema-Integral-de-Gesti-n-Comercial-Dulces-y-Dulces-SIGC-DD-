@@ -1,5 +1,6 @@
 import { Directive } from '@angular/core';
-import { forkJoin, merge, takeUntil } from 'rxjs';
+import { forkJoin, merge, takeUntil, Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { DashboardFilters } from '../../../../../../shared/components/filters/filters.component';
 import { VentasUtilidadesBase } from '../../services/ventas-utilidades-base';
 
@@ -231,9 +232,12 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
             ? this.semanaService.getCiudadesGlobal(filtrosConsulta)
             : this.cumplimientoService.getCiudadesGlobal(filtrosConsulta);
 
-        ciudades$
+        forkJoin({
+          res: ciudades$,
+          cuotaTotalVendedores: this.calcularCuotaTotalVendedores$(filtrosConsulta),
+        })
           .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
-          .subscribe((res: any) => {
+          .subscribe(({ res, cuotaTotalVendedores }: any) => {
             // Microtarea B5 (front): el endpoint /ciudades-global ya filtra
             // por scope JWT. NO aplicar filtrarPorCodigosVendedoresPermitidos
             // aquí porque el detallePorCiudad NO trae codVendedor por fila.
@@ -248,6 +252,11 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
               this.cdr.markForCheck();
               return;
             }
+
+            // El "Cumpl. %"/"Cumpl. Proy. %" de cada ciudad representa qué
+            // parte de la cuota total del/los vendedor(es) filtrado(s) se
+            // vendió/proyecta en esa ciudad (Ciudad no tiene cuota propia).
+            const cuotaTotal = Number(cuotaTotalVendedores ?? 0) || 0;
 
             const consolidado = ciudadesPermitidas
               .map((row: any) => {
@@ -276,12 +285,8 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
                   cuota,
                   ventaAcum,
                   proyeccionVenta,
-                  porcCump:
-                    Number(row?.porcCumpCiudad ?? row?.porcCump ?? 0) ||
-                    (cuota > 0 ? (ventaAcum / cuota) * 100 : 0),
-                  porcCumProy:
-                    Number(row?.porcCumProyGlobal ?? row?.porcCumProy ?? 0) ||
-                    (cuota > 0 ? (proyeccionVenta / cuota) * 100 : 0),
+                  porcCump: cuotaTotal > 0 ? (ventaAcum / cuotaTotal) * 100 : 0,
+                  porcCumProy: cuotaTotal > 0 ? (proyeccionVenta / cuotaTotal) * 100 : 0,
                 };
               })
               .filter((item: any) => item?.ciudad && !this.esCiudadResumen(item?.ciudad));
@@ -844,6 +849,59 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
         porcCumProy: Number(cuota.pct_cumplimiento ?? 0),
       };
     });
+  }
+
+  /**
+   * Calcula la cuota total del/los vendedor(es) que quedan tras aplicar los
+   * filtros activos (proveedor, categoría, ciudad, rango de fechas), usando
+   * la misma fuente y el mismo criterio de filtrado que
+   * `refrescarCuotaVendedorFiltrado`. Se usa como denominador para el
+   * "Cumpl. %"/"Cumpl. Proy. %" de la tabla por Ciudad, que no tiene cuota
+   * propia por fila: el % de cada ciudad debe representar qué parte de la
+   * cuota total del/los vendedor(es) filtrado(s) se vendió en esa ciudad.
+   */
+  protected calcularCuotaTotalVendedores$(filtrosConsulta: DashboardFilters): Observable<number> {
+    if (this._tipoCuota === 'diaria') {
+      return this.cumplimientoService.getCumplimientoDiaAdmin(filtrosConsulta).pipe(
+        map((res: any) => {
+          const cuotasMapeadas = this.mapearCuotaDiariaAdminDesdeCumplimiento(res);
+          const cuotasFiltradas = this.filtrarPorCodigosVendedoresPermitidos(cuotasMapeadas);
+          const codigoVendedorFiltro = String(filtrosConsulta.vendedor ?? '').trim();
+          const vendedoresFiltrados = codigoVendedorFiltro
+            ? this.filtrarVendedores(cuotasFiltradas, codigoVendedorFiltro)
+            : cuotasFiltradas;
+
+          return vendedoresFiltrados.reduce(
+            (sum: number, item: any) => sum + (Number(item?.cuotaDiaria ?? 0) || 0),
+            0,
+          );
+        }),
+      );
+    }
+
+    const admin$ = this.esSemanal
+      ? this.semanaService.getCumplimientoSemanaAdmin(filtrosConsulta)
+      : this.cumplimientoService.getCumplimientoMesAdmin(filtrosConsulta);
+
+    return admin$.pipe(
+      map((res: any) => {
+        const detalle = this.filtrarPorCodigosVendedoresPermitidos(
+          this.mapearDetalleAdminAVendedores(res?.detalle ?? []),
+        );
+        const codigosVendedorFiltro = this.normalizarValoresFiltro(
+          filtrosConsulta.vendedores,
+          filtrosConsulta.vendedor,
+        );
+        const vendedoresFiltrados = codigosVendedorFiltro.length
+          ? this.filtrarVendedoresMulti(detalle, codigosVendedorFiltro)
+          : detalle;
+
+        return vendedoresFiltrados.reduce(
+          (sum: number, item: any) => sum + (Number(item?.[this.cuotaColumn] ?? 0) || 0),
+          0,
+        );
+      }),
+    );
   }
 
   /**
