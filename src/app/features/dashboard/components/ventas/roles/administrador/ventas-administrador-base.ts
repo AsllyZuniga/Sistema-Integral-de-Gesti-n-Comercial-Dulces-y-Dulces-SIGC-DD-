@@ -333,11 +333,13 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
 
         if (this.activeVentasView === 'cliente') {
           this.cargarDetalleClientesAdministrador(filtrosConsulta);
-          // Cliente no tiene cuota propia: la card debe mostrar la cuota
-          // del/los vendedor(es) filtrado(s). soloCuota=true porque la
-          // venta acumulada de esta vista ya la calcula
-          // cargarDetalleClientesAdministrador con su propio total.
-          this.refrescarCuotaVendedorFiltrado(filtrosConsulta, true);
+          // Cliente no tiene cuota propia. El endpoint de esta vista pagina
+          // vendedores (vendedorItemsPageSize=10), por lo que su propio total
+          // de venta acumulada queda truncado si hay más de 10 vendedores
+          // filtrados. soloCuota=false: refrescarCuotaVendedorFiltrado trae
+          // el total real (todos los vendedores filtrados, sin paginar) para
+          // totalCuotaVendedor y totalAcumuladoVendedor.
+          this.refrescarCuotaVendedorFiltrado(filtrosConsulta, false);
           return;
         }
 

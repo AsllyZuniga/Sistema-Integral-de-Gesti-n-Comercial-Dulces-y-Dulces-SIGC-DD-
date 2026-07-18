@@ -984,11 +984,6 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
       return;
     }
 
-    const totalAcumuladoTodos = detallePorVendedor.reduce(
-      (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
-      0,
-    );
-
     const topVendedores = [...detallePorVendedor]
       .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
       .slice(0, 15);
@@ -998,7 +993,11 @@ export abstract class VentasClientesBase extends VentasTransformacionesBase {
       0,
     );
 
-    this.totalAcumuladoVendedor = totalAcumuladoTodos;
+    // No calcular/asignar totalAcumuladoVendedor aquí: este endpoint pagina
+    // vendedores (vendedorItemsPageSize), por lo que sumar solo
+    // detallePorVendedor trunca el KPI de la card cuando hay más vendedores
+    // que el tamaño de página. El total real (todos los vendedores
+    // filtrados, sin paginar) lo trae refrescarCuotaVendedorFiltrado.
 
     this.clientesAgrupados = detallePorVendedor;
     this.clientesVisibles = detallePorVendedor.length;

@@ -567,7 +567,11 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
         // respeta el filtro de vendedor vía filtrosConsulta.
         if (this.rolId === RoleId.SUPERVISOR) {
           this.cargarDetalleClientesAdministrador(filtrosConsulta);
-          this.refrescarCuotaVendedorFiltrado(filtrosConsulta, true);
+          // soloCuota=false: el endpoint de esta vista pagina vendedores
+          // (vendedorItemsPageSize=10) y su propio total queda truncado si
+          // el supervisor tiene más de 10 vendedores en su equipo. Se
+          // necesita también totalAcumuladoVendedor real, sin paginar.
+          this.refrescarCuotaVendedorFiltrado(filtrosConsulta, false);
           break;
         }
 
