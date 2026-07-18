@@ -2,7 +2,7 @@ import { Component, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { SessionService } from '../../../core/services/session.service';
-import { MENU_ITEMS, MenuItem } from '../../../core/auth/menu-items';
+import { MenuItem, obtenerMenuItemsPorRol } from '../../../core/auth/menu-items';
 import { nombreRol } from '../../../core/auth/roles';
 
 @Component({
@@ -31,7 +31,9 @@ export class SidebarComponent {
   }
 
   get navItems(): MenuItem[] {
-    return MENU_ITEMS.filter((item) => item.roles.includes(this.rolId));
+    const usuario = this.session.getUser();
+    const username = usuario?.username ?? usuario?.nombre ?? '';
+    return obtenerMenuItemsPorRol(this.rolId, username);
   }
 
   isActive(item: MenuItem): boolean {
