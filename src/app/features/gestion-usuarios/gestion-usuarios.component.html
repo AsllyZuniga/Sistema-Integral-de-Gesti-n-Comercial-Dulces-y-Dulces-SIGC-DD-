@@ -243,6 +243,37 @@
                       {{ administrador.username ?? '—' }}
                     </p>
 
+                    <div class="accesos-admin">
+                      <span class="accesos-admin-titulo">Accesos del menú</span>
+
+                      <label class="toggle-acceso">
+                        <input
+                          type="checkbox"
+                          [checked]="tieneAcceso(administrador, 'ventas')"
+                          (change)="onToggleAcceso(administrador, 'ventas', $event)"
+                        />
+                        Gestión de ventas
+                      </label>
+
+                      <label class="toggle-acceso">
+                        <input
+                          type="checkbox"
+                          [checked]="tieneAcceso(administrador, 'cuotas')"
+                          (change)="onToggleAcceso(administrador, 'cuotas', $event)"
+                        />
+                        Gestión de Cuotas
+                      </label>
+
+                      <label class="toggle-acceso">
+                        <input
+                          type="checkbox"
+                          [checked]="tieneAcceso(administrador, 'usuarios')"
+                          (change)="onToggleAcceso(administrador, 'usuarios', $event)"
+                        />
+                        Gestión Usuarios
+                      </label>
+                    </div>
+
                     <div class="usuario-actions">
                       <button
                         class="btn-sm btn-edit"
@@ -306,6 +337,7 @@
                 id="codigoVendedor"
                 type="text"
                 [(ngModel)]="formVendedor.codigo"
+                (ngModelChange)="onCodigoVendedorChange($event)"
                 name="codigo"
                 placeholder="Ej: VEN001"
                 [disabled]="guardando"
@@ -336,6 +368,7 @@
                 id="usernameVendedor"
                 type="text"
                 [(ngModel)]="formVendedor.username"
+                (ngModelChange)="onUsernameVendedorChange()"
                 name="username"
                 placeholder="Ej: jgarcia"
                 [disabled]="guardando"
@@ -344,14 +377,27 @@
 
             <div class="form-group">
               <label for="passwordVendedor">Contraseña <span class="required">*</span>:</label>
-              <input
-                id="passwordVendedor"
-                type="password"
-                [(ngModel)]="formVendedor.password"
-                name="password"
-                placeholder="••••••••"
-                [disabled]="guardando"
-              />
+              <div class="password-wrapper">
+                <input
+                  id="passwordVendedor"
+                  [type]="mostrarPassword.crearVendedor ? 'text' : 'password'"
+                  [(ngModel)]="formVendedor.password"
+                  name="password"
+                  placeholder="••••••••"
+                  [disabled]="guardando"
+                />
+                <button
+                  type="button"
+                  class="btn-toggle-password"
+                  (click)="toggleMostrarPassword('crearVendedor')"
+                  [disabled]="guardando"
+                  [attr.aria-label]="mostrarPassword.crearVendedor ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                >
+                  <span class="material-symbols-rounded">
+                    {{ mostrarPassword.crearVendedor ? 'visibility_off' : 'visibility' }}
+                  </span>
+                </button>
+              </div>
             </div>
 
             <div class="form-actions">
@@ -421,14 +467,27 @@
 
             <div class="form-group">
               <label for="passwordSupervisor">Contraseña <span class="required">*</span>:</label>
-              <input
-                id="passwordSupervisor"
-                type="password"
-                [(ngModel)]="formSupervisor.password"
-                name="password"
-                placeholder="••••••••"
-                [disabled]="guardando"
-              />
+              <div class="password-wrapper">
+                <input
+                  id="passwordSupervisor"
+                  [type]="mostrarPassword.crearSupervisor ? 'text' : 'password'"
+                  [(ngModel)]="formSupervisor.password"
+                  name="password"
+                  placeholder="••••••••"
+                  [disabled]="guardando"
+                />
+                <button
+                  type="button"
+                  class="btn-toggle-password"
+                  (click)="toggleMostrarPassword('crearSupervisor')"
+                  [disabled]="guardando"
+                  [attr.aria-label]="mostrarPassword.crearSupervisor ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                >
+                  <span class="material-symbols-rounded">
+                    {{ mostrarPassword.crearSupervisor ? 'visibility_off' : 'visibility' }}
+                  </span>
+                </button>
+              </div>
             </div>
 
             <div class="form-actions">
@@ -498,14 +557,27 @@
 
             <div class="form-group">
               <label for="passwordAdministrador">Contraseña <span class="required">*</span>:</label>
-              <input
-                id="passwordAdministrador"
-                type="password"
-                [(ngModel)]="formAdministrador.password"
-                name="password"
-                placeholder="••••••••"
-                [disabled]="guardando"
-              />
+              <div class="password-wrapper">
+                <input
+                  id="passwordAdministrador"
+                  [type]="mostrarPassword.crearAdministrador ? 'text' : 'password'"
+                  [(ngModel)]="formAdministrador.password"
+                  name="password"
+                  placeholder="••••••••"
+                  [disabled]="guardando"
+                />
+                <button
+                  type="button"
+                  class="btn-toggle-password"
+                  (click)="toggleMostrarPassword('crearAdministrador')"
+                  [disabled]="guardando"
+                  [attr.aria-label]="mostrarPassword.crearAdministrador ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                >
+                  <span class="material-symbols-rounded">
+                    {{ mostrarPassword.crearAdministrador ? 'visibility_off' : 'visibility' }}
+                  </span>
+                </button>
+              </div>
             </div>
 
             <div class="form-actions">
@@ -587,14 +659,27 @@
 
             <div class="form-group">
               <label for="editarPasswordVendedor">Contraseña (opcional):</label>
-              <input
-                id="editarPasswordVendedor"
-                type="password"
-                [(ngModel)]="formVendedor.password"
-                name="password"
-                placeholder="Dejar vacío si no deseas cambiarla"
-                [disabled]="guardando"
-              />
+              <div class="password-wrapper">
+                <input
+                  id="editarPasswordVendedor"
+                  [type]="mostrarPassword.editarVendedor ? 'text' : 'password'"
+                  [(ngModel)]="formVendedor.password"
+                  name="password"
+                  placeholder="Dejar vacío si no deseas cambiarla"
+                  [disabled]="guardando"
+                />
+                <button
+                  type="button"
+                  class="btn-toggle-password"
+                  (click)="toggleMostrarPassword('editarVendedor')"
+                  [disabled]="guardando"
+                  [attr.aria-label]="mostrarPassword.editarVendedor ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                >
+                  <span class="material-symbols-rounded">
+                    {{ mostrarPassword.editarVendedor ? 'visibility_off' : 'visibility' }}
+                  </span>
+                </button>
+              </div>
             </div>
 
             <div class="form-actions">
@@ -666,14 +751,27 @@
 
             <div class="form-group">
               <label for="editarPasswordSupervisor">Contraseña (opcional):</label>
-              <input
-                id="editarPasswordSupervisor"
-                type="password"
-                [(ngModel)]="formSupervisor.password"
-                name="password"
-                placeholder="Dejar vacío si no deseas cambiarla"
-                [disabled]="guardando"
-              />
+              <div class="password-wrapper">
+                <input
+                  id="editarPasswordSupervisor"
+                  [type]="mostrarPassword.editarSupervisor ? 'text' : 'password'"
+                  [(ngModel)]="formSupervisor.password"
+                  name="password"
+                  placeholder="Dejar vacío si no deseas cambiarla"
+                  [disabled]="guardando"
+                />
+                <button
+                  type="button"
+                  class="btn-toggle-password"
+                  (click)="toggleMostrarPassword('editarSupervisor')"
+                  [disabled]="guardando"
+                  [attr.aria-label]="mostrarPassword.editarSupervisor ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                >
+                  <span class="material-symbols-rounded">
+                    {{ mostrarPassword.editarSupervisor ? 'visibility_off' : 'visibility' }}
+                  </span>
+                </button>
+              </div>
             </div>
 
             <div class="form-actions">
@@ -745,14 +843,27 @@
 
             <div class="form-group">
               <label for="editarPasswordAdministrador">Contraseña (opcional):</label>
-              <input
-                id="editarPasswordAdministrador"
-                type="password"
-                [(ngModel)]="formAdministrador.password"
-                name="password"
-                placeholder="Dejar vacío si no deseas cambiarla"
-                [disabled]="guardando"
-              />
+              <div class="password-wrapper">
+                <input
+                  id="editarPasswordAdministrador"
+                  [type]="mostrarPassword.editarAdministrador ? 'text' : 'password'"
+                  [(ngModel)]="formAdministrador.password"
+                  name="password"
+                  placeholder="Dejar vacío si no deseas cambiarla"
+                  [disabled]="guardando"
+                />
+                <button
+                  type="button"
+                  class="btn-toggle-password"
+                  (click)="toggleMostrarPassword('editarAdministrador')"
+                  [disabled]="guardando"
+                  [attr.aria-label]="mostrarPassword.editarAdministrador ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                >
+                  <span class="material-symbols-rounded">
+                    {{ mostrarPassword.editarAdministrador ? 'visibility_off' : 'visibility' }}
+                  </span>
+                </button>
+              </div>
             </div>
 
             <div class="form-actions">

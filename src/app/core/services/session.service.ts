@@ -20,6 +20,9 @@ export interface SessionUser {
   nombre?: string;
   username?: string;
   estado?: boolean;
+  accesoVentas?: boolean;
+  accesoCuotas?: boolean;
+  accesoGestionUsuarios?: boolean;
   usuario?: any;
   data?: any;
   vendedor?: {
@@ -176,6 +179,9 @@ export class SessionService {
       nombre: source?.nombre ?? source?.username ?? user?.nombre ?? user?.username,
       username: source?.username ?? source?.nombre ?? user?.username ?? user?.nombre,
       estado: source?.estado ?? user?.estado,
+      accesoVentas: source?.accesoVentas ?? user?.accesoVentas,
+      accesoCuotas: source?.accesoCuotas ?? user?.accesoCuotas,
+      accesoGestionUsuarios: source?.accesoGestionUsuarios ?? user?.accesoGestionUsuarios,
 
       vendedor: source?.vendedor ?? user?.vendedor,
     };
@@ -324,5 +330,17 @@ export class SessionService {
   getRoleId(): number {
     const user = this.getUser();
     return Number(user?.rol?.idRol ?? user?.idRol ?? user?.rolId ?? 0);
+  }
+
+  tieneAccesoVentas(): boolean {
+    return this.getUser()?.accesoVentas !== false;
+  }
+
+  tieneAccesoCuotas(): boolean {
+    return this.getUser()?.accesoCuotas !== false;
+  }
+
+  tieneAccesoGestionUsuarios(): boolean {
+    return this.getUser()?.accesoGestionUsuarios !== false;
   }
 }

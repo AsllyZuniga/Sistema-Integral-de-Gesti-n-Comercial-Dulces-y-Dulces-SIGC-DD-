@@ -1,6 +1,8 @@
 import { Params } from '@angular/router';
 import { RoleId } from './roles';
 
+export type ItemMenuRestringible = 'ventas' | 'cuotas' | 'usuarios';
+
 export interface MenuItem {
   icon: string;
   label: string;
@@ -8,11 +10,8 @@ export interface MenuItem {
   roles: RoleId[];
   queryParams?: Params;
   activoPorParams?: Record<string, string>;
-  restringidoParaUsuarios?: string[];
+  itemRestringible?: ItemMenuRestringible;
 }
-
-// Admins a los que se les oculta Gestión de ventas/Cuotas/Usuarios: solo ven Dashboard.
-const ADMIN_USERNAMES_RESTRINGIDOS = ['Diego Penagos', 'Juan José Buitrago'];
 
 export const MENU_ITEMS: MenuItem[] = [
   {
@@ -26,21 +25,21 @@ export const MENU_ITEMS: MenuItem[] = [
     label: 'Gestión de ventas',
     ruta: '/carga',
     roles: [RoleId.ADMINISTRADOR],
-    restringidoParaUsuarios: ADMIN_USERNAMES_RESTRINGIDOS,
+    itemRestringible: 'ventas',
   },
   {
     icon: 'request_quote',
     label: 'Gestión de Cuotas',
     ruta: '/carga-cuotas',
     roles: [RoleId.ADMINISTRADOR],
-    restringidoParaUsuarios: ADMIN_USERNAMES_RESTRINGIDOS,
+    itemRestringible: 'cuotas',
   },
   {
     icon: 'group',
     label: 'Gestión Usuarios',
     ruta: '/gestion-usuarios',
     roles: [RoleId.ADMINISTRADOR],
-    restringidoParaUsuarios: ADMIN_USERNAMES_RESTRINGIDOS,
+    itemRestringible: 'usuarios',
   },
   {
     icon: 'groups',
@@ -68,13 +67,16 @@ export const MENU_ITEMS: MenuItem[] = [
   },
 ];
 
-export function obtenerMenuItemsPorRol(rolId: RoleId, username?: string): MenuItem[] {
-  const nombreUsuario = (username ?? '').trim().toLowerCase();
+export interface AccesosMenu {
+  ventas: boolean;
+  cuotas: boolean;
+  usuarios: boolean;
+}
+
+export function obtenerMenuItemsPorRol(rolId: RoleId, accesos?: AccesosMenu): MenuItem[] {
   return MENU_ITEMS.filter((item) => {
     if (!item.roles.includes(rolId)) return false;
-    if (!item.restringidoParaUsuarios?.length) return true;
-    return !item.restringidoParaUsuarios.some(
-      (restringido) => restringido.trim().toLowerCase() === nombreUsuario,
-    );
+    if (!item.itemRestringible || !accesos) return true;
+    return accesos[item.itemRestringible] !== false;
   });
 }

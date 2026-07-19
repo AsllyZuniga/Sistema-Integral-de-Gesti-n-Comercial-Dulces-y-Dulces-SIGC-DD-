@@ -12,6 +12,8 @@ import { AuthService } from '../../core/services/auth.service';
 import { SidebarComponent } from '../../shared/components/sidebar/sidebar.component';
 import { TopbarComponent } from '../../shared/components/topbar/topbar.component';
 
+type ItemAccesoMenu = 'ventas' | 'cuotas' | 'usuarios';
+
 type Seccion =
   | 'list'
   | 'crear-vendedor'
@@ -41,6 +43,23 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
 
   // Sección activa
   seccionActiva: Seccion = 'list';
+
+  // Visibilidad de los campos de contraseña en los formularios (uno por form)
+  mostrarPassword: Record<
+    'crearVendedor' | 'crearSupervisor' | 'crearAdministrador' | 'editarVendedor' | 'editarSupervisor' | 'editarAdministrador',
+    boolean
+  > = {
+    crearVendedor: false,
+    crearSupervisor: false,
+    crearAdministrador: false,
+    editarVendedor: false,
+    editarSupervisor: false,
+    editarAdministrador: false,
+  };
+
+  toggleMostrarPassword(form: keyof GestionUsuariosComponent['mostrarPassword']): void {
+    this.mostrarPassword[form] = !this.mostrarPassword[form];
+  }
 
   // Listas
   vendedores: any[] = [];
@@ -87,6 +106,40 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
 
   onToggleSeccion(seccion: 'vendedores' | 'supervisores' | 'administradores', abierta: boolean): void {
     this.seccionAbiertaManual[seccion] = abierta;
+  }
+
+  private readonly CAMPO_POR_ITEM: Record<ItemAccesoMenu, string> = {
+    ventas: 'acceso_ventas',
+    cuotas: 'acceso_cuotas',
+    usuarios: 'acceso_gestion_usuarios',
+  };
+
+  tieneAcceso(administrador: any, item: ItemAccesoMenu): boolean {
+    return administrador?.[this.CAMPO_POR_ITEM[item]] !== false;
+  }
+
+  onToggleAcceso(administrador: any, item: ItemAccesoMenu, event: Event): void {
+    const permitido = (event.target as HTMLInputElement).checked;
+    const idUsuario = administrador?.id_usuario ?? administrador?.id;
+    const campo = this.CAMPO_POR_ITEM[item];
+    const valorAnterior = administrador?.[campo];
+
+    administrador[campo] = permitido;
+
+    this.usuariosService
+      .actualizarUsuario(idUsuario, { [campo]: permitido })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.notificar('success', 'Acceso actualizado correctamente');
+        },
+        error: (err) => {
+          console.error('Error actualizando acceso del administrador:', err);
+          administrador[campo] = valorAnterior;
+          this.cdr.detectChanges();
+          this.notificar('error', 'Error al actualizar el acceso');
+        },
+      });
   }
 
   // Vista en forma de tabla para gestión
@@ -142,6 +195,20 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
     password: '',
     id_supervisor: '',
   };
+
+  // Mientras el usuario no edite el campo Usuario a mano en Crear Vendedor,
+  // se autocompleta con el Código Vendedor (el login acepta ambos).
+  private usernameVendedorEditadoManualmente = false;
+
+  onCodigoVendedorChange(valor: string): void {
+    if (!this.usernameVendedorEditadoManualmente) {
+      this.formVendedor.username = valor;
+    }
+  }
+
+  onUsernameVendedorChange(): void {
+    this.usernameVendedorEditadoManualmente = true;
+  }
 
   formSupervisor = {
     nombre: '',
@@ -572,6 +639,18 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
       });
   }
 
+  // Administradores que no deben listarse en la UI de Gestión de Usuarios
+  // (no se desactivan ni eliminan, solo se ocultan de este listado).
+  private readonly ADMINISTRADORES_OCULTOS = ['felipe gustin', 'aslly zuñiga', 'aslly zuniga'];
+
+  private esAdministradorOculto(admin: any): boolean {
+    const texto = String(admin?.nombre ?? admin?.username ?? '')
+      .trim()
+      .toLowerCase();
+
+    return this.ADMINISTRADORES_OCULTOS.includes(texto);
+  }
+
   private cargarAdministradores(): void {
     this.cargandoAdministradores = true;
 
@@ -581,10 +660,12 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (res: any[]) => {
           this.administradores = Array.isArray(res)
-            ? res.map((admin: any) => ({
-                ...admin,
-                nombre: admin?.nombre ?? admin?.username ?? '',
-              }))
+            ? res
+                .map((admin: any) => ({
+                  ...admin,
+                  nombre: admin?.nombre ?? admin?.username ?? '',
+                }))
+                .filter((admin) => !this.esAdministradorOculto(admin))
             : [];
 
           this.cargandoAdministradores = false;
@@ -904,6 +985,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
                 this.cdr.detectChanges();
                 this.notificar('success', 'Vendedor creado exitosamente');
                 this.volverALista();
+                this.cdr.detectChanges();
               },
               error: (err) => {
                 console.error('Error creando vendedor:', err);
@@ -951,6 +1033,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
           this.cdr.detectChanges();
           this.notificar('success', 'Supervisor creado exitosamente');
           this.volverALista();
+          this.cdr.detectChanges();
         },
         error: (err) => {
           console.error('Error creando supervisor:', err);
@@ -986,6 +1069,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
           this.cdr.detectChanges();
           this.notificar('success', 'Administrador creado exitosamente');
           this.volverALista();
+          this.cdr.detectChanges();
         },
         error: (err) => {
           console.error('Error creando administrador:', err);
@@ -1066,6 +1150,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
                   this.cdr.detectChanges();
                   this.notificar('success', 'Vendedor actualizado exitosamente');
                   this.volverALista();
+                  this.cdr.detectChanges();
                 },
                 error: (err) => {
                   console.error('Error actualizando vendedor:', err);
@@ -1083,6 +1168,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
             this.cdr.detectChanges();
             this.notificar('success', 'Vendedor actualizado exitosamente');
             this.volverALista();
+            this.cdr.detectChanges();
           }
         },
         error: (err) => {
@@ -1122,6 +1208,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
           this.cdr.detectChanges();
           this.notificar('success', 'Supervisor actualizado exitosamente');
           this.volverALista();
+          this.cdr.detectChanges();
         },
         error: (err) => {
           console.error('Error actualizando supervisor:', err);
@@ -1160,6 +1247,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
           this.cdr.detectChanges();
           this.notificar('success', 'Administrador actualizado exitosamente');
           this.volverALista();
+          this.cdr.detectChanges();
         },
         error: (err) => {
           console.error('Error actualizando administrador:', err);
@@ -1211,7 +1299,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
 
   toggleEstadoSupervisor(supervisor: any): void {
     const estaInactivo = supervisor?.estado === false;
-    const nuevoEstado = !estaInactivo;
+    const nuevoEstado = estaInactivo;
     const accion = estaInactivo ? 'activar' : 'desactivar';
     const etiqueta = estaInactivo ? 'activado' : 'desactivado';
 
@@ -1252,7 +1340,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
 
   toggleEstadoAdministrador(administrador: any): void {
     const estaInactivo = administrador?.estado === false;
-    const nuevoEstado = !estaInactivo;
+    const nuevoEstado = estaInactivo;
     const accion = estaInactivo ? 'activar' : 'desactivar';
     const etiqueta = estaInactivo ? 'activado' : 'desactivado';
 
@@ -1358,6 +1446,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
 
   // ============ LIMPIAR FORMULARIOS ============
   private limpiarFormVendedor(): void {
+    this.usernameVendedorEditadoManualmente = false;
     this.formVendedor = {
       nombre: '',
       email: '',

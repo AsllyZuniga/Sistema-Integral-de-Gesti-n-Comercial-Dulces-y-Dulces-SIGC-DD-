@@ -31,9 +31,11 @@ export class SidebarComponent {
   }
 
   get navItems(): MenuItem[] {
-    const usuario = this.session.getUser();
-    const username = usuario?.username ?? usuario?.nombre ?? '';
-    return obtenerMenuItemsPorRol(this.rolId, username);
+    return obtenerMenuItemsPorRol(this.rolId, {
+      ventas: this.session.tieneAccesoVentas(),
+      cuotas: this.session.tieneAccesoCuotas(),
+      usuarios: this.session.tieneAccesoGestionUsuarios(),
+    });
   }
 
   isActive(item: MenuItem): boolean {
