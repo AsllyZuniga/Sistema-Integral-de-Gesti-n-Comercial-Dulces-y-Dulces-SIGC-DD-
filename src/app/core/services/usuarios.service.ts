@@ -63,6 +63,23 @@ export class UsuariosService {
   }
 
   /**
+   * GET /usuario
+   * Obtiene lista de administradores (id_rol = 1)
+   */
+  listarAdministradores(): Observable<any[]> {
+    return this.http.get<any>(`${this.apiUrl}/usuario`).pipe(
+      map((res) => {
+        const usuarios = Array.isArray(res) ? res : (res?.data ?? []);
+        return usuarios.filter((u: any) => {
+          const rol = u?.id_rol ?? u?.rol?.idRol ?? u?.idRol ?? u?.rolId ?? 0;
+          return Number(rol) === 1;
+        });
+      }),
+      catchError(() => of([])),
+    );
+  }
+
+  /**
    * GET /vendedor
    * Obtiene detalle de vendedores con código y nombre
    */
@@ -167,6 +184,26 @@ export class UsuariosService {
     return this.http.post<any>(`${this.apiUrl}/usuario`, payload).pipe(
       catchError((err) => {
         console.error('❌ Error creando usuario:', err);
+        return throwError(() => err);
+      }),
+    );
+  }
+
+  /**
+   * POST /auth/register
+   * Crea un nuevo administrador
+   */
+  registrarAdministrador(datos: { username: string; password: string }): Observable<any> {
+    const payload = {
+      username: datos.username,
+      password: datos.password,
+      id_rol: 1,
+      estado: true,
+    };
+
+    return this.http.post<any>(`${this.apiUrl}/auth/register`, payload).pipe(
+      catchError((err) => {
+        console.error('❌ Error creando administrador:', err);
         return throwError(() => err);
       }),
     );

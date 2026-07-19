@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, ViewChild, inject, ChangeDetectorRef } fr
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, forkJoin, takeUntil, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import {
   VendedoresTableComponent,
   VendedorTabla,
@@ -16,8 +16,10 @@ type Seccion =
   | 'list'
   | 'crear-vendedor'
   | 'crear-supervisor'
+  | 'crear-administrador'
   | 'editar-vendedor'
-  | 'editar-supervisor';
+  | 'editar-supervisor'
+  | 'editar-administrador';
 
 @Component({
   selector: 'app-gestion-usuarios',
@@ -43,6 +45,7 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
   // Listas
   vendedores: any[] = [];
   supervisores: any[] = [];
+  administradores: any[] = [];
   vendedoresDelSupervisor: Map<string | number, any[]> = new Map();
 
   // Modal para asignar supervisor desde el botón azul de la tabla
@@ -51,9 +54,44 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
   supervisorSeleccionado = '';
   asignandoSupervisor = false;
 
+  // Búsqueda de vendedores (con debounce, ya que el filtrado corre en memoria
+  // sobre potencialmente miles de filas y no conviene recalcular en cada tecla)
+  busquedaVendedorInput = '';
+  private busquedaVendedorTermino = '';
+  private busquedaVendedor$ = new Subject<string>();
+
+  // Secciones colapsables (<details>): se colapsan por defecto solo cuando
+  // hay más de 5 usuarios, para no montar cientos/miles de filas de una.
+  // El valor es null hasta que el usuario interactúa manualmente (toggle);
+  // mientras sea null, se usa el default basado en el tamaño de la lista.
+  private seccionAbiertaManual: Record<'vendedores' | 'supervisores' | 'administradores', boolean | null> = {
+    vendedores: null,
+    supervisores: null,
+    administradores: null,
+  };
+
+  private readonly UMBRAL_COLAPSO = 5;
+
+  seccionEstaAbierta(seccion: 'vendedores' | 'supervisores' | 'administradores'): boolean {
+    const manual = this.seccionAbiertaManual[seccion];
+    if (manual !== null) return manual;
+
+    // Vendedores siempre inicia contraída por defecto, sin importar la
+    // cantidad; el usuario puede expandirla manualmente con el toggle.
+    if (seccion === 'vendedores') return false;
+
+    const total = seccion === 'supervisores' ? this.supervisores.length : this.administradores.length;
+
+    return total <= this.UMBRAL_COLAPSO;
+  }
+
+  onToggleSeccion(seccion: 'vendedores' | 'supervisores' | 'administradores', abierta: boolean): void {
+    this.seccionAbiertaManual[seccion] = abierta;
+  }
+
   // Vista en forma de tabla para gestión
   get vendedoresTabla(): VendedorTabla[] {
-    return (this.vendedores ?? []).map((v: any) => ({
+    const filas = (this.vendedores ?? []).map((v: any) => ({
       codigo_vendedor:
         v?.codigo_vendedor ?? v?.codigo ?? v?.codVendedor ?? v?.codigo_vendedor ?? v?.codigo,
       codVendedor: v?.codigo ?? v?.codVendedor ?? v?.codigo_vendedor ?? v?.codigo,
@@ -65,11 +103,23 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
       id_supervisor: v?.id_supervisor ?? v?.idSupervisor ?? v?.supervisor?.id ?? null,
       estado: v?.estado ?? true,
     }));
+
+    const termino = this.busquedaVendedorTermino.trim().toLowerCase();
+    const filtradas = termino
+      ? filas.filter((v) =>
+          [v.codVendedor, v.nombre, v.codigo_vendedor]
+            .map((campo) => String(campo ?? '').toLowerCase())
+            .some((campo) => campo.includes(termino)),
+        )
+      : filas;
+
+    return filtradas.sort((a, b) => this.compararPorCodigo(a.codVendedor, b.codVendedor));
   }
 
   // Estados de carga
   cargandoVendedores = false;
   cargandoSupervisores = false;
+  cargandoAdministradores = false;
   guardando = false;
   eliminando = false;
   mensajeOperacion: string | null = null;
@@ -100,9 +150,27 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
     password: '',
   };
 
+  formAdministrador = {
+    nombre: '',
+    username: '',
+    password: '',
+  };
+
   ngOnInit(): void {
     this.cargarVendedores();
     this.cargarSupervisores();
+    this.cargarAdministradores();
+
+    this.busquedaVendedor$
+      .pipe(debounceTime(250), distinctUntilChanged(), takeUntil(this.destroy$))
+      .subscribe((termino) => {
+        this.busquedaVendedorTermino = termino;
+        this.cdr.detectChanges();
+      });
+  }
+
+  onBuscarVendedor(valor: string): void {
+    this.busquedaVendedor$.next(valor);
   }
 
   ngOnDestroy(): void {
@@ -142,6 +210,20 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
     if (!codigo) return '';
     const sinCeros = codigo.replace(/^0+/, '');
     return sinCeros || '0';
+  }
+
+  private compararPorCodigo(codigoA: any, codigoB: any): number {
+    const textoA = this.normalizarCodigo(codigoA);
+    const textoB = this.normalizarCodigo(codigoB);
+
+    const numeroA = Number(this.codigoSinCeros(textoA));
+    const numeroB = Number(this.codigoSinCeros(textoB));
+
+    if (!Number.isNaN(numeroA) && !Number.isNaN(numeroB) && textoA !== '' && textoB !== '') {
+      if (numeroA !== numeroB) return numeroA - numeroB;
+    }
+
+    return textoA.localeCompare(textoB, undefined, { numeric: true, sensitivity: 'base' });
   }
 
   private getIdSupervisor(supervisor: any): string | number | null {
@@ -490,9 +572,37 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
       });
   }
 
+  private cargarAdministradores(): void {
+    this.cargandoAdministradores = true;
+
+    this.usuariosService
+      .listarAdministradores()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res: any[]) => {
+          this.administradores = Array.isArray(res)
+            ? res.map((admin: any) => ({
+                ...admin,
+                nombre: admin?.nombre ?? admin?.username ?? '',
+              }))
+            : [];
+
+          this.cargandoAdministradores = false;
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          console.error('Error al cargar administradores:', err);
+          this.administradores = [];
+          this.cargandoAdministradores = false;
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
   private recargarGestionUsuarios(): void {
     this.cargarVendedores();
     this.cargarSupervisores();
+    this.cargarAdministradores();
   }
 
   private sincronizarVendedoresConMapaSupervisores(): void {
@@ -560,6 +670,11 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
   irACrearSupervisor(): void {
     this.seccionActiva = 'crear-supervisor';
     this.limpiarFormSupervisor();
+  }
+
+  irACrearAdministrador(): void {
+    this.seccionActiva = 'crear-administrador';
+    this.limpiarFormAdministrador();
   }
 
   irAEditarVendedor(vendedor: any): void {
@@ -658,6 +773,13 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
           const idSupervisorNuevo = Number(this.supervisorSeleccionado);
           const vendedorActual = this.vendedorAsignacion;
 
+          const idSupervisorAnterior =
+            vendedorActual?.id_supervisor ??
+            vendedorActual?.idSupervisor ??
+            vendedorActual?.supervisor?.id_usuario ??
+            vendedorActual?.supervisor?.id ??
+            null;
+
           this.actualizarAsignacionLocal(vendedorActual, idSupervisorNuevo);
 
           this.asignandoSupervisor = false;
@@ -666,6 +788,14 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
           this.supervisorSeleccionado = '';
 
           this.notificar('success', 'Supervisor asignado correctamente');
+
+          // Invalida el cache (shareReplay) del supervisor viejo y del nuevo,
+          // si no la recarga siguiente sirve datos obsoletos y la asignación
+          // optimista de arriba queda pisada al llegar la respuesta real.
+          if (idSupervisorAnterior != null) {
+            this.usuariosService.invalidarCacheVendedoresPorSupervisor(String(idSupervisorAnterior));
+          }
+          this.usuariosService.invalidarCacheVendedoresPorSupervisor(String(idSupervisorNuevo));
 
           // Recarga real desde backend para que el vendedor también aparezca
           // en la lista del supervisor seleccionado.
@@ -697,6 +827,16 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
       password: '',
     };
     this.seccionActiva = 'editar-supervisor';
+  }
+
+  irAEditarAdministrador(administrador: any): void {
+    this.usuarioEnEdicion = administrador;
+    this.formAdministrador = {
+      nombre: administrador?.nombre ?? administrador?.username ?? '',
+      username: administrador?.username ?? '',
+      password: '',
+    };
+    this.seccionActiva = 'editar-administrador';
   }
 
   volverALista(): void {
@@ -818,6 +958,41 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
           this.notificar(
             'error',
             `Error al crear supervisor: ${err?.error?.message || err?.message}`,
+          );
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
+  // ============ CREAR ADMINISTRADOR ============
+  crearAdministrador(): void {
+    if (!this.validarFormAdministradorCreacion()) {
+      return;
+    }
+
+    this.guardando = true;
+
+    this.usuariosService
+      .registrarAdministrador({
+        username: this.formAdministrador.username.trim(),
+        password: this.formAdministrador.password.trim(),
+      })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.guardando = false;
+          this.limpiarFormAdministrador();
+          this.cargarAdministradores();
+          this.cdr.detectChanges();
+          this.notificar('success', 'Administrador creado exitosamente');
+          this.volverALista();
+        },
+        error: (err) => {
+          console.error('Error creando administrador:', err);
+          this.guardando = false;
+          this.notificar(
+            'error',
+            `Error al crear administrador: ${err?.error?.message || err?.message}`,
           );
           this.cdr.detectChanges();
         },
@@ -957,6 +1132,44 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
       });
   }
 
+  // ============ ACTUALIZAR ADMINISTRADOR ============
+  actualizarAdministrador(): void {
+    if (!this.validarFormAdministrador()) {
+      return;
+    }
+
+    this.guardando = true;
+
+    const idUsuario = this.usuarioEnEdicion?.id_usuario ?? this.usuarioEnEdicion?.id;
+
+    const datos: any = {
+      username: this.formAdministrador.username.trim(),
+    };
+
+    if (this.formAdministrador.password.trim()) {
+      datos.password = this.formAdministrador.password.trim();
+    }
+
+    this.usuariosService
+      .actualizarUsuario(idUsuario, datos)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.guardando = false;
+          this.cargarAdministradores();
+          this.cdr.detectChanges();
+          this.notificar('success', 'Administrador actualizado exitosamente');
+          this.volverALista();
+        },
+        error: (err) => {
+          console.error('Error actualizando administrador:', err);
+          this.guardando = false;
+          this.notificar('error', 'Error al actualizar administrador');
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
   // ============ DESACTIVAR USUARIO ============
   toggleEstadoVendedor(vendedor: any): void {
     const estaInactivo = vendedor?.estado === false;
@@ -1037,6 +1250,47 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
       });
   }
 
+  toggleEstadoAdministrador(administrador: any): void {
+    const estaInactivo = administrador?.estado === false;
+    const nuevoEstado = !estaInactivo;
+    const accion = estaInactivo ? 'activar' : 'desactivar';
+    const etiqueta = estaInactivo ? 'activado' : 'desactivado';
+
+    if (!confirm(`¿Seguro que deseas ${accion} al administrador ${administrador?.nombre}?`)) {
+      return;
+    }
+
+    this.eliminando = true;
+
+    const idUsuario = administrador?.id_usuario ?? administrador?.id;
+
+    this.usuariosService
+      .actualizarUsuario(idUsuario, { estado: nuevoEstado })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.eliminando = false;
+
+          const administradorLocal = this.administradores.find(
+            (a: any) => String(a?.id_usuario ?? a?.id) === String(idUsuario),
+          );
+
+          if (administradorLocal) {
+            administradorLocal.estado = nuevoEstado;
+          }
+
+          this.cdr.detectChanges();
+          this.notificar('success', `Administrador ${etiqueta} correctamente`);
+        },
+        error: (err) => {
+          console.error('Error actualizando estado del administrador:', err);
+          this.eliminando = false;
+          this.notificar('error', `Error al ${accion} administrador`);
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
   // ============ VALIDACIONES ============
   private validarFormVendedor(): boolean {
     const { nombre, codigo, username, password } = this.formVendedor;
@@ -1075,6 +1329,33 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
     return true;
   }
 
+  private validarFormAdministrador(): boolean {
+    const { nombre, username } = this.formAdministrador;
+
+    if (!nombre.trim() || !username.trim()) {
+      this.notificar('error', 'Por favor completa nombre y usuario');
+      return false;
+    }
+
+    return true;
+  }
+
+  private validarFormAdministradorCreacion(): boolean {
+    const { nombre, username, password } = this.formAdministrador;
+
+    if (!nombre.trim() || !username.trim()) {
+      this.notificar('error', 'Por favor completa nombre y usuario');
+      return false;
+    }
+
+    if (!password.trim()) {
+      this.notificar('error', 'La contraseña es obligatoria para crear administrador');
+      return false;
+    }
+
+    return true;
+  }
+
   // ============ LIMPIAR FORMULARIOS ============
   private limpiarFormVendedor(): void {
     this.formVendedor = {
@@ -1092,6 +1373,14 @@ export class GestionUsuariosComponent implements OnInit, OnDestroy {
     this.formSupervisor = {
       nombre: '',
       email: '',
+      username: '',
+      password: '',
+    };
+  }
+
+  private limpiarFormAdministrador(): void {
+    this.formAdministrador = {
+      nombre: '',
       username: '',
       password: '',
     };

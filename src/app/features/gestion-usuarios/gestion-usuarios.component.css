@@ -52,12 +52,57 @@
   margin-bottom: 40px;
 }
 .usuarios-list h3 {
-  margin: 0 0 16px;
-  padding-bottom: 8px;
+  margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: var(--c-text);
+}
+.usuarios-list > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--c-divider);
+  cursor: pointer;
+  list-style: none;
+}
+.usuarios-list > summary::-webkit-details-marker {
+  display: none;
+}
+.usuarios-list > summary::before {
+  content: 'expand_more';
+  font-family: 'Material Symbols Rounded';
+  font-size: 20px;
+  color: var(--c-text-muted);
+  transition: transform 0.15s ease;
+}
+.usuarios-list[open] > summary::before {
+  transform: rotate(180deg);
+}
+.buscador-vendedor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 8px 14px;
+  background: var(--c-background);
+  border: 1px solid var(--c-divider);
+  border-radius: var(--r-sm);
+}
+.buscador-vendedor .material-symbols-rounded {
+  font-size: 18px;
+  color: var(--c-text-muted);
+}
+.buscador-vendedor input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--c-text);
+}
+.buscador-vendedor input:focus {
+  outline: 0;
 }
 .loading,
 .empty-state {
@@ -148,6 +193,9 @@
 }
 .rol-badge.supervisor {
   background: #8b5cf6;
+}
+.rol-badge.admin {
+  background: #dc2626;
 }
 .estado-badge {
   font-size: 10px;
@@ -518,6 +566,9 @@
   }
   .usuarios-list h3 {
     font-size: 17px;
+  }
+  .buscador-vendedor {
+    padding: 6px 12px;
   }
   .badges {
     flex-direction: row;

@@ -37,41 +37,74 @@
               <span class="material-symbols-rounded">person_add</span>
               Crear Supervisor
             </button>
+
+            <button class="btn-primary" (click)="irACrearAdministrador()">
+              <span class="material-symbols-rounded">person_add</span>
+              Crear Administrador
+            </button>
           </div>
 
           <!-- Vendedores -->
-          <div class="usuarios-list">
-            <h3>Vendedores ({{ vendedores.length }})</h3>
+          <details
+            class="usuarios-list"
+            [open]="seccionEstaAbierta('vendedores')"
+            (toggle)="onToggleSeccion('vendedores', $any($event.target).open)"
+          >
+            <summary>
+              <h3>Vendedores ({{ vendedores.length }})</h3>
+            </summary>
 
             @if (cargandoVendedores) {
               <p class="loading">Cargando vendedores...</p>
             } @else if (vendedores.length === 0) {
               <p class="empty-state">No hay vendedores registrados</p>
-            } @else {
-              <app-vendedores-table
-                  [esAdmin]="true"
-                  [mostrarMetricas]="false"
-                  [labelCuota]="'Cuota Mes'"
-                  [labelVentaAcum]="'Venta Mes'"
-                  [campoCuota]="'cuotaMes'"
-                  [cargandoVendedores]="cargandoVendedores"
-                  [todosLosVendedores]="vendedoresTabla"
-                  (asignarSupervisor)="onAsignarSupervisorDesdeTabla($event)"
-                  (editar)="irAEditarVendedor($event)"
-                  (desactivar)="toggleEstadoVendedor($event)"
-                ></app-vendedores-table>
+            } @else if (seccionEstaAbierta('vendedores')) {
+              <div class="buscador-vendedor">
+                <span class="material-symbols-rounded">search</span>
+                <input
+                  type="text"
+                  [(ngModel)]="busquedaVendedorInput"
+                  (ngModelChange)="onBuscarVendedor($event)"
+                  name="busquedaVendedor"
+                  placeholder="Buscar por código o nombre..."
+                  aria-label="Buscar vendedor"
+                />
+              </div>
+
+              @if (vendedoresTabla.length === 0) {
+                <p class="empty-state">Ningún vendedor coincide con la búsqueda</p>
+              } @else {
+                <app-vendedores-table
+                    [esAdmin]="true"
+                    [mostrarMetricas]="false"
+                    [labelCuota]="'Cuota Mes'"
+                    [labelVentaAcum]="'Venta Mes'"
+                    [campoCuota]="'cuotaMes'"
+                    [cargandoVendedores]="cargandoVendedores"
+                    [todosLosVendedores]="vendedoresTabla"
+                    (asignarSupervisor)="onAsignarSupervisorDesdeTabla($event)"
+                    (editar)="irAEditarVendedor($event)"
+                    (desactivar)="toggleEstadoVendedor($event)"
+                  ></app-vendedores-table>
+              }
             }
-          </div>
+          </details>
 
           <!-- Supervisores -->
-          <div class="usuarios-list">
-            <h3>Supervisores ({{ supervisores.length }})</h3>
+          <details
+            class="usuarios-list"
+            [open]="seccionEstaAbierta('supervisores')"
+            (toggle)="onToggleSeccion('supervisores', $any($event.target).open)"
+          >
+            <summary>
+              <h3>Supervisores ({{ supervisores.length }})</h3>
+            </summary>
 
             @if (cargandoSupervisores) {
               <p class="loading">Cargando supervisores...</p>
             } @else if (supervisores.length === 0) {
               <p class="empty-state">No hay supervisores registrados</p>
-            } @else {
+            } @else if (seccionEstaAbierta('supervisores')) {
               <div class="usuarios-grid">
                 @for (supervisor of supervisores; track supervisor.id_usuario || supervisor.id) {
                   <div class="usuario-card" [class.inactivo]="supervisor.estado === false">
@@ -169,7 +202,76 @@
                 }
               </div>
             }
-          </div>
+          </details>
+
+          <!-- Administradores -->
+          <details
+            class="usuarios-list"
+            [open]="seccionEstaAbierta('administradores')"
+            (toggle)="onToggleSeccion('administradores', $any($event.target).open)"
+          >
+            <summary>
+              <h3>Administradores ({{ administradores.length }})</h3>
+            </summary>
+
+            @if (cargandoAdministradores) {
+              <p class="loading">Cargando administradores...</p>
+            } @else if (administradores.length === 0) {
+              <p class="empty-state">No hay administradores registrados</p>
+            } @else if (seccionEstaAbierta('administradores')) {
+              <div class="usuarios-grid">
+                @for (administrador of administradores; track administrador.id_usuario || administrador.id) {
+                  <div class="usuario-card" [class.inactivo]="administrador.estado === false">
+                    <div class="usuario-header">
+                      <span class="material-symbols-rounded">admin_panel_settings</span>
+
+                      <div class="badges">
+                        <span class="rol-badge admin">Administrador</span>
+
+                        @if (administrador.estado === false) {
+                          <span class="estado-badge inactivo">Inactivo</span>
+                        } @else {
+                          <span class="estado-badge">Activo</span>
+                        }
+                      </div>
+                    </div>
+
+                    <h4>{{ administrador.nombre ?? administrador.username ?? 'Sin nombre' }}</h4>
+
+                    <p>
+                      <strong>Usuario:</strong>
+                      {{ administrador.username ?? '—' }}
+                    </p>
+
+                    <div class="usuario-actions">
+                      <button
+                        class="btn-sm btn-edit"
+                        (click)="irAEditarAdministrador(administrador)"
+                        [disabled]="eliminando"
+                      >
+                        <span class="material-symbols-rounded">edit</span>
+                        Editar
+                      </button>
+
+                      <button
+                        class="btn-sm"
+                        [class.btn-danger]="administrador.estado !== false"
+                        [class.btn-activate]="administrador.estado === false"
+                        (click)="toggleEstadoAdministrador(administrador)"
+                        [disabled]="eliminando"
+                        [title]="administrador.estado === false ? 'Activar administrador' : 'Desactivar administrador'"
+                      >
+                        <span class="material-symbols-rounded">
+                          {{ administrador.estado === false ? 'check_circle' : 'block' }}
+                        </span>
+                        {{ administrador.estado === false ? 'Activar' : 'Desactivar' }}
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </details>
         </section>
       }
 
@@ -357,6 +459,83 @@
         </section>
       }
 
+      <!-- Crear Administrador -->
+      @if (seccionActiva === 'crear-administrador') {
+        <section class="form-section">
+          <div class="form-header">
+            <h2>Crear Administrador</h2>
+
+            <button class="btn-back" (click)="volverALista()">
+              <span class="material-symbols-rounded">arrow_back</span>
+              Volver
+            </button>
+          </div>
+
+          <form class="form-container">
+            <div class="form-group">
+              <label for="nombreAdministrador">Nombre Completo <span class="required">*</span>:</label>
+              <input
+                id="nombreAdministrador"
+                type="text"
+                [(ngModel)]="formAdministrador.nombre"
+                name="nombre"
+                placeholder="Ej: Ana Martínez"
+                [disabled]="guardando"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="usernameAdministrador">Usuario <span class="required">*</span>:</label>
+              <input
+                id="usernameAdministrador"
+                type="text"
+                [(ngModel)]="formAdministrador.username"
+                name="username"
+                placeholder="Ej: amartinez"
+                [disabled]="guardando"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="passwordAdministrador">Contraseña <span class="required">*</span>:</label>
+              <input
+                id="passwordAdministrador"
+                type="password"
+                [(ngModel)]="formAdministrador.password"
+                name="password"
+                placeholder="••••••••"
+                [disabled]="guardando"
+              />
+            </div>
+
+            <div class="form-actions">
+              <button
+                type="button"
+                class="btn-cancelar"
+                (click)="volverALista()"
+                [disabled]="guardando"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                class="btn-guardar"
+                (click)="crearAdministrador()"
+                [disabled]="guardando"
+              >
+                @if (guardando) {
+                  <span class="spinner"></span>
+                  Creando...
+                } @else {
+                  Crear Administrador
+                }
+              </button>
+            </div>
+          </form>
+        </section>
+      }
+
       <!-- Editar Vendedor -->
       @if (seccionActiva === 'editar-vendedor') {
         <section class="form-section">
@@ -518,6 +697,85 @@
                   Actualizando...
                 } @else {
                   Actualizar Supervisor
+                }
+              </button>
+            </div>
+          </form>
+        </section>
+      }
+
+      <!-- Editar Administrador -->
+      @if (seccionActiva === 'editar-administrador') {
+        <section class="form-section">
+          <div class="form-header">
+            <h2>Editar Administrador</h2>
+
+            <button class="btn-back" (click)="volverALista()">
+              <span class="material-symbols-rounded">arrow_back</span>
+              Volver
+            </button>
+          </div>
+
+          <form class="form-container">
+            <div class="form-group">
+              <label for="editarNombreAdministrador">
+                Nombre Completo <span class="required">*</span>:
+              </label>
+              <input
+                id="editarNombreAdministrador"
+                type="text"
+                [(ngModel)]="formAdministrador.nombre"
+                name="nombre"
+                placeholder="Ej: Ana Martínez"
+                [disabled]="guardando"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="editarUsernameAdministrador">Usuario <span class="required">*</span>:</label>
+              <input
+                id="editarUsernameAdministrador"
+                type="text"
+                [(ngModel)]="formAdministrador.username"
+                name="username"
+                placeholder="Ej: amartinez"
+                [disabled]="guardando"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="editarPasswordAdministrador">Contraseña (opcional):</label>
+              <input
+                id="editarPasswordAdministrador"
+                type="password"
+                [(ngModel)]="formAdministrador.password"
+                name="password"
+                placeholder="Dejar vacío si no deseas cambiarla"
+                [disabled]="guardando"
+              />
+            </div>
+
+            <div class="form-actions">
+              <button
+                type="button"
+                class="btn-cancelar"
+                (click)="volverALista()"
+                [disabled]="guardando"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                class="btn-guardar"
+                (click)="actualizarAdministrador()"
+                [disabled]="guardando"
+              >
+                @if (guardando) {
+                  <span class="spinner"></span>
+                  Actualizando...
+                } @else {
+                  Actualizar Administrador
                 }
               </button>
             </div>
