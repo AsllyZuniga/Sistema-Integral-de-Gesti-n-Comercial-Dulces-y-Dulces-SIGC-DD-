@@ -295,10 +295,10 @@ export class CargaComponent implements OnDestroy {
   }
 
   private startPolling(jobId: string): void {
-    const MAX_RETRIES = 1800;
+    const MAX_RETRIES = 720;
     let retries = 0;
 
-    this.pollingSub = interval(2000).pipe(
+    this.pollingSub = interval(5000).pipe(
       switchMap(() =>
         this.http.get<{ success: boolean; data: any }>(
           `${this.adminVentasUrl}/admin/ventas/job/${jobId}`

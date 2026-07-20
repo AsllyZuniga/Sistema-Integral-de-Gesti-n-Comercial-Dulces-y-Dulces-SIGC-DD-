@@ -11,7 +11,6 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   // Soporta tanto rutas relativas (/api/...) como URLs absolutas apuntando al backend.
   const isApiRequest = req.url.startsWith('/api/') || (apiBase ? req.url.startsWith(apiBase) : false);
   const isAuthLoginRequest = req.url.includes('/api/auth/login');
-  const isCuotasVendedorUploadRequest = req.url.includes('/import/cuotas/upload');
 
   if (isAuthLoginRequest) {
     return next(req);
@@ -20,7 +19,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const session = inject(SessionService);
   const jwt = session.getToken();
 
-  if (jwt && isApiRequest && !isCuotasVendedorUploadRequest) {
+  if (jwt && isApiRequest) {
     req = req.clone({
       setHeaders: {
         Authorization: `Bearer ${jwt}`,

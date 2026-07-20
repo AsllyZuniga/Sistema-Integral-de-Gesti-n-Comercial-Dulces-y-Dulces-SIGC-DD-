@@ -41,7 +41,7 @@ export const routes: Routes = [
     path: 'carga',
     loadComponent: () => import('./features/carga/carga.component').then((m) => m.CargaComponent),
     canActivate: [RoleGuard],
-    data: { roles: ADMIN_ROLES },
+    data: { roles: ADMIN_ROLES, permiso: 'ventas' },
   },
   {
     path: 'carga-cuotas',
@@ -50,7 +50,7 @@ export const routes: Routes = [
         (m) => m.CargaCuotasComponent,
       ),
     canActivate: [RoleGuard],
-    data: { roles: ADMIN_ROLES },
+    data: { roles: ADMIN_ROLES, permiso: 'cuotas' },
   },
   {
     path: 'gestion-usuarios',
@@ -59,7 +59,7 @@ export const routes: Routes = [
         (m) => m.GestionUsuariosComponent,
       ),
     canActivate: [RoleGuard],
-    data: { roles: ADMIN_ROLES },
+    data: { roles: ADMIN_ROLES, permiso: 'usuarios' },
   },
   { path: '**', redirectTo: 'login' },
 ];
