@@ -18,109 +18,6 @@
   margin-left: 72px;
 }
 
-/* ===== Topbar ===== */
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 18px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #0f5ea0 0%, #1a6bba 65%, #436788 100%);
-  box-shadow: 0 8px 22px rgba(1, 70, 146, 0.22);
-}
-
-.topbar-left,
-.topbar-right {
-  display: flex;
-  align-items: center;
-}
-
-.topbar-left {
-  gap: 10px;
-}
-
-.topbar-right {
-  flex-shrink: 0;
-}
-
-.topbar-center {
-  flex: 1;
-  min-width: 0;
-  padding: 0 8px;
-  overflow: hidden;
-}
-
-.topbar-center h1 {
-  margin: 0;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 800;
-  line-height: 1.1;
-}
-
-.topbar-logo {
-  height: 30px;
-  width: auto;
-  object-fit: contain;
-}
-
-.accent {
-  color: #d4ce2e;
-}
-
-.ticker-track {
-  display: inline-flex;
-  align-items: center;
-  gap: 2.2rem;
-  width: max-content;
-}
-
-.ticker-item {
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-
-.mobile-menu-btn {
-  display: none;
-  align-items: center;
-  padding: 7px;
-  line-height: 0;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 7px;
-  cursor: pointer;
-}
-
-.mobile-menu-btn .material-symbols-rounded {
-  font-size: 20px;
-}
-
-.logout-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.logout-btn:hover {
-  background: rgba(255, 255, 255, 0.24);
-}
-
-.logout-btn .material-symbols-rounded {
-  font-size: 17px;
-}
-
 /* ===== Page ===== */
 .carga-page {
   display: flex;
@@ -693,13 +590,6 @@
     padding: 18px 16px 24px;
   }
 
-  .mobile-menu-btn {
-    display: inline-flex;
-  }
-
-  .logout-label {
-    display: none;
-  }
 }
 
 @media (max-width: 768px) {
@@ -731,42 +621,5 @@
   .carga-page {
     max-width: 100%;
     margin: 0 8px;
-  }
-
-  .topbar {
-    padding: 8px 10px;
-    gap: 8px;
-  }
-
-  .topbar-logo {
-    height: 28px;
-  }
-
-  .ticker-track {
-    animation: quoteTicker 10s linear infinite;
-  }
-}
-
-@media (max-width: 480px) {
-  .topbar-logo {
-    height: 24px;
-  }
-
-  .topbar-center h1 {
-    font-size: 14px;
-  }
-
-  .ticker-track {
-    animation-duration: 8s;
-  }
-}
-
-@keyframes quoteTicker {
-  0% {
-    transform: translateX(0);
-  }
-
-  100% {
-    transform: translateX(-50%);
   }
 }
