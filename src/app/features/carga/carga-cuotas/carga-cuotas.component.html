@@ -22,6 +22,244 @@
       <app-cuota-proveedor-upload></app-cuota-proveedor-upload>
       <app-cuota-categoria-upload></app-cuota-categoria-upload>
 
+      <!-- ELIMINAR CUOTAS DE VENDEDOR (mensual + semanal + diaria) -->
+      <div class="delete-range-card vendedor-delete-card">
+        <div class="delete-header">
+          <div class="delete-title">
+            <div class="delete-icon-box">
+              <span class="material-symbols-rounded">delete_outline</span>
+            </div>
+
+            <div>
+              <h3>Eliminar cuotas de vendedores</h3>
+              <p>
+                Elimina las cuotas mensual, semanal y diaria de uno o varios vendedores. Deje las
+                fechas vacías para eliminar todo el histórico.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="delete-body">
+          <details class="vendedor-selector" [open]="vendedorSelectorAbierto" (toggle)="onToggleVendedorSelectorAbierto($event)">
+            <summary>
+              <span class="material-symbols-rounded summary-icon">group</span>
+              <span class="summary-text">{{ resumenSeleccionVendedoresCuota }}</span>
+              <span class="material-symbols-rounded summary-chevron">expand_more</span>
+            </summary>
+
+            <div class="vendedor-checklist">
+              @if (cargandoVendedores) {
+                <p class="historico-loading">Cargando vendedores...</p>
+              } @else if (vendedores.length === 0) {
+                <p class="historico-empty">No hay vendedores registrados</p>
+              } @else {
+                <label class="vendedor-checklist-item vendedor-checklist-todos">
+                  <input
+                    type="checkbox"
+                    [(ngModel)]="seleccionarTodosVendedoresCuota"
+                    (ngModelChange)="onToggleSeleccionarTodosVendedoresCuota()"
+                  />
+                  Todos los vendedores
+                </label>
+
+                @for (vendedor of vendedores; track vendedor.id_usuario || vendedor.id) {
+                  <label class="vendedor-checklist-item">
+                    <input
+                      type="checkbox"
+                      [checked]="
+                        seleccionarTodosVendedoresCuota || estaVendedorCuotaSeleccionado(vendedor)
+                      "
+                      [disabled]="seleccionarTodosVendedoresCuota"
+                      (change)="onToggleVendedorCuota(vendedor)"
+                    />
+                    @if (vendedor.codigo_vendedor) {
+                      <span class="vendedor-codigo">{{ vendedor.codigo_vendedor }}</span>
+                    }
+                    {{ vendedor.nombre ?? vendedor.username }}
+                  </label>
+                }
+              }
+            </div>
+          </details>
+
+          <div class="delete-form-row">
+            <div class="delete-date-group">
+              <label>
+                <span class="material-symbols-rounded">calendar_month</span>
+                Fecha inicio (opcional)
+              </label>
+
+              <div class="delete-date-input">
+                <input
+                  type="date"
+                  [(ngModel)]="fechaInicioCuotaVendedor"
+                  (ngModelChange)="onCambiarFiltroEliminarCuotaVendedor()"
+                />
+              </div>
+            </div>
+
+            <div class="delete-date-group">
+              <label>
+                <span class="material-symbols-rounded">calendar_month</span>
+                Fecha fin (opcional)
+              </label>
+
+              <div class="delete-date-input">
+                <input
+                  type="date"
+                  [(ngModel)]="fechaFinCuotaVendedor"
+                  (ngModelChange)="onCambiarFiltroEliminarCuotaVendedor()"
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              class="btn-delete-range"
+              (click)="openConfirmEliminarCuotaVendedor()"
+              [disabled]="eliminandoCuotaVendedor"
+            >
+              @if (eliminandoCuotaVendedor) {
+                <span class="spinner delete-spinner"></span>
+              } @else {
+                <span class="material-symbols-rounded">delete</span>
+              }
+              Eliminar
+            </button>
+          </div>
+
+          @if (mensajeOperacionCuotaVendedor) {
+            <div
+              class="delete-message"
+              [class.success]="tipoOperacionCuotaVendedor === 'success'"
+              [class.error]="tipoOperacionCuotaVendedor === 'error'"
+            >
+              <span class="material-symbols-rounded">
+                {{ tipoOperacionCuotaVendedor === 'success' ? 'check_circle' : 'error_outline' }}
+              </span>
+              {{ mensajeOperacionCuotaVendedor }}
+            </div>
+          }
+
+          @if (idsUsuariosCuotaVendedor.length === 1 && !seleccionarTodosVendedoresCuota) {
+            @if (cargandoHistoricoCuotas) {
+              <p class="historico-loading">Cargando histórico de cuotas...</p>
+            } @else {
+              <div class="historico-cuotas">
+                <details class="historico-tabla" [open]="cuotasMesVendedor.length <= 5">
+                  <summary>Cuota mensual ({{ cuotasMesVendedor.length }})</summary>
+
+                  @if (cuotasMesVendedor.length === 0) {
+                    <p class="historico-empty">Sin registros</p>
+                  } @else {
+                    <table class="historico-table">
+                      <thead>
+                        <tr>
+                          <th>Periodo</th>
+                          <th>Monto</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (cuota of cuotasMesVendedor; track cuota.id) {
+                          <tr>
+                            <td>{{ cuota.fecha_inicio }} — {{ cuota.fecha_fin }}</td>
+                            <td>{{ cuota.monto | number: '1.0-0' }}</td>
+                            <td>
+                              <button
+                                type="button"
+                                class="btn-delete-row"
+                                (click)="eliminarCuotaIndividual('mes', cuota)"
+                                [disabled]="eliminandoCuotaIndividualId === cuota.id"
+                              >
+                                <span class="material-symbols-rounded">delete</span>
+                              </button>
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  }
+                </details>
+
+                <details class="historico-tabla" [open]="cuotasSemanaVendedor.length <= 5">
+                  <summary>Cuota semanal ({{ cuotasSemanaVendedor.length }})</summary>
+
+                  @if (cuotasSemanaVendedor.length === 0) {
+                    <p class="historico-empty">Sin registros</p>
+                  } @else {
+                    <table class="historico-table">
+                      <thead>
+                        <tr>
+                          <th>Periodo</th>
+                          <th>Monto</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (cuota of cuotasSemanaVendedor; track cuota.id) {
+                          <tr>
+                            <td>{{ cuota.fecha_inicio }} — {{ cuota.fecha_fin }}</td>
+                            <td>{{ cuota.monto | number: '1.0-0' }}</td>
+                            <td>
+                              <button
+                                type="button"
+                                class="btn-delete-row"
+                                (click)="eliminarCuotaIndividual('semana', cuota)"
+                                [disabled]="eliminandoCuotaIndividualId === cuota.id"
+                              >
+                                <span class="material-symbols-rounded">delete</span>
+                              </button>
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  }
+                </details>
+
+                <details class="historico-tabla" [open]="cuotasDiaVendedor.length <= 5">
+                  <summary>Cuota diaria ({{ cuotasDiaVendedor.length }})</summary>
+
+                  @if (cuotasDiaVendedor.length === 0) {
+                    <p class="historico-empty">Sin registros</p>
+                  } @else {
+                    <table class="historico-table">
+                      <thead>
+                        <tr>
+                          <th>Periodo</th>
+                          <th>Monto</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (cuota of cuotasDiaVendedor; track cuota.id) {
+                          <tr>
+                            <td>{{ cuota.fecha_inicio }} — {{ cuota.fecha_fin }}</td>
+                            <td>{{ cuota.monto | number: '1.0-0' }}</td>
+                            <td>
+                              <button
+                                type="button"
+                                class="btn-delete-row"
+                                (click)="eliminarCuotaIndividual('dia', cuota)"
+                                [disabled]="eliminandoCuotaIndividualId === cuota.id"
+                              >
+                                <span class="material-symbols-rounded">delete</span>
+                              </button>
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  }
+                </details>
+              </div>
+            }
+          }
+        </div>
+      </div>
+
       <!-- AL FINAL: ELIMINAR CUOTA PROVEEDOR / LÍNEA -->
       <div class="delete-range-card proveedor-delete-card">
         <div class="delete-header">
@@ -175,6 +413,78 @@
           }
         </div>
       </div>
+
+      <!-- MODAL CONFIRMAR CUOTAS DE VENDEDOR -->
+      @if (showConfirmCuotaVendedorModal) {
+        <div class="modal-backdrop">
+          <div class="delete-confirm-modal">
+            <div class="confirm-header">
+              <div class="confirm-icon">
+                <span class="material-symbols-rounded">warning</span>
+              </div>
+
+              <div>
+                <h3>Confirmar eliminación</h3>
+                <p>Esta acción no se puede deshacer.</p>
+              </div>
+            </div>
+
+            <div class="confirm-body">
+              <p>
+                ¿Está seguro de eliminar las cuotas de
+                <strong>{{ nombresVendedoresCuotaSeleccionados }}</strong>
+                para <strong>{{ periodoCuotaVendedorSeleccionado }}</strong>?
+              </p>
+
+              <div class="confirm-range">
+                <span>
+                  <strong>Inicio:</strong>
+                  {{ fechaInicioCuotaVendedor ?? 'sin límite' }}
+                </span>
+                <span>
+                  <strong>Fin:</strong>
+                  {{ fechaFinCuotaVendedor ?? 'sin límite' }}
+                </span>
+              </div>
+
+              <p class="confirm-warning">Para confirmar, escriba <strong>ELIMINAR</strong>.</p>
+
+              <input
+                type="text"
+                [(ngModel)]="confirmInputCuotaVendedor"
+                placeholder="ELIMINAR"
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="confirm-actions">
+              <button
+                type="button"
+                class="btn-cancel-delete"
+                (click)="closeConfirmCuotaVendedor()"
+                [disabled]="eliminandoCuotaVendedor"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                class="btn-confirm-delete"
+                (click)="finalDeleteCuotaVendedor()"
+                [disabled]="confirmInputCuotaVendedor !== 'ELIMINAR' || eliminandoCuotaVendedor"
+              >
+                @if (eliminandoCuotaVendedor) {
+                  <span class="spinner"></span>
+                  Eliminando...
+                } @else {
+                  <span class="material-symbols-rounded">delete</span>
+                  Confirmar eliminación
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      }
 
       <!-- MODAL CONFIRMAR PROVEEDOR / LÍNEA -->
       @if (showConfirmCuotaProveedorModal) {

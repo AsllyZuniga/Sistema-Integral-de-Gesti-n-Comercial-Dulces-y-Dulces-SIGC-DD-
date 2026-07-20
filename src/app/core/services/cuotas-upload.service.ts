@@ -115,4 +115,41 @@ export class CuotasUploadService {
       { params },
     );
   }
+
+  /**
+   * Elimina cuotas (mensual, semanal, diaria) de un vendedor.
+   * Sin fechas, elimina todo el histórico; con fechas, solo las cuotas
+   * cuyo periodo se solape con el rango dado.
+   */
+  eliminarCuotasVendedor(
+    idUsuario: number | string,
+    fechaInicio?: string | null,
+    fechaFin?: string | null,
+  ): Observable<any> {
+    let params = new HttpParams();
+
+    if (fechaInicio && fechaFin) {
+      params = params.set('fecha_inicio', fechaInicio).set('fecha_fin', fechaFin);
+    }
+
+    return this.http.delete<any>(`${this.apiUrl}/cuotas/usuario/${idUsuario}`, { params });
+  }
+
+  /**
+   * Elimina cuotas (mensual, semanal, diaria) de varios vendedores en una sola petición.
+   */
+  eliminarCuotasVendedoresLote(
+    idsUsuario: (number | string)[],
+    fechaInicio?: string | null,
+    fechaFin?: string | null,
+  ): Observable<any> {
+    const body: any = { ids_usuario: idsUsuario };
+
+    if (fechaInicio && fechaFin) {
+      body.fecha_inicio = fechaInicio;
+      body.fecha_fin = fechaFin;
+    }
+
+    return this.http.delete<any>(`${this.apiUrl}/cuotas/usuario/lote`, { body });
+  }
 }

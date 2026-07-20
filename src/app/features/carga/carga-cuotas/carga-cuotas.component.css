@@ -207,7 +207,8 @@
   font-size: 17px;
 }
 
-.delete-date-input input {
+.delete-date-input input,
+.delete-date-input select {
   width: 100%;
   height: 44px;
   padding: 0 12px;
@@ -221,9 +222,119 @@
   font-size: 15px;
 }
 
-.delete-date-input input:focus {
+.delete-date-input input:focus,
+.delete-date-input select:focus {
   border-color: #b44a45;
   box-shadow: 0 0 0 3px rgba(180, 74, 69, 0.12);
+}
+
+.delete-date-input select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.vendedor-selector {
+  margin-bottom: 16px;
+  background: #fff;
+  border: 1px solid #dedede;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.vendedor-selector summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  color: var(--c-text);
+  cursor: pointer;
+  list-style: none;
+  font-size: 15px;
+  font-weight: 600;
+  user-select: none;
+}
+
+.vendedor-selector summary::-webkit-details-marker {
+  display: none;
+}
+
+.vendedor-selector summary:hover {
+  background: #fafafa;
+}
+
+.vendedor-selector .summary-icon {
+  color: #9b3a35;
+  font-size: 20px;
+}
+
+.vendedor-selector .summary-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vendedor-selector .summary-chevron {
+  color: #999;
+  transition: transform 0.15s ease;
+}
+
+.vendedor-selector[open] .summary-chevron {
+  transform: rotate(180deg);
+}
+
+.vendedor-selector[open] summary {
+  border-bottom: 1px solid #eee;
+}
+
+.vendedor-checklist {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px 14px;
+}
+
+.vendedor-checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  color: var(--c-text);
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.vendedor-checklist-item:hover {
+  background: #faf5f4;
+}
+
+.vendedor-checklist-item input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: #b44a45;
+  cursor: pointer;
+}
+
+.vendedor-codigo {
+  min-width: 34px;
+  padding: 1px 6px;
+  color: #9b3a35;
+  background: #fdf1f0;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.vendedor-checklist-todos {
+  font-weight: 700;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 4px;
+  padding-bottom: 10px;
 }
 
 .btn-delete-range {
@@ -279,6 +390,108 @@
   color: #166534;
   background: #ecfdf5;
   border: 1px solid #86efac;
+}
+
+.historico-loading {
+  margin-top: 16px;
+  color: var(--c-text-muted);
+  font-size: 14px;
+}
+
+.historico-cuotas {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.historico-tabla {
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.historico-tabla > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  color: var(--c-text);
+  background: var(--c-background, #fafafa);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  list-style: none;
+}
+
+.historico-tabla > summary::-webkit-details-marker {
+  display: none;
+}
+
+.historico-tabla > summary::before {
+  content: 'expand_more';
+  font-family: 'Material Symbols Rounded';
+  font-size: 18px;
+  color: var(--c-text-muted);
+  transition: transform 0.15s ease;
+}
+
+.historico-tabla[open] > summary::before {
+  transform: rotate(180deg);
+}
+
+.historico-empty {
+  padding: 14px;
+  color: var(--c-text-muted);
+  font-size: 13px;
+}
+
+.historico-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.historico-table th {
+  padding: 8px 14px;
+  color: var(--c-text-muted);
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-top: 1px solid var(--c-border);
+}
+
+.historico-table td {
+  padding: 8px 14px;
+  color: var(--c-text);
+  border-top: 1px solid var(--c-border);
+}
+
+.btn-delete-row {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #9b3a35;
+  background: transparent;
+  border: 1px solid #c54a45;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-delete-row .material-symbols-rounded {
+  font-size: 16px;
+}
+
+.btn-delete-row:hover:not(:disabled) {
+  background: #fff5f5;
+}
+
+.btn-delete-row:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .proveedor-delete-card .delete-icon-box {

@@ -53,11 +53,25 @@ export class UsuariosService {
 
   /**
    * GET /usuario
-   * Obtiene lista de vendedores
+   * Obtiene lista de vendedores (id_rol = 3). Excluye administradores y supervisores.
    */
   listarVendedores(): Observable<any[]> {
     return this.http.get<any>(`${this.apiUrl}/usuario`).pipe(
-      map((res) => (Array.isArray(res) ? res : (res?.data ?? []))),
+      map((res) => {
+        const usuarios = Array.isArray(res) ? res : (res?.data ?? []);
+        const vendedores = usuarios.filter((u: any) => {
+          const rol = u?.id_rol ?? u?.rol?.idRol ?? u?.idRol ?? u?.rolId ?? 0;
+          return Number(rol) === 3;
+        });
+
+        const vistos = new Set<string>();
+        return vendedores.filter((v: any) => {
+          const id = String(v?.id_usuario ?? v?.id ?? '').trim();
+          if (!id || vistos.has(id)) return false;
+          vistos.add(id);
+          return true;
+        });
+      }),
       catchError(() => of([])),
     );
   }
