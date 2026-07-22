@@ -636,28 +636,6 @@
             </div>
 
             <div class="form-group">
-              <label for="editarSupervisorVendedor">Supervisor asignado:</label>
-              <select
-                id="editarSupervisorVendedor"
-                [(ngModel)]="formVendedor.id_supervisor"
-                name="id_supervisor"
-                [disabled]="guardando || cargandoSupervisores"
-              >
-                <option value="">Sin supervisor asignado</option>
-
-                @for (supervisor of supervisores; track supervisor.id_usuario || supervisor.id) {
-                  <option [value]="supervisor.id_usuario ?? supervisor.id">
-                    {{ supervisor.nombre ?? supervisor.nom_supervisor ?? supervisor.username }}
-                  </option>
-                }
-              </select>
-
-              <small class="form-help">
-                También puedes cambiarlo desde el botón azul de asignación en la tabla.
-              </small>
-            </div>
-
-            <div class="form-group">
               <label for="editarPasswordVendedor">Contraseña (opcional):</label>
               <div class="password-wrapper">
                 <input
