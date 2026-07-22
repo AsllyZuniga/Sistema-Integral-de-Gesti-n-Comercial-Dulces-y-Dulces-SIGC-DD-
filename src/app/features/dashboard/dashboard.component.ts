@@ -449,41 +449,6 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     return `${y}-${m}-${d}`;
   }
 
-  private getWeekRange(date: Date): { inicio: string; fin: string } {
-    const day = date.getDay(); // 0=Sun, 1=Mon, ...
-    const diffToMonday = day === 0 ? -6 : 1 - day;
-    const monday = new Date(date);
-    monday.setDate(date.getDate() + diffToMonday);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    return { inicio: this.formatDate(monday), fin: this.formatDate(sunday) };
-  }
-
-  private getDayRange(date: Date): { inicio: string; fin: string } {
-    const formattedDate = this.formatDate(date);
-    return { inicio: formattedDate, fin: formattedDate };
-  }
-
-  private getMonthRange(date: Date): { inicio: string; fin: string } {
-    const inicio = new Date(date.getFullYear(), date.getMonth(), 1);
-    const fin = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-    return { inicio: this.formatDate(inicio), fin: this.formatDate(fin) };
-  }
-
-  private adjustDateRangeForTipoCuota(
-    tipo: TipoCuota,
-    pivotDateStr: string,
-  ): { inicio: string; fin: string } {
-    const pivotDate = new Date(pivotDateStr);
-    if (tipo === 'semanal') {
-      return this.getWeekRange(pivotDate);
-    } else if (tipo === 'diaria') {
-      return this.getDayRange(pivotDate);
-    } else {
-      return this.getMonthRange(pivotDate);
-    }
-  }
-
   toggleMenuMovil(): void {
     this.sidebarRef?.toggleMobile();
   }
@@ -492,25 +457,12 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.tipoCuota === tipo) return;
     this.tipoCuota = tipo;
 
-    // Auto-ajusta fechas según el nuevo tipoCuota para TODOS los roles.
-    // FIX: antes esto solo corría para rolId === 3 (vendedor). Admin y
-    // supervisor conservaban el rango de fechas anterior (mes/semana
-    // completos) al pasar a "diaria", por lo que las cards y tablas de
-    // categoría/proveedor seguían consultando ese rango completo en vez
-    // del día puntual, mostrando cuotas/datos que no correspondían al día.
-    const pivotDate = this.filtrosActivos.fechaInicio || this.formatDate(new Date());
-    const newRange = this.adjustDateRangeForTipoCuota(tipo, pivotDate);
-    // FIX: reasignar el objeto (no mutar in place) para que el setter
-    // @Input filtros de <app-ventas> detecte el cambio de referencia y
-    // recargue con las fechas nuevas; mutar dejaba _filtros desactualizado
-    // dentro de VentasEstadoBase y la vista seguía consultando con las
-    // fechas viejas al cambiar entre mensual/semanal/diaria.
-    this.filtrosActivos = {
-      ...this.filtrosActivos,
-      fechaInicio: newRange.inicio,
-      fechaFin: newRange.fin,
-    };
-
+    // No se auto-ajustan las fechas al cambiar tipoCuota: se mantiene el
+    // rango que el usuario tenía seleccionado (ej. mayo completo). Antes
+    // se recalculaba un nuevo rango (semana/día) a partir de fechaInicio,
+    // lo que podía saltar a un rango que cruza de mes (ej. 27 abr-3 may
+    // al pasar de "mes: mayo" a "semanal"), cambiando la selección del
+    // usuario sin que él lo pidiera.
     if (this.rolId === 3) {
       this.totalesVendedor = null;
       this.cargarTotalesVendedor();
