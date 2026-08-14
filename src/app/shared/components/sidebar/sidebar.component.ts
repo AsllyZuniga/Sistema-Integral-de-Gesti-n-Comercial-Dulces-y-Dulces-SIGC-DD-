@@ -47,13 +47,20 @@ export class SidebarComponent {
       return false;
     }
 
-    if (!item.activoPorParams) {
-      return true;
+    if (item.activoPorParams) {
+      return Object.entries(item.activoPorParams).every(
+        ([key, value]) => String(url.queryParams[key] ?? '').toLowerCase() === value.toLowerCase(),
+      );
     }
 
-    return Object.entries(item.activoPorParams).every(
-      ([key, value]) => String(url.queryParams[key] ?? '').toLowerCase() === value.toLowerCase(),
-    );
+    const otroActivo = this.navItems.some((other) => {
+      if (other === item || other.ruta !== item.ruta || !other.activoPorParams) return false;
+      return Object.entries(other.activoPorParams).every(
+        ([key, value]) => String(url.queryParams[key] ?? '').toLowerCase() === value.toLowerCase(),
+      );
+    });
+
+    return !otroActivo;
   }
 
   toggleSidebar(): void {

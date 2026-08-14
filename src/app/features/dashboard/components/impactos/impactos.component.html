@@ -11,39 +11,56 @@
 
   <div class="dynamic-content">
     @switch (activeImpactosView) {
+      @case ('vendedor') {
+        <app-ventas-tabla-grafica
+          [columns]="vendedorColumns"
+          [data]="vendedorData"
+          [chartData]="vendedorChartData"
+          chartId="chart-impactos-vendedor"
+          chartType="bar"
+          chartLabel="Impactos"
+          chartTitle="Impactos por Vendedor"
+          [showLegend]="false"
+        ></app-ventas-tabla-grafica>
+      }
 
       @case ('proveedor') {
-        <div class="stack-layout">
-          <div class="placeholder">
-            Sección por proveedor pendiente de endpoint.
-          </div>
-        </div>
-      }
-
-      @case ('ciudad') {
-        <div class="stack-layout">
-          <div class="placeholder">
-            Sección por ciudad pendiente de endpoint.
-          </div>
-        </div>
-      }
-
-      @case ('item') {
-        <div class="stack-layout">
-          <div class="placeholder">
-            Sección por item pendiente de endpoint.
-          </div>
-        </div>
+        <app-ventas-tabla-grafica
+          [columns]="proveedorColumns"
+          [data]="proveedorData"
+          [chartData]="proveedorChartData"
+          chartId="chart-impactos-proveedor"
+          chartType="bar"
+          chartLabel="Impactos"
+          chartTitle="Impactos por Proveedor"
+          [showLegend]="false"
+        ></app-ventas-tabla-grafica>
       }
 
       @case ('categoria') {
-        <div class="stack-layout">
-          <div class="placeholder">
-            Sección por categoría pendiente de endpoint.
-          </div>
-        </div>
+        <app-ventas-tabla-grafica
+          [columns]="categoriaColumns"
+          [data]="categoriaData"
+          [chartData]="categoriaChartData"
+          chartId="chart-impactos-categoria"
+          chartType="bar"
+          chartLabel="Impactos"
+          chartTitle="Impactos por Categoría"
+          [showLegend]="false"
+        ></app-ventas-tabla-grafica>
       }
 
+      @case ('canal') {
+        <app-ventas-tabla-grafica
+          [columns]="canalColumns"
+          [data]="canalData"
+          [chartData]="canalChartData"
+          chartId="chart-impactos-canal"
+          chartType="pie"
+          chartLabel="Impactos"
+          chartTitle="Impactos por Canal"
+        ></app-ventas-tabla-grafica>
+      }
     }
   </div>
 </div>

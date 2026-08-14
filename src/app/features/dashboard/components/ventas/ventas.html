@@ -99,6 +99,24 @@
         ></app-ventas-tabla-grafica>
       }
 
+      @case ('canal') {
+        <app-ventas-tabla-grafica
+          [columns]="canalesColumns"
+          [data]="tableData"
+          [chartData]="chartData"
+          [chartId]="chartId"
+          [chartType]="chartType"
+          chartLabel="Top 15 Canales"
+          chartTitle="Top 15 Canales por Acumulado"
+          chartHeadClass=""
+          kpiLabel="Suma top 15"
+          [kpiValue]="totalTopCanalesLabel"
+          [showTotals]="true"
+          totalsClass="categoria-totales"
+          [totalAcumuladoLabel]="totalAcumuladoCanalLabel"
+        ></app-ventas-tabla-grafica>
+      }
+
       @case ('item') {
         <app-ventas-tabla-grafica
           [columns]="productosColumns"

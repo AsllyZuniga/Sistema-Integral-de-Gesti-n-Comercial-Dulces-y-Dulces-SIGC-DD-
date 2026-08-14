@@ -16,9 +16,25 @@ export interface MenuItem {
 export const MENU_ITEMS: MenuItem[] = [
   {
     icon: 'dashboard',
-    label: 'Dashboard',
+    label: 'Análisis de ventas',
     ruta: '/dashboard',
     roles: [RoleId.ADMINISTRADOR],
+  },
+  {
+    icon: 'monitoring',
+    label: 'Análisis de Impactos',
+    ruta: '/dashboard',
+    roles: [RoleId.ADMINISTRADOR, RoleId.VENDEDOR],
+    queryParams: { vista: 'impactos' },
+    activoPorParams: { vista: 'impactos' },
+  },
+  {
+    icon: 'monitoring',
+    label: 'Análisis de Impactos',
+    ruta: '/dashboard',
+    roles: [RoleId.SUPERVISOR],
+    queryParams: { seccion: 'impactos' },
+    activoPorParams: { seccion: 'impactos' },
   },
   {
     icon: 'upload_file',

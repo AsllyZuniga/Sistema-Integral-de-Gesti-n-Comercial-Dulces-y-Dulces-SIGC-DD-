@@ -327,6 +327,41 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
         return;
       }
 
+      case 'canal': {
+        this.chartType = 'bar';
+        // TODO: reemplazar por endpoint real cuando exista backend para canales
+        const datosMockCanales = [
+          { canal: 'Tiendas independientes', ventaAcum: 85000, porcCump: 92.5, proyeccionVenta: 95000 },
+          { canal: 'Supermercados', ventaAcum: 62000, porcCump: 88.3, proyeccionVenta: 70000 },
+          { canal: 'Minimarkets', ventaAcum: 34000, porcCump: 76.2, proyeccionVenta: 45000 },
+          { canal: 'Distribuidoras', ventaAcum: 28000, porcCump: 81.7, proyeccionVenta: 35000 },
+          { canal: 'Venta directa', ventaAcum: 19000, porcCump: 95.0, proyeccionVenta: 20000 },
+        ];
+
+        this.tableData = datosMockCanales;
+        this.totalAcumuladoCanal = datosMockCanales.reduce(
+          (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+          0,
+        );
+
+        const topCanales = [...datosMockCanales]
+          .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+          .slice(0, 15);
+
+        this.totalTopCanales = topCanales.reduce(
+          (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+          0,
+        );
+
+        this.chartData = topCanales.map((i: any) => ({
+          name: i.canal,
+          value: Number(i?.ventaAcum ?? 0),
+        }));
+        this.chartId = 'chart-canal-admin-' + Date.now();
+        this.cdr.markForCheck();
+        return;
+      }
+
       case 'item':
       case 'cliente':
         this.chartType = 'bar';
@@ -794,6 +829,7 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
           case 'proveedor':
           case 'ciudad':
           case 'categoria':
+          case 'canal':
           case 'item':
           case 'cliente':
             this.tableData = [];

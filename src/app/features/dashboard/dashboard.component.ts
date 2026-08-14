@@ -156,7 +156,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   tipoCuota: TipoCuota = 'mensual';
   rolId = 0;
   activeAnalisisView: 'ventas' | 'impactos' = 'ventas';
-  activeSupervisorView: 'asignados' | 'analisis' = 'asignados';
+  activeSupervisorView: 'asignados' | 'analisis' | 'impactos' = 'asignados';
 
   private proveedorMap: Map<string, string> = new Map();
   private ciudadMap: Map<string, string> = new Map();
@@ -189,18 +189,15 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       const vista = String(params.get('vista') ?? 'ventas').toLowerCase();
       const seccion = String(params.get('seccion') ?? 'asignados').toLowerCase();
 
-      // Evitar que vendedores (rolId 3) activen la vista de 'impactos'. Si el usuario
-      // actual es vendedor, forzamos 'ventas' aunque el query param pida 'impactos'.
-      const usuarioActual = this.authService.getVendedor();
-      const rolActual = Number(usuarioActual?.rol?.idRol ?? usuarioActual?.idRol ?? 0);
+      this.activeAnalisisView = vista === 'impactos' ? 'impactos' : 'ventas';
 
-      if (vista === 'impactos' && rolActual === 3) {
-        this.activeAnalisisView = 'ventas';
+      if (seccion === 'analisis') {
+        this.activeSupervisorView = 'analisis';
+      } else if (seccion === 'impactos') {
+        this.activeSupervisorView = 'impactos';
       } else {
-        this.activeAnalisisView = vista === 'impactos' ? 'impactos' : 'ventas';
+        this.activeSupervisorView = 'asignados';
       }
-
-      this.activeSupervisorView = seccion === 'analisis' ? 'analisis' : 'asignados';
     });
 
     this.vendedor = this.authService.getVendedor();

@@ -192,6 +192,8 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
   totalTopItemsSubtotal = 0;
   totalTopCiudades = 0;
   totalAcumuladoCiudad = 0;
+  totalTopCanales = 0;
+  totalAcumuladoCanal = 0;
   // Totales adicionales solicitados
   totalCuotaVendedor = 0;
   totalAcumuladoVendedor = 0;
@@ -267,6 +269,7 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
   }
 
   readonly ciudadesColumns = ['ciudad', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
+  readonly canalesColumns = ['canal', 'ventaAcum', 'porcCump', 'proyeccionVenta'];
   readonly categoriasColumns = [
     'categoria',
     'cuota',
@@ -352,6 +355,8 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
     this.totalTopItemsSubtotal = 0;
     this.totalTopCiudades = 0;
     this.totalAcumuladoCiudad = 0;
+    this.totalTopCanales = 0;
+    this.totalAcumuladoCanal = 0;
     this.totalCuotaVendedor = 0;
     this.totalAcumuladoVendedor = 0;
     this.totalAcumuladoVentas = 0;

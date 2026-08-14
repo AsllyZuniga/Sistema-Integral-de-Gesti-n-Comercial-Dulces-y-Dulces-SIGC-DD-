@@ -44,3 +44,9 @@
     ></app-ventas>
   </section>
 }
+
+@if (vista === 'impactos') {
+  <section class="charts">
+    <app-impactos [codigosVendedores]="codigosVendedoresAsignados"></app-impactos>
+  </section>
+}

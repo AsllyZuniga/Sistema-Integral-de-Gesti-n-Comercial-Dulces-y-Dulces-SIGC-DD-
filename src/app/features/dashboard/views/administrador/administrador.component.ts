@@ -19,6 +19,7 @@ import { UsuariosService } from '../../../../core/services/usuarios.service';
 import { ProveedorService } from '../../../../core/services/proveedor.service';
 import { TipoCuota } from '../../../cumplimientos-cuota/cumplimientos.component';
 import { VentasComponent } from '../../components/ventas/ventas.component';
+import { ImpactosComponent } from '../../components/impactos/impactos.component';
 import { VendedorTabla } from '../shared/vendedores-table/vendedores-table.component';
 
 interface SupervisorResumen {
@@ -132,7 +133,7 @@ interface TotalesAdminUnificado {
 @Component({
   selector: 'app-administrador-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, CardComponent, VentasComponent],
+  imports: [CommonModule, FormsModule, CardComponent, VentasComponent, ImpactosComponent],
   templateUrl: './administrador.component.html',
   styleUrls: ['./administrador.component.css'],
 })
@@ -144,6 +145,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
   private proveedorService = inject(ProveedorService);
 
   @Input() tipoCuota: TipoCuota = 'mensual';
+  @Input() vistaActiva: 'ventas' | 'impactos' = 'ventas';
   @Input() filtrosActivos: DashboardFilters = {
     fechaInicio: '',
     fechaFin: '',

@@ -165,6 +165,7 @@ export abstract class VentasSupervisorBase extends VentasAdministradorBase {
           case 'proveedor':
           case 'ciudad':
           case 'categoria':
+          case 'canal':
           case 'item':
           case 'cliente':
             this.tableData = [];

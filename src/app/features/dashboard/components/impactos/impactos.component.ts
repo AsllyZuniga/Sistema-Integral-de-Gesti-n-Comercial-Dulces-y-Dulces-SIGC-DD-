@@ -1,22 +1,110 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy, ViewEncapsulation, OnInit, OnDestroy, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Subject, takeUntil } from 'rxjs';
+import { VentasTablaGraficaComponent } from '../ventas/ui/ventas-tabla-grafica.component';
+import { ImpactosService } from './services/impactos.service';
+import { IMPACTOS_VIEWS } from './config/impactos-view.config';
+import {
+  ImpactoCategoriaRow,
+  ImpactoCanalRow,
+  ImpactoProveedorRow,
+  ImpactoVendedorRow,
+} from './models/impactos.model';
 
 @Component({
   selector: 'app-impactos',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, VentasTablaGraficaComponent],
   templateUrl: './impactos.component.html',
   styleUrls: ['./impactos.component.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.None,
 })
-export class ImpactosComponent {
-  impactosViews = [
-    { key: 'proveedor', label: 'Por Proveedor' },
-    { key: 'ciudad', label: 'Por Ciudad' },
-    { key: 'item', label: 'Por Item' },
-    { key: 'categoria', label: 'Por Categoría' },
-  ];
+export class ImpactosComponent implements OnInit, OnDestroy {
+  impactosViews = IMPACTOS_VIEWS;
+  activeImpactosView = 'proveedor';
 
-  activeImpactosView: string = 'proveedor';
+  proveedorColumns = ['proveedor', 'cuotaImpactos', 'impactos', 'porcCump', 'proyeccionImpactos'];
+  categoriaColumns = ['categoria', 'cuotaImpactos', 'impactos', 'porcCump', 'proyeccionImpactos'];
+  canalColumns = ['canal', 'impactos'];
+  vendedorColumns = ['vendedor', 'cuotaImpactos', 'impactos', 'porcCump', 'proyeccionImpactos'];
+
+  proveedorData: ImpactoProveedorRow[] = [];
+  categoriaData: ImpactoCategoriaRow[] = [];
+  canalData: ImpactoCanalRow[] = [];
+  vendedorData: ImpactoVendedorRow[] = [];
+
+  proveedorChartData: { name: string; value: number }[] = [];
+  categoriaChartData: { name: string; value: number }[] = [];
+  canalChartData: { name: string; value: number }[] = [];
+  vendedorChartData: { name: string; value: number }[] = [];
+
+  private destroy$ = new Subject<void>();
+
+  @Input() codigosVendedores: string[] = [];
+
+  constructor(private impactosService: ImpactosService) {}
+
+  ngOnInit(): void {
+    this.cargarImpactos();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private cargarImpactos(): void {
+    this.impactosService
+      .getImpactosPorProveedor()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((res) => {
+        this.proveedorData = res.rows as ImpactoProveedorRow[];
+        this.proveedorChartData = this.proveedorData.map((d) => ({
+          name: d.proveedor,
+          value: d.impactos,
+        }));
+      });
+
+    this.impactosService
+      .getImpactosPorCategoria()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((res) => {
+        this.categoriaData = res.rows as ImpactoCategoriaRow[];
+        this.categoriaChartData = this.categoriaData.map((d) => ({
+          name: d.categoria,
+          value: d.impactos,
+        }));
+      });
+
+    this.impactosService
+      .getImpactosPorCanal()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((res) => {
+        this.canalData = res.rows as ImpactoCanalRow[];
+        this.canalChartData = this.canalData.map((d) => ({
+          name: d.canal,
+          value: d.impactos,
+        }));
+      });
+
+    this.impactosService
+      .getImpactosPorVendedor()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((res) => {
+        const todos = res.rows as ImpactoVendedorRow[];
+        this.vendedorData = this.codigosVendedores.length
+          ? todos.filter((d) => {
+              const codigo = String(d.vendedor).split(' - ')[0]?.trim();
+              return this.codigosVendedores.includes(codigo);
+            })
+          : todos;
+        this.vendedorChartData = this.vendedorData.map((d) => ({
+          name: d.vendedor,
+          value: d.impactos,
+        }));
+      });
+  }
 
   setImpactosView(key: string): void {
     this.activeImpactosView = key;

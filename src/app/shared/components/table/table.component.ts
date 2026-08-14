@@ -51,6 +51,7 @@ export class TableComponent {
     Cantidad: 'Cantidad',
     cantidad: 'Cantidad',
     cliente: 'Cliente',
+    vendedor: 'Vendedor',
     cantidadItems: 'Cantidad Items',
     proveedor: 'Proveedor',
     producto: 'Producto',
@@ -61,6 +62,9 @@ export class TableComponent {
     subtotal_producto: 'Subtotal Producto',
     Subtotal: 'Subtotal',
     impactos: 'Impactos',
+    cuotaImpactos: 'Cuota Impactos',
+    proyeccionImpactos: 'Proyección Impactos',
+    canal: 'Canal',
     valorTotal: 'Valor Total',
   };
 
@@ -74,6 +78,8 @@ export class TableComponent {
     'acumulado',
     'proyectado',
     'proyeccionVenta',
+    'cuotaImpactos',
+    'proyeccionImpactos',
     'valorTotal',
     'precio_unitario',
     'subtotal_producto',

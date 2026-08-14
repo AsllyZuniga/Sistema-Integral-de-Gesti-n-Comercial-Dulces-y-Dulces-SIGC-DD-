@@ -116,6 +116,36 @@ export class CuotasUploadService {
     );
   }
 
+  uploadCuotasCanal(archivo: File): Observable<CuotasUploadResponse> {
+    const formData = new FormData();
+    formData.append('archivo', archivo);
+
+    return this.http
+      .post(`${this.apiUrl}/cuota-canal-import/cargar`, formData, {
+        responseType: 'text',
+      })
+      .pipe(
+        map((responseText) => {
+          const texto = String(responseText ?? '').trim();
+
+          if (!texto) {
+            return { message: 'Importación completada' } as CuotasUploadResponse;
+          }
+
+          if (texto.startsWith('{') || texto.startsWith('[')) {
+            try {
+              const parsed = JSON.parse(texto);
+              return (parsed ?? {}) as CuotasUploadResponse;
+            } catch {
+              // Si el backend respondió texto plano, lo tratamos como mensaje exitoso.
+            }
+          }
+
+          return { message: texto } as CuotasUploadResponse;
+        }),
+      );
+  }
+
   /**
    * Elimina cuotas (mensual, semanal, diaria) de un vendedor.
    * Sin fechas, elimina todo el histórico; con fechas, solo las cuotas
