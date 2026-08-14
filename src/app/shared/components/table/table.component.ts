@@ -88,7 +88,7 @@ export class TableComponent {
     'porcentajeCumplimientoProyectado',
     'part',
   ]);
-  private readonly integerCols = new Set(['Venta_Unid_Cajas', 'Cantidad', 'cantidad', 'impactos']);
+  private readonly integerCols = new Set(['Cantidad', 'cantidad', 'impactos']);
   private readonly integerColsExt = new Set(['cantidadItems', 'id_categoria']);
 
   getHeader(col: string): string {
