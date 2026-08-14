@@ -403,7 +403,7 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
               Proveedor: item?.proveedor,
               Cod_Item: item?.codigo_item,
               Descripcion: item?.descripcion,
-              Cantidad: Number(item?.unidades_cajas ?? 0),
+              Cantidad: Number(item?.unidades_totales ?? 0),
               Subtotal: Number(item?.subtotal ?? 0),
               Venta_Unid_Cajas: Number(item?.unidades_cajas ?? 0),
             }));
