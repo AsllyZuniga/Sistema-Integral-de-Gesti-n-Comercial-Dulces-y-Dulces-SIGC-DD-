@@ -32,7 +32,7 @@ export function obtenerVistasVentasPorRol(rolId: number): VentasViewOption[] {
   }
 
   if (rolId === RoleId.VENDEDOR) {
-    return VENTAS_VIEWS.filter((view) => view.key !== 'ventas' && view.key !== 'vendedor' && view.key !== 'canal');
+    return VENTAS_VIEWS.filter((view) => view.key !== 'ventas' && view.key !== 'vendedor');
   }
 
   return VENTAS_VIEWS;
