@@ -21,6 +21,14 @@ export const MENU_ITEMS: MenuItem[] = [
     roles: [RoleId.ADMINISTRADOR],
   },
   {
+    icon: 'monitoring',
+    label: 'Análisis de Impactos',
+    ruta: '/dashboard',
+    roles: [RoleId.ADMINISTRADOR],
+    queryParams: { vista: 'impactos' },
+    activoPorParams: { vista: 'impactos' },
+  },
+  {
     icon: 'upload_file',
     label: 'Gestión de ventas',
     ruta: '/carga',
@@ -42,6 +50,22 @@ export const MENU_ITEMS: MenuItem[] = [
     itemRestringible: 'usuarios',
   },
   {
+    icon: 'analytics',
+    label: 'Análisis de ventas',
+    ruta: '/dashboard',
+    roles: [RoleId.SUPERVISOR],
+    queryParams: { seccion: 'analisis' },
+    activoPorParams: { seccion: 'analisis' },
+  },
+  {
+    icon: 'monitoring',
+    label: 'Análisis de Impactos',
+    ruta: '/dashboard',
+    roles: [RoleId.SUPERVISOR],
+    queryParams: { seccion: 'impactos' },
+    activoPorParams: { seccion: 'impactos' },
+  },
+  {
     icon: 'groups',
     label: 'Vendedores asignados',
     ruta: '/dashboard',
@@ -53,17 +77,17 @@ export const MENU_ITEMS: MenuItem[] = [
     icon: 'analytics',
     label: 'Análisis de ventas',
     ruta: '/dashboard',
-    roles: [RoleId.SUPERVISOR],
-    queryParams: { seccion: 'analisis' },
-    activoPorParams: { seccion: 'analisis' },
-  },
-  {
-    icon: 'analytics',
-    label: 'Análisis de ventas',
-    ruta: '/dashboard',
     roles: [RoleId.VENDEDOR],
     queryParams: { vista: 'ventas' },
     activoPorParams: { vista: 'ventas' },
+  },
+  {
+    icon: 'monitoring',
+    label: 'Análisis de Impactos',
+    ruta: '/dashboard',
+    roles: [RoleId.VENDEDOR],
+    queryParams: { vista: 'impactos' },
+    activoPorParams: { vista: 'impactos' },
   },
 ];
 
