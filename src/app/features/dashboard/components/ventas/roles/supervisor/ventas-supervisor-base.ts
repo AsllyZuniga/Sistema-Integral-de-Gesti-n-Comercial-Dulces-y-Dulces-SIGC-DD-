@@ -165,12 +165,57 @@ export abstract class VentasSupervisorBase extends VentasAdministradorBase {
           case 'proveedor':
           case 'ciudad':
           case 'categoria':
-          case 'canal':
           case 'item':
           case 'cliente':
             this.tableData = [];
             this.chartData = [];
             break;
+
+          case 'canal': {
+            this.chartType = 'bar';
+            // Issue #4: 1 sola llamada al endpoint role-aware /ventas-por-canal.
+            // El backend filtra por scope JWT (supervisor ve su equipo).
+            this.cumplimientoService
+              .getVentasPorCanal(filtrosConsulta)
+              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+              .subscribe((res: any) => {
+                const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+
+                // RF-001: NO filtrar registros con acumulado=0.
+                const canalesMapeados = detalle.map((item: any) => ({
+                  ...item,
+                  canal: item?.canal ?? 'Sin canal',
+                  ventaAcum: Number(item?.acumulado ?? 0) || 0,
+                  porcCump: Number(item?.porcCump ?? 0) || 0,
+                  proyeccionVenta: Number(item?.proyeccionVenta ?? 0) || 0,
+                }));
+
+                this.tableData = canalesMapeados;
+                this.totalAcumuladoCanal = canalesMapeados.reduce(
+                  (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+                  0,
+                );
+
+                const topCanales = [...canalesMapeados]
+                  .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+                  .slice(0, 15);
+
+                this.totalTopCanales = topCanales.reduce(
+                  (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+                  0,
+                );
+
+                this.chartData = topCanales.map((i: any) => ({
+                  name: i.canal ?? 'Sin dato',
+                  value: Number(i?.ventaAcum ?? 0),
+                }));
+                this.chartId = 'chart-canal-supervisor-' + Date.now();
+
+                this.refrescarCuotaVendedorFiltrado(filtrosConsulta, true);
+                this.cdr.markForCheck();
+              });
+            break;
+          }
         }
 
         this.emitirResumenVista();

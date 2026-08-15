@@ -329,36 +329,58 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
 
       case 'canal': {
         this.chartType = 'bar';
-        // TODO: reemplazar por endpoint real cuando exista backend para canales
-        const datosMockCanales = [
-          { canal: 'Tiendas independientes', ventaAcum: 85000, porcCump: 92.5, proyeccionVenta: 95000 },
-          { canal: 'Supermercados', ventaAcum: 62000, porcCump: 88.3, proyeccionVenta: 70000 },
-          { canal: 'Minimarkets', ventaAcum: 34000, porcCump: 76.2, proyeccionVenta: 45000 },
-          { canal: 'Distribuidoras', ventaAcum: 28000, porcCump: 81.7, proyeccionVenta: 35000 },
-          { canal: 'Venta directa', ventaAcum: 19000, porcCump: 95.0, proyeccionVenta: 20000 },
-        ];
+        // Issue #4: 1 sola llamada al endpoint role-aware /ventas-por-canal.
+        // El backend filtra por scope JWT (admin todo, supervisor equipo).
+        // Devuelve catálogo completo de canales (incluye acumulado=0).
+        this.cumplimientoService
+          .getVentasPorCanal(filtrosConsulta)
+          .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+          .subscribe((res: any) => {
+            const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
 
-        this.tableData = datosMockCanales;
-        this.totalAcumuladoCanal = datosMockCanales.reduce(
-          (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
-          0,
-        );
+            // RF-001: NO filtrar registros con acumulado=0. El backend
+            // garantiza catálogo completo de canales.
+            const canalesMapeados = detalle.map((item: any) => ({
+              ...item,
+              canal: item?.canal ?? 'Sin canal',
+              ventaAcum: Number(item?.acumulado ?? 0) || 0,
+              porcCump: Number(item?.porcCump ?? item?.porcentajeCumplimiento ?? 0) || 0,
+              proyeccionVenta: Number(item?.proyeccionVenta ?? item?.proyeccion ?? 0) || 0,
+            }));
 
-        const topCanales = [...datosMockCanales]
-          .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
-          .slice(0, 15);
+            this.tableData = canalesMapeados;
 
-        this.totalTopCanales = topCanales.reduce(
-          (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
-          0,
-        );
+            // Total acumulado (suma de todos los canales)
+            this.totalAcumuladoCanal = canalesMapeados.reduce(
+              (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+              0,
+            );
 
-        this.chartData = topCanales.map((i: any) => ({
-          name: i.canal,
-          value: Number(i?.ventaAcum ?? 0),
-        }));
-        this.chartId = 'chart-canal-admin-' + Date.now();
-        this.cdr.markForCheck();
+            // Cuota total del canal (RF-002: 0 por ahora, preparado para futuro)
+            this.totalCuotaCanal = Number(res?.total?.cuota ?? 0) || 0;
+
+            // Top 15 canales por acumulado (para chart)
+            const topCanales = [...canalesMapeados]
+              .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
+              .slice(0, 15);
+
+            this.totalTopCanales = topCanales.reduce(
+              (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+              0,
+            );
+
+            this.chartData = topCanales.map((i: any) => ({
+              name: i.canal ?? 'Sin dato',
+              value: Number(i?.ventaAcum ?? 0),
+            }));
+            this.chartId = 'chart-canal-admin-' + Date.now();
+
+            // Canal no tiene cuota propia (cuota=0): la card debe mostrar la
+            // cuota del/los vendedor(es) filtrado(s). soloCuota=true porque la
+            // venta acumulada de Canal ya se calculó arriba (totalAcumuladoCanal).
+            this.refrescarCuotaVendedorFiltrado(filtrosConsulta, true);
+            this.cdr.markForCheck();
+          });
         return;
       }
 
