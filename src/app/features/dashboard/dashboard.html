@@ -22,6 +22,7 @@
         [proveedores]="proveedoresList"
         [categorias]="categoriasList"
         [ciudades]="ciudadesList"
+        [canales]="canalesList"
         [lineas]="lineasList"
         [vendedores]="mostrarFiltroVendedorPorRol ? vendedoresList : []"
         [mostrarFiltroVendedor]="mostrarFiltroVendedorPorRol"
@@ -34,6 +35,7 @@
     @if (esAdmin) {
       <app-administrador-dashboard
         [tipoCuota]="tipoCuota"
+        [vistaActiva]="activeAnalisisView"
         [filtrosActivos]="filtrosActivos"
       ></app-administrador-dashboard>
     }

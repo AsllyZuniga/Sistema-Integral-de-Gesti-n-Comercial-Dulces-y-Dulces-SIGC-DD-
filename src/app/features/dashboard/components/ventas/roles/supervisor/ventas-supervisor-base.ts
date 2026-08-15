@@ -170,6 +170,40 @@ export abstract class VentasSupervisorBase extends VentasAdministradorBase {
             this.tableData = [];
             this.chartData = [];
             break;
+
+          case 'canal': {
+            this.chartType = 'bar';
+            // Issue #4: 1 sola llamada al endpoint role-aware /ventas-por-canal.
+            // El backend filtra por scope JWT (supervisor ve su equipo).
+            this.cumplimientoService
+              .getVentasPorCanal(filtrosConsulta)
+              .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+              .subscribe((res: any) => {
+                const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+
+                const canalesMapeados = detalle.map((item: any) => ({
+                  ...item,
+                  canal: item?.canal ?? 'Sin canal',
+                  ventaAcum: Number(item?.acumulado ?? 0) || 0,
+                  porcCump: Number(item?.porcCump ?? 0) || 0,
+                  proyeccionVenta: Number(item?.proyeccionVenta ?? 0) || 0,
+                })).filter((item: any) => item.ventaAcum > 0);
+
+                this.tableData = canalesMapeados;
+                this.totalAcumuladoCanal = canalesMapeados.reduce(
+                  (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+                  0,
+                );
+
+                // Sin gráfica: solo se muestra la tabla con todos los canales.
+                this.chartData = [];
+                this.totalTopCanales = 0;
+
+                this.refrescarCuotaVendedorFiltrado(filtrosConsulta, true);
+                this.cdr.markForCheck();
+              });
+            break;
+          }
         }
 
         this.emitirResumenVista();

@@ -494,6 +494,37 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
         }
         break;
 
+      case 'canal': {
+        this.chartType = 'bar';
+        this.cumplimientoService
+          .getVentasPorCanal(filtrosConsulta)
+          .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+          .subscribe((res: any) => {
+            const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+
+            const canalesMapeados = detalle
+              .map((item: any) => ({
+                ...item,
+                canal: item?.canal ?? 'Sin canal',
+                ventaAcum: Number(item?.acumulado ?? 0) || 0,
+                porcCump: Number(item?.porcCump ?? item?.porcentajeCumplimiento ?? 0) || 0,
+                proyeccionVenta: Number(item?.proyeccionVenta ?? item?.proyeccion ?? 0) || 0,
+              }))
+              .filter((item: any) => item.ventaAcum > 0);
+
+            this.tableData = canalesMapeados;
+            this.totalAcumuladoCanal = canalesMapeados.reduce(
+              (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+              0,
+            );
+            this.totalCuotaCanal = Number(res?.total?.cuota ?? 0) || 0;
+            this.chartData = [];
+            this.totalTopCanales = 0;
+            this.cdr.markForCheck();
+          });
+        break;
+      }
+
       case 'item':
         this.chartType = 'bar';
 

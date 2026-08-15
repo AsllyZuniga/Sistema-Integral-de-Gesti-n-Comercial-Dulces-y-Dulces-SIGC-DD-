@@ -117,6 +117,13 @@ export class CumplimientoService {
       'codCiudad',
     );
 
+    params = this.aplicarValoresMulti(
+      params,
+      'canal',
+      this.valoresFiltro(filtros.canales, filtros.canal),
+      'codCanal',
+    );
+
     if (filtros.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
     if (filtros.linea) params = params.set('linea', filtros.linea);
 
@@ -455,6 +462,48 @@ export class CumplimientoService {
         return { data: rows };
       }),
       catchError(() => of({ data: [] })),
+    );
+  }
+
+  /**
+   * GET /api/ventas-por-canal
+   *
+   * Devuelve el detalle de ventas agrupadas por canal, filtradas por rol
+   * (JWT) y rango de fechas. El backend garantiza catálogo completo de
+   * canales (incluyendo acumulado=0 cuando no hay ventas).
+   *
+   * Query params aceptados (todos opcionales):
+   *   - fechaInicio, fechaFin (YYYY-MM-DD)
+   *   - mesAnio (YYYY-MM)
+   *   - canal (CSV: "49,50")
+   *   - vendedor (CSV), proveedor (CSV), categoria (CSV), ciudad (CSV)
+   *
+   * Respuesta esperada:
+   * {
+   *   periodo: { fechaInicio, fechaFin, dias_corridos, dias_habiles },
+   *   scope: { tipo: 'all' | 'team' | 'self' },
+   *   total: { canal, cuota, acumulado },
+   *   detalle: [{ id_canal, canal, acumulado, ... }]
+   * }
+   *
+   * NOTA: el endpoint requiere JWT (admin permitido; supervisor/vendedor
+   * reciben 403). El interceptor de auth ya agrega el token.
+   */
+  getVentasPorCanal(filtros?: DashboardFilters): Observable<any> {
+    const params = this.buildParams(filtros);
+
+    return this.http.get<any>(`${this.apiUrl}/ventas-por-canal`, { params }).pipe(
+      map((res) => {
+        const data = res?.data ?? res;
+        const detalle = Array.isArray(data?.detalle) ? data.detalle : [];
+        return {
+          periodo: data?.periodo ?? null,
+          scope: data?.scope ?? null,
+          total: data?.total ?? null,
+          detalle,
+        };
+      }),
+      catchError(() => of({ periodo: null, scope: null, total: null, detalle: [] })),
     );
   }
 

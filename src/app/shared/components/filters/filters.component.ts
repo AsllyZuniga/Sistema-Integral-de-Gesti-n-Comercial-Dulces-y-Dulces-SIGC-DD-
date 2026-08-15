@@ -28,6 +28,11 @@ export interface DashboardFilters {
   ciudades?: string[];
   ciudadesNombres?: string[];
 
+  canal: string;
+  canalNombre?: string;
+  canales?: string[];
+  canalNombres?: string[];
+
   linea?: string;
 }
 
@@ -42,6 +47,7 @@ export class FiltersComponent implements OnChanges {
   @Input() proveedores: FilterOption[] = [];
   @Input() categorias: FilterOption[] = [];
   @Input() ciudades: FilterOption[] = [];
+  @Input() canales: FilterOption[] = [];
   @Input() lineas: FilterOption[] = [];
   @Input() vendedores: FilterOption[] = [];
   @Input() mostrarFiltroVendedor = true;
@@ -64,6 +70,7 @@ export class FiltersComponent implements OnChanges {
   mostrarProveedorDropdown = false;
   mostrarVendedorDropdown = false;
   mostrarCiudadDropdown = false;
+  mostrarCanalDropdown = false;
 
   filtros: DashboardFilters = {
     fechaInicio: '',
@@ -82,6 +89,10 @@ export class FiltersComponent implements OnChanges {
     ciudadNombre: '',
     ciudades: [],
     ciudadesNombres: [],
+    canal: '',
+    canalNombre: '',
+    canales: [],
+    canalNombres: [],
     linea: '',
   };
 
@@ -110,6 +121,10 @@ export class FiltersComponent implements OnChanges {
       seLimpioSeleccion = this.limpiarVendedoresSeleccionadosInexistentes() || seLimpioSeleccion;
     }
 
+    if (changes['canales']) {
+      seLimpioSeleccion = this.limpiarCanalesSeleccionadosInexistentes() || seLimpioSeleccion;
+    }
+
     if (seLimpioSeleccion) {
       this.emitFilterChange();
     }
@@ -135,6 +150,7 @@ export class FiltersComponent implements OnChanges {
       proveedores: normalizarArray(filtros.proveedores, filtros.proveedor),
       categorias: normalizarArray(filtros.categorias, filtros.categoria),
       ciudades: normalizarArray(filtros.ciudades, filtros.ciudad),
+      canales: normalizarArray(filtros.canales, filtros.canal),
     };
   }
 
@@ -208,6 +224,20 @@ export class FiltersComponent implements OnChanges {
     return `${total} seleccionada(s)`;
   }
 
+  get canalesSeleccionados(): string[] {
+    return Array.isArray(this.filtros.canales) ? this.filtros.canales : [];
+  }
+
+  get textoCanalesSeleccionados(): string {
+    const total = this.canalesSeleccionados.length;
+    if (total === 0) return 'Todos';
+    if (total === 1) {
+      const c = this.canales.find((x) => x.value === this.canalesSeleccionados[0]);
+      return c?.label ?? '1 seleccionado';
+    }
+    return `${total} seleccionado(s)`;
+  }
+
   toggleFiltros(): void {
     this.isFiltrosOpen = !this.isFiltrosOpen;
     this.cerrarTodosDropdowns();
@@ -218,6 +248,7 @@ export class FiltersComponent implements OnChanges {
     this.mostrarCategoriaDropdown = false;
     this.mostrarVendedorDropdown = false;
     this.mostrarCiudadDropdown = false;
+    this.mostrarCanalDropdown = false;
   }
 
   cerrarProveedorDropdown(): void {
@@ -229,6 +260,7 @@ export class FiltersComponent implements OnChanges {
     this.mostrarProveedorDropdown = false;
     this.mostrarVendedorDropdown = false;
     this.mostrarCiudadDropdown = false;
+    this.mostrarCanalDropdown = false;
   }
 
   cerrarCategoriaDropdown(): void {
@@ -240,6 +272,7 @@ export class FiltersComponent implements OnChanges {
     this.mostrarProveedorDropdown = false;
     this.mostrarCategoriaDropdown = false;
     this.mostrarCiudadDropdown = false;
+    this.mostrarCanalDropdown = false;
   }
 
   cerrarVendedorDropdown(): void {
@@ -251,10 +284,23 @@ export class FiltersComponent implements OnChanges {
     this.mostrarProveedorDropdown = false;
     this.mostrarCategoriaDropdown = false;
     this.mostrarVendedorDropdown = false;
+    this.mostrarCanalDropdown = false;
   }
 
   cerrarCiudadDropdown(): void {
     this.mostrarCiudadDropdown = false;
+  }
+
+  toggleCanalDropdown(): void {
+    this.mostrarCanalDropdown = !this.mostrarCanalDropdown;
+    this.mostrarProveedorDropdown = false;
+    this.mostrarCategoriaDropdown = false;
+    this.mostrarVendedorDropdown = false;
+    this.mostrarCiudadDropdown = false;
+  }
+
+  cerrarCanalDropdown(): void {
+    this.mostrarCanalDropdown = false;
   }
 
   cerrarTodosDropdowns(): void {
@@ -262,6 +308,7 @@ export class FiltersComponent implements OnChanges {
     this.mostrarCategoriaDropdown = false;
     this.mostrarVendedorDropdown = false;
     this.mostrarCiudadDropdown = false;
+    this.mostrarCanalDropdown = false;
   }
 
   onClickOtroFiltro(): void {
@@ -387,6 +434,34 @@ export class FiltersComponent implements OnChanges {
     this.filtros.ciudad = '';
     this.filtros.ciudadNombre = '';
     this.filtros.ciudadesNombres = [];
+    this.emitFilterChange();
+  }
+
+  toggleCanalCheckbox(value: string): void {
+    const valor = String(value ?? '').trim();
+    if (!valor) return;
+
+    const actuales = Array.isArray(this.filtros.canales)
+      ? [...this.filtros.canales]
+      : [];
+
+    const existe = actuales.includes(valor);
+    const seleccionados = existe
+      ? actuales.filter((item) => item !== valor)
+      : [...actuales, valor];
+
+    this.filtros.canales = seleccionados;
+    this.filtros.canal = seleccionados.length === 1 ? seleccionados[0] : '';
+    this.filtros.canalNombre = '';
+    this.filtros.canalNombres = [];
+    this.emitFilterChange();
+  }
+
+  limpiarCanalesSeleccionadas(): void {
+    this.filtros.canales = [];
+    this.filtros.canal = '';
+    this.filtros.canalNombre = '';
+    this.filtros.canalNombres = [];
     this.emitFilterChange();
   }
 
@@ -552,6 +627,28 @@ export class FiltersComponent implements OnChanges {
     return cambio;
   }
 
+  private limpiarCanalesSeleccionadosInexistentes(): boolean {
+    const seleccionados = Array.isArray(this.filtros.canales)
+      ? this.filtros.canales
+      : [];
+
+    if (!seleccionados.length) return false;
+
+    const valoresPermitidos = new Set(
+      this.canales.map((item) => this.normalizarTexto(item.value)).filter(Boolean),
+    );
+
+    const filtrados = seleccionados.filter((value) =>
+      valoresPermitidos.has(this.normalizarTexto(value)),
+    );
+
+    const cambio = filtrados.length !== seleccionados.length;
+    this.filtros.canales = filtrados;
+    this.filtros.canal = this.filtros.canales.length === 1 ? this.filtros.canales[0] : '';
+
+    return cambio;
+  }
+
   aplicar(closeFilters = true): void {
     if (closeFilters) {
       this.isFiltrosOpen = false;
@@ -604,6 +701,20 @@ export class FiltersComponent implements OnChanges {
 
       const ciudadNombre = ciudadesNombres.length === 1 ? ciudadesNombres[0] : '';
 
+      const canalesSeleccionados = Array.isArray(this.filtros.canales)
+        ? this.filtros.canales.filter(Boolean)
+        : String(this.filtros.canal ?? '')
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean);
+
+      const canalNombres = this.obtenerLabelsSeleccionados(
+        this.canales,
+        canalesSeleccionados,
+      );
+
+      const canalNombre = canalNombres.length === 1 ? canalNombres[0] : '';
+
       this.apply.emit({
         ...this.filtros,
         vendedor: vendedoresSeleccionados.join(','),
@@ -620,6 +731,10 @@ export class FiltersComponent implements OnChanges {
         ciudadNombre,
         ciudades: ciudadesSeleccionadas,
         ciudadesNombres,
+        canal: canalesSeleccionados.length === 1 ? canalesSeleccionados[0] : '',
+        canalNombre,
+        canales: canalesSeleccionados,
+        canalNombres,
       });
     }, 0);
   }
@@ -650,6 +765,10 @@ export class FiltersComponent implements OnChanges {
       ciudadNombre: '',
       ciudades: [],
       ciudadesNombres: [],
+      canal: '',
+      canalNombre: '',
+      canales: [],
+      canalNombres: [],
       linea: '',
     };
 

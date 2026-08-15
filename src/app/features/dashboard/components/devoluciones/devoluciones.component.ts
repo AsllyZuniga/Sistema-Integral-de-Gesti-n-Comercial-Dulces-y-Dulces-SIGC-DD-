@@ -26,6 +26,7 @@ export class DevolucionesComponent implements OnChanges {
     proveedor:   '',
     categoria:   '',
     ciudad:      '',
+    canal:       '',
   };
 
   devolucionesViews = [

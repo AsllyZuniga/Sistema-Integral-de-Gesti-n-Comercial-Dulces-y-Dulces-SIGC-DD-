@@ -11,6 +11,7 @@ export interface OpcionesFiltros {
   proveedores: FilterOption[];
   categorias: FilterOption[];
   ciudades: FilterOption[];
+  canales: FilterOption[];
 }
 
 export interface FiltrosOpcionesParams {
@@ -20,6 +21,7 @@ export interface FiltrosOpcionesParams {
   codProveedor?: string[];
   codCategoria?: string[];
   codCiudad?: string[];
+  codCanal?: string[];
 }
 
 /**
@@ -73,6 +75,7 @@ export class FiltrosService {
     appendAll('codProveedor', params.codProveedor);
     appendAll('codCategoria', params.codCategoria);
     appendAll('codCiudad', params.codCiudad);
+    appendAll('codCanal', params.codCanal);
 
     return httpParams;
   }
@@ -104,13 +107,18 @@ export class FiltrosService {
       ? norm(filtros.ciudades)
       : (filtros.ciudad ? [String(filtros.ciudad).trim()] : []);
 
+    const codCanal: string[] = filtros.canales && filtros.canales.length
+      ? norm(filtros.canales)
+      : (filtros.canal ? [String(filtros.canal).trim()] : []);
+
     return {
       fechaInicio: filtros.fechaInicio || undefined,
       fechaFin: filtros.fechaFin || undefined,
       codVendedor: codVendedor.length ? codVendedor : undefined,
       codProveedor: codProveedor.length ? codProveedor : undefined,
       codCategoria: codCategoria.length ? codCategoria : undefined,
-      codCiudad: codCiudad.length ? codCiudad : undefined
+      codCiudad: codCiudad.length ? codCiudad : undefined,
+      codCanal: codCanal.length ? codCanal : undefined
     };
   }
 
@@ -150,6 +158,7 @@ export class FiltrosService {
       proveedores: this.normalizarOpciones(data.proveedores, ['value', 'reporte_prov_con_obs', 'reporteProvConObs', 'codigo', 'codProveedor', 'proveedor'], ['label', 'nombre', 'nombreProveedor', 'proveedor']),
       categorias: this.normalizarOpciones(data.categorias, ['value', 'id_categoria', 'idCategoria', 'codCategoria', 'codigo'], ['label', 'categoria', 'nomCategoria', 'nombreCategoria']),
       ciudades: this.normalizarOpciones(data.ciudades, ['value', 'id_ciudad', 'idCiudad', 'codCiudad', 'codigo', 'cod'], ['label', 'ciudad', 'nomCiudad', 'nombreCiudad']),
+      canales: this.normalizarOpciones(data.canales, ['value', 'id_canal', 'idCanal', 'codCanal', 'codigo'], ['label', 'canal', 'canal_nombre', 'nombre']),
     };
   }
 
@@ -230,7 +239,8 @@ export class FiltrosService {
       join(params.codVendedor),
       join(params.codProveedor),
       join(params.codCategoria),
-      join(params.codCiudad)
+      join(params.codCiudad),
+      join(params.codCanal)
     ].join('::');
   }
 }

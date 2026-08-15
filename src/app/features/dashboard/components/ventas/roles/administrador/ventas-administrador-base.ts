@@ -327,6 +327,49 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
         return;
       }
 
+      case 'canal': {
+        this.chartType = 'bar';
+        // Issue #4: 1 sola llamada al endpoint role-aware /ventas-por-canal.
+        // El backend filtra por scope JWT (admin todo, supervisor equipo).
+        // Devuelve catálogo completo de canales (incluye acumulado=0).
+        this.cumplimientoService
+          .getVentasPorCanal(filtrosConsulta)
+          .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
+          .subscribe((res: any) => {
+            const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
+
+            const canalesMapeados = detalle.map((item: any) => ({
+              ...item,
+              canal: item?.canal ?? 'Sin canal',
+              ventaAcum: Number(item?.acumulado ?? 0) || 0,
+              porcCump: Number(item?.porcCump ?? item?.porcentajeCumplimiento ?? 0) || 0,
+              proyeccionVenta: Number(item?.proyeccionVenta ?? item?.proyeccion ?? 0) || 0,
+            })).filter((item: any) => item.ventaAcum > 0);
+
+            this.tableData = canalesMapeados;
+
+            // Total acumulado (suma de todos los canales)
+            this.totalAcumuladoCanal = canalesMapeados.reduce(
+              (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
+              0,
+            );
+
+            // Cuota total del canal (RF-002: 0 por ahora, preparado para futuro)
+            this.totalCuotaCanal = Number(res?.total?.cuota ?? 0) || 0;
+
+            // Sin gráfica: solo se muestra la tabla con todos los canales.
+            this.chartData = [];
+            this.totalTopCanales = 0;
+
+            // Canal no tiene cuota propia (cuota=0): la card debe mostrar la
+            // cuota del/los vendedor(es) filtrado(s). soloCuota=true porque la
+            // venta acumulada de Canal ya se calculó arriba (totalAcumuladoCanal).
+            this.refrescarCuotaVendedorFiltrado(filtrosConsulta, true);
+            this.cdr.markForCheck();
+          });
+        return;
+      }
+
       case 'item':
       case 'cliente':
         this.chartType = 'bar';
@@ -794,6 +837,7 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
           case 'proveedor':
           case 'ciudad':
           case 'categoria':
+          case 'canal':
           case 'item':
           case 'cliente':
             this.tableData = [];

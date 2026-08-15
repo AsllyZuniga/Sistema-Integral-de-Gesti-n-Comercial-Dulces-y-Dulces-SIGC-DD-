@@ -201,6 +201,49 @@
       </div>
     </div>
 
+    <div class="filter-group">
+      <label>Canal</label>
+
+      <div class="checkbox-dropdown">
+        <button
+          type="button"
+          class="checkbox-dropdown-toggle"
+          (click)="toggleCanalDropdown()"
+        >
+          <span class="checkbox-dropdown-text">
+            {{ textoCanalesSeleccionados }}
+          </span>
+
+          <span class="material-symbols-rounded dropdown-icon">expand_more</span>
+        </button>
+
+        @if (mostrarCanalDropdown) {
+          <div class="checkbox-dropdown-menu">
+            <label class="checkbox-item checkbox-item-all">
+              <input
+                type="checkbox"
+                [checked]="canalesSeleccionados.length === 0"
+                (change)="limpiarCanalesSeleccionadas()"
+              />
+              <span>Todos</span>
+            </label>
+
+            @for (ca of canales; track ca.value) {
+              <label class="checkbox-item">
+                <input
+                  type="checkbox"
+                  [value]="ca.value"
+                  [checked]="filtros.canales?.includes(ca.value) || false"
+                  (change)="toggleCanalCheckbox(ca.value)"
+                />
+                <span>{{ ca.label }}</span>
+              </label>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
     <div class="filter-actions">
       <button type="button" class="btn-limpiar" (click)="limpiar()">Limpiar</button>
       <button type="button" class="btn-aplicar" (click)="aplicar()">Aplicar Filtros</button>

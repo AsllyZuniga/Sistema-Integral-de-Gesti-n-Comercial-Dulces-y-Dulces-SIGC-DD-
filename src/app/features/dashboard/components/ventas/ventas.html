@@ -99,6 +99,17 @@
         ></app-ventas-tabla-grafica>
       }
 
+      @case ('canal') {
+        <app-ventas-tabla-grafica
+          [columns]="canalesColumns"
+          [data]="tableData"
+          [chartData]="chartData"
+          [showTotals]="true"
+          totalsClass="categoria-totales"
+          [totalAcumuladoLabel]="totalAcumuladoCanalLabel"
+        ></app-ventas-tabla-grafica>
+      }
+
       @case ('item') {
         <app-ventas-tabla-grafica
           [columns]="productosColumns"

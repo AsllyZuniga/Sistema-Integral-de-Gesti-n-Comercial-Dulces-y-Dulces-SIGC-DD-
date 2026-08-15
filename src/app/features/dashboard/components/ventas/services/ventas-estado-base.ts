@@ -158,6 +158,7 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
     categoria: '',
     ciudad: '',
     ciudadNombre: '',
+    canal: '',
     linea: '',
   };
 
@@ -192,6 +193,9 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
   totalTopItemsSubtotal = 0;
   totalTopCiudades = 0;
   totalAcumuladoCiudad = 0;
+  totalTopCanales = 0;
+  totalAcumuladoCanal = 0;
+  totalCuotaCanal = 0;
   // Totales adicionales solicitados
   totalCuotaVendedor = 0;
   totalAcumuladoVendedor = 0;
@@ -267,6 +271,7 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
   }
 
   readonly ciudadesColumns = ['ciudad', 'ventaAcum', 'porcCump', 'proyeccionVenta', 'porcCumProy'];
+  readonly canalesColumns = ['canal', 'ventaAcum', 'porcCump', 'proyeccionVenta'];
   readonly categoriasColumns = [
     'categoria',
     'cuota',
@@ -352,6 +357,9 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
     this.totalTopItemsSubtotal = 0;
     this.totalTopCiudades = 0;
     this.totalAcumuladoCiudad = 0;
+    this.totalTopCanales = 0;
+    this.totalAcumuladoCanal = 0;
+    this.totalCuotaCanal = 0;
     this.totalCuotaVendedor = 0;
     this.totalAcumuladoVendedor = 0;
     this.totalAcumuladoVentas = 0;
@@ -415,6 +423,10 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
         // Ciudad/Cliente/Item no tienen cuota propia: siempre mostrar la
         // cuota del/los vendedor(es) filtrado(s).
         return this.totalCuotaVendedor;
+      case 'canal':
+        // Canal no tiene cuota propia (RF-002: cuota=0 por ahora).
+        // Fallback a cuota del/los vendedor(es) filtrado(s).
+        return this.totalCuotaCanal > 0 ? this.totalCuotaCanal : this.totalCuotaVendedor;
       default:
         return null;
     }

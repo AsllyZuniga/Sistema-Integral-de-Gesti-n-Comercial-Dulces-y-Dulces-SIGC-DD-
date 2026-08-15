@@ -12,6 +12,7 @@ export const VENTAS_VIEWS: VentasViewOption[] = [
   { key: 'proveedor', label: 'Por Proveedor' },
   { key: 'categoria', label: 'Por Categoría' },
   { key: 'ciudad', label: 'Por Ciudad' },
+  { key: 'canal', label: 'Por Canal' },
   { key: 'cliente', label: 'Detalle por Cliente' },
   { key: 'vendedor', label: 'Por Vendedor' },
   { key: 'item', label: 'Detalle por Item' },

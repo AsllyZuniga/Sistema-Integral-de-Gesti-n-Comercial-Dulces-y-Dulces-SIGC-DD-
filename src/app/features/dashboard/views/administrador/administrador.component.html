@@ -16,13 +16,17 @@
 </section>
 
 <section class="charts">
-  <app-ventas
-    [codigoVendedor]="codigoVendedorAnalisis"
-    [filtros]="filtrosAnalisis"
-    [tipoCuota]="tipoCuota"
-    [modoAdmin]="true"
-    (resumenCambio)="onResumenCambio($event)"
-  ></app-ventas>
+  @if (vistaActiva === 'impactos') {
+    <app-impactos></app-impactos>
+  } @else {
+    <app-ventas
+      [codigoVendedor]="codigoVendedorAnalisis"
+      [filtros]="filtrosAnalisis"
+      [tipoCuota]="tipoCuota"
+      [modoAdmin]="true"
+      (resumenCambio)="onResumenCambio($event)"
+    ></app-ventas>
+  }
 </section>
 
 @if (modalAsignarVisible) {

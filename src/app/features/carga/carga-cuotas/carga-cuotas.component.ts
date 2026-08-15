@@ -13,6 +13,7 @@ import { CuotasCrudService, CuotaRegistro } from '../../../core/services/cuotas-
 import { CuotaVendedorUploadComponent } from './cuota-vendedor-upload/cuota-vendedor-upload.component';
 import { CuotaProveedorUploadComponent } from './cuota-proveedor-upload/cuota-proveedor-upload.component';
 import { CuotaCategoriaUploadComponent } from './cuota-categoria-upload/cuota-categoria-upload.component';
+import { CuotaCanalUploadComponent } from './cuota-canal-upload/cuota-canal-upload.component';
 
 import {
   CuotasUploadService,
@@ -30,6 +31,7 @@ import {
     CuotaVendedorUploadComponent,
     CuotaProveedorUploadComponent,
     CuotaCategoriaUploadComponent,
+    CuotaCanalUploadComponent,
   ],
   templateUrl: './carga-cuotas.component.html',
   styleUrls: ['./carga-cuotas.component.css'],

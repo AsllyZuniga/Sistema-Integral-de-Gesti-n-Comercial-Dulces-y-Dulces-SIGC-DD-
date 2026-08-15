@@ -22,6 +22,7 @@ import { CumplimientoService } from '../../../../core/services/ventas/cumplimien
 import { CumplimientoSemanaService } from '../../../../core/services/ventas/cumplimientoVentasSemana.service';
 import { SupervisorCacheService } from '../../../../core/services/supervisor-cache.service';
 import { VentasComponent } from '../../components/ventas/ventas.component';
+import { ImpactosComponent } from '../../components/impactos/impactos.component';
 import {
   VendedorTabla,
   VendedoresTableComponent,
@@ -84,7 +85,7 @@ interface VendedorApiRow {
 @Component({
   selector: 'app-supervisor-dashboard',
   standalone: true,
-  imports: [CommonModule, CardComponent, VendedoresTableComponent, VentasComponent],
+  imports: [CommonModule, CardComponent, VendedoresTableComponent, VentasComponent, ImpactosComponent],
   templateUrl: './supervisor.component.html',
   styleUrls: ['./supervisor.component.css'],
 })
@@ -97,7 +98,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
   private cdr = inject(ChangeDetectorRef);
 
   @Input() tipoCuota: TipoCuota = 'mensual';
-  @Input() vista: 'asignados' | 'analisis' = 'asignados';
+  @Input() vista: 'asignados' | 'analisis' | 'impactos' = 'asignados';
   @Input() filtrosActivos: DashboardFilters = {
     fechaInicio: '',
     fechaFin: '',
@@ -105,6 +106,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     proveedor: '',
     categoria: '',
     ciudad: '',
+    canal: '',
     linea: '',
   };
 
@@ -123,6 +125,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     proveedor: '',
     categoria: '',
     ciudad: '',
+    canal: '',
     linea: '',
   };
 
