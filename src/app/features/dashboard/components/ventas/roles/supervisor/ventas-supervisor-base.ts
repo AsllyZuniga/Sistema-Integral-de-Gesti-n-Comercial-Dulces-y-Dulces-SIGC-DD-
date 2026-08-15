@@ -181,14 +181,13 @@ export abstract class VentasSupervisorBase extends VentasAdministradorBase {
               .subscribe((res: any) => {
                 const detalle = Array.isArray(res?.detalle) ? res.detalle : [];
 
-                // RF-001: NO filtrar registros con acumulado=0.
                 const canalesMapeados = detalle.map((item: any) => ({
                   ...item,
                   canal: item?.canal ?? 'Sin canal',
                   ventaAcum: Number(item?.acumulado ?? 0) || 0,
                   porcCump: Number(item?.porcCump ?? 0) || 0,
                   proyeccionVenta: Number(item?.proyeccionVenta ?? 0) || 0,
-                }));
+                })).filter((item: any) => item.ventaAcum > 0);
 
                 this.tableData = canalesMapeados;
                 this.totalAcumuladoCanal = canalesMapeados.reduce(
