@@ -28,6 +28,7 @@ import {
   TipoCuota,
 } from '../cumplimientos-cuota/cumplimientos.component';
 import { CardComponent } from '../../shared/components/card/card.component';
+import { ToastComponent } from '../../shared/components/toast/toast.component';
 import { DashboardRoleViewsModule } from './views/dashboard-role-views.module';
 
 interface DashboardTotalesVendedor {
@@ -123,6 +124,7 @@ interface CumplimientoAdminDetalleRow {
     VentasComponent,
     ImpactosComponent,
     CuotasCumplimientoComponent,
+    ToastComponent,
     DashboardRoleViewsModule,
   ],
   templateUrl: './dashboard.html',

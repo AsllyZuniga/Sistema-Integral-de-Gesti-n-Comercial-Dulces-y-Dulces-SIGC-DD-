@@ -1,0 +1,11 @@
+@if (visible) {
+  <div class="toast-container">
+    <div class="toast-icon">
+      <span class="material-symbols-rounded">info</span>
+    </div>
+    <div class="toast-message">{{ mensaje }}</div>
+    <button class="toast-close" (click)="cerrar()" aria-label="Cerrar">
+      <span class="material-symbols-rounded">close</span>
+    </button>
+  </div>
+}
