@@ -359,21 +359,9 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
             // Cuota total del canal (RF-002: 0 por ahora, preparado para futuro)
             this.totalCuotaCanal = Number(res?.total?.cuota ?? 0) || 0;
 
-            // Top 15 canales por acumulado (para chart)
-            const topCanales = [...canalesMapeados]
-              .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
-              .slice(0, 15);
-
-            this.totalTopCanales = topCanales.reduce(
-              (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
-              0,
-            );
-
-            this.chartData = topCanales.map((i: any) => ({
-              name: i.canal ?? 'Sin dato',
-              value: Number(i?.ventaAcum ?? 0),
-            }));
-            this.chartId = 'chart-canal-admin-' + Date.now();
+            // Sin gráfica: solo se muestra la tabla con todos los canales.
+            this.chartData = [];
+            this.totalTopCanales = 0;
 
             // Canal no tiene cuota propia (cuota=0): la card debe mostrar la
             // cuota del/los vendedor(es) filtrado(s). soloCuota=true porque la

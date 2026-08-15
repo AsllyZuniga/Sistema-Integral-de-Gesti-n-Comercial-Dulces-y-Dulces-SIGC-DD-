@@ -196,20 +196,9 @@ export abstract class VentasSupervisorBase extends VentasAdministradorBase {
                   0,
                 );
 
-                const topCanales = [...canalesMapeados]
-                  .sort((a: any, b: any) => Number(b?.ventaAcum ?? 0) - Number(a?.ventaAcum ?? 0))
-                  .slice(0, 15);
-
-                this.totalTopCanales = topCanales.reduce(
-                  (sum: number, item: any) => sum + (Number(item?.ventaAcum ?? 0) || 0),
-                  0,
-                );
-
-                this.chartData = topCanales.map((i: any) => ({
-                  name: i.canal ?? 'Sin dato',
-                  value: Number(i?.ventaAcum ?? 0),
-                }));
-                this.chartId = 'chart-canal-supervisor-' + Date.now();
+                // Sin gráfica: solo se muestra la tabla con todos los canales.
+                this.chartData = [];
+                this.totalTopCanales = 0;
 
                 this.refrescarCuotaVendedorFiltrado(filtrosConsulta, true);
                 this.cdr.markForCheck();
