@@ -158,6 +158,7 @@ export abstract class VentasEstadoBase implements OnInit, OnDestroy {
     categoria: '',
     ciudad: '',
     ciudadNombre: '',
+    canal: '',
     linea: '',
   };
 

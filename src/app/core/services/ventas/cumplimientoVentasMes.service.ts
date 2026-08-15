@@ -117,6 +117,13 @@ export class CumplimientoService {
       'codCiudad',
     );
 
+    params = this.aplicarValoresMulti(
+      params,
+      'canal',
+      this.valoresFiltro(filtros.canales, filtros.canal),
+      'codCanal',
+    );
+
     if (filtros.ciudadNombre) params = params.set('ciudadNombre', filtros.ciudadNombre);
     if (filtros.linea) params = params.set('linea', filtros.linea);
 

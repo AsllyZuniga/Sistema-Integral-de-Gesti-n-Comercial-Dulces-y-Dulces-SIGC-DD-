@@ -150,6 +150,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   proveedoresList: FilterOption[] = [];
   categoriasList: FilterOption[] = [];
   ciudadesList: FilterOption[] = [];
+  canalesList: FilterOption[] = [];
   lineasList: FilterOption[] = [];
   vendedoresList: FilterOption[] = [];
 
@@ -181,6 +182,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     categoria: '',
     ciudad: '',
     ciudadNombre: '',
+    canal: '',
     linea: '',
   };
 
@@ -1128,6 +1130,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           this.aplicarOpcionesProveedores([]);
           this.categoriasList = [];
           this.ciudadesList = [];
+          this.canalesList = [];
           this.aplicarOpcionesVendedores([]);
           this.cdr.markForCheck();
           return;
@@ -1157,11 +1160,14 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         this.aplicarOpcionesCiudades(opcionesCiudades);
 
         if (!Array.isArray(opciones.ciudades) || opciones.ciudades.length === 0) {
-          // Fallback defensivo: si /api/filtros/opciones no devuelve ciudades
-          // para una combinación válida, se carga el catálogo desde
-          // /api/mes/cumplimiento/ciudades-global usando los mismos filtros.
           this.cargarCiudadesFallback(filtrosReferencia);
         }
+
+        this.canalesList = this.conservarOpcionesSeleccionadas(
+          Array.isArray(opciones.canales) ? opciones.canales : [],
+          this.normalizarArrayFiltro(filtrosReferencia.canales, filtrosReferencia.canal),
+          filtrosReferencia.canalNombres,
+        );
 
         this.aplicarOpcionesVendedores(
           this.ordenarVendedoresPorCodigo(
@@ -1178,6 +1184,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
             proveedores: this.normalizarArrayFiltro(this.filtrosPendientes.proveedores, this.filtrosPendientes.proveedor),
             categorias: this.normalizarArrayFiltro(this.filtrosPendientes.categorias, this.filtrosPendientes.categoria),
             ciudades: this.normalizarArrayFiltro(this.filtrosPendientes.ciudades, this.filtrosPendientes.ciudad),
+            canales: this.normalizarArrayFiltro(this.filtrosPendientes.canales, this.filtrosPendientes.canal),
             vendedores: this.normalizarArrayFiltro(this.filtrosPendientes.vendedores, this.filtrosPendientes.vendedor),
           });
         }
@@ -1204,6 +1211,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     const proveedores = this.normalizarArrayFiltro(filtros.proveedores, filtros.proveedor);
     const categorias = this.normalizarArrayFiltro(filtros.categorias, filtros.categoria);
     const ciudades = this.normalizarArrayFiltro(filtros.ciudades, filtros.ciudad);
+    const canales = this.normalizarArrayFiltro(filtros.canales, filtros.canal);
 
     return {
       ...filtros,
@@ -1215,6 +1223,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       categorias,
       ciudad: ciudades.length === 1 ? ciudades[0] : '',
       ciudades,
+      canal: canales.length === 1 ? canales[0] : '',
+      canales,
     };
   }
 
@@ -1339,6 +1349,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     ciudadNombre: '',
     ciudades: [],
     ciudadesNombres: [],
+    canal: '',
     linea: '',
   };
 
@@ -1946,6 +1957,10 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       ciudades: [],
       ciudadNombre: ciudadNombreVisible || ciudadVisible || '',
       ciudadesNombres: filtros.ciudadesNombres ?? [],
+      canal: '',
+      canales: [],
+      canalNombre: '',
+      canalNombres: [],
       linea: filtros.linea || '',
     };
 
@@ -2015,11 +2030,27 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       filtrosConCodigos.ciudadNombre = ciudadNombreVisible || (ciudadesNombresCompletos.length === 1 ? ciudadesNombresCompletos[0] : '');
       filtrosConCodigos.ciudadesNombres = ciudadesNombresCompletos;
     } else if (ciudadVisible) {
-      // Fallback: si solo llega el singular ciudad, usarlo
       filtrosConCodigos.ciudad =
         this.ciudadMap.get(ciudadVisible) ??
         this.ciudadMap.get(ciudadNormalizada) ??
         ciudadVisible;
+    }
+
+    const canalesSeleccionados = Array.isArray(filtros.canales) && filtros.canales.length
+      ? filtros.canales.filter(Boolean)
+      : (filtros.canal
+          ? [String(filtros.canal).trim()].filter(Boolean)
+          : []);
+
+    if (canalesSeleccionados.length) {
+      const canalNombres = Array.isArray(filtros.canalNombres) && filtros.canalNombres.length
+        ? filtros.canalNombres
+        : this.obtenerLabelsPorValores(this.canalesList, canalesSeleccionados);
+
+      filtrosConCodigos.canal = canalesSeleccionados.join(',');
+      filtrosConCodigos.canales = canalesSeleccionados;
+      filtrosConCodigos.canalNombre = canalNombres.length === 1 ? canalNombres[0] : '';
+      filtrosConCodigos.canalNombres = canalNombres;
     }
 
     if (filtros.linea) {
@@ -2046,8 +2077,12 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       filtrosAnterior.ciudad !== this.filtrosActivos.ciudad ||
       JSON.stringify(filtrosAnterior.ciudades ?? []) !==
         JSON.stringify(this.filtrosActivos.ciudades ?? []);
+    const cambioCanal =
+      filtrosAnterior.canal !== this.filtrosActivos.canal ||
+      JSON.stringify(filtrosAnterior.canales ?? []) !==
+        JSON.stringify(this.filtrosActivos.canales ?? []);
 
-    if (cambioFechas || cambioProveedor || cambioCategoria || cambioVendedor || cambioCiudad) {
+    if (cambioFechas || cambioProveedor || cambioCategoria || cambioVendedor || cambioCiudad || cambioCanal) {
       this.cumplimientoService.invalidarCacheRespuestas();
     }
 

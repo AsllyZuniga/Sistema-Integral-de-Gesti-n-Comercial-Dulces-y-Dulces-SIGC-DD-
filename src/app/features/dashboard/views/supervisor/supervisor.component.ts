@@ -106,6 +106,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     proveedor: '',
     categoria: '',
     ciudad: '',
+    canal: '',
     linea: '',
   };
 
@@ -124,6 +125,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     proveedor: '',
     categoria: '',
     ciudad: '',
+    canal: '',
     linea: '',
   };
 

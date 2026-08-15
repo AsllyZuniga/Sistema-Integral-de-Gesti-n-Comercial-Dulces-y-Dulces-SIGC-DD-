@@ -154,6 +154,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
     categoria: '',
     ciudad: '',
     ciudadNombre: '',
+    canal: '',
     linea: '',
   };
 
