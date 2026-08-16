@@ -3,6 +3,7 @@ import { forkJoin, merge, takeUntil, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { DashboardFilters } from '../../../../../../shared/components/filters/filters.component';
 import { VentasUtilidadesBase } from '../../services/ventas-utilidades-base';
+import { limpiarNombreCanal } from '../../../../../../shared/utils/filter-options.util';
 
 @Directive()
 export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
@@ -340,7 +341,7 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
 
             const canalesMapeados = detalle.map((item: any) => ({
               ...item,
-              canal: item?.canal ?? 'Sin canal',
+              canal: limpiarNombreCanal(item?.canal) || 'Sin canal',
               ventaAcum: Number(item?.acumulado ?? 0) || 0,
               porcCump: Number(item?.porcCump ?? item?.porcentajeCumplimiento ?? 0) || 0,
               proyeccionVenta: Number(item?.proyeccionVenta ?? item?.proyeccion ?? 0) || 0,

@@ -33,7 +33,7 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
         >
           <input
             type="file"
-            accept=".csv,.txt"
+            accept=".csv"
             style="display: none"
             (change)="onArchivoSeleccionado($event)"
             #fileInput
@@ -145,7 +145,7 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
       }
 
       .upload-zone.has-file {
-        border-color: var(#16a34a);
+        border-color: #16a34a;
         background: rgba(22, 163, 74, 0.02);
       }
 
@@ -165,7 +165,7 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
       }
 
       .upload-icon.file-ready {
-        color: var(#16a34a);
+        color: #16a34a;
       }
 
       .upload-text {
@@ -210,9 +210,9 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
       }
 
       .btn-limpiar:hover {
-        border-color: var(#ef4444);
+        border-color: #ef4444;
         background: rgba(239, 68, 68, 0.05);
-        color: var(#ef4444);
+        color: #ef4444;
       }
 
       .btn-cargar {
@@ -256,13 +256,13 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
 
       .resultado.exito {
         background: rgba(22, 163, 74, 0.1);
-        color: var(#16a34a);
+        color: #16a34a;
         border: 1px solid rgba(22, 163, 74, 0.3);
       }
 
       .resultado.error {
         background: rgba(239, 68, 68, 0.1);
-        color: var(#ef4444);
+        color: #ef4444;
         border: 1px solid rgba(239, 68, 68, 0.3);
       }
 
