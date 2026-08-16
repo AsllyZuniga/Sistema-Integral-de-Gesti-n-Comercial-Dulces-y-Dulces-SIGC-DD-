@@ -4,6 +4,7 @@ import { RoleId } from '../../../../../../core/auth/roles';
 import { DashboardFilters } from '../../../../../../shared/components/filters/filters.component';
 import { VentasAdministradorBase } from '../administrador/ventas-administrador-base';
 import { CuotaDiaVendedor } from '../../../../../../core/services/ventas/cuotaDia.service';
+import { limpiarNombreCanal } from '../../../../../../shared/utils/filter-options.util';
 
 /**
  * Base para lógica compartida del rol supervisor.
@@ -183,7 +184,7 @@ export abstract class VentasSupervisorBase extends VentasAdministradorBase {
 
                 const canalesMapeados = detalle.map((item: any) => ({
                   ...item,
-                  canal: item?.canal ?? 'Sin canal',
+                  canal: limpiarNombreCanal(item?.canal) || 'Sin canal',
                   ventaAcum: Number(item?.acumulado ?? 0) || 0,
                   porcCump: Number(item?.porcCump ?? 0) || 0,
                   proyeccionVenta: Number(item?.proyeccionVenta ?? 0) || 0,

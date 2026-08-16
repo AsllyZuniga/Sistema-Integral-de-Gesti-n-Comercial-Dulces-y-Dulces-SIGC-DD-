@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map, shareReplay, of, catchError } from 'rxjs';
 import { DashboardFilters, FilterOption } from '../../../shared/components/filters/filters.component';
-import { enriquecerOpcionesSinDuplicadosVisuales } from '../../../shared/utils/filter-options.util';
+import { enriquecerOpcionesSinDuplicadosVisuales, limpiarNombreCanal } from '../../../shared/utils/filter-options.util';
 import { normalizarTextoFiltro } from '../../../shared/utils/text-normalization.util';
 
 export interface OpcionesFiltros {
@@ -158,7 +158,8 @@ export class FiltrosService {
       proveedores: this.normalizarOpciones(data.proveedores, ['value', 'reporte_prov_con_obs', 'reporteProvConObs', 'codigo', 'codProveedor', 'proveedor'], ['label', 'nombre', 'nombreProveedor', 'proveedor']),
       categorias: this.normalizarOpciones(data.categorias, ['value', 'id_categoria', 'idCategoria', 'codCategoria', 'codigo'], ['label', 'categoria', 'nomCategoria', 'nombreCategoria']),
       ciudades: this.normalizarOpciones(data.ciudades, ['value', 'id_ciudad', 'idCiudad', 'codCiudad', 'codigo', 'cod'], ['label', 'ciudad', 'nomCiudad', 'nombreCiudad']),
-      canales: this.normalizarOpciones(data.canales, ['value', 'id_canal', 'idCanal', 'codCanal', 'codigo'], ['label', 'canal', 'canal_nombre', 'nombre']),
+      canales: this.normalizarOpciones(data.canales, ['value', 'id_canal', 'idCanal', 'codCanal', 'codigo'], ['label', 'canal', 'canal_nombre', 'nombre'])
+        .map((opcion) => ({ ...opcion, label: limpiarNombreCanal(opcion.label) || opcion.label })),
     };
   }
 

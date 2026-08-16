@@ -5,6 +5,7 @@ import { RoleId } from '../../../../../../core/auth/roles';
 import { DashboardFilters } from '../../../../../../shared/components/filters/filters.component';
 import { VentasSupervisorBase } from '../supervisor/ventas-supervisor-base';
 import { CuotaDiaVendedor } from '../../../../../../core/services/ventas/cuotaDia.service';
+import { limpiarNombreCanal } from '../../../../../../shared/utils/filter-options.util';
 
 @Directive()
 export abstract class VentasVendedorBase extends VentasSupervisorBase {
@@ -505,7 +506,7 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
             const canalesMapeados = detalle
               .map((item: any) => ({
                 ...item,
-                canal: item?.canal ?? 'Sin canal',
+                canal: limpiarNombreCanal(item?.canal) || 'Sin canal',
                 ventaAcum: Number(item?.acumulado ?? 0) || 0,
                 porcCump: Number(item?.porcCump ?? item?.porcentajeCumplimiento ?? 0) || 0,
                 proyeccionVenta: Number(item?.proyeccionVenta ?? item?.proyeccion ?? 0) || 0,

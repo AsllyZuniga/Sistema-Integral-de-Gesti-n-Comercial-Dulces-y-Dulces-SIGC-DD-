@@ -25,6 +25,23 @@ function quitarCodigoAntepuesto(valor: string): string {
  *    valores individuales, así que el filtrado sigue funcionando OR
  *    sobre todos los códigos fusionados sin cambios adicionales.
  */
+/**
+ * Limpia el nombre de un canal quitando los códigos numéricos antepuestos.
+ * Ejemplos:
+ *   "1005 - 081 TIENDAS" → "TIENDAS"
+ *   "1010 - 081 MAYORISTAS" → "MAYORISTAS"
+ *   "1999 - 081 EMPLEADOS" → "EMPLEADOS"
+ *   "SIN CANAL" → "SIN CANAL"
+ *   "TIENDAS" → "TIENDAS"
+ */
+export function limpiarNombreCanal(nombre: unknown): string {
+  let limpio = String(nombre ?? '').trim();
+  if (!limpio) return '';
+  limpio = quitarCodigoAntepuesto(limpio);
+  limpio = limpio.replace(/^\d+\s+/u, '');
+  return limpio.trim();
+}
+
 export function enriquecerOpcionesSinDuplicadosVisuales(
   opciones: FilterOption[],
 ): FilterOption[] {
