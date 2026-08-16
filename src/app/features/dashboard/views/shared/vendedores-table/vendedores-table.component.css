@@ -59,14 +59,14 @@
 
 .admin-table.supervisor-table th:nth-child(2),
 .admin-table.supervisor-table td:nth-child(2) {
-  width: 180px;
-  max-width: 180px;
+  min-width: 200px;
 }
 
 .admin-table.supervisor-table td.nombre {
   white-space: nowrap;
-  overflow: visible;
-  text-overflow: clip;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 300px;
 }
 
 .admin-table td.num {
