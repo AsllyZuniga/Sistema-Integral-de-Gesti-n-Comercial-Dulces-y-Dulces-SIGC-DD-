@@ -14,9 +14,9 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
   imports: [CommonModule],
   template: `
     <div class="cuota-section">
-      <h3>Cuota Mensual por Vendedor</h3>
+      <h3>Cuota mensual por vendedor</h3>
       <p class="section-desc">
-        Carga el archivo CSV con las cuotas mensuales de cada vendedor.
+        Carga un archivo CSV con las cuotas mensuales de cada vendedor.
       </p>
 
       <div class="upload-card">
@@ -41,8 +41,8 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
 
           @if (!archivoSeleccionado) {
             <span class="material-symbols-rounded upload-icon">upload_file</span>
-            <p class="upload-text">Arrastra o selecciona archivo CSV</p>
-            <p class="upload-hint">Formato: <strong>Vendedor, Cuota Mes</strong></p>
+            <p class="upload-text">Arrastra tu archivo CSV aquí o <span class="link">selecciónalo</span></p>
+            <p class="upload-hint">Formato: <strong>Vendedor, Cuota, Mes</strong> · Máx. 10 MB</p>
           } @else {
             <span class="material-symbols-rounded upload-icon file-ready">task</span>
             <p class="upload-text">{{ archivoSeleccionado.name }}</p>
@@ -101,7 +101,7 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
       .cuota-section {
         margin-bottom: 32px;
         padding: 24px;
-        background: var(--c-card);
+        background: var(--c-surface);
         border-radius: 12px;
         border: 1px solid var(--c-border);
       }
@@ -134,7 +134,7 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
         padding: 32px 24px;
         border: 2px dashed var(--c-border);
         border-radius: 8px;
-        background: var(--c-bg-alt);
+        background: var(--c-surface-alt);
         cursor: pointer;
         transition: all 0.2s;
       }
@@ -145,7 +145,7 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
       }
 
       .upload-zone.has-file {
-        border-color: var(--c-success);
+        border-color: var(#16a34a);
         background: rgba(22, 163, 74, 0.02);
       }
 
@@ -165,7 +165,7 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
       }
 
       .upload-icon.file-ready {
-        color: var(--c-success);
+        color: var(#16a34a);
       }
 
       .upload-text {
@@ -179,6 +179,12 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
         margin: 0;
         font-size: 12px;
         color: var(--c-text-muted);
+      }
+
+      .link {
+        color: var(--c-primary);
+        text-decoration: underline;
+        cursor: pointer;
       }
 
       .upload-actions {
@@ -195,7 +201,7 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
         padding: 8px 16px;
         border: 1px solid var(--c-border);
         border-radius: 6px;
-        background: var(--c-card);
+        background: var(--c-surface);
         color: var(--c-text);
         font-size: 13px;
         font-weight: 600;
@@ -204,9 +210,9 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
       }
 
       .btn-limpiar:hover {
-        border-color: var(--c-danger);
+        border-color: var(#ef4444);
         background: rgba(239, 68, 68, 0.05);
-        color: var(--c-danger);
+        color: var(#ef4444);
       }
 
       .btn-cargar {
@@ -250,13 +256,13 @@ type EstadoCarga = 'idle' | 'cargando' | 'exito' | 'error';
 
       .resultado.exito {
         background: rgba(22, 163, 74, 0.1);
-        color: var(--c-success);
+        color: var(#16a34a);
         border: 1px solid rgba(22, 163, 74, 0.3);
       }
 
       .resultado.error {
         background: rgba(239, 68, 68, 0.1);
-        color: var(--c-danger);
+        color: var(#ef4444);
         border: 1px solid rgba(239, 68, 68, 0.3);
       }
 

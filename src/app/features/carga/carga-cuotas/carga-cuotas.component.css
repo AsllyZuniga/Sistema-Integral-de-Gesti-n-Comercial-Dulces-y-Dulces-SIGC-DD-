@@ -33,6 +33,68 @@
   font-size: 14px;
 }
 
+/* ===== Tabs ===== */
+.tabs-row {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 12px 0;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--c-text-muted);
+  transition: var(--transition);
+  font-family: inherit;
+}
+
+.tab-btn:hover {
+  color: var(--c-primary);
+}
+
+.tab-btn.active {
+  color: var(--c-primary);
+  font-weight: 600;
+  border-bottom-color: var(--c-primary);
+}
+
+/* ===== Segmented Selector ===== */
+.segmented-selector {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  align-items: center;
+}
+
+.seg-btn {
+  background: none;
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--r-pill);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--c-text-muted);
+  transition: var(--transition);
+}
+
+.seg-btn:hover:not(.active) {
+  color: var(--c-primary);
+}
+
+.seg-btn.active {
+  background: linear-gradient(135deg, var(--c-primary-mid), var(--c-primary));
+  color: var(--c-surface);
+  font-weight: 600;
+}
+
 /* ===== Delete Cards ===== */
 .delete-range-card {
   width: 100%;
@@ -593,6 +655,16 @@
 }
 
 @media (max-width: 768px) {
+  .tabs-row {
+    gap: 16px;
+  }
+
+  .segmented-selector {
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .delete-form-row {
     grid-template-columns: 1fr;
   }

@@ -17,14 +17,82 @@
         </p>
       </div>
 
-      <!-- PRIMERO LAS CARGAS -->
-      <app-cuota-vendedor-upload></app-cuota-vendedor-upload>
-      <app-cuota-proveedor-upload></app-cuota-proveedor-upload>
-      <app-cuota-categoria-upload></app-cuota-categoria-upload>
-      <app-cuota-canal-upload></app-cuota-canal-upload>
+      <!-- Tabs -->
+      <div class="tabs-row">
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="pestanaActiva === 'cargar'"
+          (click)="setPestana('cargar')"
+        >
+          Cargar cuotas
+        </button>
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="pestanaActiva === 'eliminar'"
+          (click)="setPestana('eliminar')"
+        >
+          Eliminar cuotas
+        </button>
+      </div>
 
-      <!-- ELIMINAR CUOTAS DE VENDEDOR (mensual + semanal + diaria) -->
-      <div class="delete-range-card vendedor-delete-card">
+      @if (pestanaActiva === 'cargar') {
+        <!-- Segmented selector -->
+        <div class="segmented-selector">
+          <button
+            type="button"
+            class="seg-btn"
+            [class.active]="tipoCuota === 'vendedor'"
+            (click)="setTipoCuota('vendedor')"
+          >
+            Vendedor
+          </button>
+          <button
+            type="button"
+            class="seg-btn"
+            [class.active]="tipoCuota === 'proveedor'"
+            (click)="setTipoCuota('proveedor')"
+          >
+            Proveedor/línea
+          </button>
+          <button
+            type="button"
+            class="seg-btn"
+            [class.active]="tipoCuota === 'categoria'"
+            (click)="setTipoCuota('categoria')"
+          >
+            Categoría
+          </button>
+          <button
+            type="button"
+            class="seg-btn"
+            [class.active]="tipoCuota === 'canal'"
+            (click)="setTipoCuota('canal')"
+          >
+            Canal
+          </button>
+        </div>
+
+        @switch (tipoCuota) {
+          @case ('vendedor') {
+            <app-cuota-vendedor-upload></app-cuota-vendedor-upload>
+          }
+          @case ('proveedor') {
+            <app-cuota-proveedor-upload></app-cuota-proveedor-upload>
+          }
+          @case ('categoria') {
+            <app-cuota-categoria-upload></app-cuota-categoria-upload>
+          }
+          @case ('canal') {
+            <app-cuota-canal-upload></app-cuota-canal-upload>
+          }
+        }
+      }
+
+      @if (pestanaActiva === 'eliminar') {
+        <!-- ELIMINAR CUOTAS DE VENDEDOR (mensual + semanal + diaria) -->
+        <div class="delete-range-card vendedor-delete-card">
         <div class="delete-header">
           <div class="delete-title">
             <div class="delete-icon-box">
@@ -414,6 +482,7 @@
           }
         </div>
       </div>
+      }
 
       <!-- MODAL CONFIRMAR CUOTAS DE VENDEDOR -->
       @if (showConfirmCuotaVendedorModal) {

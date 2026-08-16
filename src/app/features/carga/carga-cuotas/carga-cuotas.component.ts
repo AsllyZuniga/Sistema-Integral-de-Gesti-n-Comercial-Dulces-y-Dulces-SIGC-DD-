@@ -40,6 +40,16 @@ export class CargaCuotasComponent implements OnInit {
   @ViewChild(SidebarComponent) sidebarRef?: SidebarComponent;
 
   sidebarColapsado = false;
+  pestanaActiva: 'cargar' | 'eliminar' = 'cargar';
+  tipoCuota: 'vendedor' | 'proveedor' | 'categoria' | 'canal' = 'vendedor';
+
+  setPestana(pestana: 'cargar' | 'eliminar'): void {
+    this.pestanaActiva = pestana;
+  }
+
+  setTipoCuota(tipo: 'vendedor' | 'proveedor' | 'categoria' | 'canal'): void {
+    this.tipoCuota = tipo;
+  }
 
   // Eliminar cuota proveedor/línea
   fechaInicioCuotaProveedor: string | null = null;
