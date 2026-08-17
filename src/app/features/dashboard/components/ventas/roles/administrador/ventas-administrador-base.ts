@@ -329,7 +329,7 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
       }
 
       case 'canal': {
-        this.chartType = 'bar';
+        this.chartType = 'pie';
         // Issue #4: 1 sola llamada al endpoint role-aware /ventas-por-canal.
         // El backend filtra por scope JWT (admin todo, supervisor equipo).
         // Devuelve catálogo completo de canales (incluye acumulado=0).
@@ -358,8 +358,11 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
             // Cuota total del canal (RF-002: 0 por ahora, preparado para futuro)
             this.totalCuotaCanal = Number(res?.total?.cuota ?? 0) || 0;
 
-            // Sin gráfica: solo se muestra la tabla con todos los canales.
-            this.chartData = [];
+            this.chartData = canalesMapeados.map((i: any) => ({
+              name: i.canal,
+              value: i.ventaAcum,
+            }));
+            this.chartId = 'chart-canal-' + Date.now();
             this.totalTopCanales = 0;
 
             // Canal no tiene cuota propia (cuota=0): la card debe mostrar la
