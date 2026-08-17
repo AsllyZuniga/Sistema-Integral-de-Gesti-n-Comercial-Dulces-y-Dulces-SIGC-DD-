@@ -90,8 +90,8 @@ export class CargaCuotasComponent implements OnInit {
   cargandoHistoricoCuotas = false;
   eliminandoCuotaIndividualId: number | null = null;
 
-  // Editar cuotas de vendedor (mensual + semanal + diaria)
-  tipoCuotaEditar: 'mes' | 'semana' | 'dia' = 'mes';
+  // Editar cuotas de vendedor (mensual + semanal + diaria + categoría)
+  tipoCuotaEditar: 'mes' | 'semana' | 'dia' | 'categoria' = 'mes';
   idUsuarioEditar = '';
   fechaInicioEditar: string | null = null;
   fechaFinEditar: string | null = null;
@@ -138,8 +138,14 @@ export class CargaCuotasComponent implements OnInit {
   }
 
   private enriquecerYOrdenarVendedores(usuarios: any[], detalleVendedores: any[]): any[] {
-    const detallePorIdUsuario = new Map<string, { codigo: string; nombre: string }>();
-    const detallePorCodigo = new Map<string, { codigo: string; nombre: string }>();
+    const detallePorIdUsuario = new Map<
+      string,
+      { codigo: string; nombre: string; idVendedor: string }
+    >();
+    const detallePorCodigo = new Map<
+      string,
+      { codigo: string; nombre: string; idVendedor: string }
+    >();
 
     (detalleVendedores ?? []).forEach((detalle: any) => {
       const idUsuario = String(
@@ -149,7 +155,10 @@ export class CargaCuotasComponent implements OnInit {
         detalle?.codigo_vendedor ?? detalle?.codVendedor ?? detalle?.codigo ?? '',
       ).trim();
       const nombre = String(detalle?.nombre ?? detalle?.nom_vendedor ?? '').trim();
-      const entrada = { codigo, nombre };
+      const idVendedor = String(
+        detalle?.id_vendedor ?? detalle?.idVendedor ?? detalle?.id ?? '',
+      ).trim();
+      const entrada = { codigo, nombre, idVendedor };
 
       if (idUsuario) {
         detallePorIdUsuario.set(idUsuario, entrada);
@@ -176,6 +185,7 @@ export class CargaCuotasComponent implements OnInit {
         ...v,
         codigo_vendedor: v?.codigo_vendedor || detalle?.codigo || codigoUsuario || '',
         nombre: v?.nombre || detalle?.nombre || v?.username || '',
+        id_vendedor: v?.id_vendedor || detalle?.idVendedor || '',
       };
     });
 
@@ -712,7 +722,15 @@ export class CargaCuotasComponent implements OnInit {
       ? 'mensual'
       : this.tipoCuotaEditar === 'semana'
         ? 'semanal'
-        : 'diaria';
+        : this.tipoCuotaEditar === 'categoria'
+          ? 'de categoría'
+          : 'diaria';
+  }
+
+  get vendedorSeleccionadoEditar(): any {
+    return this.vendedores.find(
+      (v) => String(v?.id_usuario ?? v?.id) === String(this.idUsuarioEditar),
+    );
   }
 
   get filtroFechasEditarValido(): boolean {
@@ -762,6 +780,28 @@ export class CargaCuotasComponent implements OnInit {
     if (!this.idUsuarioEditar) {
       this.cuotasEditar = [];
       this.cd.detectChanges();
+      return;
+    }
+
+    if (this.tipoCuotaEditar === 'categoria') {
+      const idVendedor = this.vendedorSeleccionadoEditar?.id_vendedor;
+
+      if (!idVendedor) {
+        this.cuotasEditar = [];
+        this.cargandoCuotasEditar = false;
+        this.cd.detectChanges();
+        return;
+      }
+
+      this.cargandoCuotasEditar = true;
+      this.cuotasEditar = [];
+      this.cd.detectChanges();
+
+      this.cuotasCrudService.listarCuotaCategoriaPorVendedor(idVendedor).subscribe((res) => {
+        this.cuotasEditar = res;
+        this.cargandoCuotasEditar = false;
+        this.cd.detectChanges();
+      });
       return;
     }
 
@@ -830,7 +870,9 @@ export class CargaCuotasComponent implements OnInit {
         ? this.cuotasCrudService.actualizarCuotaMes(cuota.id, valor)
         : this.tipoCuotaEditar === 'semana'
           ? this.cuotasCrudService.actualizarCuotaSemana(cuota.id, valor)
-          : this.cuotasCrudService.actualizarCuotaDia(cuota.id, valor);
+          : this.tipoCuotaEditar === 'categoria'
+            ? this.cuotasCrudService.actualizarCuotaCategoria(cuota.id, valor)
+            : this.cuotasCrudService.actualizarCuotaDia(cuota.id, valor);
 
     actualizar$.subscribe({
       next: (res: any) => {
@@ -839,7 +881,9 @@ export class CargaCuotasComponent implements OnInit {
             ? 'cuota_mes'
             : this.tipoCuotaEditar === 'semana'
               ? 'cuota_semana'
-              : 'cuota_dia';
+              : this.tipoCuotaEditar === 'categoria'
+                ? 'cuota'
+                : 'cuota_dia';
 
         const nuevoValor = Number(res?.data?.[campo] ?? valor);
 

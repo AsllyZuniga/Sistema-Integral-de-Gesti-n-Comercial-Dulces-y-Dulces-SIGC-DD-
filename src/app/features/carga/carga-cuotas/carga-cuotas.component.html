@@ -549,6 +549,7 @@
                     <option value="mes">Mensual</option>
                     <option value="semana">Semanal</option>
                     <option value="dia">Diaria</option>
+                    <option value="categoria">Categoría</option>
                   </select>
                 </div>
               </div>
@@ -616,6 +617,9 @@
               <table class="historico-table editar-table">
                 <thead>
                   <tr>
+                    @if (tipoCuotaEditar === 'categoria') {
+                      <th>Categoría</th>
+                    }
                     <th>Período</th>
                     <th>Valor actual</th>
                     <th>Nuevo valor</th>
@@ -625,6 +629,9 @@
                 <tbody>
                   @for (cuota of cuotasEditarFiltradas; track cuota.id) {
                     <tr [class.editing]="editandoCuotaId === cuota.id">
+                      @if (tipoCuotaEditar === 'categoria') {
+                        <td>{{ cuota.nombreCategoria }}</td>
+                      }
                       <td>{{ cuota.fecha_inicio }} — {{ cuota.fecha_fin }}</td>
                       <td>{{ cuota.monto | number: '1.0-0' }}</td>
                       <td>

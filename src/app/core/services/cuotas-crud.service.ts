@@ -8,6 +8,7 @@ export interface CuotaRegistro {
   fecha_inicio: string | null;
   fecha_fin: string | null;
   id_usuario: number | string;
+  nombreCategoria?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -81,5 +82,36 @@ export class CuotasCrudService {
 
   actualizarCuotaDia(id: number, cuotaDia: number): Observable<any> {
     return this.http.put<any>(`${this.apiUrl}/cuota-dia/${id}`, { cuota_dia: cuotaDia });
+  }
+
+  private fechaIsoADia(valor: any): string | null {
+    if (!valor) return null;
+    const texto = String(valor).trim();
+    if (!texto) return null;
+    const iso = /^(\d{4})-(\d{2})-(\d{2})/;
+    const match = texto.match(iso);
+    return match ? match[0] : texto;
+  }
+
+  listarCuotaCategoriaPorVendedor(idVendedor: string | number): Observable<CuotaRegistro[]> {
+    return this.http
+      .get<any[]>(`${this.apiUrl}/vendedor-cuota-categoria/vendedor/${idVendedor}`)
+      .pipe(
+        map((res) =>
+          (Array.isArray(res) ? res : []).map((r: any) => ({
+            id: r?.id,
+            monto: r?.cuota != null ? Number(r.cuota) : null,
+            fecha_inicio: this.fechaIsoADia(r?.fecha_inicio),
+            fecha_fin: this.fechaIsoADia(r?.fecha_fin),
+            id_usuario: r?.id_vendedor,
+            nombreCategoria: r?.categoria?.nombre ?? '',
+          })),
+        ),
+        catchError(() => of([])),
+      );
+  }
+
+  actualizarCuotaCategoria(id: number, cuota: number): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/vendedor-cuota-categoria/${id}`, { cuota });
   }
 }
