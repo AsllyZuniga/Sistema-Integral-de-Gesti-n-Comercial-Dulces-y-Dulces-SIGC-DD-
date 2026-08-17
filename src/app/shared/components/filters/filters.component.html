@@ -46,6 +46,17 @@
 
           @if (mostrarVendedorDropdown) {
             <div class="checkbox-dropdown-menu">
+              <div class="checkbox-dropdown-search">
+                <span class="material-symbols-rounded search-icon">search</span>
+                <input
+                  type="text"
+                  [(ngModel)]="busquedaVendedor"
+                  placeholder="Buscar vendedor..."
+                  autocomplete="off"
+                  (click)="$event.stopPropagation()"
+                />
+              </div>
+
               <label class="checkbox-item checkbox-item-all">
                 <input
                   type="checkbox"
@@ -55,7 +66,7 @@
                 <span>Todos</span>
               </label>
 
-              @for (v of vendedores; track v.value) {
+              @for (v of filtrarOpciones(vendedores, busquedaVendedor); track v.value) {
                 <label class="checkbox-item">
                   <input
                     type="checkbox"
@@ -90,6 +101,17 @@
 
         @if (mostrarProveedorDropdown) {
           <div class="checkbox-dropdown-menu">
+            <div class="checkbox-dropdown-search">
+              <span class="material-symbols-rounded search-icon">search</span>
+              <input
+                type="text"
+                [(ngModel)]="busquedaProveedor"
+                placeholder="Buscar proveedor..."
+                autocomplete="off"
+                (click)="$event.stopPropagation()"
+              />
+            </div>
+
             <label class="checkbox-item checkbox-item-all">
               <input
                 type="checkbox"
@@ -99,7 +121,7 @@
               <span>Todos</span>
             </label>
 
-            @for (p of proveedores; track p.value) {
+            @for (p of filtrarOpciones(proveedores, busquedaProveedor); track p.value) {
               <label class="checkbox-item">
                 <input
                   type="checkbox"
@@ -133,6 +155,17 @@
 
         @if (mostrarCategoriaDropdown) {
           <div class="checkbox-dropdown-menu">
+            <div class="checkbox-dropdown-search">
+              <span class="material-symbols-rounded search-icon">search</span>
+              <input
+                type="text"
+                [(ngModel)]="busquedaCategoria"
+                placeholder="Buscar categoría..."
+                autocomplete="off"
+                (click)="$event.stopPropagation()"
+              />
+            </div>
+
             <label class="checkbox-item checkbox-item-all">
               <input
                 type="checkbox"
@@ -142,7 +175,7 @@
               <span>Todas</span>
             </label>
 
-            @for (c of categorias; track c.value) {
+            @for (c of filtrarOpciones(categorias, busquedaCategoria); track c.value) {
               <label class="checkbox-item">
                 <input
                   type="checkbox"
@@ -176,6 +209,17 @@
 
         @if (mostrarCiudadDropdown) {
           <div class="checkbox-dropdown-menu">
+            <div class="checkbox-dropdown-search">
+              <span class="material-symbols-rounded search-icon">search</span>
+              <input
+                type="text"
+                [(ngModel)]="busquedaCiudad"
+                placeholder="Buscar ciudad..."
+                autocomplete="off"
+                (click)="$event.stopPropagation()"
+              />
+            </div>
+
             <label class="checkbox-item checkbox-item-all">
               <input
                 type="checkbox"
@@ -185,7 +229,7 @@
               <span>Todas</span>
             </label>
 
-            @for (ci of ciudadesVista; track ci.value) {
+            @for (ci of filtrarOpciones(ciudadesVista, busquedaCiudad); track ci.value) {
               <label class="checkbox-item">
                 <input
                   type="checkbox"
@@ -219,6 +263,17 @@
 
         @if (mostrarCanalDropdown) {
           <div class="checkbox-dropdown-menu">
+            <div class="checkbox-dropdown-search">
+              <span class="material-symbols-rounded search-icon">search</span>
+              <input
+                type="text"
+                [(ngModel)]="busquedaCanal"
+                placeholder="Buscar canal..."
+                autocomplete="off"
+                (click)="$event.stopPropagation()"
+              />
+            </div>
+
             <label class="checkbox-item checkbox-item-all">
               <input
                 type="checkbox"
@@ -228,7 +283,7 @@
               <span>Todos</span>
             </label>
 
-            @for (ca of canales; track ca.value) {
+            @for (ca of filtrarOpciones(canales, busquedaCanal); track ca.value) {
               <label class="checkbox-item">
                 <input
                   type="checkbox"

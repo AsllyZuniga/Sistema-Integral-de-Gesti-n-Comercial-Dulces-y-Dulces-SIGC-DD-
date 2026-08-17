@@ -72,6 +72,12 @@ export class FiltersComponent implements OnChanges {
   mostrarCiudadDropdown = false;
   mostrarCanalDropdown = false;
 
+  busquedaVendedor = '';
+  busquedaProveedor = '';
+  busquedaCategoria = '';
+  busquedaCiudad = '';
+  busquedaCanal = '';
+
   filtros: DashboardFilters = {
     fechaInicio: '',
     fechaFin: '',
@@ -253,6 +259,7 @@ export class FiltersComponent implements OnChanges {
 
   cerrarProveedorDropdown(): void {
     this.mostrarProveedorDropdown = false;
+    this.busquedaProveedor = '';
   }
 
   toggleCategoriaDropdown(): void {
@@ -265,6 +272,7 @@ export class FiltersComponent implements OnChanges {
 
   cerrarCategoriaDropdown(): void {
     this.mostrarCategoriaDropdown = false;
+    this.busquedaCategoria = '';
   }
 
   toggleVendedorDropdown(): void {
@@ -277,6 +285,7 @@ export class FiltersComponent implements OnChanges {
 
   cerrarVendedorDropdown(): void {
     this.mostrarVendedorDropdown = false;
+    this.busquedaVendedor = '';
   }
 
   toggleCiudadDropdown(): void {
@@ -289,6 +298,7 @@ export class FiltersComponent implements OnChanges {
 
   cerrarCiudadDropdown(): void {
     this.mostrarCiudadDropdown = false;
+    this.busquedaCiudad = '';
   }
 
   toggleCanalDropdown(): void {
@@ -301,6 +311,7 @@ export class FiltersComponent implements OnChanges {
 
   cerrarCanalDropdown(): void {
     this.mostrarCanalDropdown = false;
+    this.busquedaCanal = '';
   }
 
   cerrarTodosDropdowns(): void {
@@ -309,10 +320,25 @@ export class FiltersComponent implements OnChanges {
     this.mostrarVendedorDropdown = false;
     this.mostrarCiudadDropdown = false;
     this.mostrarCanalDropdown = false;
+    this.busquedaVendedor = '';
+    this.busquedaProveedor = '';
+    this.busquedaCategoria = '';
+    this.busquedaCiudad = '';
+    this.busquedaCanal = '';
   }
 
   onClickOtroFiltro(): void {
     this.cerrarTodosDropdowns();
+  }
+
+  filtrarOpciones(opciones: FilterOption[], busqueda: string): FilterOption[] {
+    const termino = busqueda.trim().toLowerCase();
+    if (!termino) return opciones;
+    return opciones.filter((opcion) =>
+      String(opcion?.label ?? '')
+        .toLowerCase()
+        .includes(termino),
+    );
   }
 
   toggleProveedorCheckbox(value: string): void {
