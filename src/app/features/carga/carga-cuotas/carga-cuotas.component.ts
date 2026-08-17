@@ -40,10 +40,10 @@ export class CargaCuotasComponent implements OnInit {
   @ViewChild(SidebarComponent) sidebarRef?: SidebarComponent;
 
   sidebarColapsado = false;
-  pestanaActiva: 'cargar' | 'eliminar' = 'cargar';
+  pestanaActiva: 'cargar' | 'eliminar' | 'editar' = 'cargar';
   tipoCuota: 'vendedor' | 'proveedor' | 'categoria' | 'canal' = 'vendedor';
 
-  setPestana(pestana: 'cargar' | 'eliminar'): void {
+  setPestana(pestana: 'cargar' | 'eliminar' | 'editar'): void {
     this.pestanaActiva = pestana;
   }
 
@@ -89,6 +89,19 @@ export class CargaCuotasComponent implements OnInit {
   cuotasDiaVendedor: CuotaRegistro[] = [];
   cargandoHistoricoCuotas = false;
   eliminandoCuotaIndividualId: number | null = null;
+
+  // Editar cuotas de vendedor (mensual + semanal + diaria)
+  tipoCuotaEditar: 'mes' | 'semana' | 'dia' = 'mes';
+  idUsuarioEditar = '';
+  fechaInicioEditar: string | null = null;
+  fechaFinEditar: string | null = null;
+  cuotasEditar: CuotaRegistro[] = [];
+  cargandoCuotasEditar = false;
+  editandoCuotaId: number | null = null;
+  valorEditado: number | null = null;
+  guardandoCuotaId: number | null = null;
+  mensajeOperacionEditar: string | null = null;
+  tipoOperacionEditar: 'success' | 'error' | null = null;
 
   constructor(
     private cd: ChangeDetectorRef,
@@ -688,6 +701,169 @@ export class CargaCuotasComponent implements OnInit {
           onExito(res?.message ?? `Cuotas eliminadas correctamente para ${ids.length} vendedores.`),
         error: onError,
       });
+  }
+
+  // ─────────────────────────────────────────────
+  // Editar cuotas de vendedor (mensual + semanal + diaria)
+  // ─────────────────────────────────────────────
+
+  get etiquetaTipoCuotaEditar(): string {
+    return this.tipoCuotaEditar === 'mes'
+      ? 'mensual'
+      : this.tipoCuotaEditar === 'semana'
+        ? 'semanal'
+        : 'diaria';
+  }
+
+  get filtroFechasEditarValido(): boolean {
+    if (!this.fechaInicioEditar || !this.fechaFinEditar) return true;
+    return this.esRangoFechasValido(this.fechaInicioEditar, this.fechaFinEditar);
+  }
+
+  get cuotasEditarFiltradas(): CuotaRegistro[] {
+    if (!this.filtroFechasEditarValido) return [];
+
+    const inicio = this.fechaInicioEditar;
+    const fin = this.fechaFinEditar;
+
+    if (!inicio && !fin) return this.cuotasEditar;
+
+    return this.cuotasEditar.filter((c) => {
+      if (!c.fecha_inicio || !c.fecha_fin) return true;
+      if (inicio && c.fecha_fin < inicio) return false;
+      if (fin && c.fecha_inicio > fin) return false;
+      return true;
+    });
+  }
+
+  onCambiarVendedorEditar(): void {
+    this.mensajeOperacionEditar = null;
+    this.tipoOperacionEditar = null;
+    this.editandoCuotaId = null;
+    this.valorEditado = null;
+    this.cargarCuotasEditar();
+  }
+
+  onCambiarTipoCuotaEditar(): void {
+    this.mensajeOperacionEditar = null;
+    this.tipoOperacionEditar = null;
+    this.editandoCuotaId = null;
+    this.valorEditado = null;
+    this.cargarCuotasEditar();
+  }
+
+  onCambiarFiltroEditar(): void {
+    this.mensajeOperacionEditar = null;
+    this.tipoOperacionEditar = null;
+    this.cd.detectChanges();
+  }
+
+  private cargarCuotasEditar(): void {
+    if (!this.idUsuarioEditar) {
+      this.cuotasEditar = [];
+      this.cd.detectChanges();
+      return;
+    }
+
+    this.cargandoCuotasEditar = true;
+    this.cuotasEditar = [];
+    this.cd.detectChanges();
+
+    const listar$ =
+      this.tipoCuotaEditar === 'mes'
+        ? this.cuotasCrudService.listarCuotaMesPorVendedor(this.idUsuarioEditar)
+        : this.tipoCuotaEditar === 'semana'
+          ? this.cuotasCrudService.listarCuotaSemanaPorVendedor(this.idUsuarioEditar)
+          : this.cuotasCrudService.listarCuotaDiaPorVendedor(this.idUsuarioEditar);
+
+    listar$.subscribe((res) => {
+      this.cuotasEditar = res;
+      this.cargandoCuotasEditar = false;
+      this.cd.detectChanges();
+    });
+  }
+
+  iniciarEdicion(cuota: CuotaRegistro): void {
+    if (this.guardandoCuotaId !== null) return;
+
+    this.editandoCuotaId = cuota.id;
+    this.valorEditado = cuota.monto ?? 0;
+    this.mensajeOperacionEditar = null;
+    this.tipoOperacionEditar = null;
+    this.cd.detectChanges();
+  }
+
+  cancelarEdicion(): void {
+    this.editandoCuotaId = null;
+    this.valorEditado = null;
+    this.cd.detectChanges();
+  }
+
+  puedeGuardarEdicion(cuota: CuotaRegistro): boolean {
+    if (this.valorEditado === null || this.valorEditado === undefined) return false;
+
+    const valor = Number(this.valorEditado);
+    if (Number.isNaN(valor) || valor < 0) return false;
+
+    return valor !== Number(cuota.monto);
+  }
+
+  guardarEdicion(cuota: CuotaRegistro): void {
+    if (this.guardandoCuotaId !== null) return;
+
+    const valor = Number(this.valorEditado);
+
+    if (Number.isNaN(valor) || valor < 0) {
+      this.mensajeOperacionEditar = 'El nuevo valor debe ser un número mayor o igual a 0.';
+      this.tipoOperacionEditar = 'error';
+      this.cd.detectChanges();
+      return;
+    }
+
+    this.guardandoCuotaId = cuota.id;
+    this.mensajeOperacionEditar = null;
+    this.tipoOperacionEditar = null;
+    this.cd.detectChanges();
+
+    const actualizar$ =
+      this.tipoCuotaEditar === 'mes'
+        ? this.cuotasCrudService.actualizarCuotaMes(cuota.id, valor)
+        : this.tipoCuotaEditar === 'semana'
+          ? this.cuotasCrudService.actualizarCuotaSemana(cuota.id, valor)
+          : this.cuotasCrudService.actualizarCuotaDia(cuota.id, valor);
+
+    actualizar$.subscribe({
+      next: (res: any) => {
+        const campo =
+          this.tipoCuotaEditar === 'mes'
+            ? 'cuota_mes'
+            : this.tipoCuotaEditar === 'semana'
+              ? 'cuota_semana'
+              : 'cuota_dia';
+
+        const nuevoValor = Number(res?.data?.[campo] ?? valor);
+
+        this.cuotasEditar = this.cuotasEditar.map((c) =>
+          c.id === cuota.id ? { ...c, monto: nuevoValor } : c,
+        );
+
+        this.guardandoCuotaId = null;
+        this.editandoCuotaId = null;
+        this.valorEditado = null;
+        this.mensajeOperacionEditar =
+          res?.message ?? `Cuota ${this.etiquetaTipoCuotaEditar} actualizada correctamente.`;
+        this.tipoOperacionEditar = 'success';
+        this.cd.detectChanges();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.guardandoCuotaId = null;
+        this.mensajeOperacionEditar =
+          this.extraerMensajeError(err) ||
+          `Error al actualizar la cuota ${this.etiquetaTipoCuotaEditar}.`;
+        this.tipoOperacionEditar = 'error';
+        this.cd.detectChanges();
+      },
+    });
   }
 
   private parseInputDateToIso(val: string | null): string | null {

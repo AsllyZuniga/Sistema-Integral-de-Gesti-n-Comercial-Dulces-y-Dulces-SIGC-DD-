@@ -35,6 +35,14 @@
         >
           Eliminar cuotas
         </button>
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="pestanaActiva === 'editar'"
+          (click)="setPestana('editar')"
+        >
+          Editar cuotas
+        </button>
       </div>
 
       @if (pestanaActiva === 'cargar') {
@@ -482,6 +490,197 @@
           }
         </div>
       </div>
+      }
+
+      @if (pestanaActiva === 'editar') {
+        <div class="delete-range-card editar-card">
+          <div class="delete-header">
+            <div class="delete-title">
+              <div class="delete-icon-box editar-icon-box">
+                <span class="material-symbols-rounded">edit_note</span>
+              </div>
+
+              <div>
+                <h3>Editar cuotas de vendedor</h3>
+                <p>
+                  Seleccione un vendedor y el tipo de cuota para ver y editar sus valores. El
+                  filtro de fechas limita los períodos mostrados.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="delete-body">
+            <div class="delete-form-row editar-filters">
+              <div class="delete-date-group">
+                <label>
+                  <span class="material-symbols-rounded">person</span>
+                  Vendedor
+                </label>
+
+                <div class="delete-date-input">
+                  <select
+                    [(ngModel)]="idUsuarioEditar"
+                    (ngModelChange)="onCambiarVendedorEditar()"
+                  >
+                    <option value="">Seleccione un vendedor</option>
+                    @for (vendedor of vendedores; track vendedor.id_usuario || vendedor.id) {
+                      <option [value]="vendedor.id_usuario || vendedor.id">
+                        {{ vendedor.codigo_vendedor ? vendedor.codigo_vendedor + ' · ' : '' }}{{
+                          vendedor.nombre ?? vendedor.username
+                        }}
+                      </option>
+                    }
+                  </select>
+                </div>
+              </div>
+
+              <div class="delete-date-group">
+                <label>
+                  <span class="material-symbols-rounded">category</span>
+                  Tipo de cuota
+                </label>
+
+                <div class="delete-date-input">
+                  <select
+                    [(ngModel)]="tipoCuotaEditar"
+                    (ngModelChange)="onCambiarTipoCuotaEditar()"
+                  >
+                    <option value="mes">Mensual</option>
+                    <option value="semana">Semanal</option>
+                    <option value="dia">Diaria</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="delete-date-group">
+                <label>
+                  <span class="material-symbols-rounded">calendar_month</span>
+                  Fecha inicio (opcional)
+                </label>
+
+                <div class="delete-date-input">
+                  <input
+                    type="date"
+                    [(ngModel)]="fechaInicioEditar"
+                    (ngModelChange)="onCambiarFiltroEditar()"
+                  />
+                </div>
+              </div>
+
+              <div class="delete-date-group">
+                <label>
+                  <span class="material-symbols-rounded">calendar_month</span>
+                  Fecha fin (opcional)
+                </label>
+
+                <div class="delete-date-input">
+                  <input
+                    type="date"
+                    [(ngModel)]="fechaFinEditar"
+                    (ngModelChange)="onCambiarFiltroEditar()"
+                  />
+                </div>
+              </div>
+            </div>
+
+            @if (mensajeOperacionEditar) {
+              <div
+                class="delete-message"
+                [class.success]="tipoOperacionEditar === 'success'"
+                [class.error]="tipoOperacionEditar === 'error'"
+              >
+                <span class="material-symbols-rounded">
+                  {{ tipoOperacionEditar === 'success' ? 'check_circle' : 'error_outline' }}
+                </span>
+                {{ mensajeOperacionEditar }}
+              </div>
+            }
+
+            @if (!filtroFechasEditarValido) {
+              <div class="delete-message error">
+                <span class="material-symbols-rounded">error_outline</span>
+                La fecha inicio no puede ser mayor que la fecha fin.
+              </div>
+            }
+
+            @if (!idUsuarioEditar) {
+              <p class="historico-empty">Seleccione un vendedor para ver sus cuotas.</p>
+            } @else if (cargandoCuotasEditar) {
+              <p class="historico-loading">Cargando cuotas...</p>
+            } @else if (cuotasEditarFiltradas.length === 0) {
+              <p class="historico-empty">
+                Sin cuotas {{ etiquetaTipoCuotaEditar }} para el filtro seleccionado.
+              </p>
+            } @else {
+              <table class="historico-table editar-table">
+                <thead>
+                  <tr>
+                    <th>Período</th>
+                    <th>Valor actual</th>
+                    <th>Nuevo valor</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (cuota of cuotasEditarFiltradas; track cuota.id) {
+                    <tr [class.editing]="editandoCuotaId === cuota.id">
+                      <td>{{ cuota.fecha_inicio }} — {{ cuota.fecha_fin }}</td>
+                      <td>{{ cuota.monto | number: '1.0-0' }}</td>
+                      <td>
+                        @if (editandoCuotaId === cuota.id) {
+                          <input
+                            type="number"
+                            min="0"
+                            class="editar-input"
+                            [(ngModel)]="valorEditado"
+                            [disabled]="guardandoCuotaId === cuota.id"
+                          />
+                        } @else {
+                          <span class="editar-valor-sin-editar">—</span>
+                        }
+                      </td>
+                      <td class="editar-acciones">
+                        @if (editandoCuotaId === cuota.id) {
+                          <button
+                            type="button"
+                            class="btn-save-row"
+                            (click)="guardarEdicion(cuota)"
+                            [disabled]="!puedeGuardarEdicion(cuota) || guardandoCuotaId !== null"
+                          >
+                            @if (guardandoCuotaId === cuota.id) {
+                              <span class="spinner"></span>
+                            } @else {
+                              <span class="material-symbols-rounded">check</span>
+                            }
+                          </button>
+
+                          <button
+                            type="button"
+                            class="btn-delete-row"
+                            (click)="cancelarEdicion()"
+                            [disabled]="guardandoCuotaId !== null"
+                          >
+                            <span class="material-symbols-rounded">close</span>
+                          </button>
+                        } @else {
+                          <button
+                            type="button"
+                            class="btn-edit-row"
+                            (click)="iniciarEdicion(cuota)"
+                            [disabled]="editandoCuotaId !== null || guardandoCuotaId !== null"
+                          >
+                            <span class="material-symbols-rounded">edit</span>
+                          </button>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          </div>
+        </div>
       }
 
       <!-- MODAL CONFIRMAR CUOTAS DE VENDEDOR -->

@@ -70,4 +70,16 @@ export class CuotasCrudService {
   eliminarCuotaDia(id: number): Observable<any> {
     return this.http.delete<any>(`${this.apiUrl}/cuota-dia/${id}`);
   }
+
+  actualizarCuotaMes(id: number, cuotaMes: number): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/cuota-mes/${id}`, { cuota_mes: cuotaMes });
+  }
+
+  actualizarCuotaSemana(id: number, cuotaSemana: number): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/cuota-semana/${id}`, { cuota_semana: cuotaSemana });
+  }
+
+  actualizarCuotaDia(id: number, cuotaDia: number): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/cuota-dia/${id}`, { cuota_dia: cuotaDia });
+  }
 }
