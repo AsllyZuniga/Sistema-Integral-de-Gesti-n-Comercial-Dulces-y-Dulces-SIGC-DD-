@@ -105,14 +105,21 @@ export class CuotasCrudService {
       .get<any[]>(`${this.apiUrl}/vendedor-cuota-categoria/vendedor/${idVendedor}`)
       .pipe(
         map((res) =>
-          (Array.isArray(res) ? res : []).map((r: any) => ({
-            id: r?.id,
-            monto: r?.cuota != null ? Number(r.cuota) : null,
-            fecha_inicio: this.fechaIsoADia(r?.fecha_inicio),
-            fecha_fin: this.fechaIsoADia(r?.fecha_fin),
-            id_usuario: r?.id_vendedor,
-            nombreCategoria: this.limpiarNombreCategoria(r?.categoria?.nombre),
-          })),
+          (Array.isArray(res) ? res : [])
+            .map((r: any) => ({
+              id: r?.id,
+              monto: r?.cuota != null ? Number(r.cuota) : null,
+              fecha_inicio: this.fechaIsoADia(r?.fecha_inicio),
+              fecha_fin: this.fechaIsoADia(r?.fecha_fin),
+              id_usuario: r?.id_vendedor,
+              nombreCategoria: this.limpiarNombreCategoria(r?.categoria?.nombre),
+            }))
+            .sort((a, b) =>
+              String(a.nombreCategoria).localeCompare(String(b.nombreCategoria), undefined, {
+                numeric: true,
+                sensitivity: 'base',
+              }),
+            ),
         ),
         catchError(() => of([])),
       );
@@ -127,14 +134,21 @@ export class CuotasCrudService {
       .get<any[]>(`${this.apiUrl}/vendedor-cuota-proveedor/vendedor/${idVendedor}`)
       .pipe(
         map((res) =>
-          (Array.isArray(res) ? res : []).map((r: any) => ({
-            id: r?.id_vendedor_cuota_proveedor ?? r?.id,
-            monto: r?.cuotaProveedor?.cuota != null ? Number(r.cuotaProveedor.cuota) : null,
-            fecha_inicio: this.fechaIsoADia(r?.cuotaProveedor?.fecha_inicio),
-            fecha_fin: this.fechaIsoADia(r?.cuotaProveedor?.fecha_fin),
-            id_usuario: r?.id_vendedor,
-            nombreProveedor: String(r?.proveedor?.nombre ?? '').trim(),
-          })),
+          (Array.isArray(res) ? res : [])
+            .map((r: any) => ({
+              id: r?.id_vendedor_cuota_proveedor ?? r?.id,
+              monto: r?.cuotaProveedor?.cuota != null ? Number(r.cuotaProveedor.cuota) : null,
+              fecha_inicio: this.fechaIsoADia(r?.cuotaProveedor?.fecha_inicio),
+              fecha_fin: this.fechaIsoADia(r?.cuotaProveedor?.fecha_fin),
+              id_usuario: r?.id_vendedor,
+              nombreProveedor: String(r?.proveedor?.nombre ?? '').trim(),
+            }))
+            .sort((a, b) =>
+              String(a.nombreProveedor).localeCompare(String(b.nombreProveedor), undefined, {
+                numeric: true,
+                sensitivity: 'base',
+              }),
+            ),
         ),
         catchError(() => of([])),
       );
