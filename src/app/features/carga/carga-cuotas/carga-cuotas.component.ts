@@ -91,7 +91,7 @@ export class CargaCuotasComponent implements OnInit {
   eliminandoCuotaIndividualId: number | null = null;
 
   // Editar cuotas de vendedor (mensual + semanal + diaria + categoría)
-  tipoCuotaEditar: 'mes' | 'semana' | 'dia' | 'categoria' = 'mes';
+  tipoCuotaEditar: 'mes' | 'semana' | 'dia' | 'categoria' | 'proveedor' = 'mes';
   idUsuarioEditar = '';
   fechaInicioEditar: string | null = null;
   fechaFinEditar: string | null = null;
@@ -724,7 +724,9 @@ export class CargaCuotasComponent implements OnInit {
         ? 'semanal'
         : this.tipoCuotaEditar === 'categoria'
           ? 'de categoría'
-          : 'diaria';
+          : this.tipoCuotaEditar === 'proveedor'
+            ? 'de proveedor'
+            : 'diaria';
   }
 
   get vendedorSeleccionadoEditar(): any {
@@ -783,7 +785,7 @@ export class CargaCuotasComponent implements OnInit {
       return;
     }
 
-    if (this.tipoCuotaEditar === 'categoria') {
+    if (this.tipoCuotaEditar === 'categoria' || this.tipoCuotaEditar === 'proveedor') {
       const idVendedor = this.vendedorSeleccionadoEditar?.id_vendedor;
 
       if (!idVendedor) {
@@ -797,7 +799,12 @@ export class CargaCuotasComponent implements OnInit {
       this.cuotasEditar = [];
       this.cd.detectChanges();
 
-      this.cuotasCrudService.listarCuotaCategoriaPorVendedor(idVendedor).subscribe((res) => {
+      const listar$ =
+        this.tipoCuotaEditar === 'categoria'
+          ? this.cuotasCrudService.listarCuotaCategoriaPorVendedor(idVendedor)
+          : this.cuotasCrudService.listarCuotaProveedorPorVendedor(idVendedor);
+
+      listar$.subscribe((res) => {
         this.cuotasEditar = res;
         this.cargandoCuotasEditar = false;
         this.cd.detectChanges();
@@ -872,7 +879,9 @@ export class CargaCuotasComponent implements OnInit {
           ? this.cuotasCrudService.actualizarCuotaSemana(cuota.id, valor)
           : this.tipoCuotaEditar === 'categoria'
             ? this.cuotasCrudService.actualizarCuotaCategoria(cuota.id, valor)
-            : this.cuotasCrudService.actualizarCuotaDia(cuota.id, valor);
+            : this.tipoCuotaEditar === 'proveedor'
+              ? this.cuotasCrudService.actualizarCuotaProveedor(cuota.id, valor)
+              : this.cuotasCrudService.actualizarCuotaDia(cuota.id, valor);
 
     actualizar$.subscribe({
       next: (res: any) => {
@@ -883,9 +892,14 @@ export class CargaCuotasComponent implements OnInit {
               ? 'cuota_semana'
               : this.tipoCuotaEditar === 'categoria'
                 ? 'cuota'
-                : 'cuota_dia';
+                : this.tipoCuotaEditar === 'proveedor'
+                  ? 'cuotaProveedor'
+                  : 'cuota_dia';
 
-        const nuevoValor = Number(res?.data?.[campo] ?? valor);
+        const nuevoValor =
+          this.tipoCuotaEditar === 'proveedor'
+            ? Number(res?.data?.cuotaProveedor?.cuota ?? valor)
+            : Number(res?.data?.[campo] ?? valor);
 
         this.cuotasEditar = this.cuotasEditar.map((c) =>
           c.id === cuota.id ? { ...c, monto: nuevoValor } : c,
