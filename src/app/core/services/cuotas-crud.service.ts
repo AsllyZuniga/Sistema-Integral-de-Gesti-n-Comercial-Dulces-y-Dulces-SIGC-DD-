@@ -8,6 +8,8 @@ export interface CuotaRegistro {
   fecha_inicio: string | null;
   fecha_fin: string | null;
   id_usuario: number | string;
+  nombreCategoria?: string;
+  nombreProveedor?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -69,5 +71,90 @@ export class CuotasCrudService {
 
   eliminarCuotaDia(id: number): Observable<any> {
     return this.http.delete<any>(`${this.apiUrl}/cuota-dia/${id}`);
+  }
+
+  actualizarCuotaMes(id: number, cuotaMes: number): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/cuota-mes/${id}`, { cuota_mes: cuotaMes });
+  }
+
+  actualizarCuotaSemana(id: number, cuotaSemana: number): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/cuota-semana/${id}`, { cuota_semana: cuotaSemana });
+  }
+
+  actualizarCuotaDia(id: number, cuotaDia: number): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/cuota-dia/${id}`, { cuota_dia: cuotaDia });
+  }
+
+  private fechaIsoADia(valor: any): string | null {
+    if (!valor) return null;
+    const texto = String(valor).trim();
+    if (!texto) return null;
+    const iso = /^(\d{4})-(\d{2})-(\d{2})/;
+    const match = texto.match(iso);
+    return match ? match[0] : texto;
+  }
+
+  private limpiarNombreCategoria(valor: any): string {
+    const nombre = String(valor ?? '').trim();
+    if (!nombre) return '';
+    return nombre.replace(/^\d+\s*-\s*\d+\s*-\s*/, '').trim() || nombre;
+  }
+
+  listarCuotaCategoriaPorVendedor(idVendedor: string | number): Observable<CuotaRegistro[]> {
+    return this.http
+      .get<any[]>(`${this.apiUrl}/vendedor-cuota-categoria/vendedor/${idVendedor}`)
+      .pipe(
+        map((res) =>
+          (Array.isArray(res) ? res : [])
+            .map((r: any) => ({
+              id: r?.id,
+              monto: r?.cuota != null ? Number(r.cuota) : null,
+              fecha_inicio: this.fechaIsoADia(r?.fecha_inicio),
+              fecha_fin: this.fechaIsoADia(r?.fecha_fin),
+              id_usuario: r?.id_vendedor,
+              nombreCategoria: this.limpiarNombreCategoria(r?.categoria?.nombre),
+            }))
+            .sort((a, b) =>
+              String(a.nombreCategoria).localeCompare(String(b.nombreCategoria), undefined, {
+                numeric: true,
+                sensitivity: 'base',
+              }),
+            ),
+        ),
+        catchError(() => of([])),
+      );
+  }
+
+  actualizarCuotaCategoria(id: number, cuota: number): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/vendedor-cuota-categoria/${id}`, { cuota });
+  }
+
+  listarCuotaProveedorPorVendedor(idVendedor: string | number): Observable<CuotaRegistro[]> {
+    return this.http
+      .get<any[]>(`${this.apiUrl}/vendedor-cuota-proveedor/vendedor/${idVendedor}`)
+      .pipe(
+        map((res) =>
+          (Array.isArray(res) ? res : [])
+            .map((r: any) => ({
+              id: r?.id_vendedor_cuota_proveedor ?? r?.id,
+              monto: r?.cuotaProveedor?.cuota != null ? Number(r.cuotaProveedor.cuota) : null,
+              fecha_inicio: this.fechaIsoADia(r?.cuotaProveedor?.fecha_inicio),
+              fecha_fin: this.fechaIsoADia(r?.cuotaProveedor?.fecha_fin),
+              id_usuario: r?.id_vendedor,
+              nombreProveedor: String(r?.proveedor?.nombre ?? '').trim(),
+            }))
+            .sort((a, b) =>
+              String(a.nombreProveedor).localeCompare(String(b.nombreProveedor), undefined, {
+                numeric: true,
+                sensitivity: 'base',
+              }),
+            ),
+        ),
+        catchError(() => of([])),
+      );
+  }
+
+  actualizarCuotaProveedor(id: number, cuota: number): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/vendedor-cuota-proveedor/${id}`, { cuota });
   }
 }

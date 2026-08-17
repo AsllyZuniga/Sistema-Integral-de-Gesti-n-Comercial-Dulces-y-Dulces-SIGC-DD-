@@ -695,3 +695,98 @@
     margin: 0 8px;
   }
 }
+
+/* ===== Editar cuotas ===== */
+.editar-icon-box {
+  color: var(--c-primary);
+  background: var(--c-primary-soft);
+}
+
+.editar-filters {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin-bottom: 16px;
+}
+
+.editar-table {
+  margin-top: 16px;
+}
+
+.editar-table tr.editing {
+  background: var(--c-primary-pale);
+}
+
+.editar-acciones {
+  white-space: nowrap;
+}
+
+.editar-input {
+  width: 140px;
+  padding: 6px 8px;
+  border: 1px solid var(--c-primary);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--c-text);
+  background: var(--c-surface);
+}
+
+.editar-input:focus {
+  outline: none;
+  border-color: var(--c-primary-mid);
+}
+
+.editar-valor-sin-editar {
+  color: var(--c-text-muted);
+}
+
+.btn-edit-row,
+.btn-save-row {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-right: 6px;
+}
+
+.btn-edit-row .material-symbols-rounded,
+.btn-save-row .material-symbols-rounded {
+  font-size: 16px;
+}
+
+.btn-edit-row:disabled,
+.btn-save-row:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-edit-row {
+  color: var(--c-primary);
+  border: 1px solid var(--c-primary);
+}
+
+.btn-edit-row:hover:not(:disabled) {
+  background: var(--c-primary-pale);
+}
+
+.btn-save-row {
+  color: #15803d;
+  border: 1px solid #16a34a;
+}
+
+.btn-save-row:hover:not(:disabled) {
+  background: rgba(22, 163, 74, 0.08);
+}
+
+.btn-save-row .spinner {
+  border-color: rgba(22, 163, 74, 0.25);
+  border-top-color: #15803d;
+}
+
+@media (max-width: 768px) {
+  .editar-filters {
+    grid-template-columns: 1fr;
+  }
+}
