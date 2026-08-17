@@ -93,6 +93,7 @@ export class CargaCuotasComponent implements OnInit {
   // Editar cuotas de vendedor (mensual + semanal + diaria + categoría)
   tipoCuotaEditar: 'mes' | 'semana' | 'dia' | 'categoria' | 'proveedor' = 'mes';
   idUsuarioEditar = '';
+  busquedaProveedorEditar = '';
   fechaInicioEditar: string | null = null;
   fechaFinEditar: string | null = null;
   cuotasEditar: CuotaRegistro[] = [];
@@ -746,14 +747,29 @@ export class CargaCuotasComponent implements OnInit {
     const inicio = this.fechaInicioEditar;
     const fin = this.fechaFinEditar;
 
-    if (!inicio && !fin) return this.cuotasEditar;
+    let resultado = this.cuotasEditar;
 
-    return this.cuotasEditar.filter((c) => {
-      if (!c.fecha_inicio || !c.fecha_fin) return true;
-      if (inicio && c.fecha_fin < inicio) return false;
-      if (fin && c.fecha_inicio > fin) return false;
-      return true;
-    });
+    if (inicio || fin) {
+      resultado = resultado.filter((c) => {
+        if (!c.fecha_inicio || !c.fecha_fin) return true;
+        if (inicio && c.fecha_fin < inicio) return false;
+        if (fin && c.fecha_inicio > fin) return false;
+        return true;
+      });
+    }
+
+    if (this.tipoCuotaEditar === 'proveedor') {
+      const busqueda = this.busquedaProveedorEditar.trim().toLowerCase();
+      if (busqueda) {
+        resultado = resultado.filter((c) =>
+          String(c.nombreProveedor ?? '')
+            .toLowerCase()
+            .includes(busqueda),
+        );
+      }
+    }
+
+    return resultado;
   }
 
   onCambiarVendedorEditar(): void {
@@ -761,6 +777,7 @@ export class CargaCuotasComponent implements OnInit {
     this.tipoOperacionEditar = null;
     this.editandoCuotaId = null;
     this.valorEditado = null;
+    this.busquedaProveedorEditar = '';
     this.cargarCuotasEditar();
   }
 
@@ -769,6 +786,7 @@ export class CargaCuotasComponent implements OnInit {
     this.tipoOperacionEditar = null;
     this.editandoCuotaId = null;
     this.valorEditado = null;
+    this.busquedaProveedorEditar = '';
     this.cargarCuotasEditar();
   }
 

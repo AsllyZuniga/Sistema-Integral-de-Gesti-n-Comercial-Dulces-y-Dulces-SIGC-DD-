@@ -586,6 +586,26 @@
               </div>
             </div>
 
+            @if (tipoCuotaEditar === 'proveedor') {
+              <div class="delete-form-row editar-busqueda">
+                <div class="delete-date-group editar-busqueda-input">
+                  <label>
+                    <span class="material-symbols-rounded">search</span>
+                    Buscar proveedor
+                  </label>
+
+                  <div class="delete-date-input">
+                    <input
+                      type="text"
+                      [(ngModel)]="busquedaProveedorEditar"
+                      placeholder="Escriba el nombre del proveedor..."
+                      autocomplete="off"
+                    />
+                  </div>
+                </div>
+              </div>
+            }
+
             @if (mensajeOperacionEditar) {
               <div
                 class="delete-message"
