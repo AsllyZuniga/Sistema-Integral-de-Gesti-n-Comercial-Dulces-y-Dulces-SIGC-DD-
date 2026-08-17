@@ -496,7 +496,7 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
         break;
 
       case 'canal': {
-        this.chartType = 'bar';
+        this.chartType = 'pie';
         this.cumplimientoService
           .getVentasPorCanal(filtrosConsulta)
           .pipe(takeUntil(merge(this.destroy$, this.recargarVista$)))
@@ -519,7 +519,11 @@ export abstract class VentasVendedorBase extends VentasSupervisorBase {
               0,
             );
             this.totalCuotaCanal = Number(res?.total?.cuota ?? 0) || 0;
-            this.chartData = [];
+            this.chartData = canalesMapeados.map((i: any) => ({
+              name: i.canal,
+              value: i.ventaAcum,
+            }));
+            this.chartId = 'chart-canal-' + Date.now();
             this.totalTopCanales = 0;
             this.cdr.markForCheck();
           });
