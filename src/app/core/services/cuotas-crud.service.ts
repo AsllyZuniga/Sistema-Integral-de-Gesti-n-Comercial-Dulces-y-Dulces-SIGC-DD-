@@ -93,6 +93,12 @@ export class CuotasCrudService {
     return match ? match[0] : texto;
   }
 
+  private limpiarNombreCategoria(valor: any): string {
+    const nombre = String(valor ?? '').trim();
+    if (!nombre) return '';
+    return nombre.replace(/^\d+\s*-\s*\d+\s*-\s*/, '').trim() || nombre;
+  }
+
   listarCuotaCategoriaPorVendedor(idVendedor: string | number): Observable<CuotaRegistro[]> {
     return this.http
       .get<any[]>(`${this.apiUrl}/vendedor-cuota-categoria/vendedor/${idVendedor}`)
@@ -104,7 +110,7 @@ export class CuotasCrudService {
             fecha_inicio: this.fechaIsoADia(r?.fecha_inicio),
             fecha_fin: this.fechaIsoADia(r?.fecha_fin),
             id_usuario: r?.id_vendedor,
-            nombreCategoria: r?.categoria?.nombre ?? '',
+            nombreCategoria: this.limpiarNombreCategoria(r?.categoria?.nombre),
           })),
         ),
         catchError(() => of([])),
