@@ -1,1 +1,109 @@
 /* impactos styles - uses global .chart-box .dynamic-panel .tabs .dynamic-content */
+
+.grafica-container {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 16px 0;
+}
+
+.proveedor-kpis {
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.proveedor-kpi-card {
+  background: #e8f2ff;
+  border-radius: 0;
+  border: 1px solid #c8dbf7;
+  padding: 10px 12px;
+  min-width: 210px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.proveedor-kpi-label {
+  font-size: 11px;
+  color: #43648f;
+  font-weight: 500;
+}
+
+.proveedor-kpi-value {
+  font-size: 16px;
+  line-height: 1.1;
+  color: #163a67;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+}
+
+.proveedor-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.proveedor-chart-head h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #20201e;
+}
+
+.proveedor-chart-head span {
+  font-size: 13px;
+  color: #4b4b47;
+  white-space: nowrap;
+}
+
+.categoria-totales {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.categoria-total-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 1px solid #cfdae7;
+  background: #ffffff;
+  font-size: 13px;
+  color: #314457;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(15, 31, 58, 0.08);
+}
+
+.categoria-total-pill strong {
+  font-weight: 700;
+  color: #1959a8;
+}
+
+@media (max-width: 768px) {
+  .proveedor-kpis {
+    width: 100%;
+  }
+
+  .proveedor-kpi-card {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .proveedor-chart-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .categoria-totales {
+    justify-content: flex-start;
+  }
+}
