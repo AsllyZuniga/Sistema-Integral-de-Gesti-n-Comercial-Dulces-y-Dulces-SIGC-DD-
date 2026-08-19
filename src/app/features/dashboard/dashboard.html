@@ -31,6 +31,8 @@
         [lineas]="lineasList"
         [vendedores]="mostrarFiltroVendedorPorRol ? vendedoresList : []"
         [mostrarFiltroVendedor]="mostrarFiltroVendedorPorRol"
+        [mostrarFiltroCiudad]="mostrarFiltroCiudad"
+        [mostrarFiltroCanal]="mostrarFiltroCanal"
         [filtrosActivos]="filtrosActivos"
         (apply)="onAplicarFiltros($event)"
         (filterChange)="onFiltroChange($event)"
@@ -55,25 +57,54 @@
 
     @if (rolId === 3) {
       <section class="kpis">
-        <app-card [title]="labelVentaAcum" [value]="totalesVendedor?.ventaAcum ?? 0"></app-card>
+        <app-card
+          [title]="labelVentaAcum"
+          [value]="
+            activeAnalisisView === 'impactos'
+              ? ventaAcumImpactos ?? 0
+              : totalesVendedor?.ventaAcum ?? 0
+          "
+          [isCurrency]="activeAnalisisView !== 'impactos'"
+        ></app-card>
         <app-card
           [title]="labelCuota"
           [value]="
-            cuotaVistaVendedor ??
-            (tipoCuota === 'diaria'
-              ? (totalesVendedor?.cuotaDiaria ?? totalesVendedor?.cuotaMes ?? 0)
-              : tipoCuota === 'semanal'
-                ? (totalesVendedor?.cuotaSemana ?? totalesVendedor?.cuotaMes ?? 0)
-                : (totalesVendedor?.cuotaMes ?? 0))
+            activeAnalisisView === 'impactos'
+              ? cuotaImpactos ?? 0
+              : cuotaVistaVendedor ??
+                (tipoCuota === 'diaria'
+                  ? (totalesVendedor?.cuotaDiaria ?? totalesVendedor?.cuotaMes ?? 0)
+                  : tipoCuota === 'semanal'
+                    ? (totalesVendedor?.cuotaSemana ?? totalesVendedor?.cuotaMes ?? 0)
+                    : (totalesVendedor?.cuotaMes ?? 0))
+          "
+          [isCurrency]="activeAnalisisView !== 'impactos'"
+        ></app-card>
+        <app-card
+          title="Cumplimiento"
+          [value]="
+            activeAnalisisView === 'impactos'
+              ? porcCumpImpactos ?? 0
+              : totalesVendedor?.porcCump ?? 0
           "
         ></app-card>
-        <app-card title="Cumplimiento" [value]="totalesVendedor?.porcCump ?? 0"></app-card>
-        <app-card title="Proyección" [value]="totalesVendedor?.proyeccionVenta ?? 0"></app-card>
+        <app-card
+          title="Proyección"
+          [value]="
+            activeAnalisisView === 'impactos'
+              ? proyeccionImpactos ?? 0
+              : totalesVendedor?.proyeccionVenta ?? 0
+          "
+          [isCurrency]="activeAnalisisView !== 'impactos'"
+        ></app-card>
       </section>
 
       <section class="charts">
         @if (activeAnalisisView === 'impactos') {
-          <app-impactos [filtrosActivos]="filtrosActivos"></app-impactos>
+          <app-impactos
+            [filtrosActivos]="filtrosActivos"
+            (resumenCambio)="onResumenCambioImpactos($event)"
+          ></app-impactos>
         } @else {
           <app-ventas
             [codigoVendedor]="codigoVendedor"
