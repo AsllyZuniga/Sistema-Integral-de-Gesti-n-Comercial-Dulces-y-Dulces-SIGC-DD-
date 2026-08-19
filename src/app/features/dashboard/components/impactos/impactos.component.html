@@ -49,18 +49,6 @@
           [showLegend]="false"
         ></app-ventas-tabla-grafica>
       }
-
-      @case ('canal') {
-        <app-ventas-tabla-grafica
-          [columns]="canalColumns"
-          [data]="canalData"
-          [chartData]="canalChartData"
-          chartId="chart-impactos-canal"
-          chartType="pie"
-          chartLabel="Impactos"
-          chartTitle="Impactos por Canal"
-        ></app-ventas-tabla-grafica>
-      }
     }
   </div>
 </div>

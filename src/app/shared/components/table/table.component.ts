@@ -63,7 +63,7 @@ export class TableComponent {
     Subtotal: 'Subtotal',
     impactos: 'Impactos',
     cuotaImpactos: 'Cuota Impactos',
-    proyeccionImpactos: 'Proyección Impactos',
+    faltan: 'Faltan',
     canal: 'Canal',
     valorTotal: 'Valor Total',
   };
@@ -78,10 +78,7 @@ export class TableComponent {
     'acumulado',
     'proyectado',
     'proyeccionVenta',
-    'cuotaImpactos',
-    'proyeccionImpactos',
     'valorTotal',
-    'precio_unitario',
     'subtotal_producto',
     'precio',
     'subtotal',
@@ -94,7 +91,7 @@ export class TableComponent {
     'porcentajeCumplimientoProyectado',
     'part',
   ]);
-  private readonly integerCols = new Set(['Cantidad', 'cantidad', 'impactos']);
+  private readonly integerCols = new Set(['Cantidad', 'cantidad', 'impactos', 'faltan', 'cuotaImpactos']);
   private readonly integerColsExt = new Set(['cantidadItems', 'id_categoria']);
 
   getHeader(col: string): string {

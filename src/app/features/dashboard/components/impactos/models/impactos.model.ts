@@ -8,7 +8,7 @@ export interface ImpactoProveedorRow {
   cuotaImpactos: number;
   impactos: number;
   porcCump: number;
-  proyeccionImpactos: number;
+  faltan: number;
 }
 
 export interface ImpactoCategoriaRow {
@@ -16,15 +16,7 @@ export interface ImpactoCategoriaRow {
   cuotaImpactos: number;
   impactos: number;
   porcCump: number;
-  proyeccionImpactos: number;
-}
-
-export interface ImpactoCanalRow {
-  canal: string;
-  cuotaImpactos?: number;
-  impactos: number;
-  porcCump?: number;
-  proyeccionImpactos?: number;
+  faltan: number;
 }
 
 export interface ImpactoVendedorRow {
@@ -32,14 +24,10 @@ export interface ImpactoVendedorRow {
   cuotaImpactos: number;
   impactos: number;
   porcCump: number;
-  proyeccionImpactos: number;
+  faltan: number;
 }
 
-export type ImpactoRow =
-  | ImpactoProveedorRow
-  | ImpactoCategoriaRow
-  | ImpactoCanalRow
-  | ImpactoVendedorRow;
+export type ImpactoRow = ImpactoProveedorRow | ImpactoCategoriaRow | ImpactoVendedorRow;
 
 export interface ImpactosResponse {
   rows: ImpactoRow[];

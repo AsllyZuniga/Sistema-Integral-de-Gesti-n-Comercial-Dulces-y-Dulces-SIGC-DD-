@@ -5,7 +5,6 @@ export const IMPACTOS_VIEWS: ImpactosViewOption[] = [
   { key: 'vendedor', label: 'Por Vendedor' },
   { key: 'proveedor', label: 'Por Proveedor' },
   { key: 'categoria', label: 'Por Categoría' },
-  { key: 'canal', label: 'Por Canal' },
 ];
 
 export function obtenerVistasImpactosPorRol(rolId: number): ImpactosViewOption[] {

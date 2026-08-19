@@ -6,7 +6,6 @@ import { ImpactosService } from './services/impactos.service';
 import { IMPACTOS_VIEWS } from './config/impactos-view.config';
 import {
   ImpactoCategoriaRow,
-  ImpactoCanalRow,
   ImpactoProveedorRow,
   ImpactoVendedorRow,
 } from './models/impactos.model';
@@ -22,21 +21,18 @@ import {
 })
 export class ImpactosComponent implements OnInit, OnDestroy {
   impactosViews = IMPACTOS_VIEWS;
-  activeImpactosView = 'proveedor';
+  activeImpactosView = 'vendedor';
 
-  proveedorColumns = ['proveedor', 'cuotaImpactos', 'impactos', 'porcCump', 'proyeccionImpactos'];
-  categoriaColumns = ['categoria', 'cuotaImpactos', 'impactos', 'porcCump', 'proyeccionImpactos'];
-  canalColumns = ['canal', 'impactos'];
-  vendedorColumns = ['vendedor', 'cuotaImpactos', 'impactos', 'porcCump', 'proyeccionImpactos'];
+  proveedorColumns = ['proveedor', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
+  categoriaColumns = ['categoria', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
+  vendedorColumns = ['vendedor', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
 
   proveedorData: ImpactoProveedorRow[] = [];
   categoriaData: ImpactoCategoriaRow[] = [];
-  canalData: ImpactoCanalRow[] = [];
   vendedorData: ImpactoVendedorRow[] = [];
 
   proveedorChartData: { name: string; value: number }[] = [];
   categoriaChartData: { name: string; value: number }[] = [];
-  canalChartData: { name: string; value: number }[] = [];
   vendedorChartData: { name: string; value: number }[] = [];
 
   private destroy$ = new Subject<void>();
@@ -73,17 +69,6 @@ export class ImpactosComponent implements OnInit, OnDestroy {
         this.categoriaData = res.rows as ImpactoCategoriaRow[];
         this.categoriaChartData = this.categoriaData.map((d) => ({
           name: d.categoria,
-          value: d.impactos,
-        }));
-      });
-
-    this.impactosService
-      .getImpactosPorCanal()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((res) => {
-        this.canalData = res.rows as ImpactoCanalRow[];
-        this.canalChartData = this.canalData.map((d) => ({
-          name: d.canal,
           value: d.impactos,
         }));
       });
