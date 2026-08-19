@@ -39,6 +39,7 @@ export class CardComponent implements OnInit {
   }
 
   private _value: string | number = '';
+  @Input() isCurrency = true;
   icon: string = '';
   color: string = 'blue';
   formattedValue: string = '';
@@ -125,12 +126,10 @@ export class CardComponent implements OnInit {
         }) + '\u00a0%'
       );
     }
-    return (
-      '$\u00a0' +
-      num.toLocaleString('es-CO', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      })
-    );
+    const formatted = num.toLocaleString('es-CO', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+    return this.isCurrency ? '$\u00a0' + formatted : formatted;
   }
 }
