@@ -73,7 +73,7 @@
 
       <section class="charts">
         @if (activeAnalisisView === 'impactos') {
-          <app-impactos></app-impactos>
+          <app-impactos [filtrosActivos]="filtrosActivos"></app-impactos>
         } @else {
           <app-ventas
             [codigoVendedor]="codigoVendedor"

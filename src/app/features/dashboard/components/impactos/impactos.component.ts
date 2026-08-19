@@ -2,14 +2,14 @@ import { Component, ChangeDetectionStrategy, ViewEncapsulation, OnInit, OnDestro
 import { CommonModule } from '@angular/common';
 import { Subject, takeUntil } from 'rxjs';
 import { VentasTablaGraficaComponent } from '../ventas/ui/ventas-tabla-grafica.component';
-import { ImpactosService } from './services/impactos.service';
+import { ImpactosService, ImpactosFiltros } from './services/impactos.service';
 import { IMPACTOS_VIEWS } from './config/impactos-view.config';
 import {
   ImpactoCategoriaRow,
-  ImpactoCanalRow,
   ImpactoProveedorRow,
   ImpactoVendedorRow,
 } from './models/impactos.model';
+import { DashboardFilters } from '../../../../shared/components/filters/filters.component';
 
 @Component({
   selector: 'app-impactos',
@@ -22,26 +22,32 @@ import {
 })
 export class ImpactosComponent implements OnInit, OnDestroy {
   impactosViews = IMPACTOS_VIEWS;
-  activeImpactosView = 'proveedor';
+  activeImpactosView = 'vendedor';
 
-  proveedorColumns = ['proveedor', 'cuotaImpactos', 'impactos', 'porcCump', 'proyeccionImpactos'];
-  categoriaColumns = ['categoria', 'cuotaImpactos', 'impactos', 'porcCump', 'proyeccionImpactos'];
-  canalColumns = ['canal', 'impactos'];
-  vendedorColumns = ['vendedor', 'cuotaImpactos', 'impactos', 'porcCump', 'proyeccionImpactos'];
+  proveedorColumns = ['proveedor', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
+  categoriaColumns = ['categoria', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
+  vendedorColumns = ['vendedor', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
 
   proveedorData: ImpactoProveedorRow[] = [];
   categoriaData: ImpactoCategoriaRow[] = [];
-  canalData: ImpactoCanalRow[] = [];
   vendedorData: ImpactoVendedorRow[] = [];
 
   proveedorChartData: { name: string; value: number }[] = [];
   categoriaChartData: { name: string; value: number }[] = [];
-  canalChartData: { name: string; value: number }[] = [];
   vendedorChartData: { name: string; value: number }[] = [];
 
   private destroy$ = new Subject<void>();
 
   @Input() codigosVendedores: string[] = [];
+
+  private _filtros: DashboardFilters | null = null;
+
+  @Input() set filtrosActivos(value: DashboardFilters | null) {
+    if (value) {
+      this._filtros = value;
+      this.cargarImpactos();
+    }
+  }
 
   constructor(private impactosService: ImpactosService) {}
 
@@ -54,9 +60,27 @@ export class ImpactosComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
+  public reloadView(): void {
+    this.cargarImpactos();
+  }
+
+  private buildImpactosFiltros(): ImpactosFiltros {
+    if (!this._filtros) return {};
+    const f = this._filtros;
+    return {
+      fechaInicio: f.fechaInicio,
+      fechaFin: f.fechaFin,
+      vendedor: f.vendedor,
+      proveedor: f.proveedor,
+      categoria: f.categoria,
+    };
+  }
+
   private cargarImpactos(): void {
+    const filtros = this.buildImpactosFiltros();
+
     this.impactosService
-      .getImpactosPorProveedor()
+      .getImpactosPorProveedor(filtros)
       .pipe(takeUntil(this.destroy$))
       .subscribe((res) => {
         this.proveedorData = res.rows as ImpactoProveedorRow[];
@@ -67,7 +91,7 @@ export class ImpactosComponent implements OnInit, OnDestroy {
       });
 
     this.impactosService
-      .getImpactosPorCategoria()
+      .getImpactosPorCategoria(filtros)
       .pipe(takeUntil(this.destroy$))
       .subscribe((res) => {
         this.categoriaData = res.rows as ImpactoCategoriaRow[];
@@ -78,18 +102,7 @@ export class ImpactosComponent implements OnInit, OnDestroy {
       });
 
     this.impactosService
-      .getImpactosPorCanal()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((res) => {
-        this.canalData = res.rows as ImpactoCanalRow[];
-        this.canalChartData = this.canalData.map((d) => ({
-          name: d.canal,
-          value: d.impactos,
-        }));
-      });
-
-    this.impactosService
-      .getImpactosPorVendedor()
+      .getImpactosPorVendedor(filtros)
       .pipe(takeUntil(this.destroy$))
       .subscribe((res) => {
         const todos = res.rows as ImpactoVendedorRow[];

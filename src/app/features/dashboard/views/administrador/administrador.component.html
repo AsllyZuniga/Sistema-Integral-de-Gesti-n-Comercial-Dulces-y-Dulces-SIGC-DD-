@@ -17,7 +17,7 @@
 
 <section class="charts">
   @if (vistaActiva === 'impactos') {
-    <app-impactos></app-impactos>
+    <app-impactos [filtrosActivos]="filtrosAnalisis"></app-impactos>
   } @else {
     <app-ventas
       [codigoVendedor]="codigoVendedorAnalisis"
