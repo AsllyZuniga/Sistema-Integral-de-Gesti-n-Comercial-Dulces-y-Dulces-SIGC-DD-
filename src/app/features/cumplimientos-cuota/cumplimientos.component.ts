@@ -12,13 +12,20 @@ export type TipoCuota = 'diaria' | 'semanal' | 'mensual';
 })
 export class CuotasCumplimientoComponent {
   @Input()  tipoCuota: TipoCuota = 'mensual';
+  @Input()  ocultarDiaria = false;
   @Output() tipoCuotaChange = new EventEmitter<TipoCuota>();
 
-  readonly opciones: { key: TipoCuota; label: string }[] = [
+  readonly todasOpciones: { key: TipoCuota; label: string }[] = [
     { key: 'diaria',   label: 'Cuota Diaria'   },
     { key: 'semanal',  label: 'Cuota Semanal'  },
     { key: 'mensual',  label: 'Cuota Mensual'  },
   ];
+
+  get opciones(): { key: TipoCuota; label: string }[] {
+    return this.ocultarDiaria
+      ? this.todasOpciones.filter(o => o.key !== 'diaria')
+      : this.todasOpciones;
+  }
 
   seleccionar(tipo: TipoCuota): void {
     if (this.tipoCuota === tipo) return;
