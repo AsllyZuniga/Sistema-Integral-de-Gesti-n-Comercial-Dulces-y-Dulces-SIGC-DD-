@@ -191,113 +191,117 @@
       </div>
     </div>
 
-    <div class="filter-group">
-      <label>Ciudad</label>
+    @if (mostrarFiltroCiudad) {
+      <div class="filter-group">
+        <label>Ciudad</label>
 
-      <div class="checkbox-dropdown">
-        <button
-          type="button"
-          class="checkbox-dropdown-toggle"
-          (click)="toggleCiudadDropdown()"
-        >
-          <span class="checkbox-dropdown-text">
-            {{ textoCiudadesSeleccionadas }}
-          </span>
+        <div class="checkbox-dropdown">
+          <button
+            type="button"
+            class="checkbox-dropdown-toggle"
+            (click)="toggleCiudadDropdown()"
+          >
+            <span class="checkbox-dropdown-text">
+              {{ textoCiudadesSeleccionadas }}
+            </span>
 
-          <span class="material-symbols-rounded dropdown-icon">expand_more</span>
-        </button>
+            <span class="material-symbols-rounded dropdown-icon">expand_more</span>
+          </button>
 
-        @if (mostrarCiudadDropdown) {
-          <div class="checkbox-dropdown-menu">
-            <div class="checkbox-dropdown-search">
-              <span class="material-symbols-rounded search-icon">search</span>
-              <input
-                type="text"
-                [(ngModel)]="busquedaCiudad"
-                placeholder="Buscar ciudad..."
-                autocomplete="off"
-                (click)="$event.stopPropagation()"
-              />
-            </div>
+          @if (mostrarCiudadDropdown) {
+            <div class="checkbox-dropdown-menu">
+              <div class="checkbox-dropdown-search">
+                <span class="material-symbols-rounded search-icon">search</span>
+                <input
+                  type="text"
+                  [(ngModel)]="busquedaCiudad"
+                  placeholder="Buscar ciudad..."
+                  autocomplete="off"
+                  (click)="$event.stopPropagation()"
+                />
+              </div>
 
-            <label class="checkbox-item checkbox-item-all">
-              <input
-                type="checkbox"
-                [checked]="ciudadesSeleccionadas.length === 0"
-                (change)="limpiarCiudadesSeleccionadas()"
-              />
-              <span>Todas</span>
-            </label>
-
-            @for (ci of filtrarOpciones(ciudadesVista, busquedaCiudad); track ci.value) {
-              <label class="checkbox-item">
+              <label class="checkbox-item checkbox-item-all">
                 <input
                   type="checkbox"
-                  [value]="ci.value"
-                  [checked]="filtros.ciudades?.includes(ci.value) || false"
-                  (change)="toggleCiudadCheckbox(ci.value)"
+                  [checked]="ciudadesSeleccionadas.length === 0"
+                  (change)="limpiarCiudadesSeleccionadas()"
                 />
-                <span>{{ ci.label }}</span>
+                <span>Todas</span>
               </label>
-            }
-          </div>
-        }
-      </div>
-    </div>
 
-    <div class="filter-group">
-      <label>Canal</label>
-
-      <div class="checkbox-dropdown">
-        <button
-          type="button"
-          class="checkbox-dropdown-toggle"
-          (click)="toggleCanalDropdown()"
-        >
-          <span class="checkbox-dropdown-text">
-            {{ textoCanalesSeleccionados }}
-          </span>
-
-          <span class="material-symbols-rounded dropdown-icon">expand_more</span>
-        </button>
-
-        @if (mostrarCanalDropdown) {
-          <div class="checkbox-dropdown-menu">
-            <div class="checkbox-dropdown-search">
-              <span class="material-symbols-rounded search-icon">search</span>
-              <input
-                type="text"
-                [(ngModel)]="busquedaCanal"
-                placeholder="Buscar canal..."
-                autocomplete="off"
-                (click)="$event.stopPropagation()"
-              />
+              @for (ci of filtrarOpciones(ciudadesVista, busquedaCiudad); track ci.value) {
+                <label class="checkbox-item">
+                  <input
+                    type="checkbox"
+                    [value]="ci.value"
+                    [checked]="filtros.ciudades?.includes(ci.value) || false"
+                    (change)="toggleCiudadCheckbox(ci.value)"
+                  />
+                  <span>{{ ci.label }}</span>
+                </label>
+              }
             </div>
+          }
+        </div>
+      </div>
+    }
 
-            <label class="checkbox-item checkbox-item-all">
-              <input
-                type="checkbox"
-                [checked]="canalesSeleccionados.length === 0"
-                (change)="limpiarCanalesSeleccionadas()"
-              />
-              <span>Todos</span>
-            </label>
+    @if (mostrarFiltroCanal) {
+      <div class="filter-group">
+        <label>Canal</label>
 
-            @for (ca of filtrarOpciones(canales, busquedaCanal); track ca.value) {
-              <label class="checkbox-item">
+        <div class="checkbox-dropdown">
+          <button
+            type="button"
+            class="checkbox-dropdown-toggle"
+            (click)="toggleCanalDropdown()"
+          >
+            <span class="checkbox-dropdown-text">
+              {{ textoCanalesSeleccionados }}
+            </span>
+
+            <span class="material-symbols-rounded dropdown-icon">expand_more</span>
+          </button>
+
+          @if (mostrarCanalDropdown) {
+            <div class="checkbox-dropdown-menu">
+              <div class="checkbox-dropdown-search">
+                <span class="material-symbols-rounded search-icon">search</span>
+                <input
+                  type="text"
+                  [(ngModel)]="busquedaCanal"
+                  placeholder="Buscar canal..."
+                  autocomplete="off"
+                  (click)="$event.stopPropagation()"
+                />
+              </div>
+
+              <label class="checkbox-item checkbox-item-all">
                 <input
                   type="checkbox"
-                  [value]="ca.value"
-                  [checked]="filtros.canales?.includes(ca.value) || false"
-                  (change)="toggleCanalCheckbox(ca.value)"
+                  [checked]="canalesSeleccionados.length === 0"
+                  (change)="limpiarCanalesSeleccionadas()"
                 />
-                <span>{{ ca.label }}</span>
+                <span>Todos</span>
               </label>
-            }
-          </div>
-        }
+
+              @for (ca of filtrarOpciones(canales, busquedaCanal); track ca.value) {
+                <label class="checkbox-item">
+                  <input
+                    type="checkbox"
+                    [value]="ca.value"
+                    [checked]="filtros.canales?.includes(ca.value) || false"
+                    (change)="toggleCanalCheckbox(ca.value)"
+                  />
+                  <span>{{ ca.label }}</span>
+                </label>
+              }
+            </div>
+          }
+        </div>
       </div>
-    </div>
+    }
 
     <div class="filter-actions">
       <button type="button" class="btn-limpiar" (click)="limpiar()">Limpiar</button>
