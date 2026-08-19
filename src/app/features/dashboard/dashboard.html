@@ -18,6 +18,7 @@
     <div class="cuota-selector-row">
       <app-cuotas-cumplimiento
         [tipoCuota]="tipoCuota"
+        [ocultarDiaria]="activeAnalisisView === 'impactos'"
         (tipoCuotaChange)="onCambiarTipoCuota($event)"
       ></app-cuotas-cumplimiento>
     </div>
