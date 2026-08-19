@@ -10,7 +10,6 @@ import {
   EventEmitter,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
 import { VentasTablaGraficaComponent } from '../ventas/ui/ventas-tabla-grafica.component';
 import { ImpactosService, ImpactosFiltros } from './services/impactos.service';
@@ -25,7 +24,7 @@ import { DashboardFilters } from '../../../../shared/components/filters/filters.
 @Component({
   selector: 'app-impactos',
   standalone: true,
-  imports: [CommonModule, FormsModule, VentasTablaGraficaComponent],
+  imports: [CommonModule, VentasTablaGraficaComponent],
   templateUrl: './impactos.component.html',
   styleUrls: ['./impactos.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -34,11 +33,10 @@ import { DashboardFilters } from '../../../../shared/components/filters/filters.
 export class ImpactosComponent implements OnInit, OnDestroy {
   impactosViews = IMPACTOS_VIEWS;
   activeImpactosView = 'vendedor';
-  activePeriodo: 'MENSUAL' | 'SEMANAL' | 'AMBOS' = 'MENSUAL';
 
-  vendedorColumns = ['vendedor', 'tipoPeriodo', 'fechaInicio', 'fechaFin', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
-  proveedorColumns = ['vendedor', 'proveedor', 'tipoPeriodo', 'fechaInicio', 'fechaFin', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
-  categoriaColumns = ['vendedor', 'categoria', 'tipoPeriodo', 'fechaInicio', 'fechaFin', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
+  vendedorColumns = ['vendedor', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
+  proveedorColumns = ['vendedor', 'proveedor', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
+  categoriaColumns = ['vendedor', 'categoria', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
 
   proveedorData: ImpactoProveedorRow[] = [];
   categoriaData: ImpactoCategoriaRow[] = [];
@@ -98,11 +96,6 @@ export class ImpactosComponent implements OnInit, OnDestroy {
     this.cargarImpactos();
   }
 
-  setPeriodo(tipo: 'MENSUAL' | 'SEMANAL' | 'AMBOS'): void {
-    this.activePeriodo = tipo;
-    this.cargarImpactos();
-  }
-
   private buildImpactosFiltros(): ImpactosFiltros {
     const filtros: ImpactosFiltros = {};
     if (this._filtros) {
@@ -112,11 +105,6 @@ export class ImpactosComponent implements OnInit, OnDestroy {
       if (f.vendedor) filtros.vendedor = f.vendedor;
       if (f.proveedor) filtros.proveedor = f.proveedor;
       if (f.categoria) filtros.categoria = f.categoria;
-    }
-    if (this.activePeriodo === 'AMBOS') {
-      filtros.tipoPeriodo = 'SEMANAL,MENSUAL';
-    } else {
-      filtros.tipoPeriodo = this.activePeriodo;
     }
     return filtros;
   }
