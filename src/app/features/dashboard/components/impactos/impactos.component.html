@@ -1,6 +1,17 @@
 <div class="chart-box dynamic-panel">
   <h3>Análisis de Impactos</h3>
 
+  <div class="impactos-filtros">
+    <label>
+      Período:
+      <select [(ngModel)]="activePeriodo" (change)="setPeriodo(activePeriodo)">
+        <option value="MENSUAL">Mensual</option>
+        <option value="SEMANAL">Semanal</option>
+        <option value="AMBOS">Ambos</option>
+      </select>
+    </label>
+  </div>
+
   <div class="tabs">
     @for (view of impactosViews; track view.key) {
       <button [class.active]="activeImpactosView === view.key" (click)="setImpactosView(view.key)">

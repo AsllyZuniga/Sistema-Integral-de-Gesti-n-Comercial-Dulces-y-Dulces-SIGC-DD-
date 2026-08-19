@@ -66,6 +66,9 @@ export class TableComponent {
     faltan: 'Faltan',
     canal: 'Canal',
     valorTotal: 'Valor Total',
+    tipoPeriodo: 'Tipo Período',
+    fechaInicio: 'Inicio',
+    fechaFin: 'Fin',
   };
 
   private readonly currencyCols = new Set([

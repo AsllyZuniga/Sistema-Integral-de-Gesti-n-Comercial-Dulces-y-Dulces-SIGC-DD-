@@ -10,6 +10,7 @@ import {
   EventEmitter,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
 import { VentasTablaGraficaComponent } from '../ventas/ui/ventas-tabla-grafica.component';
 import { ImpactosService, ImpactosFiltros } from './services/impactos.service';
@@ -24,7 +25,7 @@ import { DashboardFilters } from '../../../../shared/components/filters/filters.
 @Component({
   selector: 'app-impactos',
   standalone: true,
-  imports: [CommonModule, VentasTablaGraficaComponent],
+  imports: [CommonModule, FormsModule, VentasTablaGraficaComponent],
   templateUrl: './impactos.component.html',
   styleUrls: ['./impactos.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -33,10 +34,11 @@ import { DashboardFilters } from '../../../../shared/components/filters/filters.
 export class ImpactosComponent implements OnInit, OnDestroy {
   impactosViews = IMPACTOS_VIEWS;
   activeImpactosView = 'vendedor';
+  activePeriodo: 'MENSUAL' | 'SEMANAL' | 'AMBOS' = 'MENSUAL';
 
-  proveedorColumns = ['proveedor', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
-  categoriaColumns = ['categoria', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
-  vendedorColumns = ['vendedor', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
+  vendedorColumns = ['vendedor', 'tipoPeriodo', 'fechaInicio', 'fechaFin', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
+  proveedorColumns = ['vendedor', 'proveedor', 'tipoPeriodo', 'fechaInicio', 'fechaFin', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
+  categoriaColumns = ['vendedor', 'categoria', 'tipoPeriodo', 'fechaInicio', 'fechaFin', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
 
   proveedorData: ImpactoProveedorRow[] = [];
   categoriaData: ImpactoCategoriaRow[] = [];
@@ -96,16 +98,27 @@ export class ImpactosComponent implements OnInit, OnDestroy {
     this.cargarImpactos();
   }
 
+  setPeriodo(tipo: 'MENSUAL' | 'SEMANAL' | 'AMBOS'): void {
+    this.activePeriodo = tipo;
+    this.cargarImpactos();
+  }
+
   private buildImpactosFiltros(): ImpactosFiltros {
-    if (!this._filtros) return {};
-    const f = this._filtros;
-    return {
-      fechaInicio: f.fechaInicio,
-      fechaFin: f.fechaFin,
-      vendedor: f.vendedor,
-      proveedor: f.proveedor,
-      categoria: f.categoria,
-    };
+    const filtros: ImpactosFiltros = {};
+    if (this._filtros) {
+      const f = this._filtros;
+      if (f.fechaInicio) filtros.fechaInicio = f.fechaInicio;
+      if (f.fechaFin) filtros.fechaFin = f.fechaFin;
+      if (f.vendedor) filtros.vendedor = f.vendedor;
+      if (f.proveedor) filtros.proveedor = f.proveedor;
+      if (f.categoria) filtros.categoria = f.categoria;
+    }
+    if (this.activePeriodo === 'AMBOS') {
+      filtros.tipoPeriodo = 'SEMANAL,MENSUAL';
+    } else {
+      filtros.tipoPeriodo = this.activePeriodo;
+    }
+    return filtros;
   }
 
   private cargarImpactos(): void {
@@ -116,30 +129,27 @@ export class ImpactosComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((res) => {
         const todos = res.rows as ImpactoProveedorRow[];
-        const consolidados = this.fusionarDuplicadosProveedor(todos);
-        this.proveedorData = consolidados;
+        this.proveedorData = todos;
 
-        this.totalCuotaProveedores = consolidados.reduce(
+        this.totalCuotaProveedores = todos.reduce(
           (sum, item) => sum + (Number(item?.cuotaImpactos ?? 0) || 0),
           0,
         );
-        this.totalAcumuladoProveedores = consolidados.reduce(
+        this.totalAcumuladoProveedores = todos.reduce(
           (sum, item) => sum + (Number(item?.impactos ?? 0) || 0),
           0,
         );
 
-        const topProveedores = [...consolidados]
-          .sort((a, b) => (Number(b?.impactos ?? 0) || 0) - (Number(a?.impactos ?? 0) || 0))
+        const chartData = this.agruparPorDimension(todos, 'proveedor');
+        const topProveedores = [...chartData]
+          .sort((a, b) => b.value - a.value)
           .slice(0, 15);
 
         this.totalTopProveedores = topProveedores.reduce(
-          (sum, item) => sum + (Number(item?.impactos ?? 0) || 0),
+          (sum, item) => sum + item.value,
           0,
         );
-        this.proveedorChartData = topProveedores.map((d) => ({
-          name: d.proveedor,
-          value: d.impactos,
-        }));
+        this.proveedorChartData = topProveedores;
         this.cdr.markForCheck();
         this.emitirResumenCambio();
       });
@@ -149,30 +159,27 @@ export class ImpactosComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((res) => {
         const todos = res.rows as ImpactoCategoriaRow[];
-        const consolidados = this.fusionarDuplicadosCategoria(todos);
-        this.categoriaData = consolidados;
+        this.categoriaData = todos;
 
-        this.totalCuotaCategorias = consolidados.reduce(
+        this.totalCuotaCategorias = todos.reduce(
           (sum, item) => sum + (Number(item?.cuotaImpactos ?? 0) || 0),
           0,
         );
-        this.totalAcumuladoCategorias = consolidados.reduce(
+        this.totalAcumuladoCategorias = todos.reduce(
           (sum, item) => sum + (Number(item?.impactos ?? 0) || 0),
           0,
         );
 
-        const topCategorias = [...consolidados]
-          .sort((a, b) => (Number(b?.impactos ?? 0) || 0) - (Number(a?.impactos ?? 0) || 0))
+        const chartData = this.agruparPorDimension(todos, 'categoria');
+        const topCategorias = [...chartData]
+          .sort((a, b) => b.value - a.value)
           .slice(0, 15);
 
         this.totalTopCategorias = topCategorias.reduce(
-          (sum, item) => sum + (Number(item?.impactos ?? 0) || 0),
+          (sum, item) => sum + item.value,
           0,
         );
-        this.categoriaChartData = topCategorias.map((d) => ({
-          name: d.categoria,
-          value: d.impactos,
-        }));
+        this.categoriaChartData = topCategorias;
         this.cdr.markForCheck();
         this.emitirResumenCambio();
       });
@@ -182,13 +189,12 @@ export class ImpactosComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((res) => {
         const todos = res.rows as ImpactoVendedorRow[];
-        const consolidados = this.fusionarDuplicadosVendedor(todos);
         const filtrados = this.codigosVendedores.length
-          ? consolidados.filter((d) => {
+          ? todos.filter((d) => {
               const codigo = String(d.vendedor).split(' - ')[0]?.trim();
               return this.codigosVendedores.includes(codigo);
             })
-          : consolidados;
+          : todos;
 
         this.vendedorData = filtrados;
 
@@ -201,72 +207,33 @@ export class ImpactosComponent implements OnInit, OnDestroy {
           0,
         );
 
-        const topVendedores = [...filtrados]
-          .sort((a, b) => (Number(b?.impactos ?? 0) || 0) - (Number(a?.impactos ?? 0) || 0))
+        const chartData = this.agruparPorDimension(filtrados, 'vendedor');
+        const topVendedores = [...chartData]
+          .sort((a, b) => b.value - a.value)
           .slice(0, 15);
 
         this.totalTopVendedores = topVendedores.reduce(
-          (sum, item) => sum + (Number(item?.impactos ?? 0) || 0),
+          (sum, item) => sum + item.value,
           0,
         );
-        this.vendedorChartData = topVendedores.map((d) => ({
-          name: d.vendedor,
-          value: d.impactos,
-        }));
+        this.vendedorChartData = topVendedores;
         this.cdr.markForCheck();
         this.emitirResumenCambio();
       });
   }
 
-  private fusionarDuplicadosVendedor(rows: ImpactoVendedorRow[]): ImpactoVendedorRow[] {
-    const merged = new Map<string, ImpactoVendedorRow>();
-    rows.forEach((row) => {
-      const existing = merged.get(row.vendedor);
-      if (existing) {
-        existing.cuotaImpactos += row.cuotaImpactos;
-        existing.impactos += row.impactos;
-        existing.porcCump = existing.cuotaImpactos > 0
-          ? Math.round((existing.impactos / existing.cuotaImpactos) * 1000) / 10 : 0;
-        existing.faltan = Math.max(existing.cuotaImpactos - existing.impactos, 0);
-      } else {
-        merged.set(row.vendedor, { ...row });
-      }
+  private agruparPorDimension(
+    rows: ImpactoVendedorRow[] | ImpactoProveedorRow[] | ImpactoCategoriaRow[],
+    dim: 'vendedor' | 'proveedor' | 'categoria',
+  ): { name: string; value: number }[] {
+    const map = new Map<string, number>();
+    rows.forEach((row: any) => {
+      const key = row[dim] as string;
+      if (!key) return;
+      const current = map.get(key) ?? 0;
+      map.set(key, current + (Number(row.impactos ?? 0) || 0));
     });
-    return Array.from(merged.values());
-  }
-
-  private fusionarDuplicadosProveedor(rows: ImpactoProveedorRow[]): ImpactoProveedorRow[] {
-    const merged = new Map<string, ImpactoProveedorRow>();
-    rows.forEach((row) => {
-      const existing = merged.get(row.proveedor);
-      if (existing) {
-        existing.cuotaImpactos += row.cuotaImpactos;
-        existing.impactos += row.impactos;
-        existing.porcCump = existing.cuotaImpactos > 0
-          ? Math.round((existing.impactos / existing.cuotaImpactos) * 1000) / 10 : 0;
-        existing.faltan = Math.max(existing.cuotaImpactos - existing.impactos, 0);
-      } else {
-        merged.set(row.proveedor, { ...row });
-      }
-    });
-    return Array.from(merged.values());
-  }
-
-  private fusionarDuplicadosCategoria(rows: ImpactoCategoriaRow[]): ImpactoCategoriaRow[] {
-    const merged = new Map<string, ImpactoCategoriaRow>();
-    rows.forEach((row) => {
-      const existing = merged.get(row.categoria);
-      if (existing) {
-        existing.cuotaImpactos += row.cuotaImpactos;
-        existing.impactos += row.impactos;
-        existing.porcCump = existing.cuotaImpactos > 0
-          ? Math.round((existing.impactos / existing.cuotaImpactos) * 1000) / 10 : 0;
-        existing.faltan = Math.max(existing.cuotaImpactos - existing.impactos, 0);
-      } else {
-        merged.set(row.categoria, { ...row });
-      }
-    });
-    return Array.from(merged.values());
+    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
   }
 
   private emitirResumenCambio(): void {

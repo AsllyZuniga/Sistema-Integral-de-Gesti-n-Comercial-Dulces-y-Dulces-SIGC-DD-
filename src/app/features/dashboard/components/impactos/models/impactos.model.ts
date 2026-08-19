@@ -3,33 +3,32 @@ export interface ImpactosViewOption {
   label: string;
 }
 
-export interface ImpactoProveedorRow {
-  proveedor: string;
-  cuotaImpactos: number;
-  impactos: number;
-  porcCump: number;
-  faltan: number;
-}
-
-export interface ImpactoCategoriaRow {
-  categoria: string;
-  cuotaImpactos: number;
-  impactos: number;
-  porcCump: number;
-  faltan: number;
-}
-
-export interface ImpactoVendedorRow {
+export interface ImpactoBaseRow {
   vendedor: string;
+  tipoPeriodo: string;
+  fechaInicio: string;
+  fechaFin: string;
   cuotaImpactos: number;
   impactos: number;
   porcCump: number;
   faltan: number;
 }
 
-export type ImpactoRow = ImpactoProveedorRow | ImpactoCategoriaRow | ImpactoVendedorRow;
+export interface ImpactoVendedorRow extends ImpactoBaseRow {}
+
+export interface ImpactoProveedorRow extends ImpactoBaseRow {
+  proveedor: string;
+}
+
+export interface ImpactoCategoriaRow extends ImpactoBaseRow {
+  categoria: string;
+}
+
+export type ImpactoRow = ImpactoVendedorRow | ImpactoProveedorRow | ImpactoCategoriaRow;
 
 export interface ImpactosResponse {
-  rows: ImpactoRow[];
+  success: boolean;
+  tipo: string;
   total: number;
+  rows: ImpactoRow[];
 }

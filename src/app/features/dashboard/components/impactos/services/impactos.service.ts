@@ -45,19 +45,34 @@ export class ImpactosService {
   getImpactosPorVendedor(filtros?: ImpactosFiltros): Observable<ImpactosResponse> {
     return this.http
       .get<ImpactosResponse>(`${this.apiUrl}/vendedores`, { params: this.buildParams(filtros) })
-      .pipe(map((res) => ({ rows: res.rows ?? [], total: res.total ?? 0 })));
+      .pipe(map((res) => ({
+        success: res.success ?? true,
+        tipo: res.tipo ?? 'vendedores',
+        rows: res.rows ?? [],
+        total: res.total ?? 0,
+      })));
   }
 
   getImpactosPorProveedor(filtros?: ImpactosFiltros): Observable<ImpactosResponse> {
     return this.http
       .get<ImpactosResponse>(`${this.apiUrl}/proveedores`, { params: this.buildParams(filtros) })
-      .pipe(map((res) => ({ rows: res.rows ?? [], total: res.total ?? 0 })));
+      .pipe(map((res) => ({
+        success: res.success ?? true,
+        tipo: res.tipo ?? 'proveedores',
+        rows: res.rows ?? [],
+        total: res.total ?? 0,
+      })));
   }
 
   getImpactosPorCategoria(filtros?: ImpactosFiltros): Observable<ImpactosResponse> {
     return this.http
       .get<ImpactosResponse>(`${this.apiUrl}/categorias`, { params: this.buildParams(filtros) })
-      .pipe(map((res) => ({ rows: res.rows ?? [], total: res.total ?? 0 })));
+      .pipe(map((res) => ({
+        success: res.success ?? true,
+        tipo: res.tipo ?? 'categorias',
+        rows: res.rows ?? [],
+        total: res.total ?? 0,
+      })));
   }
 }
 

@@ -1,5 +1,39 @@
 /* impactos styles - uses global .chart-box .dynamic-panel .tabs .dynamic-content */
 
+.impactos-filtros {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+.impactos-filtros label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #314457;
+}
+
+.impactos-filtros select {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid #cfdae7;
+  background: #ffffff;
+  font-size: 13px;
+  color: #1959a8;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+}
+
+.impactos-filtros select:focus {
+  border-color: #1959a8;
+  box-shadow: 0 0 0 2px rgba(25, 89, 168, 0.15);
+}
+
 .grafica-container {
   display: flex;
   flex-direction: column;
