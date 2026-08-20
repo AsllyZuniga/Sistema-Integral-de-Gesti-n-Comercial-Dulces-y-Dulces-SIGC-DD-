@@ -15,6 +15,7 @@ import { VentasTablaGraficaComponent } from '../ventas/ui/ventas-tabla-grafica.c
 import { ImpactosService, ImpactosFiltros } from './services/impactos.service';
 import { IMPACTOS_VIEWS } from './config/impactos-view.config';
 import {
+  ImpactoBaseRow,
   ImpactoCategoriaRow,
   ImpactoProveedorRow,
   ImpactoVendedorRow,
@@ -35,8 +36,8 @@ export class ImpactosComponent implements OnInit, OnDestroy {
   activeImpactosView = 'vendedor';
 
   vendedorColumns = ['vendedor', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
-  proveedorColumns = ['vendedor', 'proveedor', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
-  categoriaColumns = ['vendedor', 'categoria', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
+  proveedorColumns = ['proveedor', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
+  categoriaColumns = ['categoria', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
 
   proveedorData: ImpactoProveedorRow[] = [];
   categoriaData: ImpactoCategoriaRow[] = [];
@@ -117,18 +118,20 @@ export class ImpactosComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((res) => {
         const todos = res.rows as ImpactoProveedorRow[];
-        this.proveedorData = todos;
+        const filtrados = this.filtrarPorCodigosVendedores(todos);
+        const consolidados = this.consolidarPorProveedor(filtrados);
+        this.proveedorData = consolidados;
 
-        this.totalCuotaProveedores = todos.reduce(
+        this.totalCuotaProveedores = consolidados.reduce(
           (sum, item) => sum + (Number(item?.cuotaImpactos ?? 0) || 0),
           0,
         );
-        this.totalAcumuladoProveedores = todos.reduce(
+        this.totalAcumuladoProveedores = consolidados.reduce(
           (sum, item) => sum + (Number(item?.impactos ?? 0) || 0),
           0,
         );
 
-        const chartData = this.agruparPorDimension(todos, 'proveedor');
+        const chartData = this.agruparPorDimension(consolidados, 'proveedor');
         const topProveedores = [...chartData]
           .sort((a, b) => b.value - a.value)
           .slice(0, 15);
@@ -147,18 +150,20 @@ export class ImpactosComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((res) => {
         const todos = res.rows as ImpactoCategoriaRow[];
-        this.categoriaData = todos;
+        const filtrados = this.filtrarPorCodigosVendedores(todos);
+        const consolidados = this.consolidarPorCategoria(filtrados);
+        this.categoriaData = consolidados;
 
-        this.totalCuotaCategorias = todos.reduce(
+        this.totalCuotaCategorias = consolidados.reduce(
           (sum, item) => sum + (Number(item?.cuotaImpactos ?? 0) || 0),
           0,
         );
-        this.totalAcumuladoCategorias = todos.reduce(
+        this.totalAcumuladoCategorias = consolidados.reduce(
           (sum, item) => sum + (Number(item?.impactos ?? 0) || 0),
           0,
         );
 
-        const chartData = this.agruparPorDimension(todos, 'categoria');
+        const chartData = this.agruparPorDimension(consolidados, 'categoria');
         const topCategorias = [...chartData]
           .sort((a, b) => b.value - a.value)
           .slice(0, 15);
@@ -177,12 +182,7 @@ export class ImpactosComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((res) => {
         const todos = res.rows as ImpactoVendedorRow[];
-        const filtrados = this.codigosVendedores.length
-          ? todos.filter((d) => {
-              const codigo = String(d.vendedor).split(' - ')[0]?.trim();
-              return this.codigosVendedores.includes(codigo);
-            })
-          : todos;
+        const filtrados = this.filtrarPorCodigosVendedores(todos);
 
         this.vendedorData = filtrados;
 
@@ -208,6 +208,86 @@ export class ImpactosComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
         this.emitirResumenCambio();
       });
+  }
+
+  private filtrarPorCodigosVendedores<T extends ImpactoBaseRow>(rows: T[]): T[] {
+    if (!this.codigosVendedores.length) return rows;
+    return rows.filter((d) => {
+      const codigo = String(d.vendedor).split(' - ')[0]?.trim();
+      return this.codigosVendedores.includes(codigo);
+    });
+  }
+
+  private consolidarPorProveedor(rows: ImpactoProveedorRow[]): ImpactoProveedorRow[] {
+    const map = new Map<string, { cuotaImpactos: number; impactos: number }>();
+
+    for (const row of rows) {
+      const key = row.proveedor;
+      if (!key) continue;
+
+      const cuota = Number(row.cuotaImpactos ?? 0);
+      const impactos = Number(row.impactos ?? 0);
+
+      const existing = map.get(key);
+      if (existing) {
+        existing.cuotaImpactos += cuota;
+        existing.impactos += impactos;
+      } else {
+        map.set(key, { cuotaImpactos: cuota, impactos });
+      }
+    }
+
+    return Array.from(map.entries()).map(([key, item]) => {
+      const c = item.cuotaImpactos;
+      const i = item.impactos;
+      return {
+        vendedor: '',
+        tipoPeriodo: '',
+        fechaInicio: '',
+        fechaFin: '',
+        proveedor: key,
+        cuotaImpactos: c,
+        impactos: i,
+        porcCump: c > 0 ? Math.round((i / c) * 1000) / 10 : 0,
+        faltan: Math.max(c - i, 0),
+      };
+    });
+  }
+
+  private consolidarPorCategoria(rows: ImpactoCategoriaRow[]): ImpactoCategoriaRow[] {
+    const map = new Map<string, { cuotaImpactos: number; impactos: number }>();
+
+    for (const row of rows) {
+      const key = row.categoria;
+      if (!key) continue;
+
+      const cuota = Number(row.cuotaImpactos ?? 0);
+      const impactos = Number(row.impactos ?? 0);
+
+      const existing = map.get(key);
+      if (existing) {
+        existing.cuotaImpactos += cuota;
+        existing.impactos += impactos;
+      } else {
+        map.set(key, { cuotaImpactos: cuota, impactos });
+      }
+    }
+
+    return Array.from(map.entries()).map(([key, item]) => {
+      const c = item.cuotaImpactos;
+      const i = item.impactos;
+      return {
+        vendedor: '',
+        tipoPeriodo: '',
+        fechaInicio: '',
+        fechaFin: '',
+        categoria: key,
+        cuotaImpactos: c,
+        impactos: i,
+        porcCump: c > 0 ? Math.round((i / c) * 1000) / 10 : 0,
+        faltan: Math.max(c - i, 0),
+      };
+    });
   }
 
   private agruparPorDimension(
