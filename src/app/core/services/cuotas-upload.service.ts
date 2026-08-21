@@ -146,6 +146,36 @@ export class CuotasUploadService {
       );
   }
 
+  uploadImpactosCliente(archivo: File): Observable<CuotasUploadResponse> {
+    const formData = new FormData();
+    formData.append('archivo', archivo);
+
+    return this.http.post<CuotasUploadResponse>(
+      `${this.apiUrl}/impactos-import/clientes/cargar`,
+      formData,
+    );
+  }
+
+  uploadImpactosProveedor(archivo: File): Observable<CuotasUploadResponse> {
+    const formData = new FormData();
+    formData.append('archivo', archivo);
+
+    return this.http.post<CuotasUploadResponse>(
+      `${this.apiUrl}/impactos-import/proveedores/cargar`,
+      formData,
+    );
+  }
+
+  uploadImpactosCategoria(archivo: File): Observable<CuotasUploadResponse> {
+    const formData = new FormData();
+    formData.append('archivo', archivo);
+
+    return this.http.post<CuotasUploadResponse>(
+      `${this.apiUrl}/impactos-import/categorias/cargar`,
+      formData,
+    );
+  }
+
   /**
    * Elimina cuotas (mensual, semanal, diaria) de un vendedor.
    * Sin fechas, elimina todo el histórico; con fechas, solo las cuotas

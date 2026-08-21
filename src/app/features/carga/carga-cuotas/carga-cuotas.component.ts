@@ -14,6 +14,9 @@ import { CuotaVendedorUploadComponent } from './cuota-vendedor-upload/cuota-vend
 import { CuotaProveedorUploadComponent } from './cuota-proveedor-upload/cuota-proveedor-upload.component';
 import { CuotaCategoriaUploadComponent } from './cuota-categoria-upload/cuota-categoria-upload.component';
 import { CuotaCanalUploadComponent } from './cuota-canal-upload/cuota-canal-upload.component';
+import { ImpactoClienteUploadComponent } from './impacto-cliente-upload/impacto-cliente-upload.component';
+import { ImpactoProveedorUploadComponent } from './impacto-proveedor-upload/impacto-proveedor-upload.component';
+import { ImpactoCategoriaUploadComponent } from './impacto-categoria-upload/impacto-categoria-upload.component';
 
 import {
   CuotasUploadService,
@@ -32,6 +35,9 @@ import {
     CuotaProveedorUploadComponent,
     CuotaCategoriaUploadComponent,
     CuotaCanalUploadComponent,
+    ImpactoClienteUploadComponent,
+    ImpactoProveedorUploadComponent,
+    ImpactoCategoriaUploadComponent,
   ],
   templateUrl: './carga-cuotas.component.html',
   styleUrls: ['./carga-cuotas.component.css'],
@@ -41,13 +47,13 @@ export class CargaCuotasComponent implements OnInit {
 
   sidebarColapsado = false;
   pestanaActiva: 'cargar' | 'eliminar' | 'editar' = 'cargar';
-  tipoCuota: 'vendedor' | 'proveedor' | 'categoria' | 'canal' = 'vendedor';
+  tipoCuota: 'vendedor' | 'proveedor' | 'categoria' | 'canal' | 'impactos' = 'vendedor';
 
   setPestana(pestana: 'cargar' | 'eliminar' | 'editar'): void {
     this.pestanaActiva = pestana;
   }
 
-  setTipoCuota(tipo: 'vendedor' | 'proveedor' | 'categoria' | 'canal'): void {
+  setTipoCuota(tipo: 'vendedor' | 'proveedor' | 'categoria' | 'canal' | 'impactos'): void {
     this.tipoCuota = tipo;
   }
 
