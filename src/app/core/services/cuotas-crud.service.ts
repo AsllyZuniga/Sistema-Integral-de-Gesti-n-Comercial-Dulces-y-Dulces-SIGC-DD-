@@ -10,6 +10,11 @@ export interface CuotaRegistro {
   id_usuario: number | string;
   nombreCategoria?: string;
   nombreProveedor?: string;
+  _codigoVendedor?: string;
+  _nombreVendedor?: string;
+  _nombreCategoria?: string;
+  _nombreProveedor?: string;
+  _tipoPeriodo?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -156,5 +161,25 @@ export class CuotasCrudService {
 
   actualizarCuotaProveedor(id: number, cuota: number): Observable<any> {
     return this.http.put<any>(`${this.apiUrl}/vendedor-cuota-proveedor/${id}`, { cuota });
+  }
+
+  listarImpactos(tipo: 'clientes' | 'categorias' | 'proveedores', filtros?: {
+    fechaInicio?: string;
+    fechaFin?: string;
+    tipoPeriodo?: string;
+    vendedor?: string;
+  }): Observable<any> {
+    let params = '';
+    const parts: string[] = [];
+    if (filtros?.fechaInicio) parts.push(`fechaInicio=${filtros.fechaInicio}`);
+    if (filtros?.fechaFin) parts.push(`fechaFin=${filtros.fechaFin}`);
+    if (filtros?.tipoPeriodo) parts.push(`tipoPeriodo=${filtros.tipoPeriodo}`);
+    if (filtros?.vendedor) parts.push(`vendedor=${filtros.vendedor}`);
+    if (parts.length) params = '?' + parts.join('&');
+    return this.http.get<any>(`${this.apiUrl}/impactos-import/${tipo}${params}`);
+  }
+
+  actualizarImpacto(tipo: 'clientes' | 'categorias' | 'proveedores', id: number, cuota: number): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/impactos-import/${tipo}/${id}`, { cuota });
   }
 }

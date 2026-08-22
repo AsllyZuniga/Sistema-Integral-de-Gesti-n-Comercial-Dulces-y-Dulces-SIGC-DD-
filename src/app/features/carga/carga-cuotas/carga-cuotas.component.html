@@ -571,6 +571,9 @@
                     <option value="dia">Diaria</option>
                     <option value="categoria">Categoría</option>
                     <option value="proveedor">Proveedor</option>
+                    <option value="impacto_cliente">Impactos por Cliente</option>
+                    <option value="impacto_proveedor">Impactos por Proveedor</option>
+                    <option value="impacto_categoria">Impactos por Categoría</option>
                   </select>
                 </div>
               </div>
@@ -664,7 +667,18 @@
                     @if (tipoCuotaEditar === 'proveedor') {
                       <th>Proveedor</th>
                     }
+                    @if (tipoCuotaEditar.startsWith('impacto_')) {
+                      @if (tipoCuotaEditar === 'impacto_proveedor') {
+                        <th>Proveedor</th>
+                      }
+                      @if (tipoCuotaEditar === 'impacto_categoria') {
+                        <th>Categoría</th>
+                      }
+                    }
                     <th>Período</th>
+                    @if (tipoCuotaEditar.startsWith('impacto_')) {
+                      <th>Tipo</th>
+                    }
                     <th>Valor actual</th>
                     <th>Nuevo valor</th>
                     <th></th>
@@ -679,13 +693,24 @@
                       @if (tipoCuotaEditar === 'proveedor') {
                         <td>{{ cuota.nombreProveedor }}</td>
                       }
+                      @if (tipoCuotaEditar.startsWith('impacto_')) {
+                        @if (tipoCuotaEditar === 'impacto_proveedor') {
+                          <td>{{ cuota._nombreProveedor ?? '—' }}</td>
+                        }
+                        @if (tipoCuotaEditar === 'impacto_categoria') {
+                          <td>{{ cuota._nombreCategoria ?? '—' }}</td>
+                        }
+                      }
                       <td>{{ cuota.fecha_inicio }} — {{ cuota.fecha_fin }}</td>
+                      @if (tipoCuotaEditar.startsWith('impacto_')) {
+                        <td>{{ cuota._tipoPeriodo }}</td>
+                      }
                       <td>{{ cuota.monto | number: '1.0-0' }}</td>
                       <td>
                         @if (editandoCuotaId === cuota.id) {
                           <input
                             type="number"
-                            min="0"
+                            [attr.min]="tipoCuotaEditar.startsWith('impacto_') ? null : 0"
                             class="editar-input"
                             [(ngModel)]="valorEditado"
                             [disabled]="guardandoCuotaId === cuota.id"

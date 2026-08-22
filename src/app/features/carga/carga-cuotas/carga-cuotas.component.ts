@@ -97,7 +97,8 @@ export class CargaCuotasComponent implements OnInit {
   eliminandoCuotaIndividualId: number | null = null;
 
   // Editar cuotas de vendedor (mensual + semanal + diaria + categoría)
-  tipoCuotaEditar: 'mes' | 'semana' | 'dia' | 'categoria' | 'proveedor' = 'mes';
+  tipoCuotaEditar: 'mes' | 'semana' | 'dia' | 'categoria' | 'proveedor'
+               | 'impacto_cliente' | 'impacto_proveedor' | 'impacto_categoria' = 'mes';
   idUsuarioEditar = '';
   busquedaProveedorEditar = '';
   fechaInicioEditar: string | null = null;
@@ -733,7 +734,13 @@ export class CargaCuotasComponent implements OnInit {
           ? 'de categoría'
           : this.tipoCuotaEditar === 'proveedor'
             ? 'de proveedor'
-            : 'diaria';
+            : this.tipoCuotaEditar === 'impacto_cliente'
+              ? 'de impactos por cliente'
+              : this.tipoCuotaEditar === 'impacto_proveedor'
+                ? 'de impactos por proveedor'
+                : this.tipoCuotaEditar === 'impacto_categoria'
+                  ? 'de impactos por categoría'
+                  : 'diaria';
   }
 
   get vendedorSeleccionadoEditar(): any {
@@ -836,6 +843,50 @@ export class CargaCuotasComponent implements OnInit {
       return;
     }
 
+    if (
+      this.tipoCuotaEditar === 'impacto_cliente' ||
+      this.tipoCuotaEditar === 'impacto_proveedor' ||
+      this.tipoCuotaEditar === 'impacto_categoria'
+    ) {
+      const tipoApi: 'clientes' | 'categorias' | 'proveedores' =
+        this.tipoCuotaEditar === 'impacto_cliente'
+          ? 'clientes'
+          : this.tipoCuotaEditar === 'impacto_proveedor'
+            ? 'proveedores'
+            : 'categorias';
+
+      const codigoVendedor = this.vendedorSeleccionadoEditar?.codigo_vendedor;
+
+      this.cargandoCuotasEditar = true;
+      this.cuotasEditar = [];
+      this.cd.detectChanges();
+
+      this.cuotasCrudService.listarImpactos(tipoApi, { vendedor: codigoVendedor }).subscribe({
+        next: (res: any) => {
+          this.cuotasEditar = (res.data ?? []).map((i: any) => ({
+            id: i.id,
+            monto: i.cuota,
+            fecha_inicio: i.fecha_inicio,
+            fecha_fin: i.fecha_fin,
+            id_usuario: i.id_vendedor,
+            _tipoPeriodo: i.tipo_periodo,
+            _codigoVendedor: i.codigo_vendedor,
+            _nombreVendedor: i.nombre_vendedor,
+            _nombreCategoria: i.nombre_categoria,
+            _nombreProveedor: i.nombre_proveedor,
+          }));
+          this.cargandoCuotasEditar = false;
+          this.cd.detectChanges();
+        },
+        error: () => {
+          this.cuotasEditar = [];
+          this.cargandoCuotasEditar = false;
+          this.cd.detectChanges();
+        },
+      });
+      return;
+    }
+
     this.cargandoCuotasEditar = true;
     this.cuotasEditar = [];
     this.cd.detectChanges();
@@ -874,7 +925,14 @@ export class CargaCuotasComponent implements OnInit {
     if (this.valorEditado === null || this.valorEditado === undefined) return false;
 
     const valor = Number(this.valorEditado);
-    if (Number.isNaN(valor) || valor < 0) return false;
+    if (Number.isNaN(valor)) return false;
+
+    const esImpacto =
+      this.tipoCuotaEditar === 'impacto_cliente' ||
+      this.tipoCuotaEditar === 'impacto_proveedor' ||
+      this.tipoCuotaEditar === 'impacto_categoria';
+
+    if (!esImpacto && valor < 0) return false;
 
     return valor !== Number(cuota.monto);
   }
@@ -883,8 +941,12 @@ export class CargaCuotasComponent implements OnInit {
     if (this.guardandoCuotaId !== null) return;
 
     const valor = Number(this.valorEditado);
+    const esImpacto =
+      this.tipoCuotaEditar === 'impacto_cliente' ||
+      this.tipoCuotaEditar === 'impacto_proveedor' ||
+      this.tipoCuotaEditar === 'impacto_categoria';
 
-    if (Number.isNaN(valor) || valor < 0) {
+    if (Number.isNaN(valor) || (!esImpacto && valor < 0)) {
       this.mensajeOperacionEditar = 'El nuevo valor debe ser un número mayor o igual a 0.';
       this.tipoOperacionEditar = 'error';
       this.cd.detectChanges();
@@ -905,7 +967,13 @@ export class CargaCuotasComponent implements OnInit {
             ? this.cuotasCrudService.actualizarCuotaCategoria(cuota.id, valor)
             : this.tipoCuotaEditar === 'proveedor'
               ? this.cuotasCrudService.actualizarCuotaProveedor(cuota.id, valor)
-              : this.cuotasCrudService.actualizarCuotaDia(cuota.id, valor);
+              : this.tipoCuotaEditar === 'impacto_cliente'
+                ? this.cuotasCrudService.actualizarImpacto('clientes', cuota.id, valor)
+                : this.tipoCuotaEditar === 'impacto_proveedor'
+                  ? this.cuotasCrudService.actualizarImpacto('proveedores', cuota.id, valor)
+                  : this.tipoCuotaEditar === 'impacto_categoria'
+                    ? this.cuotasCrudService.actualizarImpacto('categorias', cuota.id, valor)
+                    : this.cuotasCrudService.actualizarCuotaDia(cuota.id, valor);
 
     actualizar$.subscribe({
       next: (res: any) => {
@@ -918,7 +986,9 @@ export class CargaCuotasComponent implements OnInit {
                 ? 'cuota'
                 : this.tipoCuotaEditar === 'proveedor'
                   ? 'cuotaProveedor'
-                  : 'cuota_dia';
+                  : this.tipoCuotaEditar.startsWith('impacto_')
+                    ? 'cuota'
+                    : 'cuota_dia';
 
         const nuevoValor =
           this.tipoCuotaEditar === 'proveedor'
