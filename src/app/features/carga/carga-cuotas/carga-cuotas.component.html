@@ -787,6 +787,46 @@
               </div>
             }
 
+            @if (tipoCuotaEditar === 'impacto_proveedor') {
+              <div class="delete-form-row editar-busqueda">
+                <div class="delete-date-group editar-busqueda-input">
+                  <label>
+                    <span class="material-symbols-rounded">search</span>
+                    Buscar proveedor
+                  </label>
+
+                  <div class="delete-date-input">
+                    <input
+                      type="text"
+                      [(ngModel)]="busquedaImpactoProveedorEditar"
+                      placeholder="Escriba el nombre del proveedor..."
+                      autocomplete="off"
+                    />
+                  </div>
+                </div>
+              </div>
+            }
+
+            @if (tipoCuotaEditar === 'impacto_categoria') {
+              <div class="delete-form-row editar-busqueda">
+                <div class="delete-date-group editar-busqueda-input">
+                  <label>
+                    <span class="material-symbols-rounded">search</span>
+                    Buscar categoría
+                  </label>
+
+                  <div class="delete-date-input">
+                    <input
+                      type="text"
+                      [(ngModel)]="busquedaImpactoCategoriaEditar"
+                      placeholder="Escriba el nombre de la categoría..."
+                      autocomplete="off"
+                    />
+                  </div>
+                </div>
+              </div>
+            }
+
             @if (mensajeOperacionEditar) {
               <div
                 class="delete-message"

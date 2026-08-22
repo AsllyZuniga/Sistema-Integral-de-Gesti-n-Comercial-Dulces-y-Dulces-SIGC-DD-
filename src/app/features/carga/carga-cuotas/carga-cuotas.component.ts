@@ -117,6 +117,8 @@ export class CargaCuotasComponent implements OnInit {
                | 'impacto_cliente' | 'impacto_proveedor' | 'impacto_categoria' = 'mes';
   idUsuarioEditar = '';
   busquedaProveedorEditar = '';
+  busquedaImpactoProveedorEditar = '';
+  busquedaImpactoCategoriaEditar = '';
   fechaInicioEditar: string | null = null;
   fechaFinEditar: string | null = null;
   cuotasEditar: CuotaRegistro[] = [];
@@ -976,6 +978,28 @@ export class CargaCuotasComponent implements OnInit {
       }
     }
 
+    if (this.tipoCuotaEditar === 'impacto_proveedor') {
+      const busqueda = this.busquedaImpactoProveedorEditar.trim().toLowerCase();
+      if (busqueda) {
+        resultado = resultado.filter((c) =>
+          String(c._nombreProveedor ?? '')
+            .toLowerCase()
+            .includes(busqueda),
+        );
+      }
+    }
+
+    if (this.tipoCuotaEditar === 'impacto_categoria') {
+      const busqueda = this.busquedaImpactoCategoriaEditar.trim().toLowerCase();
+      if (busqueda) {
+        resultado = resultado.filter((c) =>
+          String(c._nombreCategoria ?? '')
+            .toLowerCase()
+            .includes(busqueda),
+        );
+      }
+    }
+
     return resultado;
   }
 
@@ -985,6 +1009,8 @@ export class CargaCuotasComponent implements OnInit {
     this.editandoCuotaId = null;
     this.valorEditado = null;
     this.busquedaProveedorEditar = '';
+    this.busquedaImpactoProveedorEditar = '';
+    this.busquedaImpactoCategoriaEditar = '';
     this.cargarCuotasEditar();
   }
 
@@ -994,6 +1020,8 @@ export class CargaCuotasComponent implements OnInit {
     this.editandoCuotaId = null;
     this.valorEditado = null;
     this.busquedaProveedorEditar = '';
+    this.busquedaImpactoProveedorEditar = '';
+    this.busquedaImpactoCategoriaEditar = '';
     this.cargarCuotasEditar();
   }
 
