@@ -114,6 +114,35 @@
       }
 
       @if (pestanaActiva === 'eliminar') {
+        <div class="segmented-selector">
+          <button
+            type="button"
+            class="seg-btn"
+            [class.active]="tipoEliminar === 'vendedor'"
+            (click)="setTipoEliminar('vendedor')"
+          >
+            Vendedor
+          </button>
+          <button
+            type="button"
+            class="seg-btn"
+            [class.active]="tipoEliminar === 'proveedor'"
+            (click)="setTipoEliminar('proveedor')"
+          >
+            Proveedor/línea
+          </button>
+          <button
+            type="button"
+            class="seg-btn"
+            [class.active]="tipoEliminar === 'categoria'"
+            (click)="setTipoEliminar('categoria')"
+          >
+            Categoría
+          </button>
+        </div>
+
+        @switch (tipoEliminar) {
+          @case ('vendedor') {
         <!-- ELIMINAR CUOTAS DE VENDEDOR (mensual + semanal + diaria) -->
         <div class="delete-range-card vendedor-delete-card">
         <div class="delete-header">
@@ -351,7 +380,8 @@
           }
         </div>
       </div>
-
+          }
+          @case ('proveedor') {
       <!-- AL FINAL: ELIMINAR CUOTA PROVEEDOR / LÍNEA -->
       <div class="delete-range-card proveedor-delete-card">
         <div class="delete-header">
@@ -428,7 +458,8 @@
           }
         </div>
       </div>
-
+          }
+          @case ('categoria') {
       <!-- AL FINAL: ELIMINAR CUOTA CATEGORÍA -->
       <div class="delete-range-card categoria-delete-card">
         <div class="delete-header">
@@ -505,6 +536,8 @@
           }
         </div>
       </div>
+          }
+        }
       }
 
       @if (pestanaActiva === 'editar') {
