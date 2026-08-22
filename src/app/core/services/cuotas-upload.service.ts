@@ -212,4 +212,19 @@ export class CuotasUploadService {
 
     return this.http.delete<any>(`${this.apiUrl}/cuotas/usuario/lote`, { body });
   }
+
+  eliminarImpactos(
+    tipo: 'clientes' | 'categorias' | 'proveedores',
+    vendedor: string,
+    fechaInicio?: string | null,
+    fechaFin?: string | null,
+  ): Observable<any> {
+    let params = new HttpParams().set('vendedor', vendedor);
+    if (fechaInicio) params = params.set('fechaInicio', fechaInicio);
+    if (fechaFin) params = params.set('fechaFin', fechaFin);
+    return this.http.delete<any>(
+      `${this.apiUrl}/impactos-import/${tipo}`,
+      { params },
+    );
+  }
 }

@@ -46,7 +46,7 @@ export class CargaCuotasComponent implements OnInit {
   sidebarColapsado = false;
   pestanaActiva: 'cargar' | 'eliminar' | 'editar' = 'cargar';
   tipoCuota: 'vendedor' | 'proveedor' | 'categoria' = 'vendedor';
-  tipoEliminar: 'vendedor' | 'proveedor' | 'categoria' = 'vendedor';
+  tipoEliminar: 'vendedor' | 'proveedor' | 'categoria' | 'impactos' = 'vendedor';
 
   setPestana(pestana: 'cargar' | 'eliminar' | 'editar'): void {
     this.pestanaActiva = pestana;
@@ -56,7 +56,7 @@ export class CargaCuotasComponent implements OnInit {
     this.tipoCuota = tipo;
   }
 
-  setTipoEliminar(tipo: 'vendedor' | 'proveedor' | 'categoria'): void {
+  setTipoEliminar(tipo: 'vendedor' | 'proveedor' | 'categoria' | 'impactos'): void {
     this.tipoEliminar = tipo;
   }
 
@@ -91,6 +91,19 @@ export class CargaCuotasComponent implements OnInit {
   tipoOperacionCuotaVendedor: 'success' | 'error' | null = null;
   showConfirmCuotaVendedorModal = false;
   confirmInputCuotaVendedor = '';
+
+  // Eliminar cuotas de impactos
+  tipoEliminarImpacto: 'clientes' | 'proveedores' | 'categorias' = 'clientes';
+  seleccionarTodosVendedoresImpacto = false;
+  idsVendedoresImpacto: (string | number)[] = [];
+  vendedorSelectorImpactoAbierto = false;
+  fechaInicioImpacto: string | null = null;
+  fechaFinImpacto: string | null = null;
+  eliminandoImpacto = false;
+  mensajeOperacionImpacto: string | null = null;
+  tipoOperacionImpacto: 'success' | 'error' | null = null;
+  showConfirmImpactoModal = false;
+  confirmInputImpacto = '';
 
   // Histórico de cuotas del vendedor seleccionado (tabla individual)
   cuotasMesVendedor: CuotaRegistro[] = [];
@@ -722,6 +735,184 @@ export class CargaCuotasComponent implements OnInit {
           onExito(res?.message ?? `Cuotas eliminadas correctamente para ${ids.length} vendedores.`),
         error: onError,
       });
+  }
+
+  // ─────────────────────────────────────────────
+  // Eliminar cuotas de impactos
+  // ─────────────────────────────────────────────
+
+  get nombresVendedoresImpactoSeleccionados(): string {
+    if (this.seleccionarTodosVendedoresImpacto) {
+      return `todos los vendedores (${this.vendedores.length})`;
+    }
+    if (this.idsVendedoresImpacto.length === 0) {
+      return 'vendedor seleccionado';
+    }
+    const nombres = this.idsVendedoresImpacto
+      .map((id) => {
+        const v = this.vendedores.find(
+          (vend) => String(vend?.id_usuario ?? vend?.id) === String(id),
+        );
+        return v ? `${v.codigo_vendedor} — ${v.nombre}` : String(id);
+      })
+      .sort();
+    return nombres.length <= 3
+      ? nombres.join(', ')
+      : `${nombres.length} vendedores seleccionados`;
+  }
+
+  get resumenSeleccionVendedoresImpacto(): string {
+    if (this.seleccionarTodosVendedoresImpacto) {
+      return `Todos los vendedores (${this.vendedores.length})`;
+    }
+    if (this.idsVendedoresImpacto.length === 0) {
+      return 'Seleccione uno o varios vendedores';
+    }
+    if (this.idsVendedoresImpacto.length === 1) {
+      const v = this.vendedores.find(
+        (vend) => String(vend?.id_usuario ?? vend?.id) === String(this.idsVendedoresImpacto[0]),
+      );
+      return v ? `${v.codigo_vendedor} — ${v.nombre}` : '1 vendedor';
+    }
+    return `${this.idsVendedoresImpacto.length} vendedores seleccionados`;
+  }
+
+  get periodoImpactoSeleccionado(): string {
+    if (!this.fechaInicioImpacto && !this.fechaFinImpacto) {
+      return 'todo el histórico';
+    }
+    if (!this.fechaInicioImpacto || !this.fechaFinImpacto) {
+      return 'período incompleto';
+    }
+    return `${this.fechaInicioImpacto} — ${this.fechaFinImpacto}`;
+  }
+
+  onToggleVendedorSelectorImpactoAbierto(event: Event): void {
+    this.vendedorSelectorImpactoAbierto = (event.target as HTMLDetailsElement).open;
+  }
+
+  onToggleSeleccionarTodosVendedoresImpacto(): void {
+    this.onCambiarFiltroEliminarImpacto();
+    this.idsVendedoresImpacto = [];
+    this.mensajeOperacionImpacto = null;
+    this.tipoOperacionImpacto = null;
+  }
+
+  onToggleVendedorImpacto(vendedor: any): void {
+    if (this.seleccionarTodosVendedoresImpacto) return;
+    const id = vendedor?.id_usuario ?? vendedor?.id;
+    const idx = this.idsVendedoresImpacto.indexOf(id);
+    if (idx >= 0) {
+      this.idsVendedoresImpacto.splice(idx, 1);
+    } else {
+      this.idsVendedoresImpacto.push(id);
+    }
+    this.mensajeOperacionImpacto = null;
+    this.tipoOperacionImpacto = null;
+  }
+
+  estaVendedorImpactoSeleccionado(vendedor: any): boolean {
+    const id = vendedor?.id_usuario ?? vendedor?.id;
+    return this.idsVendedoresImpacto.some((v) => String(v) === String(id));
+  }
+
+  onCambiarFiltroEliminarImpacto(): void {
+    this.mensajeOperacionImpacto = null;
+    this.tipoOperacionImpacto = null;
+    this.cd.detectChanges();
+  }
+
+  openConfirmEliminarImpacto(): void {
+    if (!this.seleccionarTodosVendedoresImpacto && this.idsVendedoresImpacto.length === 0) {
+      this.mensajeOperacionImpacto = 'Seleccione al menos un vendedor.';
+      this.tipoOperacionImpacto = 'error';
+      this.cd.detectChanges();
+      return;
+    }
+
+    const tieneAlgunaFecha = !!this.fechaInicioImpacto || !!this.fechaFinImpacto;
+    const tieneAmbasFechas = !!this.fechaInicioImpacto && !!this.fechaFinImpacto;
+
+    if (tieneAlgunaFecha && !tieneAmbasFechas) {
+      this.mensajeOperacionImpacto =
+        'Seleccione fecha inicio y fecha fin, o deje ambas vacías para eliminar todo el histórico.';
+      this.tipoOperacionImpacto = 'error';
+      this.cd.detectChanges();
+      return;
+    }
+
+    if (tieneAmbasFechas && !this.esRangoFechasValido(this.fechaInicioImpacto!, this.fechaFinImpacto!)) {
+      this.mensajeOperacionImpacto = 'La fecha inicio no puede ser mayor que la fecha fin.';
+      this.tipoOperacionImpacto = 'error';
+      this.cd.detectChanges();
+      return;
+    }
+
+    this.mensajeOperacionImpacto = null;
+    this.tipoOperacionImpacto = null;
+    this.confirmInputImpacto = '';
+    this.showConfirmImpactoModal = true;
+    this.cd.detectChanges();
+  }
+
+  closeConfirmImpacto(): void {
+    if (this.eliminandoImpacto) return;
+    this.showConfirmImpactoModal = false;
+    this.confirmInputImpacto = '';
+    this.cd.detectChanges();
+  }
+
+  finalDeleteImpacto(): void {
+    if (this.confirmInputImpacto !== 'ELIMINAR') return;
+
+    const codigos: string[] = this.seleccionarTodosVendedoresImpacto
+      ? this.vendedores.map((v) => String(v.codigo_vendedor))
+      : this.idsVendedoresImpacto
+          .map((id) => {
+            const v = this.vendedores.find(
+              (vend) => String(vend?.id_usuario ?? vend?.id) === String(id),
+            );
+            return v ? String(v.codigo_vendedor) : null;
+          })
+          .filter((c): c is string => c !== null);
+
+    if (codigos.length === 0) return;
+
+    this.eliminandoImpacto = true;
+    this.cd.detectChanges();
+
+    const calls = codigos.map((codigo) =>
+      this.cuotasUploadService.eliminarImpactos(
+        this.tipoEliminarImpacto,
+        codigo,
+        this.fechaInicioImpacto ?? undefined,
+        this.fechaFinImpacto ?? undefined,
+      ),
+    );
+
+    forkJoin(calls).subscribe({
+      next: (results: any[]) => {
+        const totalEliminados = results.reduce((sum, r) => sum + (r?.eliminados ?? 0), 0);
+        this.showConfirmImpactoModal = false;
+        this.confirmInputImpacto = '';
+        this.eliminandoImpacto = false;
+        this.mensajeOperacionImpacto =
+          totalEliminados > 0
+            ? `${totalEliminados} impactos eliminados correctamente.`
+            : 'No hay impactos que coincidan con el filtro.';
+        this.tipoOperacionImpacto = 'success';
+        this.cd.detectChanges();
+      },
+      error: (err: any) => {
+        this.showConfirmImpactoModal = false;
+        this.confirmInputImpacto = '';
+        this.eliminandoImpacto = false;
+        this.mensajeOperacionImpacto =
+          this.extraerMensajeError(err) || 'Error al eliminar impactos.';
+        this.tipoOperacionImpacto = 'error';
+        this.cd.detectChanges();
+      },
+    });
   }
 
   // ─────────────────────────────────────────────
