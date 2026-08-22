@@ -72,43 +72,20 @@
           >
             Categoría
           </button>
-          <button
-            type="button"
-            class="seg-btn"
-            [class.active]="tipoCuota === 'canal'"
-            (click)="setTipoCuota('canal')"
-          >
-            Canal
-          </button>
-          <button
-            type="button"
-            class="seg-btn"
-            [class.active]="tipoCuota === 'impactos'"
-            (click)="setTipoCuota('impactos')"
-          >
-            Impactos
-          </button>
         </div>
 
         @switch (tipoCuota) {
           @case ('vendedor') {
             <app-cuota-vendedor-upload></app-cuota-vendedor-upload>
+            <app-impacto-cliente-upload></app-impacto-cliente-upload>
           }
           @case ('proveedor') {
             <app-cuota-proveedor-upload></app-cuota-proveedor-upload>
+            <app-impacto-proveedor-upload></app-impacto-proveedor-upload>
           }
           @case ('categoria') {
             <app-cuota-categoria-upload></app-cuota-categoria-upload>
-          }
-          @case ('canal') {
-            <app-cuota-canal-upload></app-cuota-canal-upload>
-          }
-          @case ('impactos') {
-            <div class="impactos-carga-panel">
-              <app-impacto-cliente-upload></app-impacto-cliente-upload>
-              <app-impacto-proveedor-upload></app-impacto-proveedor-upload>
-              <app-impacto-categoria-upload></app-impacto-categoria-upload>
-            </div>
+            <app-impacto-categoria-upload></app-impacto-categoria-upload>
           }
         }
       }
