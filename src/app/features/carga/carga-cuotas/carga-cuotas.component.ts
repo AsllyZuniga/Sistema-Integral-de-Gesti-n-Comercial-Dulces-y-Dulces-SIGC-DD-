@@ -48,6 +48,7 @@ export class CargaCuotasComponent implements OnInit {
   sidebarColapsado = false;
   pestanaActiva: 'cargar' | 'eliminar' | 'editar' = 'cargar';
   tipoCuota: 'vendedor' | 'proveedor' | 'categoria' | 'canal' | 'impactos' = 'vendedor';
+  tipoEliminar: 'vendedor' | 'proveedor' | 'categoria' = 'vendedor';
 
   setPestana(pestana: 'cargar' | 'eliminar' | 'editar'): void {
     this.pestanaActiva = pestana;
@@ -55,6 +56,10 @@ export class CargaCuotasComponent implements OnInit {
 
   setTipoCuota(tipo: 'vendedor' | 'proveedor' | 'categoria' | 'canal' | 'impactos'): void {
     this.tipoCuota = tipo;
+  }
+
+  setTipoEliminar(tipo: 'vendedor' | 'proveedor' | 'categoria'): void {
+    this.tipoEliminar = tipo;
   }
 
   // Eliminar cuota proveedor/línea
