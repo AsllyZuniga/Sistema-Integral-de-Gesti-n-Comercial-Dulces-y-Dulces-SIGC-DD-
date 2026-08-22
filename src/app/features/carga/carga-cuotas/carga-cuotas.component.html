@@ -116,6 +116,14 @@
           >
             Categoría
           </button>
+          <button
+            type="button"
+            class="seg-btn"
+            [class.active]="tipoEliminar === 'impactos'"
+            (click)="setTipoEliminar('impactos')"
+          >
+            Impactos
+          </button>
         </div>
 
         @switch (tipoEliminar) {
@@ -513,6 +521,151 @@
           }
         </div>
       </div>
+          }
+
+          @case ('impactos') {
+          <div class="delete-range-card">
+            <div class="delete-header">
+              <div class="delete-title">
+                <div class="delete-icon-box">
+                  <span class="material-symbols-rounded">delete_outline</span>
+                </div>
+                <div>
+                  <h3>Eliminar cuotas de impactos</h3>
+                  <p>
+                    Elimina las cuotas de impactos por tipo de dimensión. Deje las fechas vacías para
+                    eliminar todo el histórico.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="delete-body">
+              <!-- Tipo de dimensión -->
+              <div class="delete-form-row">
+                <div class="delete-date-group">
+                  <label>
+                    <span class="material-symbols-rounded">category</span>
+                    Tipo de dimensión
+                  </label>
+                  <div class="delete-date-input">
+                    <select [(ngModel)]="tipoEliminarImpacto">
+                      <option value="clientes">Impactos por Cliente</option>
+                      <option value="proveedores">Impactos por Proveedor</option>
+                      <option value="categorias">Impactos por Categoría</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Selector vendedores -->
+              <details
+                class="vendedor-selector"
+                [open]="vendedorSelectorImpactoAbierto"
+                (toggle)="onToggleVendedorSelectorImpactoAbierto($event)"
+              >
+                <summary>
+                  <span class="material-symbols-rounded summary-icon">group</span>
+                  <span class="summary-text">{{ resumenSeleccionVendedoresImpacto }}</span>
+                  <span class="material-symbols-rounded summary-chevron">expand_more</span>
+                </summary>
+
+                <div class="vendedor-checklist">
+                  @if (cargandoVendedores) {
+                    <p class="historico-loading">Cargando vendedores...</p>
+                  } @else if (vendedores.length === 0) {
+                    <p class="historico-empty">No hay vendedores registrados</p>
+                  } @else {
+                    <label class="vendedor-checklist-item vendedor-checklist-todos">
+                      <input
+                        type="checkbox"
+                        [(ngModel)]="seleccionarTodosVendedoresImpacto"
+                        (ngModelChange)="onToggleSeleccionarTodosVendedoresImpacto()"
+                      />
+                      Todos los vendedores
+                    </label>
+
+                    @for (vendedor of vendedores; track vendedor.id_usuario || vendedor.id) {
+                      <label class="vendedor-checklist-item">
+                        <input
+                          type="checkbox"
+                          [checked]="
+                            seleccionarTodosVendedoresImpacto || estaVendedorImpactoSeleccionado(vendedor)
+                          "
+                          [disabled]="seleccionarTodosVendedoresImpacto"
+                          (change)="onToggleVendedorImpacto(vendedor)"
+                        />
+                        @if (vendedor.codigo_vendedor) {
+                          <span class="vendedor-codigo">{{ vendedor.codigo_vendedor }}</span>
+                        }
+                        {{ vendedor.nombre ?? vendedor.username }}
+                      </label>
+                    }
+                  }
+                </div>
+              </details>
+
+              <!-- Fechas opcionales -->
+              <div class="delete-form-row">
+                <div class="delete-date-group">
+                  <label>
+                    <span class="material-symbols-rounded">calendar_month</span>
+                    Fecha inicio (opcional)
+                  </label>
+                  <div class="delete-date-input">
+                    <input
+                      type="date"
+                      [(ngModel)]="fechaInicioImpacto"
+                      (ngModelChange)="onCambiarFiltroEliminarImpacto()"
+                    />
+                  </div>
+                </div>
+
+                <div class="delete-date-group">
+                  <label>
+                    <span class="material-symbols-rounded">calendar_month</span>
+                    Fecha fin (opcional)
+                  </label>
+                  <div class="delete-date-input">
+                    <input
+                      type="date"
+                      [(ngModel)]="fechaFinImpacto"
+                      (ngModelChange)="onCambiarFiltroEliminarImpacto()"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Botón eliminar -->
+              <button
+                type="button"
+                class="btn-delete-range"
+                (click)="openConfirmEliminarImpacto()"
+                [disabled]="eliminandoImpacto"
+              >
+                @if (eliminandoImpacto) {
+                  <span class="spinner delete-spinner"></span>
+                } @else {
+                  <span class="material-symbols-rounded">delete</span>
+                }
+                Eliminar
+              </button>
+
+              <!-- Mensaje resultado -->
+              @if (mensajeOperacionImpacto) {
+                <div
+                  class="delete-message"
+                  [class.success]="tipoOperacionImpacto === 'success'"
+                  [class.error]="tipoOperacionImpacto === 'error'"
+                >
+                  <span class="material-symbols-rounded">
+                    {{ tipoOperacionImpacto === 'success' ? 'check_circle' : 'error_outline' }}
+                  </span>
+                  {{ mensajeOperacionImpacto }}
+                </div>
+              }
+            </div>
+          </div>
           }
         }
       }
@@ -971,6 +1124,94 @@
                 [disabled]="confirmInputCuotaCategoria !== 'ELIMINAR' || eliminandoCuotaCategoria"
               >
                 @if (eliminandoCuotaCategoria) {
+                  <span class="spinner"></span>
+                  Eliminando...
+                } @else {
+                  <span class="material-symbols-rounded">delete</span>
+                  Confirmar eliminación
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- MODAL CONFIRMAR IMPACTOS -->
+      @if (showConfirmImpactoModal) {
+        <div class="modal-backdrop">
+          <div class="delete-confirm-modal">
+            <div class="confirm-header">
+              <div class="confirm-icon">
+                <span class="material-symbols-rounded">warning</span>
+              </div>
+
+              <div>
+                <h3>Confirmar eliminación</h3>
+                <p>Esta acción no se puede deshacer.</p>
+              </div>
+            </div>
+
+            <div class="confirm-body">
+              <p>
+                ¿Está seguro de eliminar las cuotas de impactos
+                (<strong>{{ tipoEliminarImpacto }}</strong>) de
+                <strong>{{ nombresVendedoresImpactoSeleccionados }}</strong>
+                para <strong>{{ periodoImpactoSeleccionado }}</strong>?
+              </p>
+
+              <div class="confirm-range">
+                <span>
+                  <strong>Inicio:</strong>
+                  {{ fechaInicioImpacto ?? 'sin límite' }}
+                </span>
+                <span>
+                  <strong>Fin:</strong>
+                  {{ fechaFinImpacto ?? 'sin límite' }}
+                </span>
+              </div>
+
+              @if (seleccionarTodosVendedoresImpacto && !fechaInicioImpacto && !fechaFinImpacto) {
+                <p class="confirm-warning">
+                  Esta acción eliminará <strong>TODAS</strong> las cuotas históricas de impactos del
+                  tipo seleccionado para <strong>TODOS</strong> los vendedores. Esta operación no se
+                  puede deshacer.
+                </p>
+              } @else if (seleccionarTodosVendedoresImpacto) {
+                <p class="confirm-warning">
+                  Esta acción eliminará las cuotas de impactos del tipo seleccionado para
+                  <strong>TODOS</strong> los vendedores en el rango indicado.
+                </p>
+              } @else {
+                <p class="confirm-warning">
+                  Para confirmar, escriba <strong>ELIMINAR</strong>.
+                </p>
+              }
+
+              <input
+                type="text"
+                [(ngModel)]="confirmInputImpacto"
+                placeholder="ELIMINAR"
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="confirm-actions">
+              <button
+                type="button"
+                class="btn-cancel-delete"
+                (click)="closeConfirmImpacto()"
+                [disabled]="eliminandoImpacto"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                class="btn-confirm-delete"
+                (click)="finalDeleteImpacto()"
+                [disabled]="confirmInputImpacto !== 'ELIMINAR' || eliminandoImpacto"
+              >
+                @if (eliminandoImpacto) {
                   <span class="spinner"></span>
                   Eliminando...
                 } @else {
