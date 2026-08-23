@@ -1131,7 +1131,7 @@ export class CargaCuotasComponent implements OnInit {
     if (this.guardandoCuotaId !== null) return;
 
     this.editandoCuotaId = cuota.id;
-    this.valorEditado = cuota.monto ?? 0;
+    this.valorEditado = Math.round(Number(cuota.monto ?? 0));
     this.mensajeOperacionEditar = null;
     this.tipoOperacionEditar = null;
     this.cd.detectChanges();
@@ -1227,7 +1227,7 @@ export class CargaCuotasComponent implements OnInit {
         this.mensajeOperacionEditar =
           res?.message ?? `Cuota ${this.etiquetaTipoCuotaEditar} actualizada correctamente.`;
         this.tipoOperacionEditar = 'success';
-        this.cd.detectChanges();
+        setTimeout(() => this.cd.detectChanges(), 0);
       },
       error: (err: HttpErrorResponse) => {
         this.guardandoCuotaId = null;

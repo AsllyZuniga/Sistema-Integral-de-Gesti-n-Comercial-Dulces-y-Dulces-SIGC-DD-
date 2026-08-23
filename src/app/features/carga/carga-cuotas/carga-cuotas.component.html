@@ -908,6 +908,7 @@
                         @if (editandoCuotaId === cuota.id) {
                           <input
                             type="number"
+                            step="1"
                             [attr.min]="tipoCuotaEditar.startsWith('impacto_') ? null : 0"
                             class="editar-input"
                             [(ngModel)]="valorEditado"
