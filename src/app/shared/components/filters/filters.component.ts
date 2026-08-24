@@ -51,6 +51,8 @@ export class FiltersComponent implements OnChanges {
   @Input() lineas: FilterOption[] = [];
   @Input() vendedores: FilterOption[] = [];
   @Input() mostrarFiltroVendedor = true;
+  @Input() mostrarFiltroCiudad = true;
+  @Input() mostrarFiltroCanal = true;
   @Input() filtrosActivos: DashboardFilters | null = null;
 
   @Output() apply = new EventEmitter<DashboardFilters>();

@@ -1,5 +1,9 @@
 <section class="kpis">
-  <app-card [title]="labelVentaAcum" [value]="ventaMesVista ?? totales?.ventaAcum ?? 0"></app-card>
+  <app-card
+    [title]="labelVentaAcum"
+    [value]="ventaMesVista ?? totales?.ventaAcum ?? 0"
+    [isCurrency]="vista !== 'impactos'"
+  ></app-card>
   <app-card
     [title]="labelCuota"
     [value]="
@@ -10,9 +14,14 @@
           ? (totales?.cuotaSemana ?? totales?.cuotaMes ?? 0)
           : (totales?.cuotaMes ?? 0))
     "
+    [isCurrency]="vista !== 'impactos'"
   ></app-card>
   <app-card title="Cumplimiento" [value]="porcCumpVista ?? totales?.porcCump ?? 0"></app-card>
-  <app-card title="Proyección" [value]="proyeccionVista ?? totales?.proyeccionVenta ?? 0"></app-card>
+  <app-card
+    title="Proyección"
+    [value]="proyeccionVista ?? totales?.proyeccionVenta ?? 0"
+    [isCurrency]="vista !== 'impactos'"
+  ></app-card>
 </section>
 
 @if (vista === 'asignados') {
@@ -47,6 +56,10 @@
 
 @if (vista === 'impactos') {
   <section class="charts">
-    <app-impactos [codigosVendedores]="codigosVendedoresAsignados"></app-impactos>
+    <app-impactos
+      [codigosVendedores]="codigosVendedoresAsignados"
+      [filtrosActivos]="filtrosParaAnalisis"
+      (resumenCambio)="onResumenCambio($event)"
+    ></app-impactos>
   </section>
 }

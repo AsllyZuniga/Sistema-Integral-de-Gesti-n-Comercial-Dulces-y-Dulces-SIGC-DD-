@@ -146,6 +146,36 @@ export class CuotasUploadService {
       );
   }
 
+  uploadImpactosCliente(archivo: File): Observable<CuotasUploadResponse> {
+    const formData = new FormData();
+    formData.append('archivo', archivo);
+
+    return this.http.post<CuotasUploadResponse>(
+      `${this.apiUrl}/impactos-import/clientes/cargar`,
+      formData,
+    );
+  }
+
+  uploadImpactosProveedor(archivo: File): Observable<CuotasUploadResponse> {
+    const formData = new FormData();
+    formData.append('archivo', archivo);
+
+    return this.http.post<CuotasUploadResponse>(
+      `${this.apiUrl}/impactos-import/proveedores/cargar`,
+      formData,
+    );
+  }
+
+  uploadImpactosCategoria(archivo: File): Observable<CuotasUploadResponse> {
+    const formData = new FormData();
+    formData.append('archivo', archivo);
+
+    return this.http.post<CuotasUploadResponse>(
+      `${this.apiUrl}/impactos-import/categorias/cargar`,
+      formData,
+    );
+  }
+
   /**
    * Elimina cuotas (mensual, semanal, diaria) de un vendedor.
    * Sin fechas, elimina todo el histórico; con fechas, solo las cuotas
@@ -181,5 +211,20 @@ export class CuotasUploadService {
     }
 
     return this.http.delete<any>(`${this.apiUrl}/cuotas/usuario/lote`, { body });
+  }
+
+  eliminarImpactos(
+    tipo: 'clientes' | 'categorias' | 'proveedores',
+    vendedor: string,
+    fechaInicio?: string | null,
+    fechaFin?: string | null,
+  ): Observable<any> {
+    let params = new HttpParams().set('vendedor', vendedor);
+    if (fechaInicio) params = params.set('fechaInicio', fechaInicio);
+    if (fechaFin) params = params.set('fechaFin', fechaFin);
+    return this.http.delete<any>(
+      `${this.apiUrl}/impactos-import/${tipo}`,
+      { params },
+    );
   }
 }

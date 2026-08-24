@@ -18,9 +18,14 @@
           [chartData]="vendedorChartData"
           chartId="chart-impactos-vendedor"
           chartType="bar"
-          chartLabel="Impactos"
-          chartTitle="Impactos por Vendedor"
+          chartLabel="Top 15 Vendedores"
+          chartTitle="Top 15 Vendedores por Impactos"
+          kpiLabel="Suma top 15"
+          [kpiValue]="totalTopVendedoresLabel"
           [showLegend]="false"
+          [showTotals]="true"
+          [totalCuotaLabel]="totalCuotaVendedoresLabel"
+          [totalAcumuladoLabel]="totalAcumuladoVendedoresLabel"
         ></app-ventas-tabla-grafica>
       }
 
@@ -31,9 +36,14 @@
           [chartData]="proveedorChartData"
           chartId="chart-impactos-proveedor"
           chartType="bar"
-          chartLabel="Impactos"
-          chartTitle="Impactos por Proveedor"
+          chartLabel="Top 15 Proveedores"
+          chartTitle="Top 15 Proveedores por Impactos"
+          kpiLabel="Suma top 15"
+          [kpiValue]="totalTopProveedoresLabel"
           [showLegend]="false"
+          [showTotals]="true"
+          [totalCuotaLabel]="totalCuotaProveedoresLabel"
+          [totalAcumuladoLabel]="totalAcumuladoProveedoresLabel"
         ></app-ventas-tabla-grafica>
       }
 
@@ -44,21 +54,14 @@
           [chartData]="categoriaChartData"
           chartId="chart-impactos-categoria"
           chartType="bar"
-          chartLabel="Impactos"
-          chartTitle="Impactos por Categoría"
+          chartLabel="Top 15 Categorías"
+          chartTitle="Top 15 Categorías por Impactos"
+          kpiLabel="Suma top 15"
+          [kpiValue]="totalTopCategoriasLabel"
           [showLegend]="false"
-        ></app-ventas-tabla-grafica>
-      }
-
-      @case ('canal') {
-        <app-ventas-tabla-grafica
-          [columns]="canalColumns"
-          [data]="canalData"
-          [chartData]="canalChartData"
-          chartId="chart-impactos-canal"
-          chartType="pie"
-          chartLabel="Impactos"
-          chartTitle="Impactos por Canal"
+          [showTotals]="true"
+          [totalCuotaLabel]="totalCuotaCategoriasLabel"
+          [totalAcumuladoLabel]="totalAcumuladoCategoriasLabel"
         ></app-ventas-tabla-grafica>
       }
     }

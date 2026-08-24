@@ -208,6 +208,16 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get labelVentaAcum(): string {
+    if (this.vistaActiva === 'impactos') {
+      switch (this.tipoCuota) {
+        case 'semanal':
+          return 'Impactos Semana';
+        case 'diaria':
+          return 'Impactos Diaria';
+        default:
+          return 'Impactos Mes';
+      }
+    }
     switch (this.tipoCuota) {
       case 'semanal':
         return 'Venta Semana';

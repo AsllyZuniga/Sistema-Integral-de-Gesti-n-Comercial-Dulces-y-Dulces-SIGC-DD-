@@ -148,6 +148,16 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
   }
 
   get labelVentaAcum(): string {
+    if (this.vista === 'impactos') {
+      switch (this.tipoCuota) {
+        case 'semanal':
+          return 'Impactos Semana';
+        case 'diaria':
+          return 'Impactos Diaria';
+        default:
+          return 'Impactos Mes';
+      }
+    }
     switch (this.tipoCuota) {
       case 'semanal':
         return 'Venta Semana';

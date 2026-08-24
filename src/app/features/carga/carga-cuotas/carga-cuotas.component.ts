@@ -13,7 +13,9 @@ import { CuotasCrudService, CuotaRegistro } from '../../../core/services/cuotas-
 import { CuotaVendedorUploadComponent } from './cuota-vendedor-upload/cuota-vendedor-upload.component';
 import { CuotaProveedorUploadComponent } from './cuota-proveedor-upload/cuota-proveedor-upload.component';
 import { CuotaCategoriaUploadComponent } from './cuota-categoria-upload/cuota-categoria-upload.component';
-import { CuotaCanalUploadComponent } from './cuota-canal-upload/cuota-canal-upload.component';
+import { ImpactoClienteUploadComponent } from './impacto-cliente-upload/impacto-cliente-upload.component';
+import { ImpactoProveedorUploadComponent } from './impacto-proveedor-upload/impacto-proveedor-upload.component';
+import { ImpactoCategoriaUploadComponent } from './impacto-categoria-upload/impacto-categoria-upload.component';
 
 import {
   CuotasUploadService,
@@ -31,7 +33,9 @@ import {
     CuotaVendedorUploadComponent,
     CuotaProveedorUploadComponent,
     CuotaCategoriaUploadComponent,
-    CuotaCanalUploadComponent,
+    ImpactoClienteUploadComponent,
+    ImpactoProveedorUploadComponent,
+    ImpactoCategoriaUploadComponent,
   ],
   templateUrl: './carga-cuotas.component.html',
   styleUrls: ['./carga-cuotas.component.css'],
@@ -41,14 +45,19 @@ export class CargaCuotasComponent implements OnInit {
 
   sidebarColapsado = false;
   pestanaActiva: 'cargar' | 'eliminar' | 'editar' = 'cargar';
-  tipoCuota: 'vendedor' | 'proveedor' | 'categoria' | 'canal' = 'vendedor';
+  tipoCuota: 'vendedor' | 'proveedor' | 'categoria' = 'vendedor';
+  tipoEliminar: 'vendedor' | 'proveedor' | 'categoria' | 'impactos' = 'vendedor';
 
   setPestana(pestana: 'cargar' | 'eliminar' | 'editar'): void {
     this.pestanaActiva = pestana;
   }
 
-  setTipoCuota(tipo: 'vendedor' | 'proveedor' | 'categoria' | 'canal'): void {
+  setTipoCuota(tipo: 'vendedor' | 'proveedor' | 'categoria'): void {
     this.tipoCuota = tipo;
+  }
+
+  setTipoEliminar(tipo: 'vendedor' | 'proveedor' | 'categoria' | 'impactos'): void {
+    this.tipoEliminar = tipo;
   }
 
   // Eliminar cuota proveedor/línea
@@ -83,6 +92,19 @@ export class CargaCuotasComponent implements OnInit {
   showConfirmCuotaVendedorModal = false;
   confirmInputCuotaVendedor = '';
 
+  // Eliminar cuotas de impactos
+  tipoEliminarImpacto: 'clientes' | 'proveedores' | 'categorias' = 'clientes';
+  seleccionarTodosVendedoresImpacto = false;
+  idsVendedoresImpacto: (string | number)[] = [];
+  vendedorSelectorImpactoAbierto = false;
+  fechaInicioImpacto: string | null = null;
+  fechaFinImpacto: string | null = null;
+  eliminandoImpacto = false;
+  mensajeOperacionImpacto: string | null = null;
+  tipoOperacionImpacto: 'success' | 'error' | null = null;
+  showConfirmImpactoModal = false;
+  confirmInputImpacto = '';
+
   // Histórico de cuotas del vendedor seleccionado (tabla individual)
   cuotasMesVendedor: CuotaRegistro[] = [];
   cuotasSemanaVendedor: CuotaRegistro[] = [];
@@ -91,9 +113,12 @@ export class CargaCuotasComponent implements OnInit {
   eliminandoCuotaIndividualId: number | null = null;
 
   // Editar cuotas de vendedor (mensual + semanal + diaria + categoría)
-  tipoCuotaEditar: 'mes' | 'semana' | 'dia' | 'categoria' | 'proveedor' = 'mes';
+  tipoCuotaEditar: 'mes' | 'semana' | 'dia' | 'categoria' | 'proveedor'
+               | 'impacto_cliente' | 'impacto_proveedor' | 'impacto_categoria' = 'mes';
   idUsuarioEditar = '';
   busquedaProveedorEditar = '';
+  busquedaImpactoProveedorEditar = '';
+  busquedaImpactoCategoriaEditar = '';
   fechaInicioEditar: string | null = null;
   fechaFinEditar: string | null = null;
   cuotasEditar: CuotaRegistro[] = [];
@@ -715,6 +740,184 @@ export class CargaCuotasComponent implements OnInit {
   }
 
   // ─────────────────────────────────────────────
+  // Eliminar cuotas de impactos
+  // ─────────────────────────────────────────────
+
+  get nombresVendedoresImpactoSeleccionados(): string {
+    if (this.seleccionarTodosVendedoresImpacto) {
+      return `todos los vendedores (${this.vendedores.length})`;
+    }
+    if (this.idsVendedoresImpacto.length === 0) {
+      return 'vendedor seleccionado';
+    }
+    const nombres = this.idsVendedoresImpacto
+      .map((id) => {
+        const v = this.vendedores.find(
+          (vend) => String(vend?.id_usuario ?? vend?.id) === String(id),
+        );
+        return v ? `${v.codigo_vendedor} — ${v.nombre}` : String(id);
+      })
+      .sort();
+    return nombres.length <= 3
+      ? nombres.join(', ')
+      : `${nombres.length} vendedores seleccionados`;
+  }
+
+  get resumenSeleccionVendedoresImpacto(): string {
+    if (this.seleccionarTodosVendedoresImpacto) {
+      return `Todos los vendedores (${this.vendedores.length})`;
+    }
+    if (this.idsVendedoresImpacto.length === 0) {
+      return 'Seleccione uno o varios vendedores';
+    }
+    if (this.idsVendedoresImpacto.length === 1) {
+      const v = this.vendedores.find(
+        (vend) => String(vend?.id_usuario ?? vend?.id) === String(this.idsVendedoresImpacto[0]),
+      );
+      return v ? `${v.codigo_vendedor} — ${v.nombre}` : '1 vendedor';
+    }
+    return `${this.idsVendedoresImpacto.length} vendedores seleccionados`;
+  }
+
+  get periodoImpactoSeleccionado(): string {
+    if (!this.fechaInicioImpacto && !this.fechaFinImpacto) {
+      return 'todo el histórico';
+    }
+    if (!this.fechaInicioImpacto || !this.fechaFinImpacto) {
+      return 'período incompleto';
+    }
+    return `${this.fechaInicioImpacto} — ${this.fechaFinImpacto}`;
+  }
+
+  onToggleVendedorSelectorImpactoAbierto(event: Event): void {
+    this.vendedorSelectorImpactoAbierto = (event.target as HTMLDetailsElement).open;
+  }
+
+  onToggleSeleccionarTodosVendedoresImpacto(): void {
+    this.onCambiarFiltroEliminarImpacto();
+    this.idsVendedoresImpacto = [];
+    this.mensajeOperacionImpacto = null;
+    this.tipoOperacionImpacto = null;
+  }
+
+  onToggleVendedorImpacto(vendedor: any): void {
+    if (this.seleccionarTodosVendedoresImpacto) return;
+    const id = vendedor?.id_usuario ?? vendedor?.id;
+    const idx = this.idsVendedoresImpacto.indexOf(id);
+    if (idx >= 0) {
+      this.idsVendedoresImpacto.splice(idx, 1);
+    } else {
+      this.idsVendedoresImpacto.push(id);
+    }
+    this.mensajeOperacionImpacto = null;
+    this.tipoOperacionImpacto = null;
+  }
+
+  estaVendedorImpactoSeleccionado(vendedor: any): boolean {
+    const id = vendedor?.id_usuario ?? vendedor?.id;
+    return this.idsVendedoresImpacto.some((v) => String(v) === String(id));
+  }
+
+  onCambiarFiltroEliminarImpacto(): void {
+    this.mensajeOperacionImpacto = null;
+    this.tipoOperacionImpacto = null;
+    this.cd.detectChanges();
+  }
+
+  openConfirmEliminarImpacto(): void {
+    if (!this.seleccionarTodosVendedoresImpacto && this.idsVendedoresImpacto.length === 0) {
+      this.mensajeOperacionImpacto = 'Seleccione al menos un vendedor.';
+      this.tipoOperacionImpacto = 'error';
+      this.cd.detectChanges();
+      return;
+    }
+
+    const tieneAlgunaFecha = !!this.fechaInicioImpacto || !!this.fechaFinImpacto;
+    const tieneAmbasFechas = !!this.fechaInicioImpacto && !!this.fechaFinImpacto;
+
+    if (tieneAlgunaFecha && !tieneAmbasFechas) {
+      this.mensajeOperacionImpacto =
+        'Seleccione fecha inicio y fecha fin, o deje ambas vacías para eliminar todo el histórico.';
+      this.tipoOperacionImpacto = 'error';
+      this.cd.detectChanges();
+      return;
+    }
+
+    if (tieneAmbasFechas && !this.esRangoFechasValido(this.fechaInicioImpacto!, this.fechaFinImpacto!)) {
+      this.mensajeOperacionImpacto = 'La fecha inicio no puede ser mayor que la fecha fin.';
+      this.tipoOperacionImpacto = 'error';
+      this.cd.detectChanges();
+      return;
+    }
+
+    this.mensajeOperacionImpacto = null;
+    this.tipoOperacionImpacto = null;
+    this.confirmInputImpacto = '';
+    this.showConfirmImpactoModal = true;
+    this.cd.detectChanges();
+  }
+
+  closeConfirmImpacto(): void {
+    if (this.eliminandoImpacto) return;
+    this.showConfirmImpactoModal = false;
+    this.confirmInputImpacto = '';
+    this.cd.detectChanges();
+  }
+
+  finalDeleteImpacto(): void {
+    if (this.confirmInputImpacto !== 'ELIMINAR') return;
+
+    const codigos: string[] = this.seleccionarTodosVendedoresImpacto
+      ? this.vendedores.map((v) => String(v.codigo_vendedor))
+      : this.idsVendedoresImpacto
+          .map((id) => {
+            const v = this.vendedores.find(
+              (vend) => String(vend?.id_usuario ?? vend?.id) === String(id),
+            );
+            return v ? String(v.codigo_vendedor) : null;
+          })
+          .filter((c): c is string => c !== null);
+
+    if (codigos.length === 0) return;
+
+    this.eliminandoImpacto = true;
+    this.cd.detectChanges();
+
+    const calls = codigos.map((codigo) =>
+      this.cuotasUploadService.eliminarImpactos(
+        this.tipoEliminarImpacto,
+        codigo,
+        this.fechaInicioImpacto ?? undefined,
+        this.fechaFinImpacto ?? undefined,
+      ),
+    );
+
+    forkJoin(calls).subscribe({
+      next: (results: any[]) => {
+        const totalEliminados = results.reduce((sum, r) => sum + (r?.eliminados ?? 0), 0);
+        this.showConfirmImpactoModal = false;
+        this.confirmInputImpacto = '';
+        this.eliminandoImpacto = false;
+        this.mensajeOperacionImpacto =
+          totalEliminados > 0
+            ? `${totalEliminados} impactos eliminados correctamente.`
+            : 'No hay impactos que coincidan con el filtro.';
+        this.tipoOperacionImpacto = 'success';
+        this.cd.detectChanges();
+      },
+      error: (err: any) => {
+        this.showConfirmImpactoModal = false;
+        this.confirmInputImpacto = '';
+        this.eliminandoImpacto = false;
+        this.mensajeOperacionImpacto =
+          this.extraerMensajeError(err) || 'Error al eliminar impactos.';
+        this.tipoOperacionImpacto = 'error';
+        this.cd.detectChanges();
+      },
+    });
+  }
+
+  // ─────────────────────────────────────────────
   // Editar cuotas de vendedor (mensual + semanal + diaria)
   // ─────────────────────────────────────────────
 
@@ -727,7 +930,13 @@ export class CargaCuotasComponent implements OnInit {
           ? 'de categoría'
           : this.tipoCuotaEditar === 'proveedor'
             ? 'de proveedor'
-            : 'diaria';
+            : this.tipoCuotaEditar === 'impacto_cliente'
+              ? 'de impactos por cliente'
+              : this.tipoCuotaEditar === 'impacto_proveedor'
+                ? 'de impactos por proveedor'
+                : this.tipoCuotaEditar === 'impacto_categoria'
+                  ? 'de impactos por categoría'
+                  : 'diaria';
   }
 
   get vendedorSeleccionadoEditar(): any {
@@ -769,6 +978,28 @@ export class CargaCuotasComponent implements OnInit {
       }
     }
 
+    if (this.tipoCuotaEditar === 'impacto_proveedor') {
+      const busqueda = this.busquedaImpactoProveedorEditar.trim().toLowerCase();
+      if (busqueda) {
+        resultado = resultado.filter((c) =>
+          String(c._nombreProveedor ?? '')
+            .toLowerCase()
+            .includes(busqueda),
+        );
+      }
+    }
+
+    if (this.tipoCuotaEditar === 'impacto_categoria') {
+      const busqueda = this.busquedaImpactoCategoriaEditar.trim().toLowerCase();
+      if (busqueda) {
+        resultado = resultado.filter((c) =>
+          String(c._nombreCategoria ?? '')
+            .toLowerCase()
+            .includes(busqueda),
+        );
+      }
+    }
+
     return resultado;
   }
 
@@ -778,6 +1009,8 @@ export class CargaCuotasComponent implements OnInit {
     this.editandoCuotaId = null;
     this.valorEditado = null;
     this.busquedaProveedorEditar = '';
+    this.busquedaImpactoProveedorEditar = '';
+    this.busquedaImpactoCategoriaEditar = '';
     this.cargarCuotasEditar();
   }
 
@@ -787,6 +1020,8 @@ export class CargaCuotasComponent implements OnInit {
     this.editandoCuotaId = null;
     this.valorEditado = null;
     this.busquedaProveedorEditar = '';
+    this.busquedaImpactoProveedorEditar = '';
+    this.busquedaImpactoCategoriaEditar = '';
     this.cargarCuotasEditar();
   }
 
@@ -830,6 +1065,60 @@ export class CargaCuotasComponent implements OnInit {
       return;
     }
 
+    if (
+      this.tipoCuotaEditar === 'impacto_cliente' ||
+      this.tipoCuotaEditar === 'impacto_proveedor' ||
+      this.tipoCuotaEditar === 'impacto_categoria'
+    ) {
+      const tipoApi: 'clientes' | 'categorias' | 'proveedores' =
+        this.tipoCuotaEditar === 'impacto_cliente'
+          ? 'clientes'
+          : this.tipoCuotaEditar === 'impacto_proveedor'
+            ? 'proveedores'
+            : 'categorias';
+
+      const codigoVendedor = this.vendedorSeleccionadoEditar?.codigo_vendedor;
+
+      this.cargandoCuotasEditar = true;
+      this.cuotasEditar = [];
+      this.cd.detectChanges();
+
+          this.cuotasCrudService.listarImpactos(tipoApi, { vendedor: codigoVendedor }).subscribe({
+        next: (res: any) => {
+          this.cuotasEditar = (res.data ?? [])
+            .map((i: any) => ({
+              id: i.id,
+              monto: i.cuota,
+              fecha_inicio: i.fecha_inicio,
+              fecha_fin: i.fecha_fin,
+              id_usuario: i.id_vendedor,
+              _tipoPeriodo: i.tipo_periodo,
+              _codigoVendedor: i.codigo_vendedor,
+              _nombreVendedor: i.nombre_vendedor,
+              _nombreCategoria: this.limpiarNombreCategoria(i.nombre_categoria),
+              _nombreProveedor: i.nombre_proveedor,
+            }))
+            .sort((a: CuotaRegistro, b: CuotaRegistro) => {
+              if (tipoApi === 'categorias') {
+                return (a._nombreCategoria ?? '').localeCompare(b._nombreCategoria ?? '');
+              }
+              if (tipoApi === 'proveedores') {
+                return (a._nombreProveedor ?? '').localeCompare(b._nombreProveedor ?? '');
+              }
+              return (a._codigoVendedor ?? '').localeCompare(b._codigoVendedor ?? '');
+            });
+          this.cargandoCuotasEditar = false;
+          this.cd.detectChanges();
+        },
+        error: () => {
+          this.cuotasEditar = [];
+          this.cargandoCuotasEditar = false;
+          this.cd.detectChanges();
+        },
+      });
+      return;
+    }
+
     this.cargandoCuotasEditar = true;
     this.cuotasEditar = [];
     this.cd.detectChanges();
@@ -852,7 +1141,7 @@ export class CargaCuotasComponent implements OnInit {
     if (this.guardandoCuotaId !== null) return;
 
     this.editandoCuotaId = cuota.id;
-    this.valorEditado = cuota.monto ?? 0;
+    this.valorEditado = Math.round(Number(cuota.monto ?? 0));
     this.mensajeOperacionEditar = null;
     this.tipoOperacionEditar = null;
     this.cd.detectChanges();
@@ -864,11 +1153,28 @@ export class CargaCuotasComponent implements OnInit {
     this.cd.detectChanges();
   }
 
+  limitarDigitos(event: Event): void {
+    const esImpacto = this.tipoCuotaEditar.startsWith('impacto_');
+    const maxDigits = esImpacto ? 3 : 9;
+    const input = event.target as HTMLInputElement;
+    if (input.value.length > maxDigits) {
+      input.value = input.value.slice(0, maxDigits);
+      this.valorEditado = Number(input.value);
+    }
+  }
+
   puedeGuardarEdicion(cuota: CuotaRegistro): boolean {
     if (this.valorEditado === null || this.valorEditado === undefined) return false;
 
     const valor = Number(this.valorEditado);
-    if (Number.isNaN(valor) || valor < 0) return false;
+    if (Number.isNaN(valor)) return false;
+
+    const esImpacto =
+      this.tipoCuotaEditar === 'impacto_cliente' ||
+      this.tipoCuotaEditar === 'impacto_proveedor' ||
+      this.tipoCuotaEditar === 'impacto_categoria';
+
+    if (!esImpacto && valor < 0) return false;
 
     return valor !== Number(cuota.monto);
   }
@@ -877,8 +1183,12 @@ export class CargaCuotasComponent implements OnInit {
     if (this.guardandoCuotaId !== null) return;
 
     const valor = Number(this.valorEditado);
+    const esImpacto =
+      this.tipoCuotaEditar === 'impacto_cliente' ||
+      this.tipoCuotaEditar === 'impacto_proveedor' ||
+      this.tipoCuotaEditar === 'impacto_categoria';
 
-    if (Number.isNaN(valor) || valor < 0) {
+    if (Number.isNaN(valor) || (!esImpacto && valor < 0)) {
       this.mensajeOperacionEditar = 'El nuevo valor debe ser un número mayor o igual a 0.';
       this.tipoOperacionEditar = 'error';
       this.cd.detectChanges();
@@ -899,30 +1209,16 @@ export class CargaCuotasComponent implements OnInit {
             ? this.cuotasCrudService.actualizarCuotaCategoria(cuota.id, valor)
             : this.tipoCuotaEditar === 'proveedor'
               ? this.cuotasCrudService.actualizarCuotaProveedor(cuota.id, valor)
-              : this.cuotasCrudService.actualizarCuotaDia(cuota.id, valor);
+              : this.tipoCuotaEditar === 'impacto_cliente'
+                ? this.cuotasCrudService.actualizarImpacto('clientes', cuota.id, valor)
+                : this.tipoCuotaEditar === 'impacto_proveedor'
+                  ? this.cuotasCrudService.actualizarImpacto('proveedores', cuota.id, valor)
+                  : this.tipoCuotaEditar === 'impacto_categoria'
+                    ? this.cuotasCrudService.actualizarImpacto('categorias', cuota.id, valor)
+                    : this.cuotasCrudService.actualizarCuotaDia(cuota.id, valor);
 
     actualizar$.subscribe({
       next: (res: any) => {
-        const campo =
-          this.tipoCuotaEditar === 'mes'
-            ? 'cuota_mes'
-            : this.tipoCuotaEditar === 'semana'
-              ? 'cuota_semana'
-              : this.tipoCuotaEditar === 'categoria'
-                ? 'cuota'
-                : this.tipoCuotaEditar === 'proveedor'
-                  ? 'cuotaProveedor'
-                  : 'cuota_dia';
-
-        const nuevoValor =
-          this.tipoCuotaEditar === 'proveedor'
-            ? Number(res?.data?.cuotaProveedor?.cuota ?? valor)
-            : Number(res?.data?.[campo] ?? valor);
-
-        this.cuotasEditar = this.cuotasEditar.map((c) =>
-          c.id === cuota.id ? { ...c, monto: nuevoValor } : c,
-        );
-
         this.guardandoCuotaId = null;
         this.editandoCuotaId = null;
         this.valorEditado = null;
@@ -930,6 +1226,7 @@ export class CargaCuotasComponent implements OnInit {
           res?.message ?? `Cuota ${this.etiquetaTipoCuotaEditar} actualizada correctamente.`;
         this.tipoOperacionEditar = 'success';
         this.cd.detectChanges();
+        this.cargarCuotasEditar();
       },
       error: (err: HttpErrorResponse) => {
         this.guardandoCuotaId = null;
@@ -963,5 +1260,11 @@ export class CargaCuotasComponent implements OnInit {
     }
 
     return err.error?.mensaje ?? err.error?.message ?? err.error?.error ?? err.message ?? '';
+  }
+
+  private limpiarNombreCategoria(nombre: string | null | undefined): string {
+    if (!nombre) return '';
+    // Quita prefijos como "7177 - 6500-" o "0300 - 1000-" dejando solo el nombre limpio.
+    return String(nombre).replace(/^(?:\d+\s*-\s*)?(?:\d+\s*-)?\s*/, '').trim();
   }
 }

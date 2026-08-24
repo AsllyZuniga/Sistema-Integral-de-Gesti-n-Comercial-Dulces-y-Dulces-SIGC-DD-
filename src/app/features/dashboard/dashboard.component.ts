@@ -176,6 +176,11 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
   totalesVendedor: DashboardTotalesVendedor | null = null;
 
+  ventaAcumImpactos: number | null = null;
+  cuotaImpactos: number | null = null;
+  porcCumpImpactos: number | null = null;
+  proyeccionImpactos: number | null = null;
+
   filtrosActivos: DashboardFilters = {
     fechaInicio: '',
     fechaFin: '',
@@ -248,6 +253,14 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     return this.esAdmin || this.esSupervisor;
   }
 
+  get mostrarFiltroCiudad(): boolean {
+    return this.activeAnalisisView !== 'impactos' && this.activeSupervisorView !== 'impactos';
+  }
+
+  get mostrarFiltroCanal(): boolean {
+    return this.activeAnalisisView !== 'impactos' && this.activeSupervisorView !== 'impactos';
+  }
+
   get codigoVendedor(): string {
     if (this.codigoVendedorDetectado) {
       return this.codigoVendedorDetectado;
@@ -282,6 +295,16 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   get labelVentaAcum(): string {
+    if (this.activeAnalisisView === 'impactos') {
+      switch (this.tipoCuota) {
+        case 'semanal':
+          return 'Impactos Semana';
+        case 'diaria':
+          return 'Impactos Diaria';
+        default:
+          return 'Impactos Mes';
+      }
+    }
     switch (this.tipoCuota) {
       case 'semanal':
         return 'Venta Semana';
@@ -2108,6 +2131,23 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
     // Forzar recarga de la vista de ventas después de aplicar los filtros
     this.ventasRef?.reloadView(true);
+  }
+
+  onResumenCambioImpactos(resumen: {
+    ventaAcum?: number;
+    cuota?: number;
+    porcCump?: number;
+    proyeccionVenta?: number;
+  }): void {
+    const venta = Number(resumen?.ventaAcum ?? 0);
+    this.ventaAcumImpactos = Number.isFinite(venta) ? venta : null;
+    const cuota = Number(resumen?.cuota ?? 0);
+    this.cuotaImpactos = Number.isFinite(cuota) ? cuota : null;
+    const porcCump = Number(resumen?.porcCump ?? 0);
+    this.porcCumpImpactos = Number.isFinite(porcCump) ? porcCump : null;
+    const proyeccion = Number(resumen?.proyeccionVenta ?? 0);
+    this.proyeccionImpactos = Number.isFinite(proyeccion) ? proyeccion : null;
+    this.cdr.detectChanges();
   }
 
   private cargarTotalesVendedor(): void {
