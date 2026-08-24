@@ -28,6 +28,7 @@
   @if (vistaActiva === 'impactos') {
     <app-impactos
       [filtrosActivos]="filtrosAnalisis"
+      [rolId]="rolId"
       (resumenCambio)="onResumenCambio($event)"
     ></app-impactos>
   } @else {

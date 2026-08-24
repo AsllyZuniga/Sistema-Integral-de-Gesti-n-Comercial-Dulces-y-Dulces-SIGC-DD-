@@ -13,7 +13,8 @@ import { CommonModule } from '@angular/common';
 import { Subject, takeUntil } from 'rxjs';
 import { VentasTablaGraficaComponent } from '../ventas/ui/ventas-tabla-grafica.component';
 import { ImpactosService, ImpactosFiltros } from './services/impactos.service';
-import { IMPACTOS_VIEWS } from './config/impactos-view.config';
+import { IMPACTOS_VIEWS, obtenerVistasImpactosPorRol } from './config/impactos-view.config';
+import { ImpactosViewOption } from './models/impactos.model';
 import {
   ImpactoBaseRow,
   ImpactoCategoriaRow,
@@ -32,7 +33,7 @@ import { DashboardFilters } from '../../../../shared/components/filters/filters.
   encapsulation: ViewEncapsulation.None,
 })
 export class ImpactosComponent implements OnInit, OnDestroy {
-  impactosViews = IMPACTOS_VIEWS;
+  impactosViews: ImpactosViewOption[] = IMPACTOS_VIEWS;
   activeImpactosView = 'vendedor';
 
   vendedorColumns = ['vendedor', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
@@ -62,6 +63,7 @@ export class ImpactosComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   @Input() codigosVendedores: string[] = [];
+  @Input() rolId = 0;
 
   @Output() resumenCambio = new EventEmitter<{
     ventaAcum: number;
@@ -85,6 +87,10 @@ export class ImpactosComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.impactosViews = obtenerVistasImpactosPorRol(this.rolId);
+    if (this.impactosViews.length && !this.impactosViews.some(v => v.key === this.activeImpactosView)) {
+      this.activeImpactosView = this.impactosViews[0].key;
+    }
     this.cargarImpactos();
   }
 

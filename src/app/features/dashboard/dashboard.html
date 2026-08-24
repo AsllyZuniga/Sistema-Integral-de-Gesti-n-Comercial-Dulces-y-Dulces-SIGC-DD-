@@ -45,6 +45,7 @@
         [tipoCuota]="tipoCuota"
         [vistaActiva]="activeAnalisisView"
         [filtrosActivos]="filtrosActivos"
+        [rolId]="rolId"
       ></app-administrador-dashboard>
     }
 
@@ -53,6 +54,7 @@
         [tipoCuota]="tipoCuota"
         [vista]="activeSupervisorView"
         [filtrosActivos]="filtrosActivos"
+        [rolId]="rolId"
       ></app-supervisor-dashboard>
     }
 
@@ -104,6 +106,7 @@
         @if (activeAnalisisView === 'impactos') {
           <app-impactos
             [filtrosActivos]="filtrosActivos"
+            [rolId]="rolId"
             (resumenCambio)="onResumenCambioImpactos($event)"
           ></app-impactos>
         } @else {

@@ -146,6 +146,7 @@ export class AdministradorComponent implements OnInit, OnChanges, OnDestroy {
 
   @Input() tipoCuota: TipoCuota = 'mensual';
   @Input() vistaActiva: 'ventas' | 'impactos' = 'ventas';
+  @Input() rolId = 0;
   @Input() filtrosActivos: DashboardFilters = {
     fechaInicio: '',
     fechaFin: '',

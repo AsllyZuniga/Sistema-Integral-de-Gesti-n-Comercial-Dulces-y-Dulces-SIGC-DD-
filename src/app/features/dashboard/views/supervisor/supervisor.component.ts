@@ -99,6 +99,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
 
   @Input() tipoCuota: TipoCuota = 'mensual';
   @Input() vista: 'asignados' | 'analisis' | 'impactos' = 'asignados';
+  @Input() rolId = 0;
   @Input() filtrosActivos: DashboardFilters = {
     fechaInicio: '',
     fechaFin: '',

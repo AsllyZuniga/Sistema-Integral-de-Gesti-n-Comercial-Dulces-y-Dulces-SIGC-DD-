@@ -8,13 +8,8 @@ export const IMPACTOS_VIEWS: ImpactosViewOption[] = [
 ];
 
 export function obtenerVistasImpactosPorRol(rolId: number): ImpactosViewOption[] {
-  if (rolId === RoleId.ADMINISTRADOR || rolId === RoleId.SUPERVISOR) {
-    return IMPACTOS_VIEWS;
-  }
-
   if (rolId === RoleId.VENDEDOR) {
-    return IMPACTOS_VIEWS;
+    return IMPACTOS_VIEWS.filter(v => v.key !== 'vendedor');
   }
-
   return IMPACTOS_VIEWS;
 }
