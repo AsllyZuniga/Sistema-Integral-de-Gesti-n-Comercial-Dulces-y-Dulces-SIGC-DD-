@@ -1083,20 +1083,30 @@ export class CargaCuotasComponent implements OnInit {
       this.cuotasEditar = [];
       this.cd.detectChanges();
 
-      this.cuotasCrudService.listarImpactos(tipoApi, { vendedor: codigoVendedor }).subscribe({
+          this.cuotasCrudService.listarImpactos(tipoApi, { vendedor: codigoVendedor }).subscribe({
         next: (res: any) => {
-          this.cuotasEditar = (res.data ?? []).map((i: any) => ({
-            id: i.id,
-            monto: i.cuota,
-            fecha_inicio: i.fecha_inicio,
-            fecha_fin: i.fecha_fin,
-            id_usuario: i.id_vendedor,
-            _tipoPeriodo: i.tipo_periodo,
-            _codigoVendedor: i.codigo_vendedor,
-            _nombreVendedor: i.nombre_vendedor,
-            _nombreCategoria: i.nombre_categoria,
-            _nombreProveedor: i.nombre_proveedor,
-          }));
+          this.cuotasEditar = (res.data ?? [])
+            .map((i: any) => ({
+              id: i.id,
+              monto: i.cuota,
+              fecha_inicio: i.fecha_inicio,
+              fecha_fin: i.fecha_fin,
+              id_usuario: i.id_vendedor,
+              _tipoPeriodo: i.tipo_periodo,
+              _codigoVendedor: i.codigo_vendedor,
+              _nombreVendedor: i.nombre_vendedor,
+              _nombreCategoria: this.limpiarNombreCategoria(i.nombre_categoria),
+              _nombreProveedor: i.nombre_proveedor,
+            }))
+            .sort((a: CuotaRegistro, b: CuotaRegistro) => {
+              if (tipoApi === 'categorias') {
+                return (a._nombreCategoria ?? '').localeCompare(b._nombreCategoria ?? '');
+              }
+              if (tipoApi === 'proveedores') {
+                return (a._nombreProveedor ?? '').localeCompare(b._nombreProveedor ?? '');
+              }
+              return (a._codigoVendedor ?? '').localeCompare(b._codigoVendedor ?? '');
+            });
           this.cargandoCuotasEditar = false;
           this.cd.detectChanges();
         },
@@ -1261,5 +1271,11 @@ export class CargaCuotasComponent implements OnInit {
     }
 
     return err.error?.mensaje ?? err.error?.message ?? err.error?.error ?? err.message ?? '';
+  }
+
+  private limpiarNombreCategoria(nombre: string | null | undefined): string {
+    if (!nombre) return '';
+    // Quita prefijos como "7177 - 6500-" o "0300 - 1000-" dejando solo el nombre limpio.
+    return String(nombre).replace(/^(?:\d+\s*-\s*)?(?:\d+\s*-)?\s*/, '').trim();
   }
 }
