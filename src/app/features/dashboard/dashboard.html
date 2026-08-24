@@ -18,7 +18,7 @@
     <div class="cuota-selector-row">
       <app-cuotas-cumplimiento
         [tipoCuota]="tipoCuota"
-        [ocultarDiaria]="activeAnalisisView === 'impactos'"
+        [ocultarDiaria]="activeAnalisisView === 'impactos' || activeSupervisorView === 'impactos'"
         (tipoCuotaChange)="onCambiarTipoCuota($event)"
       ></app-cuotas-cumplimiento>
     </div>

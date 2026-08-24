@@ -594,6 +594,7 @@ export class FiltersComponent implements OnChanges {
       : [];
 
     if (!seleccionados.length) return false;
+    if (!this.proveedores.length) return false;
 
     const valoresPermitidos = new Set(
       this.proveedores.map((item) => this.normalizarTexto(item.value)).filter(Boolean),
@@ -639,6 +640,7 @@ export class FiltersComponent implements OnChanges {
       : [];
 
     if (!seleccionados.length) return false;
+    if (!this.vendedores.length) return false;
 
     const valoresPermitidos = new Set(
       this.vendedores.map((item) => this.normalizarTexto(item.value)).filter(Boolean),

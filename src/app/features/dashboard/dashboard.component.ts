@@ -1134,29 +1134,15 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
    */
   private cargarOpcionesFiltrosUnificado(filtrosOrigen?: DashboardFilters): void {
     const fuente = this.normalizarFiltrosDashboard(filtrosOrigen ?? this.filtrosActivos);
+    const esVistaImpactos = this.activeAnalisisView === 'impactos' || this.activeSupervisorView === 'impactos';
+    const opciones$ = esVistaImpactos
+      ? this.filtrosService.getOpcionesImpactos(this.filtrosService.fromDashboardFilters(fuente))
+      : this.filtrosService.getOpciones(this.filtrosService.fromDashboardFilters(fuente));
 
-    /*
-     * El backend /api/filtros/opciones ya implementa la cascada correcta:
-     * cada lista se filtra por los OTROS filtros, no por sí misma.
-     * Por eso aquí enviamos todos los filtros activos en una sola llamada.
-     *
-     * Ejemplo: si proveedor=535 - ABBOTT y categoria=645, el backend:
-     * - filtra categorias por fecha/vendedor/proveedor/ciudad, pero NO por categoria;
-     * - filtra proveedores por fecha/vendedor/categoria/ciudad, pero NO por proveedor.
-     *
-     * Esto evita que desaparezcan proveedores/categorías válidos al cambiar fechas
-     * o al seleccionar filtros múltiples.
-     */
-    this.filtrosService
-      .getOpciones(this.filtrosService.fromDashboardFilters(fuente))
+    opciones$
       .pipe(takeUntil(this.destroy$), catchError(() => of(null)))
       .subscribe((opciones) => {
         if (!opciones) {
-          this.aplicarOpcionesProveedores([]);
-          this.categoriasList = [];
-          this.ciudadesList = [];
-          this.canalesList = [];
-          this.aplicarOpcionesVendedores([]);
           this.cdr.markForCheck();
           return;
         }
@@ -1184,7 +1170,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         );
         this.aplicarOpcionesCiudades(opcionesCiudades);
 
-        if (!Array.isArray(opciones.ciudades) || opciones.ciudades.length === 0) {
+        if (!esVistaImpactos && (!Array.isArray(opciones.ciudades) || opciones.ciudades.length === 0)) {
           this.cargarCiudadesFallback(filtrosReferencia);
         }
 

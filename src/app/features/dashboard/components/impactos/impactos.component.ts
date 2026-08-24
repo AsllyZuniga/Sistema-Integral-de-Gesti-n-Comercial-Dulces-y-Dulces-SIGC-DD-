@@ -103,9 +103,24 @@ export class ImpactosComponent implements OnInit, OnDestroy {
       const f = this._filtros;
       if (f.fechaInicio) filtros.fechaInicio = f.fechaInicio;
       if (f.fechaFin) filtros.fechaFin = f.fechaFin;
-      if (f.vendedor) filtros.vendedor = f.vendedor;
-      if (f.proveedor) filtros.proveedor = f.proveedor;
-      if (f.categoria) filtros.categoria = f.categoria;
+      
+      if (f.vendedores && f.vendedores.length > 0) {
+        filtros.vendedor = f.vendedores.join(',');
+      } else if (f.vendedor) {
+        filtros.vendedor = f.vendedor;
+      }
+      
+      if (f.proveedores && f.proveedores.length > 0) {
+        filtros.proveedor = f.proveedores.join(',');
+      } else if (f.proveedor) {
+        filtros.proveedor = f.proveedor;
+      }
+      
+      if (f.categorias && f.categorias.length > 0) {
+        filtros.categoria = f.categorias.join(',');
+      } else if (f.categoria) {
+        filtros.categoria = f.categoria;
+      }
     }
     return filtros;
   }

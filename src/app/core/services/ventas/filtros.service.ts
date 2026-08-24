@@ -38,7 +38,9 @@ export interface FiltrosOpcionesParams {
 })
 export class FiltrosService {
   private apiUrl = '/api/filtros/opciones';
+  private apiUrlImpactos = '/api/filtros/opciones-impactos';
   private cache = new Map<string, Observable<OpcionesFiltros | null>>();
+  private cacheImpactos = new Map<string, Observable<OpcionesFiltros | null>>();
 
   constructor(private http: HttpClient) {}
 
@@ -47,6 +49,7 @@ export class FiltrosService {
    */
   invalidarCache(): void {
     this.cache.clear();
+    this.cacheImpactos.clear();
   }
 
   /**
@@ -146,6 +149,25 @@ export class FiltrosService {
     return req$;
   }
 
+  getOpcionesImpactos(params: FiltrosOpcionesParams): Observable<OpcionesFiltros | null> {
+    const key = this.cacheKeyImpactos(params);
+    const cached = this.cacheImpactos.get(key);
+    if (cached) return cached;
+
+    const httpParams = this.buildParamsImpactos(params);
+    const req$ = this.http
+      .get<{ success: boolean; data: any }>(this.apiUrlImpactos, { params: httpParams })
+      .pipe(
+        map((res) => (res?.success ? this.normalizarRespuestaImpactos(res.data) : null)),
+        catchError((err) => {
+          console.error('[FiltrosService] error impactos:', err);
+          return of(null);
+        }),
+        shareReplay({ bufferSize: 1, refCount: false })
+      );
+    this.cacheImpactos.set(key, req$);
+    return req$;
+  }
 
   private normalizarRespuesta(data: OpcionesFiltros | null | undefined): OpcionesFiltros | null {
     if (!data) return null;
@@ -242,6 +264,55 @@ export class FiltrosService {
       join(params.codCategoria),
       join(params.codCiudad),
       join(params.codCanal)
+    ].join('::');
+  }
+
+  private buildParamsImpactos(params: FiltrosOpcionesParams): HttpParams {
+    let httpParams = new HttpParams();
+
+    if (params.fechaInicio) httpParams = httpParams.set('fechaInicio', params.fechaInicio);
+    if (params.fechaFin) httpParams = httpParams.set('fechaFin', params.fechaFin);
+
+    const appendAll = (key: string, values: string[] | undefined | null): void => {
+      if (!Array.isArray(values)) return;
+      values
+        .map((v) => String(v ?? '').trim())
+        .filter((v) => v.length > 0)
+        .forEach((v) => {
+          httpParams = httpParams.append(key, v);
+        });
+    };
+
+    appendAll('codVendedor', params.codVendedor);
+    appendAll('codProveedor', params.codProveedor);
+    appendAll('codCategoria', params.codCategoria);
+
+    return httpParams;
+  }
+
+  private normalizarRespuestaImpactos(data: any | null | undefined): OpcionesFiltros | null {
+    if (!data) return null;
+
+    return {
+      periodo: data.periodo ?? { fechaInicio: '', fechaFin: '' },
+      vendedores: Array.isArray(data.vendedores) ? data.vendedores : [],
+      proveedores: Array.isArray(data.proveedores) ? data.proveedores : [],
+      categorias: Array.isArray(data.categorias) ? data.categorias : [],
+      ciudades: [],
+      canales: []
+    };
+  }
+
+  private cacheKeyImpactos(params: FiltrosOpcionesParams): string {
+    const join = (arr?: string[]): string =>
+      Array.isArray(arr) ? [...arr].sort().join('|') : '';
+    return [
+      'impactos',
+      params.fechaInicio || '',
+      params.fechaFin || '',
+      join(params.codVendedor),
+      join(params.codProveedor),
+      join(params.codCategoria)
     ].join('::');
   }
 }
