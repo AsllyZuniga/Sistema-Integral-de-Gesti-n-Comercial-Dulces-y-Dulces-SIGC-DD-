@@ -1153,6 +1153,16 @@ export class CargaCuotasComponent implements OnInit {
     this.cd.detectChanges();
   }
 
+  limitarDigitos(event: Event): void {
+    const esImpacto = this.tipoCuotaEditar.startsWith('impacto_');
+    const maxDigits = esImpacto ? 3 : 9;
+    const input = event.target as HTMLInputElement;
+    if (input.value.length > maxDigits) {
+      input.value = input.value.slice(0, maxDigits);
+      this.valorEditado = Number(input.value);
+    }
+  }
+
   puedeGuardarEdicion(cuota: CuotaRegistro): boolean {
     if (this.valorEditado === null || this.valorEditado === undefined) return false;
 
@@ -1209,35 +1219,14 @@ export class CargaCuotasComponent implements OnInit {
 
     actualizar$.subscribe({
       next: (res: any) => {
-        const campo =
-          this.tipoCuotaEditar === 'mes'
-            ? 'cuota_mes'
-            : this.tipoCuotaEditar === 'semana'
-              ? 'cuota_semana'
-              : this.tipoCuotaEditar === 'categoria'
-                ? 'cuota'
-                : this.tipoCuotaEditar === 'proveedor'
-                  ? 'cuotaProveedor'
-                  : this.tipoCuotaEditar.startsWith('impacto_')
-                    ? 'cuota'
-                    : 'cuota_dia';
-
-        const nuevoValor =
-          this.tipoCuotaEditar === 'proveedor'
-            ? Number(res?.data?.cuotaProveedor?.cuota ?? valor)
-            : Number(res?.data?.[campo] ?? valor);
-
-        this.cuotasEditar = this.cuotasEditar.map((c) =>
-          c.id === cuota.id ? { ...c, monto: nuevoValor } : c,
-        );
-
         this.guardandoCuotaId = null;
         this.editandoCuotaId = null;
         this.valorEditado = null;
         this.mensajeOperacionEditar =
           res?.message ?? `Cuota ${this.etiquetaTipoCuotaEditar} actualizada correctamente.`;
         this.tipoOperacionEditar = 'success';
-        setTimeout(() => this.cd.detectChanges(), 0);
+        this.cd.detectChanges();
+        this.cargarCuotasEditar();
       },
       error: (err: HttpErrorResponse) => {
         this.guardandoCuotaId = null;
