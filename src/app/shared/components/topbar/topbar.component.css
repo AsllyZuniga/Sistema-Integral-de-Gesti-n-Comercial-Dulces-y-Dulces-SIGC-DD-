@@ -189,7 +189,7 @@
 
   .topbar-center h1,
   .topbar-title {
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .topbar-title {
@@ -200,7 +200,7 @@
     max-width: none;
     min-width: max-content;
     padding-right: 42px;
-    animation: topbar-title-marquee 12s linear infinite;
+    animation: topbar-title-marquee 8s linear infinite;
   }
 
   .topbar-title:hover .topbar-title-text,
@@ -242,13 +242,18 @@
     padding: 0 4px;
   }
 
+  .topbar-center h1,
+  .topbar-title {
+    font-size: 13px;
+  }
+
   .topbar-logo {
-    height: 32px;
-    max-width: 88px;
+    height: 28px;
+    max-width: 80px;
   }
 
   .topbar-title-text {
-    animation-duration: 10s;
+    animation-duration: 6s;
   }
 
   .welcome {
@@ -258,10 +263,10 @@
 
 
 @keyframes topbar-title-marquee {
-  0%, 12% {
+  0%, 4% {
     transform: translateX(0);
   }
-  88%, 100% {
+  96%, 100% {
     transform: translateX(calc(-100% + min(100%, 100vw - 170px)));
   }
 }
@@ -270,5 +275,11 @@
   .topbar-title-text {
     animation: none !important;
     transform: none !important;
+  }
+}
+
+@media (min-width: 993px) {
+  .mobile-menu-btn {
+    display: none !important;
   }
 }

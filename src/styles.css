@@ -477,41 +477,6 @@ html {
   }
 }
 
-/* Specific overrides for carga-cuotas component to ensure compact topbar */
-app-carga-cuotas .topbar {
-  padding: 8px 10px !important;
-  gap: 8px !important;
-  margin-bottom: 14px !important;
-  border-radius: 8px !important;
-  box-shadow: none !important;
-  overflow: hidden !important;
-}
-app-carga-cuotas .topbar::before,
-app-carga-cuotas .topbar::after {
-  display: none !important;
-}
-app-carga-cuotas .topbar .topbar-logo {
-  height: 28px !important;
-}
-app-carga-cuotas .topbar .topbar-center h1 {
-  font-size: 15px !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  max-width: calc(100% - 110px) !important;
-}
-
-@media (max-width: 600px) {
-  app-carga-cuotas .topbar { padding: 6px 8px !important; gap: 6px !important; }
-  app-carga-cuotas .topbar .topbar-logo { height: 26px !important; }
-  app-carga-cuotas .topbar .topbar-center h1 { font-size: 14px !important; max-width: calc(100% - 90px) !important; }
-}
-
-@media (max-width: 480px) {
-  app-carga-cuotas .topbar { padding: 6px 8px !important; }
-  app-carga-cuotas .topbar .topbar-logo { height: 22px !important; }
-  app-carga-cuotas .topbar .topbar-center h1 { font-size: 13px !important; max-width: calc(100% - 80px) !important; }
-}
 @media (max-width: 480px) {
   .chart-box {
     padding: 14px 12px;
@@ -1462,7 +1427,7 @@ app-topbar .material-symbols-rounded {
   }
 
   app-topbar .topbar-center h1 {
-    font-size: 16px !important;
+    font-size: 14px !important;
   }
 
   app-topbar .welcome,
@@ -1494,12 +1459,22 @@ app-topbar .material-symbols-rounded {
     padding: 10px 12px !important;
   }
 
+  app-topbar .topbar-center h1 {
+    font-size: 13px !important;
+  }
+
   app-topbar .topbar-logo {
-    height: 32px !important;
-    max-width: 88px !important;
+    height: 28px !important;
+    max-width: 80px !important;
   }
 
   app-topbar .welcome {
+    display: none !important;
+  }
+}
+
+@media (min-width: 993px) {
+  app-topbar .mobile-menu-btn {
     display: none !important;
   }
 }

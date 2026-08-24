@@ -19,9 +19,6 @@
 }
 
 /* ===== TOPBAR ===== */
-.topbar,
-.topbar-left,
-.topbar-right,
 .carga-page,
 .upload-card,
 .upload-zone,
@@ -30,32 +27,6 @@
 .instrucciones-card h3,
 .advertencia {
   display: flex;
-}
-
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
-  margin-bottom: 14px;
-  border-radius: var(--r-md);
-  background: var(--c-surface);
-  border: 1px solid var(--c-border);
-  box-shadow: var(--shadow-sm);
-}
-
-.topbar-left {
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  flex: 1;
-}
-
-.topbar-right {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
 }
 
 .page-title {
@@ -68,7 +39,6 @@
   text-overflow: ellipsis;
 }
 
-.mobile-menu-btn,
 .btn-limpiar,
 .btn-cargar {
   display: flex;
@@ -78,42 +48,6 @@
   font-family: inherit;
   cursor: pointer;
   transition: var(--transition);
-}
-
-.mobile-menu-btn {
-  padding: 7px;
-  line-height: 0;
-  color: var(--c-primary);
-  background: var(--c-surface);
-  border: 1.5px solid var(--c-border);
-  border-radius: var(--r-sm);
-}
-
-.logout-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--c-text);
-  background: var(--c-surface);
-  border: 1px solid var(--c-border);
-  border-radius: var(--r-md);
-}
-
-.logout-btn .material-symbols-rounded {
-  font-size: 18px;
-}
-
-.mobile-menu-btn:hover {
-  background: var(--c-primary-pale);
-}
-
-.mobile-menu-btn:hover .material-symbols-rounded {
-  font-size: 20px;
 }
 
 /* ===== PÁGINA ===== */
@@ -162,19 +96,8 @@
     padding: 12px 12px;
   }
 
-  .topbar {
-    padding: 8px 10px;
-    margin-bottom: 12px;
-    gap: 8px;
-  }
-
   .page-title {
     font-size: 14px;
-  }
-
-  .logout-btn {
-    padding: 7px 10px;
-    font-size: 12px;
   }
 
   .carga-page {
@@ -849,10 +772,6 @@
   .main {
     margin-left: 0;
     padding: 18px 16px 24px;
-  }
-
-  .topbar {
-    display: flex;
   }
 
   .upload-card,

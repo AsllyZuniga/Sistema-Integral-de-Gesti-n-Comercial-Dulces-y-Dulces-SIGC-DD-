@@ -578,31 +578,6 @@
   cursor: not-allowed;
 }
 @media (max-width: 768px) {
-  .topbar {
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
-  }
-  .topbar-center {
-    flex: 1;
-    min-width: 0;
-  }
-  .topbar-center h1 {
-    font-size: 18px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .welcome,
-  .logout-label {
-    display: none;
-  }
-  .logout-btn {
-    width: auto;
-    min-height: 36px;
-    padding: 8px 10px;
-  }
   .usuarios-section {
     padding: 16px;
   }
