@@ -146,6 +146,7 @@
   grid-template-columns: 1fr 1fr auto;
   align-items: end;
   gap: 12px;
+  margin-bottom: 16px;
 }
 
 .delete-date-group {
@@ -303,6 +304,7 @@
   justify-content: center;
   gap: 8px;
   padding: 0 18px;
+  margin-top: 8px;
   color: #9b3a35;
   background: #fff;
   border: 1px solid #c54a45;

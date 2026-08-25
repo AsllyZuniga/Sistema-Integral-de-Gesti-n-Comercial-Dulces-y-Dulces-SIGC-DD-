@@ -67,6 +67,9 @@ export class CardComponent implements OnInit {
     proyección: { icon: 'rocket_launch', color: 'lime' },
     proyeccion: { icon: 'rocket_launch', color: 'lime' },
 
+    // ── Faltan (Impactos) ────────────────────────────────────────────────────
+    faltan: { icon: 'rocket_launch', color: 'lime' },
+
     // ── Otros ────────────────────────────────────────────────────────────────
     ventas: { icon: 'storefront', color: 'blue' },
     clientes: { icon: 'groups', color: 'navy' },

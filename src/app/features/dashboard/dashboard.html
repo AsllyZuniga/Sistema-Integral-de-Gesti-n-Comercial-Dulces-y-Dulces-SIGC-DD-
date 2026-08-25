@@ -92,10 +92,10 @@
           "
         ></app-card>
         <app-card
-          title="Proyección"
+          [title]="activeAnalisisView === 'impactos' ? 'FALTAN' : 'Proyección'"
           [value]="
             activeAnalisisView === 'impactos'
-              ? proyeccionImpactos ?? 0
+              ? faltanImpactos ?? 0
               : totalesVendedor?.proyeccionVenta ?? 0
           "
           [isCurrency]="activeAnalisisView !== 'impactos'"
