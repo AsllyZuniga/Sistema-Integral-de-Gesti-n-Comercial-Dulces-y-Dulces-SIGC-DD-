@@ -116,6 +116,7 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
   cuotaVista: number | null = null;
   porcCumpVista: number | null = null;
   proyeccionVista: number | null = null;
+  faltanVista: number | null = null;
   cargandoVendedores = false;
   todosLosVendedores: VendedorTabla[] = [];
   codigosVendedoresAsignados: string[] = [];
@@ -194,21 +195,18 @@ export class SupervisorDashboardComponent implements OnInit, OnChanges, OnDestro
     cuota?: number;
     porcCump?: number;
     proyeccionVenta?: number;
+    faltan?: number;
   }): void {
     const venta = Number(resumen?.ventaAcum ?? 0);
     this.ventaMesVista = Number.isFinite(venta) ? venta : null;
-    // FIX: cuando la vista activa (categoría/proveedor/vendedor) no tiene
-    // cuota asignada, el total real es 0 y la card KPI debe mostrar 0.
-    // Antes "cuota > 0 ? cuota : null" descartaba el 0 real y el template
-    // caía al fallback de `totales` (cuota general diaria del equipo, sin
-    // relación a la categoría/proveedor filtrado), mostrando un monto que
-    // no correspondía a la pestaña activa.
     const cuota = Number(resumen?.cuota ?? 0);
     this.cuotaVista = Number.isFinite(cuota) ? cuota : null;
     const porcCump = Number(resumen?.porcCump ?? 0);
     this.porcCumpVista = Number.isFinite(porcCump) ? porcCump : null;
     const proyeccion = Number(resumen?.proyeccionVenta ?? 0);
     this.proyeccionVista = Number.isFinite(proyeccion) ? proyeccion : null;
+    const faltan = Number(resumen?.faltan ?? 0);
+    this.faltanVista = Number.isFinite(faltan) ? faltan : null;
     this.cdr.detectChanges();
   }
 

@@ -18,8 +18,8 @@
   ></app-card>
   <app-card title="Cumplimiento" [value]="porcCumpVista ?? totales?.porcCump ?? 0"></app-card>
   <app-card
-    title="Proyección"
-    [value]="proyeccionVista ?? totales?.proyeccionVenta ?? 0"
+    [title]="vistaActiva === 'impactos' ? 'FALTAN' : 'Proyección'"
+    [value]="vistaActiva === 'impactos' ? (faltanVista ?? 0) : (proyeccionVista ?? totales?.proyeccionVenta ?? 0)"
     [isCurrency]="vistaActiva !== 'impactos'"
   ></app-card>
 </section>

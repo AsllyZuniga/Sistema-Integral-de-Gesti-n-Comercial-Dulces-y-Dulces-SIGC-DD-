@@ -60,6 +60,10 @@ export class ImpactosComponent implements OnInit, OnDestroy {
   totalAcumuladoCategorias = 0;
   totalAcumuladoVendedores = 0;
 
+  totalFaltanProveedores = 0;
+  totalFaltanCategorias = 0;
+  totalFaltanVendedores = 0;
+
   private destroy$ = new Subject<void>();
 
   @Input() codigosVendedores: string[] = [];
@@ -69,7 +73,7 @@ export class ImpactosComponent implements OnInit, OnDestroy {
     ventaAcum: number;
     cuota?: number;
     porcCump?: number;
-    proyeccionVenta?: number;
+    faltan?: number;
   }>();
 
   private _filtros: DashboardFilters | null = null;
@@ -151,6 +155,10 @@ export class ImpactosComponent implements OnInit, OnDestroy {
           (sum, item) => sum + (Number(item?.impactos ?? 0) || 0),
           0,
         );
+        this.totalFaltanProveedores = consolidados.reduce(
+          (sum, item) => sum + (Number(item?.faltan ?? 0) || 0),
+          0,
+        );
 
         const chartData = this.agruparPorDimension(consolidados, 'proveedor');
         const topProveedores = [...chartData]
@@ -183,6 +191,10 @@ export class ImpactosComponent implements OnInit, OnDestroy {
           (sum, item) => sum + (Number(item?.impactos ?? 0) || 0),
           0,
         );
+        this.totalFaltanCategorias = consolidados.reduce(
+          (sum, item) => sum + (Number(item?.faltan ?? 0) || 0),
+          0,
+        );
 
         const chartData = this.agruparPorDimension(consolidados, 'categoria');
         const topCategorias = [...chartData]
@@ -213,6 +225,10 @@ export class ImpactosComponent implements OnInit, OnDestroy {
         );
         this.totalAcumuladoVendedores = filtrados.reduce(
           (sum, item) => sum + (Number(item?.impactos ?? 0) || 0),
+          0,
+        );
+        this.totalFaltanVendedores = filtrados.reduce(
+          (sum, item) => sum + (Number(item?.faltan ?? 0) || 0),
           0,
         );
 
@@ -329,16 +345,20 @@ export class ImpactosComponent implements OnInit, OnDestroy {
     const vista = this.activeImpactosView;
     let ventaAcum = 0;
     let cuota = 0;
+    let faltan = 0;
 
     if (vista === 'proveedor') {
       ventaAcum = this.totalAcumuladoProveedores;
       cuota = this.totalCuotaProveedores;
+      faltan = this.totalFaltanProveedores;
     } else if (vista === 'categoria') {
       ventaAcum = this.totalAcumuladoCategorias;
       cuota = this.totalCuotaCategorias;
+      faltan = this.totalFaltanCategorias;
     } else {
       ventaAcum = this.totalAcumuladoVendedores;
       cuota = this.totalCuotaVendedores;
+      faltan = this.totalFaltanVendedores;
     }
 
     const porcCump = cuota > 0 ? (ventaAcum / cuota) * 100 : 0;
@@ -347,7 +367,7 @@ export class ImpactosComponent implements OnInit, OnDestroy {
       ventaAcum,
       cuota,
       porcCump,
-      proyeccionVenta: 0,
+      faltan,
     });
   }
 

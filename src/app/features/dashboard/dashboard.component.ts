@@ -179,7 +179,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   ventaAcumImpactos: number | null = null;
   cuotaImpactos: number | null = null;
   porcCumpImpactos: number | null = null;
-  proyeccionImpactos: number | null = null;
+  faltanImpactos: number | null = null;
 
   filtrosActivos: DashboardFilters = {
     fechaInicio: '',
@@ -2123,7 +2123,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     ventaAcum?: number;
     cuota?: number;
     porcCump?: number;
-    proyeccionVenta?: number;
+    faltan?: number;
   }): void {
     const venta = Number(resumen?.ventaAcum ?? 0);
     this.ventaAcumImpactos = Number.isFinite(venta) ? venta : null;
@@ -2131,8 +2131,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     this.cuotaImpactos = Number.isFinite(cuota) ? cuota : null;
     const porcCump = Number(resumen?.porcCump ?? 0);
     this.porcCumpImpactos = Number.isFinite(porcCump) ? porcCump : null;
-    const proyeccion = Number(resumen?.proyeccionVenta ?? 0);
-    this.proyeccionImpactos = Number.isFinite(proyeccion) ? proyeccion : null;
+    const faltan = Number(resumen?.faltan ?? 0);
+    this.faltanImpactos = Number.isFinite(faltan) ? faltan : null;
     this.cdr.detectChanges();
   }
 
