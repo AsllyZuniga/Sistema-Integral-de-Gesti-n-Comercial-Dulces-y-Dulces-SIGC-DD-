@@ -295,9 +295,9 @@ export class FiltrosService {
 
     return {
       periodo: data.periodo ?? { fechaInicio: '', fechaFin: '' },
-      vendedores: Array.isArray(data.vendedores) ? data.vendedores : [],
-      proveedores: Array.isArray(data.proveedores) ? data.proveedores : [],
-      categorias: Array.isArray(data.categorias) ? data.categorias : [],
+      vendedores: this.normalizarOpcionesVendedores(data.vendedores),
+      proveedores: this.normalizarOpciones(data.proveedores, ['value', 'reporte_prov_con_obs', 'reporteProvConObs', 'codigo', 'codProveedor', 'proveedor'], ['label', 'nombre', 'nombreProveedor', 'proveedor']),
+      categorias: this.normalizarOpciones(data.categorias, ['value', 'id_categoria', 'idCategoria', 'codCategoria', 'codigo'], ['label', 'categoria', 'nomCategoria', 'nombreCategoria']),
       ciudades: [],
       canales: []
     };
