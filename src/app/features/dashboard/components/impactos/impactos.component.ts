@@ -77,10 +77,12 @@ export class ImpactosComponent implements OnInit, OnDestroy {
   }>();
 
   private _filtros: DashboardFilters | null = null;
+  private filtrosInicializados = false;
 
   @Input() set filtrosActivos(value: DashboardFilters | null) {
     if (value) {
       this._filtros = value;
+      this.filtrosInicializados = true;
       this.cargarImpactos();
     }
   }
@@ -95,7 +97,7 @@ export class ImpactosComponent implements OnInit, OnDestroy {
     if (this.impactosViews.length && !this.impactosViews.some(v => v.key === this.activeImpactosView)) {
       this.activeImpactosView = this.impactosViews[0].key;
     }
-    this.cargarImpactos();
+    if (!this.filtrosInicializados) this.cargarImpactos();
   }
 
   ngOnDestroy(): void {
@@ -143,24 +145,24 @@ export class ImpactosComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((res) => {
         const todos = res.rows as ImpactoProveedorRow[];
-        const filtrados = this.filtrarPorCodigosVendedores(todos);
-        const consolidados = this.consolidarPorProveedor(filtrados);
-        this.proveedorData = consolidados;
+        // Backend returns one globally unique row per provider. Summing rows
+        // here would duplicate clients when a provider has multiple sellers.
+        this.proveedorData = todos;
 
-        this.totalCuotaProveedores = consolidados.reduce(
+        this.totalCuotaProveedores = todos.reduce(
           (sum, item) => sum + (Number(item?.cuotaImpactos ?? 0) || 0),
           0,
         );
-        this.totalAcumuladoProveedores = consolidados.reduce(
+        this.totalAcumuladoProveedores = todos.reduce(
           (sum, item) => sum + (Number(item?.impactos ?? 0) || 0),
           0,
         );
-        this.totalFaltanProveedores = consolidados.reduce(
+        this.totalFaltanProveedores = todos.reduce(
           (sum, item) => sum + (Number(item?.faltan ?? 0) || 0),
           0,
         );
 
-        const chartData = this.agruparPorDimension(consolidados, 'proveedor');
+        const chartData = this.agruparPorDimension(todos, 'proveedor');
         const topProveedores = [...chartData]
           .sort((a, b) => b.value - a.value)
           .slice(0, 15);
