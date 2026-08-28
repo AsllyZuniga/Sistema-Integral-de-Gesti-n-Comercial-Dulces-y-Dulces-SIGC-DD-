@@ -161,6 +161,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   activeAnalisisView: 'ventas' | 'impactos' = 'ventas';
   activeSupervisorView: 'asignados' | 'analisis' | 'impactos' = 'asignados';
 
+  private vistaAnterior: 'ventas' | 'impactos' = 'ventas';
   private proveedorMap: Map<string, string> = new Map();
   private ciudadMap: Map<string, string> = new Map();
   private lineaMap: Map<string, string> = new Map();
@@ -198,7 +199,9 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       const vista = String(params.get('vista') ?? 'ventas').toLowerCase();
       const seccion = String(params.get('seccion') ?? 'asignados').toLowerCase();
 
-      this.activeAnalisisView = vista === 'impactos' ? 'impactos' : 'ventas';
+      const nuevaVista = vista === 'impactos' ? 'impactos' : 'ventas';
+      const cambioVista = nuevaVista !== this.vistaAnterior;
+      this.activeAnalisisView = nuevaVista;
 
       if (seccion === 'analisis') {
         this.activeSupervisorView = 'analisis';
@@ -206,6 +209,12 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         this.activeSupervisorView = 'impactos';
       } else {
         this.activeSupervisorView = 'asignados';
+      }
+
+      if (cambioVista && this.filtrosActivos?.fechaInicio) {
+        this.vistaAnterior = nuevaVista;
+        this.filtrosService.invalidarCache();
+        this.cargarOpcionesFiltrosUnificado();
       }
     });
 
