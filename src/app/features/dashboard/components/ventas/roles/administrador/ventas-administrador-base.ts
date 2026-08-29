@@ -139,22 +139,15 @@ export abstract class VentasAdministradorBase extends VentasUtilidadesBase {
               };
             });
 
-            // Refuerzo front: si el backend devuelve todos los proveedores aunque
-            // se haya enviado proveedor/proveedores, la tabla debe mostrar solo los
-            // proveedores seleccionados. El match es flexible: "535 - ABBOTT"
-            // coincide con filas que lleguen como "535" o solo "ABBOTT".
-            const proveedoresSeleccionados = this.normalizarValoresFiltro(
-              filtrosConsulta.proveedores,
-              filtrosConsulta.proveedor,
-            );
-            const detalleFiltradoPorProveedor = proveedoresSeleccionados.length
-              ? this.filtrarProveedoresMulti(detalleMapeado, proveedoresSeleccionados)
-              : detalleMapeado;
+            // /lineas ya aplica el filtro por proveedor usando
+            // reporte_prov_con_obs. No volver a filtrar aquí por idProveedor:
+            // ese campo pertenece al maestro del item y puede ser distinto al
+            // id seleccionado para el proveedor comercial (caso OBSEQUIOS/BAYER).
 
             // Fusionar filas del mismo proveedor que llegaron con distinto
             // código de reporte ("535 - ABBOTT" / "536 - ABBOTT") y quitar
             // el código antepuesto del nombre mostrado.
-            const detalleConsolidado = this.consolidarPorLinea(detalleFiltradoPorProveedor);
+            const detalleConsolidado = this.consolidarPorLinea(detalleMapeado);
 
             const ordenado = this.ordenarProveedoresPorAlfabeto(detalleConsolidado);
 
