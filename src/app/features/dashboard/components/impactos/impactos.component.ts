@@ -172,9 +172,7 @@ export class ImpactosComponent implements OnInit, OnDestroy {
       ),
     }).pipe(takeUntil(this.destroy$)).subscribe(({ proveedor, categoria, vendedor }) => {
       const proveedores = (proveedor.rows ?? []) as ImpactoProveedorRow[];
-      const categorias = this.filtrarPorCodigosVendedores(
-        (categoria.rows ?? []) as ImpactoCategoriaRow[],
-      );
+      const categorias = (categoria.rows ?? []) as ImpactoCategoriaRow[];
       const vendedores = this.filtrarPorCodigosVendedores(
         (vendedor.rows ?? []) as ImpactoVendedorRow[],
       );
