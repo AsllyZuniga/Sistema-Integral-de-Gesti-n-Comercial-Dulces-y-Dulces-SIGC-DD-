@@ -204,11 +204,23 @@ export class FiltrosService {
       let nombre = normalizarTextoFiltro(pick(item, labelKeys) || rawValue);
       if (!rawValue || !nombre) continue;
 
-      nombre = nombre.replace(/^\d+\s*-\s*/u, '').trim();
-
       const codigo = this.zeroPadCodigo(rawValue);
+      // Algunas respuestas ya traen el código dentro del nombre (por
+      // ejemplo, value="1A", label="1A" o label="1A - 1A"). No debemos
+      // volver a anteponerlo porque el dropdown termina mostrando "1A 1A".
+      const codigoBase = rawValue.trim();
+      if (nombre.toLocaleLowerCase().startsWith(codigoBase.toLocaleLowerCase())) {
+        nombre = nombre.slice(codigoBase.length).replace(/^\s*-\s*/u, '').trim();
+      } else {
+        nombre = nombre.replace(/^\d+\s*-\s*/u, '').trim();
+      }
+
+      if (!nombre || nombre.localeCompare(codigo, undefined, { sensitivity: 'base' }) === 0) {
+        nombre = '';
+      }
+
       if (!opciones.has(codigo)) {
-        opciones.set(codigo, { value: codigo, label: `${codigo} ${nombre}` });
+        opciones.set(codigo, { value: codigo, label: nombre ? `${codigo} ${nombre}` : codigo });
       }
     }
 
@@ -295,9 +307,20 @@ export class FiltrosService {
 
     return {
       periodo: data.periodo ?? { fechaInicio: '', fechaFin: '' },
-      vendedores: Array.isArray(data.vendedores) ? data.vendedores : [],
-      proveedores: Array.isArray(data.proveedores) ? data.proveedores : [],
-      categorias: Array.isArray(data.categorias) ? data.categorias : [],
+      // Impactos comparte los mismos dropdowns del análisis de ventas. Se
+      // normalizan con las mismas reglas para evitar etiquetas duplicadas
+      // como "1A 1A" cuando backend ya incluye el código en el nombre.
+      vendedores: this.normalizarOpcionesVendedores(data.vendedores),
+      proveedores: this.normalizarOpciones(
+        data.proveedores,
+        ['value', 'id_proveedor', 'idProveedor', 'codigo', 'codProveedor'],
+        ['label', 'nombre', 'nombreProveedor', 'proveedor'],
+      ),
+      categorias: this.normalizarOpciones(
+        data.categorias,
+        ['value', 'id_categoria', 'idCategoria', 'codCategoria', 'codigo'],
+        ['label', 'categoria', 'nombreCategoria', 'nombre'],
+      ),
       ciudades: [],
       canales: []
     };

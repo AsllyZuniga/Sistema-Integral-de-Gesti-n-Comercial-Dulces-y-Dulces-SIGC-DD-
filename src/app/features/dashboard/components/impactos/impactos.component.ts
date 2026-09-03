@@ -10,7 +10,8 @@ import {
   EventEmitter,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, Subscription, forkJoin, of, takeUntil } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { VentasTablaGraficaComponent } from '../ventas/ui/ventas-tabla-grafica.component';
 import { ImpactosService, ImpactosFiltros } from './services/impactos.service';
 import { IMPACTOS_VIEWS, obtenerVistasImpactosPorRol } from './config/impactos-view.config';
@@ -65,6 +66,9 @@ export class ImpactosComponent implements OnInit, OnDestroy {
   totalFaltanVendedores = 0;
 
   private destroy$ = new Subject<void>();
+  private cargaImpactos?: Subscription;
+  private claveCargaEnCurso = '';
+  cargandoImpactos = false;
 
   @Input() codigosVendedores: string[] = [];
   @Input() rolId = 0;
@@ -101,6 +105,7 @@ export class ImpactosComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.cargaImpactos?.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -139,114 +144,83 @@ export class ImpactosComponent implements OnInit, OnDestroy {
 
   private cargarImpactos(): void {
     const filtros = this.buildImpactosFiltros();
+    const claveFiltros = JSON.stringify(filtros);
+    if (this.cargandoImpactos && this.claveCargaEnCurso === claveFiltros) return;
 
-    this.impactosService
-      .getImpactosPorProveedor(filtros)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((res) => {
-        const todos = res.rows as ImpactoProveedorRow[];
-        // Backend returns one globally unique row per provider. Summing rows
-        // here would duplicate clients when a provider has multiple sellers.
-        this.proveedorData = todos;
+    this.cargaImpactos?.unsubscribe();
+    this.claveCargaEnCurso = claveFiltros;
+    this.cargandoImpactos = true;
+    this.proveedorData = [];
+    this.categoriaData = [];
+    this.vendedorData = [];
+    this.proveedorChartData = [];
+    this.categoriaChartData = [];
+    this.vendedorChartData = [];
 
-        this.totalCuotaProveedores = todos.reduce(
-          (sum, item) => sum + (Number(item?.cuotaImpactos ?? 0) || 0),
-          0,
-        );
-        this.totalAcumuladoProveedores = todos.reduce(
-          (sum, item) => sum + (Number(item?.impactos ?? 0) || 0),
-          0,
-        );
-        this.totalFaltanProveedores = todos.reduce(
-          (sum, item) => sum + (Number(item?.faltan ?? 0) || 0),
-          0,
-        );
+    // Las tres consultas se ejecutan en paralelo, pero se actualizan juntas.
+    // Al cancelar la suscripción anterior, una respuesta vieja no puede
+    // sobrescribir los datos de un filtro más reciente.
+    this.cargaImpactos = forkJoin({
+      proveedor: this.impactosService.getImpactosPorProveedor(filtros).pipe(
+        catchError(() => of({ rows: [] } as any)),
+      ),
+      categoria: this.impactosService.getImpactosPorCategoria(filtros).pipe(
+        catchError(() => of({ rows: [] } as any)),
+      ),
+      vendedor: this.impactosService.getImpactosPorVendedor(filtros).pipe(
+        catchError(() => of({ rows: [] } as any)),
+      ),
+    }).pipe(takeUntil(this.destroy$)).subscribe(({ proveedor, categoria, vendedor }) => {
+      const proveedores = (proveedor.rows ?? []) as ImpactoProveedorRow[];
+      const categorias = this.filtrarPorCodigosVendedores(
+        (categoria.rows ?? []) as ImpactoCategoriaRow[],
+      );
+      const vendedores = this.filtrarPorCodigosVendedores(
+        (vendedor.rows ?? []) as ImpactoVendedorRow[],
+      );
 
-        const chartData = this.agruparPorDimension(todos, 'proveedor');
-        const topProveedores = [...chartData]
-          .sort((a, b) => b.value - a.value)
-          .slice(0, 15);
+      this.proveedorData = proveedores;
+      this.categoriaData = categorias;
+      this.vendedorData = vendedores;
+      this.actualizarResumenDimension(proveedores, 'proveedor');
+      this.actualizarResumenDimension(categorias, 'categoria');
+      this.actualizarResumenDimension(vendedores, 'vendedor');
+      this.cargandoImpactos = false;
+      this.cdr.markForCheck();
+      this.emitirResumenCambio();
+    });
+  }
 
-        this.totalTopProveedores = topProveedores.reduce(
-          (sum, item) => sum + item.value,
-          0,
-        );
-        this.proveedorChartData = topProveedores;
-        this.cdr.markForCheck();
-        this.emitirResumenCambio();
-      });
+  private actualizarResumenDimension(
+    rows: ImpactoBaseRow[],
+    dimension: 'proveedor' | 'categoria' | 'vendedor',
+  ): void {
+    const cuota = rows.reduce((sum, item) => sum + (Number(item?.cuotaImpactos ?? 0) || 0), 0);
+    const impactos = rows.reduce((sum, item) => sum + (Number(item?.impactos ?? 0) || 0), 0);
+    const faltan = rows.reduce((sum, item) => sum + (Number(item?.faltan ?? 0) || 0), 0);
+    const chartData = this.agruparPorDimension(rows as any, dimension);
+    const top = [...chartData].sort((a, b) => b.value - a.value).slice(0, 15);
+    const topTotal = top.reduce((sum, item) => sum + item.value, 0);
 
-    this.impactosService
-      .getImpactosPorCategoria(filtros)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((res) => {
-        const todos = res.rows as ImpactoCategoriaRow[];
-        const filtrados = this.filtrarPorCodigosVendedores(todos);
-        const consolidados = this.consolidarPorCategoria(filtrados);
-        this.categoriaData = consolidados;
-
-        this.totalCuotaCategorias = consolidados.reduce(
-          (sum, item) => sum + (Number(item?.cuotaImpactos ?? 0) || 0),
-          0,
-        );
-        this.totalAcumuladoCategorias = consolidados.reduce(
-          (sum, item) => sum + (Number(item?.impactos ?? 0) || 0),
-          0,
-        );
-        this.totalFaltanCategorias = consolidados.reduce(
-          (sum, item) => sum + (Number(item?.faltan ?? 0) || 0),
-          0,
-        );
-
-        const chartData = this.agruparPorDimension(consolidados, 'categoria');
-        const topCategorias = [...chartData]
-          .sort((a, b) => b.value - a.value)
-          .slice(0, 15);
-
-        this.totalTopCategorias = topCategorias.reduce(
-          (sum, item) => sum + item.value,
-          0,
-        );
-        this.categoriaChartData = topCategorias;
-        this.cdr.markForCheck();
-        this.emitirResumenCambio();
-      });
-
-    this.impactosService
-      .getImpactosPorVendedor(filtros)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((res) => {
-        const todos = res.rows as ImpactoVendedorRow[];
-        const filtrados = this.filtrarPorCodigosVendedores(todos);
-
-        this.vendedorData = filtrados;
-
-        this.totalCuotaVendedores = filtrados.reduce(
-          (sum, item) => sum + (Number(item?.cuotaImpactos ?? 0) || 0),
-          0,
-        );
-        this.totalAcumuladoVendedores = filtrados.reduce(
-          (sum, item) => sum + (Number(item?.impactos ?? 0) || 0),
-          0,
-        );
-        this.totalFaltanVendedores = filtrados.reduce(
-          (sum, item) => sum + (Number(item?.faltan ?? 0) || 0),
-          0,
-        );
-
-        const chartData = this.agruparPorDimension(filtrados, 'vendedor');
-        const topVendedores = [...chartData]
-          .sort((a, b) => b.value - a.value)
-          .slice(0, 15);
-
-        this.totalTopVendedores = topVendedores.reduce(
-          (sum, item) => sum + item.value,
-          0,
-        );
-        this.vendedorChartData = topVendedores;
-        this.cdr.markForCheck();
-        this.emitirResumenCambio();
-      });
+    if (dimension === 'proveedor') {
+      this.totalCuotaProveedores = cuota;
+      this.totalAcumuladoProveedores = impactos;
+      this.totalFaltanProveedores = faltan;
+      this.totalTopProveedores = topTotal;
+      this.proveedorChartData = top;
+    } else if (dimension === 'categoria') {
+      this.totalCuotaCategorias = cuota;
+      this.totalAcumuladoCategorias = impactos;
+      this.totalFaltanCategorias = faltan;
+      this.totalTopCategorias = topTotal;
+      this.categoriaChartData = top;
+    } else {
+      this.totalCuotaVendedores = cuota;
+      this.totalAcumuladoVendedores = impactos;
+      this.totalFaltanVendedores = faltan;
+      this.totalTopVendedores = topTotal;
+      this.vendedorChartData = top;
+    }
   }
 
   private filtrarPorCodigosVendedores<T extends ImpactoBaseRow>(rows: T[]): T[] {
@@ -254,78 +228,6 @@ export class ImpactosComponent implements OnInit, OnDestroy {
     return rows.filter((d) => {
       const codigo = String(d.vendedor).split(' - ')[0]?.trim();
       return this.codigosVendedores.includes(codigo);
-    });
-  }
-
-  private consolidarPorProveedor(rows: ImpactoProveedorRow[]): ImpactoProveedorRow[] {
-    const map = new Map<string, { cuotaImpactos: number; impactos: number }>();
-
-    for (const row of rows) {
-      const key = row.proveedor;
-      if (!key) continue;
-
-      const cuota = Number(row.cuotaImpactos ?? 0);
-      const impactos = Number(row.impactos ?? 0);
-
-      const existing = map.get(key);
-      if (existing) {
-        existing.cuotaImpactos += cuota;
-        existing.impactos += impactos;
-      } else {
-        map.set(key, { cuotaImpactos: cuota, impactos });
-      }
-    }
-
-    return Array.from(map.entries()).map(([key, item]) => {
-      const c = item.cuotaImpactos;
-      const i = item.impactos;
-      return {
-        vendedor: '',
-        tipoPeriodo: '',
-        fechaInicio: '',
-        fechaFin: '',
-        proveedor: key,
-        cuotaImpactos: c,
-        impactos: i,
-        porcCump: c > 0 ? Math.round((i / c) * 1000) / 10 : 0,
-        faltan: Math.max(c - i, 0),
-      };
-    });
-  }
-
-  private consolidarPorCategoria(rows: ImpactoCategoriaRow[]): ImpactoCategoriaRow[] {
-    const map = new Map<string, { cuotaImpactos: number; impactos: number }>();
-
-    for (const row of rows) {
-      const key = row.categoria;
-      if (!key) continue;
-
-      const cuota = Number(row.cuotaImpactos ?? 0);
-      const impactos = Number(row.impactos ?? 0);
-
-      const existing = map.get(key);
-      if (existing) {
-        existing.cuotaImpactos += cuota;
-        existing.impactos += impactos;
-      } else {
-        map.set(key, { cuotaImpactos: cuota, impactos });
-      }
-    }
-
-    return Array.from(map.entries()).map(([key, item]) => {
-      const c = item.cuotaImpactos;
-      const i = item.impactos;
-      return {
-        vendedor: '',
-        tipoPeriodo: '',
-        fechaInicio: '',
-        fechaFin: '',
-        categoria: key,
-        cuotaImpactos: c,
-        impactos: i,
-        porcCump: c > 0 ? Math.round((i / c) * 1000) / 10 : 0,
-        faltan: Math.max(c - i, 0),
-      };
     });
   }
 
