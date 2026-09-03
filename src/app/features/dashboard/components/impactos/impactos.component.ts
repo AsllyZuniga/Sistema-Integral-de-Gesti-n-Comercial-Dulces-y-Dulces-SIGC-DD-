@@ -179,9 +179,11 @@ export class ImpactosComponent implements OnInit, OnDestroy {
         (vendedor.rows ?? []) as ImpactoVendedorRow[],
       );
 
-      this.proveedorData = proveedores;
-      this.categoriaData = categorias;
-      this.vendedorData = this.separarCodigoNombreVendedor(vendedores);
+      this.proveedorData = this.consolidarPorDimension(proveedores, 'proveedor');
+      this.categoriaData = this.consolidarPorDimension(categorias, 'categoria');
+      this.vendedorData = this.separarCodigoNombreVendedor(
+        this.consolidarPorDimension(vendedores, 'vendedor'),
+      );
       this.actualizarResumenDimension(proveedores, 'proveedor');
       this.actualizarResumenDimension(categorias, 'categoria');
       this.actualizarResumenDimension(vendedores, 'vendedor');
@@ -221,6 +223,30 @@ export class ImpactosComponent implements OnInit, OnDestroy {
       this.totalTopVendedores = topTotal;
       this.vendedorChartData = top;
     }
+  }
+
+  private consolidarPorDimension<T extends ImpactoBaseRow>(
+    rows: T[],
+    dimension: 'proveedor' | 'categoria' | 'vendedor',
+  ): T[] {
+    const map = new Map<string, T>();
+    for (const row of rows) {
+      const key = String((row as any)[dimension] ?? '');
+      const existente = map.get(key);
+      if (!existente) {
+        map.set(key, { ...row });
+        continue;
+      }
+      existente.cuotaImpactos = (Number(existente.cuotaImpactos) || 0) + (Number(row.cuotaImpactos) || 0);
+      existente.impactos = (Number(existente.impactos) || 0) + (Number(row.impactos) || 0);
+    }
+    for (const row of map.values()) {
+      const cuota = Number(row.cuotaImpactos) || 0;
+      const impactos = Number(row.impactos) || 0;
+      row.porcCump = cuota > 0 ? Math.round((impactos / cuota) * 1000) / 10 : 0;
+      row.faltan = Math.max(cuota - impactos, 0);
+    }
+    return Array.from(map.values());
   }
 
   private separarCodigoNombreVendedor(rows: ImpactoVendedorRow[]): ImpactoVendedorRow[] {
