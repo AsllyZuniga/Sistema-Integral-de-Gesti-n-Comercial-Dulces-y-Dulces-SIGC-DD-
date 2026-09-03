@@ -1141,7 +1141,10 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
    * Si se pasa `filtrosOrigen` (caso filterChange) usa ese; si no,
    * usa `filtrosActivos` (caso apply o carga inicial).
    */
-  private cargarOpcionesFiltrosUnificado(filtrosOrigen?: DashboardFilters): void {
+  private cargarOpcionesFiltrosUnificado(
+    filtrosOrigen?: DashboardFilters,
+    preservarSolo?: 'vendedor' | 'proveedor' | 'categoria' | 'ciudad' | 'canal',
+  ): void {
     const fuente = this.normalizarFiltrosDashboard(filtrosOrigen ?? this.filtrosActivos);
     const esVistaImpactos = this.activeAnalisisView === 'impactos' || this.activeSupervisorView === 'impactos';
     const opciones$ = esVistaImpactos
@@ -1158,43 +1161,56 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
         const filtrosReferencia = this.normalizarFiltrosDashboard(filtrosOrigen ?? this.filtrosActivos);
 
+        const conservar = (filtro: typeof preservarSolo): boolean =>
+          !preservarSolo || filtro === preservarSolo;
+
         this.aplicarOpcionesProveedores(
-          this.conservarOpcionesSeleccionadas(
-            Array.isArray(opciones.proveedores) ? opciones.proveedores : [],
-            this.normalizarArrayFiltro(filtrosReferencia.proveedores, filtrosReferencia.proveedor),
-            filtrosReferencia.proveedorNombres,
-          ),
+          conservar('proveedor')
+            ? this.conservarOpcionesSeleccionadas(
+                Array.isArray(opciones.proveedores) ? opciones.proveedores : [],
+                this.normalizarArrayFiltro(filtrosReferencia.proveedores, filtrosReferencia.proveedor),
+                filtrosReferencia.proveedorNombres,
+              )
+            : (Array.isArray(opciones.proveedores) ? opciones.proveedores : []),
         );
 
-        this.categoriasList = this.conservarOpcionesSeleccionadas(
-          Array.isArray(opciones.categorias) ? opciones.categorias : [],
-          this.normalizarArrayFiltro(filtrosReferencia.categorias, filtrosReferencia.categoria),
-          filtrosReferencia.categoriaNombres,
-        );
+        this.categoriasList = conservar('categoria')
+          ? this.conservarOpcionesSeleccionadas(
+              Array.isArray(opciones.categorias) ? opciones.categorias : [],
+              this.normalizarArrayFiltro(filtrosReferencia.categorias, filtrosReferencia.categoria),
+              filtrosReferencia.categoriaNombres,
+            )
+          : (Array.isArray(opciones.categorias) ? opciones.categorias : []);
 
-        const opcionesCiudades = this.conservarOpcionesSeleccionadas(
-          Array.isArray(opciones.ciudades) ? opciones.ciudades : [],
-          this.normalizarArrayFiltro(filtrosReferencia.ciudades, filtrosReferencia.ciudad),
-          filtrosReferencia.ciudadesNombres,
-        );
+        const opcionesCiudades = conservar('ciudad')
+          ? this.conservarOpcionesSeleccionadas(
+              Array.isArray(opciones.ciudades) ? opciones.ciudades : [],
+              this.normalizarArrayFiltro(filtrosReferencia.ciudades, filtrosReferencia.ciudad),
+              filtrosReferencia.ciudadesNombres,
+            )
+          : (Array.isArray(opciones.ciudades) ? opciones.ciudades : []);
         this.aplicarOpcionesCiudades(opcionesCiudades);
 
         if (!esVistaImpactos && (!Array.isArray(opciones.ciudades) || opciones.ciudades.length === 0)) {
           this.cargarCiudadesFallback(filtrosReferencia);
         }
 
-        this.canalesList = this.conservarOpcionesSeleccionadas(
-          Array.isArray(opciones.canales) ? opciones.canales : [],
-          this.normalizarArrayFiltro(filtrosReferencia.canales, filtrosReferencia.canal),
-          filtrosReferencia.canalNombres,
-        );
+        this.canalesList = conservar('canal')
+          ? this.conservarOpcionesSeleccionadas(
+              Array.isArray(opciones.canales) ? opciones.canales : [],
+              this.normalizarArrayFiltro(filtrosReferencia.canales, filtrosReferencia.canal),
+              filtrosReferencia.canalNombres,
+            )
+          : (Array.isArray(opciones.canales) ? opciones.canales : []);
 
         this.aplicarOpcionesVendedores(
           this.ordenarVendedoresPorCodigo(
-            this.conservarOpcionesSeleccionadas(
-              Array.isArray(opciones.vendedores) ? opciones.vendedores : [],
-              this.normalizarArrayFiltro(filtrosReferencia.vendedores, filtrosReferencia.vendedor),
-            ),
+            conservar('vendedor')
+              ? this.conservarOpcionesSeleccionadas(
+                  Array.isArray(opciones.vendedores) ? opciones.vendedores : [],
+                  this.normalizarArrayFiltro(filtrosReferencia.vendedores, filtrosReferencia.vendedor),
+                )
+              : (Array.isArray(opciones.vendedores) ? opciones.vendedores : []),
           ),
         );
 
@@ -1395,7 +1411,18 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       this.cumplimientoService.invalidarCacheRespuestas();
     }
 
-    this.cargarOpcionesFiltrosUnificado(this.filtrosPendientes);
+    const cambios: Array<'vendedor' | 'proveedor' | 'categoria' | 'ciudad' | 'canal'> = [];
+    if (JSON.stringify(anterior.vendedores ?? []) !== JSON.stringify(this.filtrosPendientes.vendedores ?? []) || anterior.vendedor !== this.filtrosPendientes.vendedor) cambios.push('vendedor');
+    if (JSON.stringify(anterior.proveedores ?? []) !== JSON.stringify(this.filtrosPendientes.proveedores ?? []) || anterior.proveedor !== this.filtrosPendientes.proveedor) cambios.push('proveedor');
+    if (JSON.stringify(anterior.categorias ?? []) !== JSON.stringify(this.filtrosPendientes.categorias ?? []) || anterior.categoria !== this.filtrosPendientes.categoria) cambios.push('categoria');
+    if (JSON.stringify(anterior.ciudades ?? []) !== JSON.stringify(this.filtrosPendientes.ciudades ?? []) || anterior.ciudad !== this.filtrosPendientes.ciudad) cambios.push('ciudad');
+    if (JSON.stringify(anterior.canales ?? []) !== JSON.stringify(this.filtrosPendientes.canales ?? []) || anterior.canal !== this.filtrosPendientes.canal) cambios.push('canal');
+
+    // El endpoint excluye el filtro que calcula para que pueda ampliarse.
+    // Para los demás catálogos no reinyectamos selecciones: si dejaron de
+    // ser compatibles, FiltersComponent las limpia al recibir las opciones.
+    const preservarSolo = cambios.length === 1 ? cambios[0] : undefined;
+    this.cargarOpcionesFiltrosUnificado(this.filtrosPendientes, preservarSolo);
   }
 
   private cargarVendedoresSupervisor(): void {
