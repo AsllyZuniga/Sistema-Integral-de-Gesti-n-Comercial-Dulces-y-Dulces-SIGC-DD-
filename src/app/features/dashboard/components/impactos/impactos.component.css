@@ -87,6 +87,13 @@
   color: #1959a8;
 }
 
+app-impactos td[data-col='nombre'],
+app-impactos th[data-col='nombre'] {
+  max-width: 220px;
+  white-space: normal;
+  word-break: break-word;
+}
+
 @media (max-width: 768px) {
   .proveedor-kpis {
     width: 100%;

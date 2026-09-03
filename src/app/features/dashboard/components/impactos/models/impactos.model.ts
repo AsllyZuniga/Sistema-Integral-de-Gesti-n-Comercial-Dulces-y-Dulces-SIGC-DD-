@@ -14,7 +14,10 @@ export interface ImpactoBaseRow {
   faltan: number;
 }
 
-export interface ImpactoVendedorRow extends ImpactoBaseRow {}
+export interface ImpactoVendedorRow extends ImpactoBaseRow {
+  codVendedor?: string;
+  nombre?: string;
+}
 
 export interface ImpactoProveedorRow extends ImpactoBaseRow {
   proveedor: string;

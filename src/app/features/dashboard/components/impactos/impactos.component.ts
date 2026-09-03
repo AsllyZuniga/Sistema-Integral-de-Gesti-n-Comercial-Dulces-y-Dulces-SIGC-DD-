@@ -37,7 +37,7 @@ export class ImpactosComponent implements OnInit, OnDestroy {
   impactosViews: ImpactosViewOption[] = IMPACTOS_VIEWS;
   activeImpactosView = 'vendedor';
 
-  vendedorColumns = ['vendedor', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
+  vendedorColumns = ['codVendedor', 'nombre', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
   proveedorColumns = ['proveedor', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
   categoriaColumns = ['categoria', 'cuotaImpactos', 'impactos', 'porcCump', 'faltan'];
 
@@ -181,7 +181,7 @@ export class ImpactosComponent implements OnInit, OnDestroy {
 
       this.proveedorData = proveedores;
       this.categoriaData = categorias;
-      this.vendedorData = vendedores;
+      this.vendedorData = this.separarCodigoNombreVendedor(vendedores);
       this.actualizarResumenDimension(proveedores, 'proveedor');
       this.actualizarResumenDimension(categorias, 'categoria');
       this.actualizarResumenDimension(vendedores, 'vendedor');
@@ -221,6 +221,17 @@ export class ImpactosComponent implements OnInit, OnDestroy {
       this.totalTopVendedores = topTotal;
       this.vendedorChartData = top;
     }
+  }
+
+  private separarCodigoNombreVendedor(rows: ImpactoVendedorRow[]): ImpactoVendedorRow[] {
+    return rows.map((row) => {
+      const [codVendedor, ...resto] = String(row.vendedor ?? '').split(' - ');
+      return {
+        ...row,
+        codVendedor: codVendedor?.trim() ?? '',
+        nombre: resto.join(' - ').trim(),
+      };
+    });
   }
 
   private filtrarPorCodigosVendedores<T extends ImpactoBaseRow>(rows: T[]): T[] {
