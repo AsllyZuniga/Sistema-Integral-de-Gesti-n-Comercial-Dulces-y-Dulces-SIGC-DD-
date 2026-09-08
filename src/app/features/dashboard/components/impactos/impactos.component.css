@@ -87,11 +87,36 @@
   color: #1959a8;
 }
 
+/* Tabla: en escritorio llena el ancho del panel (sin espacio
+   en blanco lateral). Las columnas de texto quedan en una línea
+   (nowrap) para que la columna mida el ancho del texto más largo
+   sin cortar palabras. En móvil se mantiene compacta al contenido.
+   Nota: el selector usa .table-scroll-wrap para vencer la
+   especificidad (0,1,3) > (0,1,1) del table[_ngcontent-...]
+   del table.component.css y así aplicar min-width:0. */
+app-impactos app-table .table-scroll-wrap table {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  table-layout: auto;
+}
+
+/* Columnas de texto: ancho = ancho del texto más largo, sin cortar */
 app-impactos td[data-col='nombre'],
-app-impactos th[data-col='nombre'] {
-  max-width: 220px;
-  white-space: normal;
-  word-break: break-word;
+app-impactos td[data-col='proveedor'],
+app-impactos td[data-col='categoria'] {
+  white-space: nowrap;
+}
+
+/* Columnas numéricas: compactas y alineadas a la derecha */
+app-impactos td[data-col='codVendedor'],
+app-impactos td[data-col='cuotaImpactos'],
+app-impactos td[data-col='impactos'],
+app-impactos td[data-col='porcCump'],
+app-impactos td[data-col='faltan'] {
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 768px) {
@@ -112,5 +137,13 @@ app-impactos th[data-col='nombre'] {
 
   .categoria-totales {
     justify-content: flex-start;
+  }
+
+  /* Móvil: tabla compacta al contenido, scroll horizontal si excede */
+  app-impactos app-table .table-scroll-wrap table {
+    width: max-content;
+    max-width: 100%;
+    min-width: 0;
+    table-layout: auto;
   }
 }
