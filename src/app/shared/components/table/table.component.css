@@ -61,6 +61,11 @@ td {
   overflow-wrap: normal;
   hyphens: none;
   max-width: none;
+  /* Ancho de columna = máximo entre el encabezado y el dato más largo:
+     nunca se angosta por debajo del texto del encabezado (nowrap ya evita
+     que se corte), y crece si algún dato de la fila es más ancho que él. */
+  width: max-content;
+  min-width: max-content;
 }
 
 th {

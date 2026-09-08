@@ -57,16 +57,8 @@
   font-style: italic;
 }
 
-.admin-table.supervisor-table th:nth-child(2),
-.admin-table.supervisor-table td:nth-child(2) {
-  min-width: 200px;
-}
-
 .admin-table.supervisor-table td.nombre {
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 300px;
 }
 
 .admin-table td.num {
@@ -142,12 +134,14 @@
 
 .tabla-scroll.role-scroll .admin-table th,
 .tabla-scroll.role-scroll .admin-table td {
-  min-width: unset;
   padding: 9px 10px;
   white-space: nowrap;
   word-break: keep-all;
   overflow-wrap: normal;
   hyphens: none;
+  /* Ancho de columna = máximo entre encabezado y dato más largo */
+  width: max-content;
+  min-width: max-content;
 }
 
 @media (max-width: 1024px) {
