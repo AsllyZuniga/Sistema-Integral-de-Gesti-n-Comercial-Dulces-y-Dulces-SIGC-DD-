@@ -81,6 +81,14 @@ export const MENU_ITEMS: MenuItem[] = [
     queryParams: { vista: 'ventas' },
     activoPorParams: { vista: 'ventas' },
   },
+  {
+    icon: 'monitoring',
+    label: 'Análisis de Impactos',
+    ruta: '/dashboard',
+    roles: [RoleId.VENDEDOR],
+    queryParams: { vista: 'impactos' },
+    activoPorParams: { vista: 'impactos' },
+  },
 ];
 
 export interface AccesosMenu {

@@ -6,7 +6,7 @@ export enum RoleId {
 
 export const DASHBOARD_ROLES = [RoleId.ADMINISTRADOR, RoleId.SUPERVISOR, RoleId.VENDEDOR];
 export const ADMIN_ROLES = [RoleId.ADMINISTRADOR];
-export const ANALISIS_ROLES = [RoleId.ADMINISTRADOR, RoleId.SUPERVISOR];
+export const ANALISIS_ROLES = [RoleId.ADMINISTRADOR, RoleId.SUPERVISOR, RoleId.VENDEDOR];
 
 export function esAdministrador(rolId: number): boolean {
   return Number(rolId) === RoleId.ADMINISTRADOR;
